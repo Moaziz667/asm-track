@@ -2,17 +2,26 @@ package com.asm.erpadapter.service;
 
 import com.asm.erpadapter.client.SettingsInternalClient;
 import com.asm.erpadapter.dto.SystemSettingsDto;
+import com.asm.erpadapter.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Fetches ERP connection settings from AppBackend, with a 60-second cache and a safe fallback.
+ * Fetches ERP connection settings from AppBackend, with a short cache and a safe fallback.
  * The HTTP call and its service-token auth are delegated to {@link SettingsInternalClient} (Feign);
  * this class only owns the cache and fallback policy.
+ *
+ * <p><b>Multi-tenant:</b> each tenant has its own ERP provider + credentials (AppBackend stores them
+ * per schema). The cache is therefore keyed by {@code companyId} ({@link TenantContext}); a single
+ * shared entry would let the first tenant's config be served to every other tenant for the TTL window
+ * — e.g. an Odoo tenant's BLs showing up on an ERPNext tenant's import page. The Feign call itself
+ * forwards {@code X-Company-Id} (see {@code ServiceClientConfig}), so AppBackend returns the right
+ * schema's row; the per-tenant key just stops the cache from crossing the wires back.
  */
 @Service
 @RequiredArgsConstructor
@@ -21,31 +30,41 @@ public class SettingsClient {
 
     private final SettingsInternalClient settingsInternalClient;
 
-    // Simple cache: 60 seconds
-    private final AtomicReference<SystemSettingsDto> cachedSettings = new AtomicReference<>();
-    private final AtomicLong cacheTimestamp = new AtomicLong(0);
+    /** One cache entry per tenant: the last-fetched settings and when we fetched them. */
+    private record Entry(SystemSettingsDto settings, long fetchedAtMs) {}
+
+    // Keyed by companyId (or NO_TENANT when there is no tenant context) so tenants never share config.
+    private final Map<String, Entry> cacheByTenant = new ConcurrentHashMap<>();
+    private static final String NO_TENANT = "__no_tenant__";
 
     private static final long CACHE_TTL_MS = 30_000;
     private static final SystemSettingsDto NONE = SystemSettingsDto.builder().activeErpProvider("NONE").build();
 
     public SystemSettingsDto getSettings() {
+        String tenantKey = tenantKey();
         long now = System.currentTimeMillis();
-        if (cachedSettings.get() != null && (now - cacheTimestamp.get()) < CACHE_TTL_MS) {
-            return gate(cachedSettings.get());
+        Entry cached = cacheByTenant.get(tenantKey);
+        if (cached != null && (now - cached.fetchedAtMs()) < CACHE_TTL_MS) {
+            return gate(cached.settings());
         }
         try {
             SystemSettingsDto settings = settingsInternalClient.getErpSettings();
             if (settings != null) {
-                cachedSettings.set(settings);
-                cacheTimestamp.set(now);
+                cacheByTenant.put(tenantKey, new Entry(settings, now));
                 return gate(settings);
             }
         } catch (Exception e) {
-            log.error("Failed to fetch ERP settings from AppBackend: {}", e.getMessage());
+            log.error("Failed to fetch ERP settings from AppBackend for tenant {}: {}", tenantKey, e.getMessage());
         }
-        // Fetch failed: serve last-known-good ONLY if it was a healthy (CONNECTED) connection.
-        // We must never keep pulling orders with credentials that have since been marked ERROR.
-        return cachedSettings.get() != null ? gate(cachedSettings.get()) : NONE;
+        // Fetch failed: serve this tenant's last-known-good ONLY if it was a healthy (CONNECTED)
+        // connection. We must never keep pulling orders with credentials since marked ERROR.
+        return cached != null ? gate(cached.settings()) : NONE;
+    }
+
+    /** Cache key for the current tenant — the company id, or a stable sentinel when none is set. */
+    private String tenantKey() {
+        UUID companyId = TenantContext.get();
+        return companyId != null ? companyId.toString() : NO_TENANT;
     }
 
     /**

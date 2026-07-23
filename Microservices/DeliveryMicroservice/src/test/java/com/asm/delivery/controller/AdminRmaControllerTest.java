@@ -35,7 +35,7 @@ class AdminRmaControllerTest {
 
     @BeforeEach
     void setUp() {
-        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test", null);
+        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test", null, null);
     }
 
     @Test

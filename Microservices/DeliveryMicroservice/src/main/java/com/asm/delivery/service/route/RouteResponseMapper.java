@@ -623,7 +623,7 @@ public class RouteResponseMapper {
                         .deliveryId(delivery != null ? delivery.getId() : null)
                         .deliveryStatus(delivery != null && delivery.getStatus() != null ? delivery.getStatus().name() : null)
                         .erpOrderId(orderInfo.getErpOrderId())
-                        .odooSyncStatus(orderInfo.getOdooSyncStatus())
+                        .erpSyncStatus(orderInfo.getErpSyncStatus())
                         .createdAt(orderInfo.getCreatedAt())
                         .updatedAt(orderInfo.getUpdatedAt())
                         .build() : null)

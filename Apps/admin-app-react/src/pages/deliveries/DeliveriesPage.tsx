@@ -17,7 +17,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { IconScan, IconX } from '@tabler/icons-react';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useGlobalFilters } from '@/lib/state/global-filters';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
 import { resolveOrderRef } from '@/lib/utils';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -51,7 +50,6 @@ function DeliveriesPageContent() {
   const { density, setDensity } = useDensity('deliveries', 'comfortable');
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('deliveries', DELIVERY_COLUMNS);
 
-  useEffect(() => { const r = getCurrentRole(); if (r !== 'UNKNOWN' && !canDispatch(r)) { router('/dashboard', { replace: true }); } }, [router]);
   const { filters: globalFilters, applyFilters, globalContext } = useGlobalFilters();
 
   const [query, setQuery] = useState(globalFilters.search);
@@ -84,7 +82,7 @@ function DeliveriesPageContent() {
   const downloadBl = async (deliveryId: string, ref: string) => {
     setDownloadingBl(prev => new Set(prev).add(deliveryId));
     try {
-      const res = await api.get(`/api/admin/deliveries/${deliveryId}/bon-livraison`, { responseType: 'blob' });
+      const res = await api.get(`/admin/deliveries/${deliveryId}/bon-livraison`, { responseType: 'blob' });
       const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -162,7 +160,7 @@ function DeliveriesPageContent() {
     if (row) { setPinTarget(row); pinConsumedRef.current = true; return; }
     // Fallback: fetch the single delivery by ID if not in the current list
     if (rows.length > 0) {
-      api.get(`/api/admin/deliveries/${pinParam}`)
+      api.get(`/admin/deliveries/${pinParam}`)
         .then(res => {
           if (!pinConsumedRef.current && res.data) {
             setPinTarget(res.data as DeliveryRow);

@@ -2,6 +2,7 @@ package com.asm.delivery.service.analytics;
 
 import com.asm.delivery.entity.Zone;
 import com.asm.delivery.repository.ZoneRepository;
+import com.asm.delivery.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -15,24 +16,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * Shared zone-name-to-id resolver with in-memory cache.
  * Replaces the duplicate {@code resolveZoneId} methods in OpsAnalyticsService,
  * DriverPerformanceService, and ReportingService.
+ *
+ * <p><b>Multi-tenant:</b> zones live in each tenant's schema, so two tenants can each have a zone
+ * named "Nord" with different ids. The cache is therefore keyed by {@code companyId} + name — a
+ * name-only key would return tenant A's zone id to tenant B, silently corrupting B's analytics filter.
  */
 @Component
 @RequiredArgsConstructor
 public class ZoneResolver {
 
     private final ZoneRepository zoneRepository;
+    // Key = "<companyId>::<zoneName>" so a zone name never resolves to another tenant's zone id.
     private final Map<String, UUID> cache = new ConcurrentHashMap<>();
 
     /**
      * Resolve a zone name to its id; null/blank or unknown name yields null (no filter).
-     * Results are cached for the lifetime of the application context.
+     * Results are cached per tenant for the lifetime of the application context.
      */
     public UUID resolve(String zoneName) {
         if (zoneName == null || zoneName.isBlank()) return null;
-        String key = zoneName.trim().toLowerCase();
-        return cache.computeIfAbsent(key, k ->
+        String name = zoneName.trim().toLowerCase();
+        UUID companyId = TenantContext.get();
+        String cacheKey = (companyId != null ? companyId.toString() : "__no_tenant__") + "::" + name;
+        return cache.computeIfAbsent(cacheKey, k ->
                 zoneRepository.findAll().stream()
-                        .filter(z -> k.equalsIgnoreCase(z.getName()))
+                        .filter(z -> name.equalsIgnoreCase(z.getName()))
                         .map(Zone::getId)
                         .findFirst()
                         .orElse(null)

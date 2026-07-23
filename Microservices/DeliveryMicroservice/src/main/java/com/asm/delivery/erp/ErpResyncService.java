@@ -87,17 +87,17 @@ public class ErpResyncService {
         }
         String blNumber = order.getBlNumber();
 
-        if (!"SYNC_FAILED".equals(order.getOdooSyncStatus())) {
-            return new ResyncResult(orderId, blNumber, order.getOdooSyncStatus(), false,
-                    "Order is not in SYNC_FAILED state (current: " + order.getOdooSyncStatus() + ")");
+        if (!"SYNC_FAILED".equals(order.getErpSyncStatus())) {
+            return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false,
+                    "Order is not in SYNC_FAILED state (current: " + order.getErpSyncStatus() + ")");
         }
 
         Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId).orElse(null);
         if (delivery == null) {
-            return new ResyncResult(orderId, blNumber, order.getOdooSyncStatus(), false, "No shipment found for this order");
+            return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false, "No shipment found for this order");
         }
         if (resolveErpRef(order) == null) {
-            return new ResyncResult(orderId, blNumber, order.getOdooSyncStatus(), false,
+            return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false,
                     "Order has no ERP reference — cannot sync");
         }
 
@@ -138,7 +138,7 @@ public class ErpResyncService {
                 payload.put("comment", delivery.getFailReason());
             }
             default -> {
-                return new ResyncResult(orderId, blNumber, order.getOdooSyncStatus(), false,
+                return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false,
                         "Cannot auto-resync operation '" + op + "' — needs manual review in Odoo");
             }
         }
@@ -154,7 +154,7 @@ public class ErpResyncService {
     @Transactional
     public Map<String, Object> resyncAll(int max) {
         int cap = Math.min(Math.max(max, 1), 50);
-        List<Order> failed = orderRepo.findTop50ByOdooSyncStatusOrderByUpdatedAtAsc("SYNC_FAILED");
+        List<Order> failed = orderRepo.findTop50ByErpSyncStatusOrderByUpdatedAtAsc("SYNC_FAILED");
         int queued = 0;
         var results = new java.util.ArrayList<Map<String, Object>>();
         for (Order o : failed) {
@@ -182,7 +182,7 @@ public class ErpResyncService {
      * <p>This sweep finds orders that have been PENDING_SYNC longer than the grace window and whose
      * outbox event is no longer pending/processing (i.e. the command was sent but no result came back),
      * and re-enqueues a fresh sync so the result loop runs again. Re-enqueue is safe: downstream is
-     * idempotent on {@code txId} and the backorder on {@code odooBackorderId}.
+     * idempotent on {@code txId} and the backorder on {@code erpBackorderId}.
      *
      * <p>Runs every 5 minutes; the grace window ({@code erp.reconcile.stuck-minutes}, default 15)
      * keeps it from racing a sync that is simply still in flight.
@@ -191,7 +191,7 @@ public class ErpResyncService {
     public void reconcileStuckPendingSync() {
         int graceMinutes = stuckMinutes;
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(graceMinutes);
-        List<Order> stuck = orderRepo.findTop50ByOdooSyncStatusOrderByUpdatedAtAsc("PENDING_SYNC");
+        List<Order> stuck = orderRepo.findTop50ByErpSyncStatusOrderByUpdatedAtAsc("PENDING_SYNC");
         int reconciled = 0;
         for (Order order : stuck) {
             // Oldest-first: once we hit one inside the grace window, the rest are newer → stop.
@@ -215,7 +215,7 @@ public class ErpResyncService {
     @Transactional
     public boolean reEnqueueStuckOrder(UUID orderId) {
         Order order = orderRepo.findByIdForUpdate(orderId).orElse(null);
-        if (order == null || !"PENDING_SYNC".equals(order.getOdooSyncStatus())) return false;
+        if (order == null || !"PENDING_SYNC".equals(order.getErpSyncStatus())) return false;
 
         Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId).orElse(null);
         if (delivery == null || resolveErpRef(order) == null) return false;
@@ -254,7 +254,7 @@ public class ErpResyncService {
     }
 
     private void markPending(Order order) {
-        order.setOdooSyncStatus("PENDING_SYNC");
+        order.setErpSyncStatus("PENDING_SYNC");
         order.setSyncRetryCount(0);
         order.setNextSyncRetryAt(null);
         orderRepo.save(order);

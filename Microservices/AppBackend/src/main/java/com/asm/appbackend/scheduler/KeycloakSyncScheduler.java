@@ -31,32 +31,44 @@ public class KeycloakSyncScheduler {
     private final AdminUserRepository adminUserRepo;
     private final KeycloakAdminClient keycloakAdminClient;
     private final MeterRegistry meters;
+    private final com.asm.appbackend.config.TenantIterator tenantIterator;
     private final AtomicLong lastSuccessEpoch = new AtomicLong(0);
 
     public KeycloakSyncScheduler(AdminUserRepository adminUserRepo,
                                  KeycloakAdminClient keycloakAdminClient,
-                                 MeterRegistry meters) {
+                                 MeterRegistry meters,
+                                 com.asm.appbackend.config.TenantIterator tenantIterator) {
         this.adminUserRepo = adminUserRepo;
         this.keycloakAdminClient = keycloakAdminClient;
         this.meters = meters;
+        this.tenantIterator = tenantIterator;
         meters.gauge("kc.sync.last_success.seconds", lastSuccessEpoch);
     }
 
-    /** Fast incremental pass: only rows that may diverge (just created/updated, or failed sync). */
+    /**
+     * Fast incremental pass: only rows that may diverge (just created/updated, or failed sync).
+     * The {@code admin_users} table is per-tenant, so we iterate every provisioned tenant — otherwise
+     * the scheduled thread (no TenantContext) would only scan the empty {@code public} schema and no
+     * real tenant's admins would ever reconcile to Keycloak.
+     */
     @Scheduled(fixedDelay = 60_000, initialDelay = 10_000)
     public void reconcileDirty() {
-        List<AdminUser> dirty = adminUserRepo.findByKcSyncedFalse();
-        if (dirty.isEmpty()) return;
-        log.info("Keycloak admin sync (dirty pass): {} row(s) to reconcile", dirty.size());
-        runPass("dirty", dirty);
+        tenantIterator.forEachActive(companyId -> {
+            List<AdminUser> dirty = adminUserRepo.findByKcSyncedFalse();
+            if (dirty.isEmpty()) return;
+            log.info("Keycloak admin sync (dirty pass): {} row(s) to reconcile for tenant {}", dirty.size(), companyId);
+            runPass("dirty", dirty);
+        });
     }
 
     /** Full drift audit over all rows — catches out-of-band Keycloak edits the dirty pass misses. */
     @Scheduled(fixedDelay = 900_000, initialDelay = 60_000)
     public void reconcileAll() {
-        log.info("Keycloak admin sync (full pass): starting drift audit...");
-        runPass("full", adminUserRepo.findAll());
-        log.info("Keycloak admin sync (full pass): complete.");
+        tenantIterator.forEachActive(companyId -> {
+            log.info("Keycloak admin sync (full pass): starting drift audit for tenant {}...", companyId);
+            runPass("full", adminUserRepo.findAll());
+            log.info("Keycloak admin sync (full pass): complete for tenant {}.", companyId);
+        });
     }
 
     private void runPass(String pass, List<AdminUser> users) {
@@ -80,7 +92,8 @@ public class KeycloakSyncScheduler {
             // Missing in Keycloak — provision with no server-side password (UPDATE_PASSWORD required
             // action). createUser is idempotent and also applies the display name on the way through.
             log.info("Sync: admin user missing in Keycloak. Provisioning... email={}", dbUser.getEmail());
-            keycloakAdminClient.createUser(dbUser.getEmail(), dbUser.getRole(), dbUser.getId().toString(), null, dbUser.getName());
+            String newKcUserId = keycloakAdminClient.createUser(dbUser.getEmail(), dbUser.getRole(), dbUser.getId().toString(), null, dbUser.getName());
+            ensureOrgMembership(newKcUserId, dbUser);
             meters.counter("kc.sync.repairs", "service", "admin", "kind", "provision").increment();
             // Best-effort: prompt the user to set a password (no-op if SMTP isn't configured).
             try {
@@ -104,6 +117,13 @@ public class KeycloakSyncScheduler {
 
         // Role drift
         String kcUserId = (String) kcUser.get("id");
+
+        // Org-membership drift (DB→KC). Tenant assignment is app-mastered (this user's admin_users row
+        // lives in exactly one company_<id> schema — TenantContext here is that tenant), so a user with
+        // no org membership is healed idempotently. Without it the JWT carries no org_id and the gateway
+        // fail-closes (403). addOrganizationMember treats "already a member" (409) as success.
+        ensureOrgMembership(kcUserId, dbUser);
+
         List<String> kcRoles = keycloakAdminClient.getUserRoles(kcUserId);
         if (!kcRoles.contains(dbUser.getRole().toUpperCase())) {
             log.info("Sync: role drift for {} (db={}, kc={}). Reconciling...", dbUser.getEmail(), dbUser.getRole(), kcRoles);
@@ -121,6 +141,22 @@ public class KeycloakSyncScheduler {
             meters.counter("kc.sync.repairs", "service", "admin", "kind", "attributes").increment();
         }
         markSynced(dbUser);
+    }
+
+    /**
+     * Ensure the KC user is a member of the current tenant's Organization. The reconciler runs inside
+     * {@link com.asm.appbackend.config.TenantIterator#forEachActive}, which sets {@link TenantContext}
+     * to the tenant being processed — so {@code TenantContext.get()} is the org id this user belongs to.
+     * Idempotent (409 = already a member = ok); best-effort so it never aborts the rest of the reconcile.
+     */
+    private void ensureOrgMembership(String kcUserId, AdminUser dbUser) {
+        java.util.UUID companyId = com.asm.appbackend.security.TenantContext.get();
+        if (companyId == null || kcUserId == null) return;
+        try {
+            keycloakAdminClient.addOrganizationMember(companyId.toString(), kcUserId);
+        } catch (Exception e) {
+            log.warn("Sync: could not ensure org membership for {} in {}: {}", dbUser.getEmail(), companyId, e.getMessage());
+        }
     }
 
     private void markSynced(AdminUser dbUser) {

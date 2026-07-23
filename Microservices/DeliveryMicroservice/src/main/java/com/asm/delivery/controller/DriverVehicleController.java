@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/driver/vehicles")
+@RequestMapping("/api/v1/driver/vehicles")
 @Tag(name = "Driver Vehicles", description = "Vehicle management for drivers")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

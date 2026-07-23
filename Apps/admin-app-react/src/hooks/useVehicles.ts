@@ -47,7 +47,7 @@ export function useVehicles() {
   return useQuery<VehicleItem[]>({
     queryKey: VEHICLES_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<VehicleItem[]>('/api/admin/vehicles');
+      const res = await api.get<VehicleItem[]>('/admin/vehicles');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -59,7 +59,7 @@ export function useFleetDrivers() {
   return useQuery<Driver[]>({
     queryKey: FLEET_DRIVERS_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<Driver[]>('/api/admin/fleet/drivers');
+      const res = await api.get<Driver[]>('/admin/fleet/drivers');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -72,7 +72,7 @@ export function useCreateVehicle() {
 
   return useMutation({
     mutationFn: async (payload: VehiclePayload) => {
-      const res = await api.post<VehicleItem>('/api/admin/vehicles', payload);
+      const res = await api.post<VehicleItem>('/admin/vehicles', payload);
       return res.data;
     },
     onSuccess: () => {
@@ -90,7 +90,7 @@ export function useUpdateVehicle() {
 
   return useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: VehiclePayload }) => {
-      const res = await api.put<VehicleItem>(`/api/admin/vehicles/${id}`, payload);
+      const res = await api.put<VehicleItem>(`/admin/vehicles/${id}`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -108,7 +108,7 @@ export function useDeleteVehicle() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.delete<void>(`/api/admin/vehicles/${id}`);
+      const res = await api.delete<void>(`/admin/vehicles/${id}`);
       return res.data;
     },
     onSuccess: () => {
@@ -126,7 +126,7 @@ export function useReactivateVehicle() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.patch<VehicleItem>(`/api/admin/vehicles/${id}/reactivate`);
+      const res = await api.patch<VehicleItem>(`/admin/vehicles/${id}/reactivate`);
       return res.data;
     },
     onSuccess: () => {

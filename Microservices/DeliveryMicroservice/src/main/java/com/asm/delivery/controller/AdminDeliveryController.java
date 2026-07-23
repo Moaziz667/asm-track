@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/deliveries")
+@RequestMapping("/api/v1/admin/deliveries")
 @Tag(name = "Admin Deliveries", description = "Monitor, dispatch, and manage deliveries. All data is scoped to the authenticated admin's company.")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

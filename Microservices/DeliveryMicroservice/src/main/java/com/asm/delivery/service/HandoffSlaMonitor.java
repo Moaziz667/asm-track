@@ -1,5 +1,6 @@
 package com.asm.delivery.service;
 
+import com.asm.delivery.config.TenantIterator;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Handoff;
 import com.asm.delivery.entity.Order;
@@ -7,6 +8,7 @@ import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.HandoffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,9 @@ public class HandoffSlaMonitor {
     private final DeliveryRepository deliveryRepo;
     private final EventPublisher eventPublisher;
     private final HandoffService handoffService;
+    private final TenantIterator tenantIterator;
+    // Self-proxy so the per-tenant @Transactional applies (a direct this-call would bypass it).
+    private final ObjectProvider<HandoffSlaMonitor> self;
 
     @Value("${handoff.sla.pending-minutes:15}")
     private long pendingMinutes;
@@ -37,9 +42,19 @@ public class HandoffSlaMonitor {
     @Value("${handoff.sla.auto-cancel-minutes:0}")
     private long autoCancelMinutes;
 
+    /**
+     * Escalates stalled handoffs once <b>per provisioned tenant</b> — the scheduled thread has no
+     * TenantContext, so a single unscoped sweep would only see the empty {@code public} schema and no
+     * tenant's overdue handoffs would ever be escalated. Each tenant runs in its own transaction.
+     */
     @Scheduled(fixedDelayString = "${handoff.sla.check-interval-ms:30000}")
-    @Transactional
     public void sweep() {
+        tenantIterator.forEachActive(companyId -> self.getObject().sweepCurrentTenant());
+    }
+
+    /** One tenant's overdue-handoff sweep. */
+    @Transactional
+    public void sweepCurrentTenant() {
         LocalDateTime now = LocalDateTime.now();
 
         for (Handoff h : handoffRepo.findOverdue(now.minusMinutes(pendingMinutes))) {

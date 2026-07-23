@@ -144,10 +144,10 @@ public class AdminDeliveryDetailResponse {
     private String currency;
 
     @Schema(description = "ERP sync status")
-    private String odooSyncStatus;
+    private String erpSyncStatus;
 
     @Schema(description = "Backorder id in ERP if generated")
-    private Integer odooBackorderId;
+    private Integer erpBackorderId;
 
     @Schema(description = "Effective scheduled date/time (replan date if rescheduled, else ERP date)")
     private LocalDateTime scheduledAt;

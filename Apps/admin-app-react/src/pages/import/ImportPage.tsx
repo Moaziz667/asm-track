@@ -105,7 +105,7 @@ function ImportErpPageContent() {
   const [erpConn, setErpConn] = useState<{ provider: string; status: string; error?: string | null } | null>(null);
   useEffect(() => {
     let alive = true;
-    api.get('/api/settings/erp')
+    api.get('/settings/erp')
       .then(res => { if (alive && res.data) setErpConn({ provider: res.data.activeErpProvider, status: res.data.connectionStatus, error: res.data.lastError }); })
       .catch(() => { /* not admin / no settings — no banner */ });
     return () => { alive = false; };
@@ -117,7 +117,7 @@ function ImportErpPageContent() {
       if (silent) setRefreshing(true);
       else setLoading(true);
 
-      const res = await api.get('/api/admin/erp/pending-orders', { params: { limit: 200, forceRefresh } });
+      const res = await api.get('/admin/erp/pending-orders', { params: { limit: 200, forceRefresh } });
       const data = Array.isArray(res.data) ? res.data : [];
       setRows(data);
     } catch (err) {
@@ -197,7 +197,7 @@ function ImportErpPageContent() {
     setPreviewOpen(true);
     setPreviewLoading(true);
     try {
-      const res = await api.get('/api/admin/erp/pending-orders/preview', { params: { erpOrderId } });
+      const res = await api.get('/admin/erp/pending-orders/preview', { params: { erpOrderId } });
       setPreview(res.data);
     } catch (err) {
       showErrorToast(err, 'errorDataLoadFailed');
@@ -215,7 +215,7 @@ function ImportErpPageContent() {
     if (ids.length === 0) return;
     try {
       setBulkImporting(true);
-      await api.post('/api/admin/erp/bulk-import', ids);
+      await api.post('/admin/erp/bulk-import', ids);
       showSuccessToast('successImportCompleted');
       setSelectedIds(new Set());
       await loadPendingOrders(true);
@@ -248,7 +248,7 @@ function ImportErpPageContent() {
   const doImport = useCallback(async (erpOrderId: string) => {
     try {
       setImportingId(erpOrderId);
-      await api.post('/api/admin/erp/import-order', null, { params: { erpOrderId } });
+      await api.post('/admin/erp/import-order', null, { params: { erpOrderId } });
       showSuccessToast('successImportSingle');
       setConfirmForId(null);
       setPreviewOpen(false);

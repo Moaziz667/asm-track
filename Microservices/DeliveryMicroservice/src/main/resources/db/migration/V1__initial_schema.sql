@@ -14,9 +14,8 @@ CREATE TABLE companies (
     active        BOOLEAN      DEFAULT true,
     created_at    TIMESTAMP    DEFAULT NOW()
 );
--- Seed default visual branding (Single Tenant)
-INSERT INTO companies (id, name, logo_url, address, primary_color, support_email, active)
-VALUES ('00000000-0000-0000-0000-000000000001', 'ASM Track', NULL, 'Z.I Charguia 1, Tunis', '#FF5722', 'support@asm.tn', true);
+-- No default company seed: multi-tenant. Each tenant schema is provisioned empty and its
+-- company branding row is seeded explicitly at onboarding (companyId = Keycloak org_id).
 -- 2. DEPOTS
 CREATE TABLE depots (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

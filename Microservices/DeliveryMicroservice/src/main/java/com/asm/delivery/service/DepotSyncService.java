@@ -3,11 +3,11 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
 import com.asm.delivery.erp.ErpWarehouseDTO;
+import com.asm.delivery.erp.TenantErpProviderResolver;
 import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.DepotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,10 +29,7 @@ public class DepotSyncService {
     private final ErpPort erpPort;
     private final DepotRepository depotRepository;
     private final GeocodingService geocodingService;
-
-    /** Recorded on each depot as its origin provider (single-tenant: constant for the instance). */
-    @Value("${erp.default-provider:odoo}")
-    private String defaultProvider;
+    private final TenantErpProviderResolver providerResolver;
 
     /** Sync result for the admin UI. */
     public record SyncResult(int total, int created, int updated, int geocoded, int missingCoords) {}
@@ -55,7 +52,7 @@ public class DepotSyncService {
 
             depot.setWarehouseCode(code);
             depot.setErpWarehouseId(w.getErpWarehouseId());
-            depot.setProvider(defaultProvider);
+            depot.setProvider(providerResolver.resolve());
             depot.setName(StringUtils.hasText(w.getName()) ? w.getName() : code);
             depot.setAddress(newAddress);
             if (depot.getIsActive() == null) depot.setIsActive(true);

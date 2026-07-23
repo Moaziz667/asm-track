@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 import { Driver, Delivery } from '@/types';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
-import { getCurrentRole, isReadOnlyRole } from '@/lib/api/auth';
+import { usePermissions } from '@/lib/api/auth';
 import { showErrorToast } from '@/lib/ui/toast-service';
 import {
   useDrivers,
@@ -44,8 +44,11 @@ function DriversPageContent() {
   const t = useT();
   const { locale } = useLocaleStore();
   usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Drivers' }]);
-  const role = getCurrentRole();
-  const readOnly = isReadOnlyRole(role);
+  // Managing drivers (invite/edit/status/delete) needs perm:driver:manage — the same perm the backend
+  // enforces. Viewers (driver:view only, e.g. dispatcher/manager) see the list read-only, no action
+  // buttons that would just 403.
+  const { has } = usePermissions();
+  const readOnly = !has('perm:driver:manage');
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { density, setDensity } = useDensity('drivers', 'comfortable');
@@ -125,7 +128,7 @@ function DriversPageContent() {
   useEffect(() => {
     if (!selectedId) return;
     setDetailLoading(true);
-    api.get('/api/admin/deliveries', { params: { driverId: selectedId } })
+    api.get('/admin/deliveries', { params: { driverId: selectedId } })
       .then((res) => {
         const list = res.data.content ?? res.data;
         setDriverDeliveries(Array.isArray(list) ? list : []);

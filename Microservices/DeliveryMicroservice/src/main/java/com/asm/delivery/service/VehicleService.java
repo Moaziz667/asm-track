@@ -74,7 +74,6 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse create(UserPrincipal principal, CreateVehicleRequest request) {
-        requireAdminOrSuperAdmin(principal);
 
         String normalizedPlate = normalizePlate(request.getPlate());
         if (vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
@@ -116,7 +115,6 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse update(UUID id, UserPrincipal principal, UpdateVehicleRequest request) {
-        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
 
         if (StringUtils.hasText(request.getMake()))  vehicle.setMake(request.getMake().trim());
@@ -166,7 +164,6 @@ public class VehicleService {
 
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
 
         vehicle.setActive(false);
@@ -181,7 +178,6 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse reactivate(UUID id, UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
 
         if (Boolean.TRUE.equals(vehicle.getActive())) {
@@ -201,7 +197,6 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse updateStatus(UUID id, UserPrincipal principal, VehicleStatusRequest request) {
-        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
         VehicleStatus previous = vehicle.getVehicleStatus();
         vehicle.setVehicleStatus(request.getStatus());
@@ -215,7 +210,6 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse assign(UUID id, UserPrincipal principal, AssignVehicleRequest request) {
-        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
         vehicle.setDriverId(request.getDriverId());
         Vehicle saved = vehicleRepository.save(vehicle);
@@ -225,13 +219,6 @@ public class VehicleService {
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
-    private void requireAdminOrSuperAdmin(UserPrincipal principal) {
-        if (principal == null) throw AppException.forbidden("Authentication required");
-        String role = principal.getRole();
-        if (!"SUPER_ADMIN".equals(role) && !"ADMIN".equals(role)) {
-            throw AppException.forbidden("Admin access required to manage vehicles");
-        }
-    }
 
     private Set<UUID> getBusyVehicleIds() {
         return routeRepository.findByStatusIn(ACTIVE_STATUSES).stream()

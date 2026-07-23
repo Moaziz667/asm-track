@@ -24,6 +24,13 @@ function appLocale(): string {
   return m ? m.split('=')[1] : 'fr';
 }
 
+// Pass the app's dark mode preference to the Keycloak login theme so it renders
+// in the same mode. Default = dark (matches the admin app default).
+function appDarkMode(): string {
+  if (typeof window === 'undefined') return 'true';
+  return safeStorage.getItem('admin-color-scheme') !== 'light' ? 'true' : 'false';
+}
+
 /**
  * Mirror the OIDC access token + decoded identity into localStorage so the
  * axios layer (lib/api.ts) and legacy guards can read it. Called both on the
@@ -47,12 +54,20 @@ export function syncSession(user: User | null | undefined): void {
     else if (roles.includes('DISPATCHER')) role = 'DISPATCHER';
     else if (roles.includes('MANAGER')) role = 'MANAGER';
 
+    // Fine-grained permissions ride in the token as composite-role members (perm:*), exactly like the
+    // backend reads them. The UI gates nav + actions on these — same source of truth as the gateway and
+    // services (Keycloak role composites), so the UI never drifts from what the backend actually allows.
+    const perms = roles.filter((r) => r.startsWith('perm:'));
+
     safeStorage.setItem(
       'admin_name',
       decoded.name || decoded.preferred_username || decoded.email || 'Admin'
     );
     if (decoded.email) safeStorage.setItem('admin_email', decoded.email);
     safeStorage.setItem('role', role);
+    safeStorage.setItem('perms', JSON.stringify(perms));
+    // Notify same-tab listeners (the storage event only fires cross-tab) so nav/actions re-gate live.
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('perms-changed'));
   } catch (e) {
     console.error('Failed to parse JWT', e);
   }
@@ -64,6 +79,7 @@ function clearSession(): void {
   safeStorage.removeItem('admin_name');
   safeStorage.removeItem('admin_email');
   safeStorage.removeItem('role');
+  safeStorage.removeItem('perms');
 }
 
 // `useRefreshToken` is a valid oidc-client-ts UserManagerSettings option (refresh-token
@@ -75,10 +91,11 @@ export const oidcConfig: AuthProviderProps & { useRefreshToken?: boolean } = {
   redirect_uri: REDIRECT_URI,
   post_logout_redirect_uri: POST_LOGOUT_URI,
   response_type: 'code',
-  scope: 'openid profile email',
+  scope: 'openid profile email organization',
 
-  // Render the Keycloak login in the app's language (FR/EN/AR) and seed KEYCLOAK_LOCALE.
-  extraQueryParams: { ui_locales: appLocale() },
+  // Render the Keycloak login in the app's language (FR/EN/AR), seed KEYCLOAK_LOCALE,
+  // and pass the dark mode preference so the login page matches the app theme.
+  extraQueryParams: { ui_locales: appLocale(), dark: appDarkMode() },
 
   // Persist the OIDC session in localStorage (default is sessionStorage, which
   // is lost across tabs / some redirect flows and causes phantom logouts).

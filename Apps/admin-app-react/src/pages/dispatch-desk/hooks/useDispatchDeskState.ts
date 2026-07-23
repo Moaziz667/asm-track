@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import type { Driver, Delivery, Zone } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { useGlobalFilters } from '@/lib/state/global-filters';
-import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/api/auth';
+import { getCurrentUser, hasPerm } from '@/lib/api/auth';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
@@ -130,7 +130,7 @@ export function useDispatchDeskContext() {
 export function DispatchDeskProvider({ children }: { children: React.ReactNode }) {
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.dispatch?.title || 'Dispatch' }]);
-  const isReadOnly = isReadOnlyRole(getCurrentRole());
+  const isReadOnly = !hasPerm('perm:dispatch:operate');
   const { filters: globalFilters, applyFilters, clearFilters: clearGlobalFilters, globalContext } = useGlobalFilters();
 
   // ── Data ──────────────────────────────────────────────────────────────────
@@ -188,16 +188,17 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);
+  const lastAppliedSearch = useRef<string | null>(null);
 
   // ── Fetchers ──────────────────────────────────────────────────────────────
 
   const fetchDrivers = useCallback(async () => {
-    try { const r = await api.get('/api/admin/fleet/drivers'); setDrivers(Array.isArray(r.data) ? r.data : []); }
+    try { const r = await api.get('/admin/fleet/drivers'); setDrivers(Array.isArray(r.data) ? r.data : []); }
     catch { setDrivers([]); }
   }, []);
 
   const fetchZones = useCallback(async () => {
-    try { const r = await api.get('/api/v1/zones/active'); setZones(Array.isArray(r.data) ? r.data : []); }
+    try { const r = await api.get('/zones/active'); setZones(Array.isArray(r.data) ? r.data : []); }
     catch { setZones([]); }
   }, []);
 
@@ -209,7 +210,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
         if (!customFrom || !customTo) { setRows([]); return; }
         params.from = customFrom; params.to = customTo;
       }
-      const res = await api.get<OpsExceptionResponse>('/api/admin/ops/exceptions', { params });
+      const res = await api.get<OpsExceptionResponse>('/admin/ops/exceptions', { params });
       const items = Array.isArray(res.data?.items) ? res.data.items : [];
       setRows(items);
       setLastUpdated(new Date());
@@ -229,7 +230,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       else if (period === 'week')  { params.dateFrom = getWeekStart();  params.dateTo = new Date().toISOString().slice(0, 10); }
       else if (period === 'month') { params.dateFrom = getMonthStart(); params.dateTo = new Date().toISOString().slice(0, 10); }
       else if (period === 'custom' && customFrom && customTo) { params.dateFrom = customFrom; params.dateTo = customTo; }
-      const res = await api.get('/api/admin/deliveries', { params });
+      const res = await api.get('/admin/deliveries', { params });
       setAllDeliveries(Array.isArray(res.data?.content) ? res.data.content : []);
     } catch { /* silent */ }
     finally { setAllLoading(false); }
@@ -267,18 +268,33 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   useEffect(() => () => { clearGlobalFilters(); }, [clearGlobalFilters]);
 
   useEffect(() => {
-    if (!globalContext || initialSyncRef.current) return;
-    initialSyncRef.current = true;
+    if (!globalContext) return;
+
     const tabParam = searchParams?.get('tab');
-    if (tabParam === 'queue' || tabParam === 'gps' || tabParam === 'handoff') {
-      setDispatchTab(tabParam);
-    } else if (tabParam === 'action' || tabParam === 'assign' || tabParam === 'failed') {
-      // Legacy deep links — both tabs were merged into the unified Queue.
-      setDispatchTab('queue');
-    }
     const q = searchParams?.get('search') || searchParams?.get('deliveryId');
-    if (q) { setSearch(q); applyFilters({ search: q }); }
-    else { setSearch(globalFilters.search); setZoneFilter(globalFilters.zone ? [globalFilters.zone] : []); setDriverId(globalFilters.driver ? [globalFilters.driver] : []); }
+
+    // Tab: only set on first sync (mount or remount)
+    if (!initialSyncRef.current) {
+      initialSyncRef.current = true;
+      if (tabParam === 'queue' || tabParam === 'gps' || tabParam === 'handoff') {
+        setDispatchTab(tabParam);
+      } else if (tabParam === 'action' || tabParam === 'assign' || tabParam === 'failed') {
+        setDispatchTab('queue');
+      }
+    }
+
+    // Search: re-apply whenever the URL search param changes (notification deep-link
+    // while already on the dispatch desk). lastAppliedSearch tracks to avoid redundant sets.
+    if (q && q !== lastAppliedSearch.current) {
+      lastAppliedSearch.current = q;
+      setSearch(q);
+      applyFilters({ search: q });
+    } else if (!q && lastAppliedSearch.current !== null) {
+      lastAppliedSearch.current = null;
+      setSearch(globalFilters.search);
+      setZoneFilter(globalFilters.zone ? [globalFilters.zone] : []);
+      setDriverId(globalFilters.driver ? [globalFilters.driver] : []);
+    }
   }, [globalContext, searchParams, applyFilters, globalFilters.search, globalFilters.zone, globalFilters.driver]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -501,7 +517,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       const payload: { note: string; scheduledAt?: string } = { note };
       // datetime-local has no seconds — backend LocalDateTime parses 'yyyy-MM-ddTHH:mm'.
       if (scheduledAt && scheduledAt.trim()) payload.scheduledAt = scheduledAt.trim();
-      await api.post(`/api/admin/ops/exceptions/${deliveryId}/replan`, payload);
+      await api.post(`/admin/ops/exceptions/${deliveryId}/replan`, payload);
       showSuccessToast(t.apiMessages.successDeliveryRescheduled);
       await fetchExceptions(true);
     } catch (err) {
@@ -529,7 +545,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     if (!target || !cancelReason.trim()) return;
     setCancelling(true);
     try {
-      await api.post(`/api/admin/deliveries/${target.deliveryId}/cancel`, null, { params: { reason: cancelReason.trim() } });
+      await api.post(`/admin/deliveries/${target.deliveryId}/cancel`, null, { params: { reason: cancelReason.trim() } });
       showSuccessToast(t.dispatchDeskPage.successCancelled, { clientName: target?.clientName });
       setCancelTarget(null);
       setCancelReason('');

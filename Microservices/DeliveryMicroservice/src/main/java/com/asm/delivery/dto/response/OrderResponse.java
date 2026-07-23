@@ -38,8 +38,8 @@ public class OrderResponse {
     private String        deliveryStatus;   // delivery status
     private String        erpOrderId;
     private String        erpExternalRef;
-    private String        odooSyncStatus;
-    private Integer       odooBackorderId;
+    private String        erpSyncStatus;
+    private Integer       erpBackorderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

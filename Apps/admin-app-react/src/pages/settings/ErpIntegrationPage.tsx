@@ -2,9 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
-import { canManageSettings, getCurrentRole } from '@/lib/api/auth';
+import { getCurrentRole, hasPerm } from '@/lib/api/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock, IconAlertTriangle, IconClock, IconCircleCheck, IconCircleDot } from '@tabler/icons-react';
+import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock, IconAlertTriangle, IconClock, IconCircleCheck, IconCircleDot, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { tw } from '@/lib/ui/typography';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,24 @@ interface ErpSettings {
 // until they re-test. It's a client-only overlay on top of the persisted status.
 type ConnState = { status: 'idle' | 'ok' | 'fail'; uid?: string };
 
+// ── Conformance (drytest) report — certifies the live ERP instance against ASM's contract ──
+type Verdict = 'GO' | 'DEGRADED' | 'NO_GO';
+type CheckStatus = 'OK' | 'MISSING' | 'DENIED' | 'UNKNOWN';
+interface CapabilityCheck {
+  capability: string;
+  kind: 'MODEL' | 'FIELD' | 'METHOD' | 'ACCESS';
+  severity: 'REQUIRED' | 'RECOMMENDED';
+  status: CheckStatus;
+  detail?: string | null;
+}
+interface ConformanceReport {
+  provider: string;
+  detectedVersion: string;
+  verdict: Verdict;
+  checks: CapabilityCheck[];
+  checkedAt: string;
+}
+
 const EMPTY_ODOO: OdooConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
 const EMPTY_ERPNEXT: OdooConfig = { url: '', apiKey: '', apiSecret: '', company: '' };
 
@@ -58,6 +76,55 @@ function ConnStatusBadge({ status, uid, sp }: { status: EffStatus; uid?: string;
   );
 }
 
+// ── Conformance report panel — verdict + the checks that need attention ──────
+function ConformancePanel({ report, sp }: { report: ConformanceReport; sp: Record<string, string> }) {
+  const tone =
+    report.verdict === 'GO' ? { fg: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 12%, transparent)', icon: <IconShieldCheck size={15} />, label: sp.verdictGo ?? 'Compatible' }
+    : report.verdict === 'DEGRADED' ? { fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 12%, transparent)', icon: <IconAlertTriangle size={15} />, label: sp.verdictDegraded ?? 'Compatible avec limites' }
+    : { fg: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 12%, transparent)', icon: <IconShieldX size={15} />, label: sp.verdictNoGo ?? 'Incompatible' };
+
+  // Only the checks that need attention (MISSING/DENIED). OK/UNKNOWN are noise for the operator.
+  const problems = report.checks.filter((c) => c.status === 'MISSING' || c.status === 'DENIED');
+
+  return (
+    <div className="rounded-lg border border-[var(--border)] overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          <Badge className="gap-1" style={{ background: tone.bg, color: tone.fg }}>{tone.icon} {tone.label}</Badge>
+          <span className="text-2xs text-[var(--text-muted)]">
+            {report.provider} · {sp.detectedVersion ?? 'version'} {report.detectedVersion}
+          </span>
+        </div>
+        <span className="text-2xs text-[var(--text-muted)]">
+          {report.checks.length} {sp.checksLabel ?? 'contrôles'}
+        </span>
+      </div>
+      {problems.length === 0 ? (
+        <div className="flex items-center gap-2 px-4 py-3 text-xs text-[var(--success)]">
+          <IconCircleCheck size={15} /> {sp.allChecksOk ?? 'Tous les contrôles requis sont satisfaits.'}
+        </div>
+      ) : (
+        <ul className="divide-y divide-[var(--border)]">
+          {problems.map((c) => (
+            <li key={c.capability} className="flex items-start gap-2.5 px-4 py-2.5">
+              <span className="shrink-0 mt-0.5" style={{ color: c.severity === 'REQUIRED' ? 'var(--danger)' : 'var(--warning)' }}>
+                {c.severity === 'REQUIRED' ? <IconShieldX size={14} /> : <IconAlertTriangle size={14} />}
+              </span>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-xs font-[600] font-mono text-[var(--text)]">{c.capability}</span>
+                {c.detail && <span className="text-2xs text-[var(--text-muted)] leading-snug">{c.detail}</span>}
+              </div>
+              <Badge variant="outline" className="ml-auto shrink-0 text-2xs" style={{ color: c.severity === 'REQUIRED' ? 'var(--danger)' : 'var(--warning)' }}>
+                {c.status}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function ErpIntegrationPage() {
   const t = useT();
   const sp = t.settingsPage as Record<string, string>;
@@ -67,15 +134,17 @@ export default function ErpIntegrationPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [conn, setConn] = useState<ConnState>({ status: 'idle' });
+  const [report, setReport] = useState<ConformanceReport | null>(null);
+  const [certifying, setCertifying] = useState(false);
   // True once the admin edits any field; means a persisted CONNECTED is stale until re-test.
   const [dirty, setDirty] = useState(false);
 
-  const canManage = canManageSettings(role);
+  const canManage = hasPerm('perm:settings:manage');
 
   const fetchErp = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/settings/erp');
+      const res = await api.get('/settings/erp');
       if (res.data) { setErp(res.data); setDirty(false); setConn({ status: 'idle' }); }
     } catch { /* fail safe */ }
     finally { setLoading(false); }
@@ -90,12 +159,14 @@ export default function ErpIntegrationPage() {
   const patchConf = (patch: Partial<OdooConfig>) => {
     setDirty(true);
     setConn({ status: 'idle' });
+    setReport(null);
     setErp((prev) => prev ? { ...prev, erpConfiguration: { ...(prev.erpConfiguration ?? {}), ...patch } } : prev);
   };
 
   const setProvider = (p: ErpProvider) => {
     setDirty(true);
     setConn({ status: 'idle' });
+    setReport(null);
     setErp((prev) => prev ? {
       ...prev,
       activeErpProvider: p,
@@ -113,8 +184,8 @@ export default function ErpIntegrationPage() {
     setConn({ status: 'idle' });
     try {
       const res = stored
-        ? await api.post('/api/settings/erp/test-stored')
-        : await api.post('/api/settings/erp/test', erp);
+        ? await api.post('/settings/erp/test-stored')
+        : await api.post('/settings/erp/test', erp);
       setConn({ status: 'ok', uid: res.data?.uid });
       setDirty(false);
       if (refetch) fetchErp();
@@ -132,7 +203,7 @@ export default function ErpIntegrationPage() {
     if (!erp) return;
     setSaving(true);
     try {
-      await api.put('/api/settings/erp', erp);
+      await api.put('/settings/erp', erp);
       if (erp.activeErpProvider === 'NONE') {
         showSuccessToast('successErpUpdated');
         fetchErp();
@@ -160,6 +231,25 @@ export default function ErpIntegrationPage() {
       else    showErrorToast(new Error(sp.testFailed));
     } finally {
       setTesting(false);
+    }
+  };
+
+  // Certify the live ERP instance against the ASM contract (the drytest). Runs against the SAVED
+  // config, so it's disabled while dirty — like the standalone Test.
+  const runConformance = async () => {
+    setCertifying(true);
+    try {
+      const res = await api.get('/settings/erp/conformance');
+      if (res.status === 204 || !res.data) {
+        setReport(null);
+        showErrorToast(new Error(sp.certifyNoErp ?? 'Aucun ERP configuré à certifier.'));
+      } else {
+        setReport(res.data as ConformanceReport);
+      }
+    } catch (e) {
+      showErrorToast(e as Error);
+    } finally {
+      setCertifying(false);
     }
   };
 
@@ -350,12 +440,22 @@ export default function ErpIntegrationPage() {
                   >
                     <IconPlugConnected size={15} /> {testing ? sp.erpTesting : sp.testConnection}
                   </Button>
+                  <Button
+                    variant="outline" size="sm" onClick={runConformance}
+                    disabled={certifying || testing || saving || provider === 'NONE' || provider === 'DUX' || dirty}
+                    title={dirty ? (sp.testDirtyHint ?? 'Enregistrez vos modifications pour les tester') : undefined}
+                  >
+                    <IconShieldCheck size={15} /> {certifying ? (sp.certifying ?? 'Certification…') : (sp.certify ?? 'Certifier')}
+                  </Button>
                   {canManage && (
                     <Button size="sm" onClick={handleSave} disabled={saving || testing}>
                       <IconDatabase size={15} /> {saving ? (sp.savingTestingLabel ?? 'Enregistrement & test…') : (sp.saveAndTest ?? sp.saveConfig)}
                     </Button>
                   )}
                 </div>
+
+                {/* Conformance (drytest) report — shown after a certification run. */}
+                {report && <ConformancePanel report={report} sp={sp} />}
               </div>
             </SectionCard>
           </div>

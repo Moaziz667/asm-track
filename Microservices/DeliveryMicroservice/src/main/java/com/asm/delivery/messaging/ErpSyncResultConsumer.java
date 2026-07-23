@@ -56,7 +56,7 @@ public class ErpSyncResultConsumer {
         }
 
         if (ok) {
-            order.setOdooSyncStatus("SYNCED");
+            order.setErpSyncStatus("SYNCED");
             order.setSyncRetryCount(0);
             order.setNextSyncRetryAt(null);
             orderRepo.save(order);
@@ -66,7 +66,7 @@ public class ErpSyncResultConsumer {
             // it becomes its own order — the same path as every other Odoo picking. Single source of
             // truth, and no duplicate (auto-shipment + importable picking) for the same backorder.
         } else {
-            order.setOdooSyncStatus("SYNC_FAILED");
+            order.setErpSyncStatus("SYNC_FAILED");
             order.setLastSyncOp(op);
             order.setLastSyncError(truncate(str(result.get("errorReason"))));
             orderRepo.save(order);

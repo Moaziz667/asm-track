@@ -16,7 +16,7 @@ import java.util.Map;
  * original exchange after the root cause is fixed.
  */
 @RestController
-@RequestMapping("/api/admin/dlq")
+@RequestMapping("/api/v1/admin/dlq")
 @Tag(name = "Admin DLQ", description = "Dead-letter queue monitoring + replay")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

@@ -135,7 +135,7 @@ export default function PerformancePage() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['driver-scorecards', range, customFrom, customTo, compare, scopeParams],
     queryFn: async () => {
-      const res = await api.get<ScorecardResponse>('/api/admin/reports/drivers', { params: { ...dateParams, ...scopeParams, compare } });
+      const res = await api.get<ScorecardResponse>('/admin/reports/drivers', { params: { ...dateParams, ...scopeParams, compare } });
       return res.data;
     },
     staleTime: 30_000,
@@ -195,7 +195,7 @@ export default function PerformancePage() {
       const pdfParams = range === 'custom'
         ? (customFrom && customTo ? { from: customFrom, to: customTo } : { period: 'last30d' })
         : { period: range };
-      const res = await api.get(`/api/admin/reports/drivers/${d.driverId}/performance/pdf`, { params: pdfParams, responseType: 'blob' });
+      const res = await api.get(`/admin/reports/drivers/${d.driverId}/performance/pdf`, { params: pdfParams, responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;

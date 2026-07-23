@@ -91,7 +91,7 @@ export function StopCard({
     queryKey: ['stop-delivery-detail', deliveryId],
     enabled: isExpanded && !!deliveryId && !isPickup,
     staleTime: 15000,
-    queryFn: async () => (await api.get(`/api/admin/deliveries/${deliveryId}`)).data,
+    queryFn: async () => (await api.get(`/admin/deliveries/${deliveryId}`)).data,
   });
 
   if (isPickup) {

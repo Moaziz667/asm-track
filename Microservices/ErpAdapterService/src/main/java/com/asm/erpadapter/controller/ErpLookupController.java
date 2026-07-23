@@ -13,8 +13,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
+/**
+ * The ERP provider is resolved per-tenant by {@link ErpProviderRouter} (from the tenant's settings +
+ * the propagated {@code X-Company-Id}), so no {@code erpProvider} request param is accepted — the caller
+ * can't (and shouldn't) pick another tenant's ERP.
+ */
 @RestController
 @RequestMapping("/api/erp/lookup")
 @Tag(name = "ERP Lookup", description = "Search clients, products, pending orders")
@@ -22,19 +26,19 @@ import java.util.UUID;
 @Validated
 public class ErpLookupController {
 
-    private final ErpProviderRouter     router;
-    private ErpLookupPort resolve(String erpProvider) {
-        return router.getLookup(erpProvider);
+    private final ErpProviderRouter router;
+
+    private ErpLookupPort resolve() {
+        return router.getLookup();
     }
 
     @GetMapping("/clients")
     @Operation(summary = "Search ERP clients/customers")
     public ResponseEntity<List<ErpClientDTO>> searchClients(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
         try {
-            return ResponseEntity.ok(resolve(erpProvider).searchClients(search, limit));
+            return ResponseEntity.ok(resolve().searchClients(search, limit));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(List.of());
         }
@@ -43,11 +47,10 @@ public class ErpLookupController {
     @GetMapping("/products")
     @Operation(summary = "Search ERP products")
     public ResponseEntity<List<ErpProductDTO>> searchProducts(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
         try {
-            return ResponseEntity.ok(resolve(erpProvider).searchProducts(search, limit));
+            return ResponseEntity.ok(resolve().searchProducts(search, limit));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(List.of());
         }
@@ -56,10 +59,9 @@ public class ErpLookupController {
     @GetMapping("/pending-orders")
     @Operation(summary = "List pending ERP orders")
     public ResponseEntity<List<ErpPendingOrderSummaryDTO>> getPendingOrders(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam(defaultValue = "100") @Min(1) @Max(300) int limit) {
         try {
-            return ResponseEntity.ok(resolve(erpProvider).getPendingOrders(limit));
+            return ResponseEntity.ok(resolve().getPendingOrders(limit));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(List.of());
         }
@@ -68,11 +70,9 @@ public class ErpLookupController {
     @GetMapping("/pending-orders/preview")
     @Operation(summary = "Preview a pending ERP order")
     public ResponseEntity<ErpPendingOrderPreviewDTO> getPendingOrderPreview(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId) {
         try {
-            ErpPendingOrderPreviewDTO preview = resolve(erpProvider)
-                    .getPendingOrderPreview(erpOrderId);
+            ErpPendingOrderPreviewDTO preview = resolve().getPendingOrderPreview(erpOrderId);
             if (preview == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(preview);
         } catch (IllegalArgumentException e) {
@@ -82,10 +82,9 @@ public class ErpLookupController {
 
     @GetMapping("/warehouses")
     @Operation(summary = "List ERP warehouses (source depots)")
-    public ResponseEntity<List<ErpWarehouseDTO>> getWarehouses(
-            @RequestParam(defaultValue = "odoo") String erpProvider) {
+    public ResponseEntity<List<ErpWarehouseDTO>> getWarehouses() {
         try {
-            return ResponseEntity.ok(resolve(erpProvider).getWarehouses());
+            return ResponseEntity.ok(resolve().getWarehouses());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(List.of());
         }
@@ -94,10 +93,9 @@ public class ErpLookupController {
     @GetMapping("/picking-ref")
     @Operation(summary = "Resolve a picking reference/name from its ERP id")
     public ResponseEntity<java.util.Map<String, String>> getPickingRef(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String pickingId) {
         try {
-            String ref = resolve(erpProvider).getPickingRef(pickingId);
+            String ref = resolve().getPickingRef(pickingId);
             if (ref == null) return ResponseEntity.notFound().build();
             return ResponseEntity.ok(java.util.Map.of("ref", ref));
         } catch (IllegalArgumentException e) {
@@ -107,15 +105,13 @@ public class ErpLookupController {
 
     @GetMapping("/company")
     @Operation(summary = "Get the tenant's own selling company (Odoo res.company)")
-    public ResponseEntity<com.asm.erpadapter.dto.ErpCompanyDTO> getCompany(
-            @RequestParam(defaultValue = "odoo") String erpProvider) {
+    public ResponseEntity<com.asm.erpadapter.dto.ErpCompanyDTO> getCompany() {
         try {
-            com.asm.erpadapter.dto.ErpCompanyDTO company = resolve(erpProvider).getCompany();
+            com.asm.erpadapter.dto.ErpCompanyDTO company = resolve().getCompany();
             if (company == null) return ResponseEntity.noContent().build();
             return ResponseEntity.ok(company);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.noContent().build();
         }
     }
-
 }

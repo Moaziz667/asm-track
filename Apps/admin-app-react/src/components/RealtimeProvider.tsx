@@ -4,6 +4,7 @@ import {
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { safeStorage } from '@/lib/storage';
+import { extractCompanyIdFromToken } from '@/lib/tenant';
 
 // ── Single multiplexed realtime connection ─────────────────────────────────────
 // One STOMP-over-SockJS client for the whole authenticated app. Consumers (the
@@ -30,23 +31,31 @@ interface Subscriber { types: RealtimeEventTypes; handler: Handler; }
 interface RealtimeContextValue {
   connected: boolean;
   subscribe: (types: RealtimeEventTypes, handler: Handler) => () => void;
+  companyId: string | null;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue>({
   connected: false,
   subscribe: () => () => {},
+  companyId: null,
 });
 
-const TOPICS: { topic: string; category: RealtimeCategory }[] = [
-  { topic: '/topic/admin.deliveries', category: 'delivery' },
-  { topic: '/topic/admin.routes', category: 'route' },
-  { topic: '/topic/admin.erp', category: 'erp' },
-  { topic: '/topic/admin.security', category: 'security' },
+/** Reads the current access token from storage and resolves its tenant (see {@link extractCompanyIdFromToken}). */
+function extractCompanyId(): string | null {
+  return extractCompanyIdFromToken(safeStorage.getItem('access_token'));
+}
+
+const TOPICS: { sub: string; category: RealtimeCategory }[] = [
+  { sub: 'admin.deliveries', category: 'delivery' },
+  { sub: 'admin.routes', category: 'route' },
+  { sub: 'admin.erp', category: 'erp' },
+  { sub: 'admin.security', category: 'security' },
 ];
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const subscribersRef = useRef<Set<Subscriber>>(new Set());
   const [connected, setConnected] = useState(false);
+  const companyIdRef = useRef<string | null>(extractCompanyId());
 
   const subscribe = useCallback((types: RealtimeEventTypes, handler: Handler) => {
     const sub: Subscriber = { types, handler };
@@ -64,11 +73,25 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Re-read companyId on connect (token may have been renewed)
+    companyIdRef.current = extractCompanyId();
+    const companyId = companyIdRef.current;
+
     const wsBase = import.meta.env.VITE_WS_BASE_URL
       ?? import.meta.env.VITE_API_BASE_URL
       ?? (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
     const wsUrl = `${wsBase}/ws`;
     let retryCount = 0;
+
+    // Tenant-scoped topics only: /topic/company/{companyId}/admin.X. The backend no longer allows the
+    // legacy non-tenant /topic/admin.X (it was a cross-tenant channel), so if there's no companyId we
+    // subscribe to nothing rather than to a topic that would be rejected — fail closed.
+    const topics = companyId
+      ? TOPICS.map(t => ({ topic: `/topic/company/${companyId}/${t.sub}`, category: t.category }))
+      : [];
+    if (!companyId) {
+      console.warn('[RealtimeProvider] No companyId in token — skipping admin topic subscriptions.');
+    }
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
@@ -81,11 +104,19 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       beforeConnect: () => {
         const token = safeStorage.getItem('access_token');
         client.connectHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        // Re-read companyId on reconnect (token may have been renewed with new org_id)
+        companyIdRef.current = extractCompanyId();
+        const cid = companyIdRef.current;
+        // Rebuild topics with possibly new companyId — tenant-scoped only (see above; fail closed).
+        topics.length = 0;
+        if (cid) {
+          TOPICS.forEach(t => topics.push({ topic: `/topic/company/${cid}/${t.sub}`, category: t.category }));
+        }
       },
       onConnect: () => {
         retryCount = 0;
         setConnected(true);
-        TOPICS.forEach(({ topic, category }) => {
+        topics.forEach(({ topic, category }) => {
           client.subscribe(topic, msg => {
             try {
               const cloudEvent = JSON.parse(msg.body);
@@ -113,7 +144,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   }, [dispatch]);
 
   return (
-    <RealtimeContext.Provider value={{ connected, subscribe }}>
+    <RealtimeContext.Provider value={{ connected, subscribe, companyId: companyIdRef.current }}>
       {children}
     </RealtimeContext.Provider>
   );
@@ -140,4 +171,9 @@ export function useRealtimeEvent(types: RealtimeEventTypes, handler: Handler) {
 /** True while the realtime socket is connected. */
 export function useRealtimeStatus() {
   return useContext(RealtimeContext).connected;
+}
+
+/** The current company ID extracted from the JWT (for tenant-scoped topics). */
+export function useCompanyId() {
+  return useContext(RealtimeContext).companyId;
 }

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/returns")
+@RequestMapping("/api/v1/admin/returns")
 @Tag(name = "Admin Returns (RMA)", description = "Customer returns / RMA management")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

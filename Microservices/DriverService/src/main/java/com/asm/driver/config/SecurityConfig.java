@@ -1,6 +1,7 @@
 package com.asm.driver.config;
 
 import com.asm.driver.security.JwtAuthConverter;
+import com.asm.driver.security.RbacAuthorizationManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,28 +19,33 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, RbacAuthorizationManager rbac) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/driver/**").permitAll()
+                .requestMatchers("/api/v1/auth/driver/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/internal/**").hasRole("SERVICE")
-                // Driver avatar map is dispatcher-visible (dispatch desk) — gateway already enforces driver:view.
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers/avatars").authenticated()
-                // Dispatcher read-only access to drivers list (dispatch desk needs driver names/status)
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers").hasAnyRole("ADMIN", "DISPATCHER")
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/driver/**").hasRole("DRIVER")
-                .anyRequest().authenticated()
+                .requestMatchers("/internal/**").hasRole("SERVICE")   // service-to-service, not user-facing
+                // Every application request is authorized by the single canonical policy
+                // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules re-encoded here.
+                .anyRequest().access(rbac)
             )
             .oauth2ResourceServer(rs -> rs
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))
-            );
+            )
+            .exceptionHandling(ex -> ex.accessDeniedHandler((req, res, e) -> {
+                var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
+                        .warn("Access denied {} {} — authorities={}", req.getMethod(), req.getRequestURI(),
+                                auth == null ? "anonymous" : auth.getAuthorities());
+                res.setStatus(403);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"status\":403,\"message\":\"Access denied\"}");
+            }));
 
         return http.build();
     }
@@ -80,11 +86,11 @@ public class SecurityConfig {
                             
                             boolean hasValidAud = aud != null && (aud.contains("driver-app") || aud.contains("admin-web")
                                     || aud.contains("erp-adapter") || aud.contains("delivery-service")
-                                    || aud.contains("driver-service"));
-                                    
+                                    || aud.contains("driver-service") || aud.contains("app-backend"));
+
                             boolean hasValidAzp = azp != null && (azp.equals("driver-app") || azp.equals("admin-web")
                                     || azp.equals("erp-adapter") || azp.equals("delivery-service")
-                                    || azp.equals("driver-service"));
+                                    || azp.equals("driver-service") || azp.equals("app-backend"));
 
                             if (hasValidAud || hasValidAzp) {
                                 return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();

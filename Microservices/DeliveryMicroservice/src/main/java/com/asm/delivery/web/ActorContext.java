@@ -5,9 +5,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.UUID;
+
 /**
  * Resolves the authenticated user behind the current request from the X-User-* headers the API
- * gateway injects (X-User-Id, X-User-Name, X-User-Role). Lets write paths stamp delivery history
+ * gateway injects (X-User-Id, X-User-Name, X-User-Role, X-Company-Id). Lets write paths stamp delivery history
  * with the REAL person (admin/dispatcher name) instead of a hardcoded "ADMIN"/"SYSTEM" literal —
  * so the activity timeline reads "par {name}" rather than "par Système".
  */
@@ -36,6 +38,17 @@ public final class ActorContext {
     /** The acting user's id (subject), or null. */
     public static String id() {
         return header("X-User-Id");
+    }
+
+    /** The acting user's company/tenant id, or null when unavailable (system/background jobs). */
+    public static UUID companyId() {
+        String v = header("X-Company-Id");
+        if (v == null) return null;
+        try {
+            return UUID.fromString(v);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** The acting user's role, defaulting to ADMIN for an authenticated admin-API call with no role

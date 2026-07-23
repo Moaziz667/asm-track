@@ -406,11 +406,14 @@ public class KeycloakAdminClient {
                     .toBodilessEntity();
             log.info("Triggered UPDATE_PASSWORD email for appUserId: {}", appUserId);
         } catch (RestClientResponseException e) {
-            log.error("Failed to trigger password reset: status={}, response={}", e.getStatusCode(), e.getResponseBodyAsString());
             String responseBody = e.getResponseBodyAsString();
             if (responseBody != null && responseBody.contains("Failed to send execute actions email")) {
+                // Expected when Keycloak has no SMTP configured (e.g. dev). The caller handles this
+                // gracefully, so log at WARN — not ERROR — to avoid noise on every provisioning pass.
+                log.warn("Password-reset email not sent (Keycloak SMTP unavailable) for appUserId={}", appUserId);
                 throw new AppException(HttpStatus.BAD_GATEWAY, "SMTP email server is not configured or reachable in Keycloak");
             }
+            log.error("Failed to trigger password reset: status={}, response={}", e.getStatusCode(), responseBody);
             throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to trigger password reset email");
         }
     }
@@ -499,6 +502,81 @@ public class KeycloakAdminClient {
         } catch (Exception e) {
             log.error("Failed to fetch Keycloak username for kcUserId={}: {}", kcUserId, e.getMessage());
             return null;
+        }
+    }
+
+    // ── Organizations (multi-tenant) ──────────────────────────────────────────
+
+    /**
+     * Creates a Keycloak Organization (= a tenant/company) and returns its id. The org id is the
+     * canonical companyId used everywhere downstream (schema {@code company_<id>}). Idempotent-ish:
+     * a name/alias conflict surfaces so the caller can decide (we don't silently reuse).
+     *
+     * @return the created organization's id (parsed from the Location header)
+     */
+    public String createOrganization(String name, String alias, String domain) {
+        String token = getServiceToken();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("name", name);
+        payload.put("alias", alias);
+        payload.put("enabled", true);
+        if (domain != null && !domain.isBlank()) {
+            payload.put("domains", List.of(Map.of("name", domain)));
+        }
+        try {
+            var response = restClient.post()
+                    .uri(getAdminUrl() + "/organizations")
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+            java.net.URI location = response.getHeaders().getLocation();
+            if (location == null) {
+                throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Organization created but no id returned");
+            }
+            String path = location.getPath();
+            return path.substring(path.lastIndexOf('/') + 1);
+        } catch (RestClientResponseException e) {
+            log.error("Failed to create Keycloak organization '{}': {}", alias, e.getResponseBodyAsString());
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Organization creation failed");
+        }
+    }
+
+    /** Adds a Keycloak user (by its KC user id) as a member of an organization. */
+    public void addOrganizationMember(String orgId, String kcUserId) {
+        try {
+            // KC's add-member endpoint takes the raw user id as the request body (as kcadm does with -b).
+            restClient.post()
+                    .uri(getAdminUrl() + "/organizations/" + orgId + "/members")
+                    .header("Authorization", "Bearer " + getServiceToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(kcUserId)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            // Already a member (reconciler re-provision, or a retried IAM command) is success, not failure —
+            // Keycloak answers 409 CONFLICT. Only a genuine error should propagate.
+            if (e.getStatusCode() == HttpStatus.CONFLICT) {
+                log.debug("User {} already a member of organization {} — ok", kcUserId, orgId);
+                return;
+            }
+            log.error("Failed to add member {} to organization {}: {}", kcUserId, orgId, e.getResponseBodyAsString());
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Organization membership failed");
+        }
+    }
+
+    /** Deletes an organization — used to roll back a failed onboarding. Best-effort. */
+    public void deleteOrganization(String orgId) {
+        try {
+            restClient.delete()
+                    .uri(getAdminUrl() + "/organizations/" + orgId)
+                    .header("Authorization", "Bearer " + getServiceToken())
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Deleted Keycloak organization {} (rollback)", orgId);
+        } catch (RestClientResponseException e) {
+            log.error("Failed to delete organization {} during rollback: {}", orgId, e.getResponseBodyAsString());
         }
     }
 

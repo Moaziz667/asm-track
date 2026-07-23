@@ -78,10 +78,12 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter,
+                                         TenantMessagePostProcessor tenantPostProcessor) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
         template.setMandatory(true);
+        template.setBeforePublishPostProcessors(tenantPostProcessor);
         template.setConfirmCallback((correlation, ack, cause) -> {
             if (!ack) {
                 log.error("RabbitMQ publish NACK — correlation={} cause={}",
@@ -98,10 +100,13 @@ public class RabbitMQConfig {
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory,
             SimpleRabbitListenerContainerFactoryConfigurer configurer,
-            MessageConverter messageConverter) {
+            MessageConverter messageConverter,
+            TenantInboundPostProcessor tenantInboundPostProcessor) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         configurer.configure(factory, connectionFactory);
         factory.setMessageConverter(messageConverter);
+        // Set the tenant from the X-Company-Id header before every listener runs (propagated on Feign).
+        factory.setAfterReceivePostProcessors(tenantInboundPostProcessor);
         factory.setDefaultRequeueRejected(false);
         return factory;
     }

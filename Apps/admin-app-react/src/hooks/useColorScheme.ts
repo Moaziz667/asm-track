@@ -30,7 +30,7 @@ export function useColorScheme() {
     document.documentElement.setAttribute('data-mantine-color-scheme', val);
     document.documentElement.classList.toggle('dark', val === 'dark');
     safeStorage.setItem('admin-color-scheme', val);
-    document.cookie = `asm-theme=${val}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `asm-theme=${val}; path=/; domain=localhost; max-age=31536000; SameSite=Strict`;
   };
 
   return { colorScheme, setColorScheme };

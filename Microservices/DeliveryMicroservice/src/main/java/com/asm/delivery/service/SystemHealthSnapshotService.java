@@ -36,7 +36,7 @@ import java.util.Map;
  *
  * <p>Probes use the services' own {@code /actuator/health} where available (driver, erp-adapter) for
  * a real signal; Keycloak/OSRM fall back to a shallow TCP reachability check. The ERP sync section is
- * sourced from {@code orders.odoo_sync_status} — the accurate signal — not DLQ depth.
+ * sourced from {@code orders.erp_sync_status} — the accurate signal — not DLQ depth.
  */
 @Service
 @RequiredArgsConstructor
@@ -212,12 +212,12 @@ public class SystemHealthSnapshotService {
         db.put("reachable", isDatabaseReachable());
         out.put("db", db);
 
-        // 4. ERP sync — the accurate signal, from orders.odoo_sync_status (not DLQ depth).
+        // 4. ERP sync — the accurate signal, from orders.erp_sync_status (not DLQ depth).
         out.put("erpSync", buildErpSync());
 
         // 5. Back-compat ERP block consumed by older clients.
         Map<String, Object> erp = new LinkedHashMap<>();
-        long failedCount = orderRepo.countByOdooSyncStatus("SYNC_FAILED");
+        long failedCount = orderRepo.countByErpSyncStatus("SYNC_FAILED");
         erp.put("reachable", erpReachable);
         erp.put("pendingSyncFailures", failedCount);
         out.put("erp", erp);
@@ -227,10 +227,10 @@ public class SystemHealthSnapshotService {
 
     private Map<String, Object> buildErpSync() {
         Map<String, Object> erpSync = new LinkedHashMap<>();
-        long failed = orderRepo.countByOdooSyncStatus("SYNC_FAILED");
-        long inProgress = orderRepo.countByOdooSyncStatus("PENDING_SYNC");
+        long failed = orderRepo.countByErpSyncStatus("SYNC_FAILED");
+        long inProgress = orderRepo.countByErpSyncStatus("PENDING_SYNC");
 
-        List<Order> failures = orderRepo.findTop50ByOdooSyncStatusOrderByUpdatedAtAsc("SYNC_FAILED");
+        List<Order> failures = orderRepo.findTop50ByErpSyncStatusOrderByUpdatedAtAsc("SYNC_FAILED");
         List<Map<String, Object>> failureList = new ArrayList<>();
         Long oldestAgeMinutes = null;
         for (Order o : failures) {

@@ -20,7 +20,7 @@ public class AnalyticsCacheConfig {
     public FilterRegistrationBean<ShallowEtagHeaderFilter> analyticsEtagFilter() {
         FilterRegistrationBean<ShallowEtagHeaderFilter> reg =
                 new FilterRegistrationBean<>(new ShallowEtagHeaderFilter());
-        reg.addUrlPatterns("/api/admin/reports/*", "/api/admin/deliveries/stats");
+        reg.addUrlPatterns("/api/v1/admin/reports/*", "/api/v1/admin/deliveries/stats");
         reg.setName("analyticsEtagFilter");
         return reg;
     }

@@ -65,7 +65,7 @@ class RmaServiceTest {
                 .blNumber("BL-001")
                 .build();
 
-        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test User", null);
+        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test User", null, null);
     }
 
     // ── create() ─────────────────────────────────────────────────────────────
@@ -306,7 +306,9 @@ class RmaServiceTest {
                 return r;
             });
 
-            service.transition(rma.getId(), RmaStatus.RECEIVED, null, principal);
+            // A manual RECEIVED is an override of the physical collection, so a reason is mandatory
+            // (RMA_REASON_REQUIRED) — the normal driver path reaches RECEIVED automatically instead.
+            service.transition(rma.getId(), RmaStatus.RECEIVED, "Reçu au dépôt", principal);
 
             assertThat(rma.getReceivedAt()).isNotNull();
         }

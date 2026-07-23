@@ -9,26 +9,29 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
 
+/**
+ * The ERP provider is resolved per-tenant by {@link ErpProviderRouter} (tenant settings + propagated
+ * {@code X-Company-Id}), so no {@code erpProvider} param is accepted.
+ */
 @RestController
 @RequestMapping("/api/erp/orders")
 @Tag(name = "ERP Orders", description = "Order creation and reference resolution")
 @RequiredArgsConstructor
 public class ErpOrderController {
 
-    private final ErpProviderRouter     router;
-    private ErpOrderPort resolve(String erpProvider) {
-        return router.getOrder(erpProvider);
+    private final ErpProviderRouter router;
+
+    private ErpOrderPort resolve() {
+        return router.getOrder();
     }
 
     @PostMapping("/resolve")
     @Operation(summary = "Resolve ERP order reference to canonical ID")
     public ResponseEntity<Map<String, Object>> resolveOrderId(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderRef) {
 
-        String resolved = resolve(erpProvider).resolveOrderId(erpOrderRef);
+        String resolved = resolve().resolveOrderId(erpOrderRef);
         if (resolved == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(Map.of("erpOrderId", resolved));
     }
@@ -36,10 +39,9 @@ public class ErpOrderController {
     @GetMapping("/{erpOrderId}/reference")
     @Operation(summary = "Get human-readable order reference")
     public ResponseEntity<Map<String, Object>> getOrderReference(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @PathVariable String erpOrderId) {
 
-        String reference = resolve(erpProvider).getOrderReference(erpOrderId);
+        String reference = resolve().getOrderReference(erpOrderId);
         if (reference == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(Map.of("reference", reference));
     }

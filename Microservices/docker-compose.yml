@@ -100,7 +100,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.7
     container_name: keycloak
-    command: start-dev --import-realm
+    command: start-dev --import-realm --features=organization
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak_db

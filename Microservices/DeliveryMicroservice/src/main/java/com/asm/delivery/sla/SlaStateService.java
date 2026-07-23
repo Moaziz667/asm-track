@@ -1,11 +1,13 @@
 package com.asm.delivery.sla;
 
+import com.asm.delivery.config.TenantIterator;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.service.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,10 @@ public class SlaStateService {
     private final DeliveryRepository deliveryRepo;
     private final EventPublisher eventPublisher;
     private final SlaPolicy policy;
+    private final TenantIterator tenantIterator;
+    // Self-reference (through the Spring proxy) so the per-tenant @Transactional actually applies —
+    // a direct this.reconcileCurrentTenant() call would bypass the transactional advice.
+    private final ObjectProvider<SlaStateService> self;
 
     private static final List<DeliveryStatus> LIVE = List.of(
             DeliveryStatus.UNSCHEDULED, DeliveryStatus.SCHEDULED,
@@ -123,10 +129,20 @@ public class SlaStateService {
         });
     }
 
-    /** Single periodic tick that advances live deliveries toward AT_RISK/BREACHED as time passes. */
+    /**
+     * Single periodic tick that advances live deliveries toward AT_RISK/BREACHED as time passes.
+     * Runs once <b>per provisioned tenant</b>: the scheduled thread carries no TenantContext, so
+     * without {@link TenantIterator} this would only touch the empty {@code public} schema and no
+     * tenant's SLA would ever advance. Each tenant gets its own transaction (via the proxy self-call).
+     */
     @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:20000}")
-    @Transactional
     public void reconcile() {
+        tenantIterator.forEachActive(companyId -> self.getObject().reconcileCurrentTenant());
+    }
+
+    /** One tenant's reconciliation tick — transactional so the whole sweep commits atomically. */
+    @Transactional
+    public void reconcileCurrentTenant() {
         for (DeliveryStatus st : LIVE) {
             deliveryRepo.findByStatus(st).forEach(this::refresh);
         }

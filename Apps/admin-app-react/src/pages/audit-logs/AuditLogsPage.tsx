@@ -9,7 +9,6 @@ import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { isAbortError } from '@/lib/utils/errors';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
@@ -393,13 +392,6 @@ export default function AuditLogsPage() {
   const locale = useLocaleStore(state => state.locale);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const r = getCurrentRole();
-    if (r !== 'UNKNOWN' && !canDispatch(r)) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
-
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -439,7 +431,7 @@ export default function AuditLogsPage() {
       if (filterFrom) params.from = filterFrom + 'T00:00:00';
       if (filterTo) params.to = filterTo + 'T23:59:59';
 
-      const res = await api.get('/api/admin/audit', { params, signal: abortRef.current.signal });
+      const res = await api.get('/admin/audit', { params, signal: abortRef.current.signal });
       const data: Page<AuditLog> = res.data;
       setLogs(data.content);
       setTotalElements(data.totalElements);

@@ -11,6 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 @FeignClient(name = "app-backend-settings", url = "${APP_BACKEND_URL:http://app-backend:8080}")
 public interface SettingsInternalClient {
 
-    @GetMapping("/api/settings/internal/erp")
+    @GetMapping("/api/v1/settings/internal/erp")
     SystemSettingsDto getErpSettings();
 }

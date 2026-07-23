@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { AdminRole, getCurrentRole } from '@/lib/api/auth';
+import { Perm, usePermissions } from '@/lib/api/auth';
 import { Forbidden } from '@/pages/auth/Forbidden';
 
 interface ProtectedRouteProps {
@@ -35,14 +35,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 };
 
 /**
- * Declarative role gate. Renders a proper 403 page when the current role is not
- * permitted, instead of silently bouncing to the dashboard. Sits inside
- * ProtectedRoute, so the user is already authenticated here.
+ * Declarative permission gate for a route. Renders a proper 403 page when the current user lacks the
+ * required permission, mirroring the backend RBAC and the nav gating (same perm:* strings). `perm` null
+ * means "any authenticated user". Sits inside ProtectedRoute, so the user is already authenticated here.
  */
-export const RoleRoute = ({ allow, children }: { allow: AdminRole[]; children: ReactNode }) => {
-  const role = getCurrentRole();
-  if (role === 'UNKNOWN') return <AuthLoading />;
-  if (!allow.includes(role)) return <Forbidden requiredRoles={allow} />;
+export const PermRoute = ({ perm, children }: { perm: Perm | null; children: ReactNode }) => {
+  const { perms } = usePermissions();
+  if (perm && !perms.includes(perm)) return <Forbidden requiredPerm={perm} />;
   return <>{children}</>;
 };
 

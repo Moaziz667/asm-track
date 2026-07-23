@@ -62,7 +62,7 @@ public class Rma {
     /**
      * State of the reverse stock-move sync to the ERP. Null until the return is RESTOCKED, then
      * PENDING_SYNC → SYNCED / SYNC_FAILED (set asynchronously by the ERP result consumer). Mirrors
-     * the order-level {@code odooSyncStatus} so a failed reverse move never hides behind RESTOCKED.
+     * the order-level {@code erpSyncStatus} so a failed reverse move never hides behind RESTOCKED.
      */
     @Column(name = "erp_sync_status", length = 40)
     private String erpSyncStatus;

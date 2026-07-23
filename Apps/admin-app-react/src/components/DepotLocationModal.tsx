@@ -91,7 +91,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
     setLng(pickedLng.toFixed(6));
     try {
       setReverseGeocoding(true);
-      const res = await api.get<{ displayName?: string }>('/api/admin/deliveries/reverse-geocode', {
+      const res = await api.get<{ displayName?: string }>('/admin/deliveries/reverse-geocode', {
         params: { lat: pickedLat, lng: pickedLng }
       });
       if (res.data?.displayName) {

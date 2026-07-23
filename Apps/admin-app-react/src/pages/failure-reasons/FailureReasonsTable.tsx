@@ -91,7 +91,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const fetchReasons = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/admin/failure-reasons');
+      const res = await api.get('/admin/failure-reasons');
       const rows: FailureReason[] = ((Array.isArray(res.data) ? res.data : []) as FailureReason[]).map((r) => ({
         ...r,
         scope: (r.scope ?? 'DELIVERY') as Scope,
@@ -127,10 +127,10 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     try {
       const payload = { label: form.label.trim(), category: form.category, scope: form.scope, sortOrder: form.sortOrder, active: form.active };
       if (form.id) {
-        await api.put(`/api/admin/failure-reasons/${form.id}`, payload);
+        await api.put(`/admin/failure-reasons/${form.id}`, payload);
         showSuccessToast(s.toastUpdated);
       } else {
-        await api.post('/api/admin/failure-reasons', payload);
+        await api.post('/admin/failure-reasons', payload);
         showSuccessToast(s.toastCreated);
       }
       setModalOpen(false);
@@ -149,7 +149,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
 
   const deactivate = async (r: FailureReason) => {
     try {
-      await api.delete(`/api/admin/failure-reasons/${r.id}`);
+      await api.delete(`/admin/failure-reasons/${r.id}`);
       showSuccessToast(s.toastDeactivated);
       await fetchReasons();
     } catch (err) {
@@ -159,7 +159,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
 
   const reactivate = async (r: FailureReason) => {
     try {
-      await api.put(`/api/admin/failure-reasons/${r.id}`, {
+      await api.put(`/admin/failure-reasons/${r.id}`, {
         label: r.label, category: r.category, scope: r.scope, sortOrder: r.sortOrder, active: true,
       });
       showSuccessToast(s.toastReactivated);
@@ -177,8 +177,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     if (!neighbour) return;
     try {
       await Promise.all([
-        api.put(`/api/admin/failure-reasons/${r.id}`, { label: r.label, category: r.category, scope: r.scope, active: r.active, sortOrder: neighbour.sortOrder }),
-        api.put(`/api/admin/failure-reasons/${neighbour.id}`, { label: neighbour.label, category: neighbour.category, scope: neighbour.scope, active: neighbour.active, sortOrder: r.sortOrder }),
+        api.put(`/admin/failure-reasons/${r.id}`, { label: r.label, category: r.category, scope: r.scope, active: r.active, sortOrder: neighbour.sortOrder }),
+        api.put(`/admin/failure-reasons/${neighbour.id}`, { label: neighbour.label, category: neighbour.category, scope: neighbour.scope, active: neighbour.active, sortOrder: r.sortOrder }),
       ]);
       await fetchReasons();
     } catch (err) {

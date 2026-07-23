@@ -6,7 +6,7 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload, IconMapPin, IconPencil,
 } from '@tabler/icons-react';
-import { isReadOnlyRole, getCurrentRole } from '@/lib/api/auth';
+import { usePermissions } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -32,8 +32,9 @@ function Spinner({ size = 24 }: { size?: number }) {
 
 export default function DepotsPage() {
   const t = useT();
-  const role = getCurrentRole();
-  const readOnly = isReadOnlyRole(role);
+  // Master-data management (depots) gated on perm:route:manage, aligned with the backend.
+  const { has } = usePermissions();
+  const readOnly = !has('perm:route:manage');
 
   const { data: depots = [], isLoading: loading, refetch: fetchDepots } = useDepots();
   const syncMutation = useSyncDepotsFromErp();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { jwtDecode } from 'jwt-decode';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -57,7 +58,7 @@ export function useRouteData(routeId: string | undefined) {
     if (!routeId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/api/admin/routes/${routeId}/full`);
+      const res = await api.get(`/admin/routes/${routeId}/full`);
       const data = res.data as RouteDetail;
       setRoute(data);
       const dm: Record<string, Delivery> = {};
@@ -99,7 +100,7 @@ export function useRouteData(routeId: string | undefined) {
 
   useEffect(() => {
     if (!route?.driver?.id) return;
-    api.get(`/api/admin/fleet/drivers/${route.driver.id}`)
+    api.get(`/admin/fleet/drivers/${route.driver.id}`)
       .then(res => {
         setDriverOnlineStatus(res.data?.onlineStatus ?? null);
         setDriverLastSeen(res.data?.lastLocationAt ?? null);
@@ -134,13 +135,26 @@ export function useRouteData(routeId: string | undefined) {
     const baseUrl = import.meta.env.VITE_WS_BASE_URL
       ?? import.meta.env.VITE_API_BASE_URL
       ?? `${window.location.protocol}//${window.location.host}`;
-    const topic = '/topic/admin.routes';
+
+    // Tenant-scoped topic only. The backend no longer allows the legacy non-tenant /topic/admin.routes,
+    // so with no resolvable tenant we simply don't open a live driver-location feed (fail closed).
+    let topic: string | null = null;
+    try {
+      const token = safeStorage.getItem('access_token');
+      if (token) {
+        const decoded = jwtDecode<{ org_id?: string; organization?: Record<string, { id?: string }> }>(token);
+        const orgId = decoded.org_id ?? (() => { const o = decoded.organization; return o ? Object.values(o)[0]?.id : undefined; })();
+        if (orgId) topic = `/topic/company/${orgId}/admin.routes`;
+      }
+    } catch { /* no tenant → no subscription */ }
+    if (!topic) return;
+    const destination = topic;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${baseUrl}/ws`),
       reconnectDelay: 5000,
       onConnect: () => {
-        client.subscribe(topic, msg => {
+        client.subscribe(destination, msg => {
           try {
             const data = JSON.parse(msg.body);
             if (data.event === 'driver.location_updated' && data.driverId === driverId) {
@@ -190,7 +204,7 @@ export function useRouteData(routeId: string | undefined) {
     if (!delivery) { showErrorToast(null, 'errorDataNotLoaded'); return; }
     try {
       showInfoToast('infoBlGenerating');
-      const response = await api.get(`/api/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
+      const response = await api.get(`/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -212,7 +226,7 @@ export function useRouteData(routeId: string | undefined) {
     try {
       const params = cancelStopReason.trim() ? { reason: cancelStopReason.trim() } : {};
       await api.post(
-        `/api/admin/routes/${route.id}/stops/${cancelStopTarget.stopId}/cancel`,
+        `/admin/routes/${route.id}/stops/${cancelStopTarget.stopId}/cancel`,
         null,
         { params },
       );
@@ -244,7 +258,7 @@ export function useRouteData(routeId: string | undefined) {
     try {
       const params = new URLSearchParams();
       if (removeStopReason) params.append('reason', removeStopReason);
-      const url = `/api/admin/routes/${route.id}/stops/${removeStopTarget.stopId}${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/admin/routes/${route.id}/stops/${removeStopTarget.stopId}${params.toString() ? `?${params.toString()}` : ''}`;
       const delivery = route.stops?.find(s => s.id === removeStopTarget.stopId)?.delivery;
       await api.delete(url);
       showSuccessToast(t.apiMessages.successStopRemoved, {
@@ -308,7 +322,7 @@ export function useRouteData(routeId: string | undefined) {
       if (editWindowStart) payload.startTimeWindow = editWindowStart.length === 5 ? `${editWindowStart}:00` : editWindowStart;
       if (editWindowEnd) payload.endTimeWindow = editWindowEnd.length === 5 ? `${editWindowEnd}:00` : editWindowEnd;
       const delivery = route.stops?.find(s => s.id === editWindowTarget.stopId)?.delivery;
-      await api.patch(`/api/admin/routes/${route.id}/stops/${editWindowTarget.stopId}`, payload);
+      await api.patch(`/admin/routes/${route.id}/stops/${editWindowTarget.stopId}`, payload);
       showSuccessToast(t.apiMessages.successWindowUpdated, {
         orderId: delivery?.order?.referenceId,
         erpId: delivery?.order?.erpOrderId,

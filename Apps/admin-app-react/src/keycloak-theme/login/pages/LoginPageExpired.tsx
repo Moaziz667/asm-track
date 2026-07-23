@@ -15,15 +15,15 @@ export default function LoginPageExpired({ kcContext, i18n, Template, doUseDefau
       doUseDefaultCss={doUseDefaultCss}
       headerNode={msg("pageExpiredTitle")}
     >
-      <div className="asm-icon-page">
-        <div className="asm-icon-wrap asm-icon-wrap-orange">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="asm-status-page">
+        <div className="asm-status-icon asm-status-icon-orange">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
         </div>
 
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 24, textAlign: "center" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 20, textAlign: "center" }}>
           {msg("pageExpiredMsg1")}{" "}
           <a href={url.loginRestartFlowUrl} className="asm-link">
             {msg("doClickHere")}

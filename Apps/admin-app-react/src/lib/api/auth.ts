@@ -1,8 +1,8 @@
 import { AdminRole, AdminUser } from '@/types';
 export type { AdminRole } from '@/types';
 import { safeStorage } from '@/lib/storage';
-import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { jwtDecode } from 'jwt-decode';
 
 const ROLL_KEYS = ['token_role', 'admin_role', 'role', 'user_role'];
 const USER_DATA_KEY = 'admin_user';
@@ -53,66 +53,63 @@ export function getCurrentUser(): AdminUser | null {
   return null;
 }
 
-export function isReadOnlyRole(role: AdminRole): boolean {
-  return role === 'MANAGER';
+// ── Permission model (perm:*) ───────────────────────────────────────────────
+// Mirrors the backend exactly: the token carries perm:* composite-role members and the UI gates on
+// the same strings the gateway/services enforce. One source of truth = the Keycloak role composites.
+export type Perm =
+  | 'perm:report:view' | 'perm:audit:view'
+  | 'perm:route:view' | 'perm:route:manage' | 'perm:route:validate'
+  | 'perm:delivery:view' | 'perm:delivery:manage'
+  | 'perm:driver:view' | 'perm:driver:manage'
+  | 'perm:dispatch:operate'
+  | 'perm:erp:sync' | 'perm:erp:config'
+  | 'perm:user:manage' | 'perm:company:manage' | 'perm:settings:manage';
+
+export function getCurrentPerms(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = safeStorage.getItem('perms');
+    if (raw) return JSON.parse(raw);
+    // Fallback for sessions established before this key existed (or before the next silent renew):
+    // decode perm:* straight from the stored access token so gating is correct on first paint.
+    const token = safeStorage.getItem('access_token');
+    if (!token) return [];
+    const decoded = jwtDecode<{ realm_access?: { roles?: string[] } }>(token);
+    return (decoded.realm_access?.roles ?? []).filter((r) => r.startsWith('perm:'));
+  } catch {
+    return [];
+  }
 }
 
-export function canManageSettings(role: AdminRole): boolean {
-  return role === 'ADMIN';
+export function hasPerm(perm: Perm): boolean {
+  return getCurrentPerms().includes(perm);
 }
 
-export function canImportErp(role: AdminRole): boolean {
-  return role === 'ADMIN' || role === 'DISPATCHER';
+export function hasAnyPerm(...perms: Perm[]): boolean {
+  const mine = getCurrentPerms();
+  return perms.some((p) => mine.includes(p));
 }
-
-export function canDispatch(role: AdminRole): boolean {
-  return role === 'ADMIN' || role === 'DISPATCHER';
-}
-
-export function canManageRoutes(role: AdminRole): boolean {
-  return role === 'ADMIN' || role === 'DISPATCHER';
-}
-
-export function canManageMasterData(role: AdminRole): boolean {
-  return role === 'ADMIN' || role === 'DISPATCHER';
-}
-
-export function canViewReadOnly(role: AdminRole): boolean {
-  return role === 'ADMIN' || role === 'DISPATCHER' || role === 'MANAGER';
-}
-
-
 
 /**
- * Hook de protection de page par role.
- * Redirige vers /dashboard si le role ne satisfait pas le check.
+ * Reactive permissions. Re-reads on login/renew (syncSession fires 'perms-changed') and on cross-tab
+ * storage changes, so nav + action gating stay live without a full reload.
  */
-export function useRoleGuard(checkFn: (role: AdminRole) => boolean): { allowed: boolean; loading: boolean } {
-  const navigate = useNavigate();
-  const role = getCurrentRole();
-  const [allowed, setAllowed] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || role === 'UNKNOWN') return false;
-    return checkFn(role);
-  });
-  const [loading, setLoading] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || role === 'UNKNOWN') return true;
-    return false;
-  });
-
+export function usePermissions(): { perms: string[]; has: (p: Perm) => boolean; hasAny: (...p: Perm[]) => boolean } {
+  const [perms, setPerms] = useState<string[]>(() => getCurrentPerms());
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (role === 'UNKNOWN') {
-      setLoading(true);
-      setAllowed(false);
-      return;
-    }
-    const isAllowed = checkFn(role);
-    setAllowed(isAllowed);
-    setLoading(false);
-    if (!isAllowed) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [role, checkFn, navigate]);
-
-  return { allowed, loading };
+    const refresh = () => setPerms(getCurrentPerms());
+    refresh();
+    window.addEventListener('perms-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('perms-changed', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+  return {
+    perms,
+    has: (p: Perm) => perms.includes(p),
+    hasAny: (...p: Perm[]) => p.some((x) => perms.includes(x)),
+  };
 }
+

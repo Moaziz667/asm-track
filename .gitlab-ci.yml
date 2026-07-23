@@ -1,0 +1,107 @@
+# ASM Track — CI pipeline (self-hosted GitLab, git.asmtechtn.com).
+#
+# Runs on the Docker-executor runner (tag: docker). Stages follow the test pyramid / fail-fast order:
+#   1. build            — compile backend + type-check frontend (catches breakage cheapest, first)
+#   2. unit-test        — fast, fully-mocked tests, no external services
+#   3. integration-test — slower; needs a real Postgres (attached as a `services:` side-car)
+#
+# Nothing in a later stage runs if an earlier stage fails.
+
+stages:
+  - build
+  - unit-test
+  - integration-test
+
+variables:
+  # No Gradle daemon in CI (one-shot JVM), and keep its home in the project dir so it can be cached.
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+
+# ── reusable snippets ────────────────────────────────────────────────────────
+.gradle-delivery: &gradle-delivery
+  image: gradle:8.5-jdk17
+  tags: [docker]
+  cache:
+    key: gradle-delivery
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+  before_script:
+    - cd Microservices/DeliveryMicroservice
+
+.npm-admin: &npm-admin
+  image: node:20
+  tags: [docker]
+  cache:
+    key: npm-admin
+    paths:
+      - Apps/admin-app-react/.npm
+  before_script:
+    # `npm ci` reinstalls from package-lock so the native (rolldown) binding matches the Linux runner —
+    # never reuse a node_modules built on another OS.
+    - cd Apps/admin-app-react
+    - npm ci --cache .npm --prefer-offline
+
+# ── 1. BUILD ─────────────────────────────────────────────────────────────────
+build-backend-delivery:
+  <<: *gradle-delivery
+  stage: build
+  script:
+    - gradle compileJava compileTestJava
+
+typecheck-admin:
+  <<: *npm-admin
+  stage: build
+  script:
+    - npm run typecheck
+
+# ── 2. UNIT TEST ─────────────────────────────────────────────────────────────
+# `test` runs unit tests only (integration *IT excluded in build.gradle) — no DB needed.
+unit-test-backend-delivery:
+  <<: *gradle-delivery
+  stage: unit-test
+  script:
+    - gradle test
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/DeliveryMicroservice/build/test-results/test/*.xml
+    expire_in: 1 week
+
+test-admin:
+  <<: *npm-admin
+  stage: unit-test
+  script:
+    - npm test
+
+# ── 3. INTEGRATION TEST ──────────────────────────────────────────────────────
+# `integrationTest` runs the *IT suite against the side-car Postgres (via IT_DB_URL). No Docker-in-Docker:
+# the tests connect to the service over the job network, they don't spawn their own container.
+integration-test-backend-delivery:
+  <<: *gradle-delivery
+  stage: integration-test
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    POSTGRES_DB: delivery_test
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_HOST_AUTH_METHOD: trust
+    IT_DB_URL: "jdbc:postgresql://postgres:5432/delivery_test"
+    IT_DB_USER: test
+    IT_DB_PASS: test
+  before_script:
+    - cd Microservices/DeliveryMicroservice
+    - until bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; do sleep 1; done
+  script:
+    - gradle integrationTest
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/DeliveryMicroservice/build/test-results/integrationTest/*.xml
+    paths:
+      - Microservices/DeliveryMicroservice/build/reports/tests/
+    expire_in: 1 week

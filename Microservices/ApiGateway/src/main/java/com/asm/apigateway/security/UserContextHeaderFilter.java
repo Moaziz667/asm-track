@@ -41,6 +41,7 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
         copiedHeaders.remove("X-User-Role");
         copiedHeaders.remove("X-User-Name");
         copiedHeaders.remove("X-User-Perms");
+        copiedHeaders.remove("X-Company-Id");
 
         ServerHttpRequest sanitizedRequest = new org.springframework.http.server.reactive.ServerHttpRequestDecorator(exchange.getRequest()) {
             @Override
@@ -70,15 +71,25 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                     String name = jwt.getClaimAsString("name");
 
                     if (!isAuthorized(path, roles, sanitizedExchange.getRequest().getMethod())) {
-                        log.debug("Access denied for roles={} on path={}", roles, path);
+                        log.warn("Access denied on path={} method={} — user roles={}", path,
+                                sanitizedExchange.getRequest().getMethod(), roles);
                         return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "Access denied");
                     }
 
                     String perms = roles.stream().filter(r -> r.startsWith("perm:"))
                             .collect(java.util.stream.Collectors.joining(","));
+                    String companyId = extractCompanyId(jwt);
+                    if (companyId == null) {
+                        // Fail-closed: no resolvable tenant = no data access. NEVER fall back to a
+                        // catch-all company (that silently bleeds data across tenants). A user without
+                        // an org_id claim is misconfigured in Keycloak — reject rather than guess.
+                        log.warn("Missing org_id/organization claim for user={} on path={} — rejecting", userId, path);
+                        return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "No tenant assigned");
+                    }
                     ServerHttpRequest.Builder req = sanitizedExchange.getRequest().mutate()
                             .header("X-User-Id", userId)
-                            .header("X-User-Role", role);
+                            .header("X-User-Role", role)
+                            .header("X-Company-Id", companyId);
                     if (name != null) req.header("X-User-Name", name);
                     if (!perms.isEmpty()) req.header("X-User-Perms", perms);
 
@@ -95,9 +106,9 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private boolean isPublic(String path) {
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/api/public/")
-                || path.startsWith("/api/dev/")
+        return path.startsWith("/api/v1/auth/")
+                || path.startsWith("/api/v1/public/")
+                || path.startsWith("/api/v1/dev/")
                 || path.startsWith("/ws/")
                 || path.equals("/ws");
     }
@@ -122,67 +133,44 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                 .orElse("CLIENT");
     }
 
-    private static boolean hasRole(java.util.Set<String> roles, String role) {
-        return roles.stream().anyMatch(r -> r.equalsIgnoreCase(role));
+    @SuppressWarnings("unchecked")
+    private String extractCompanyId(Jwt jwt) {
+        String orgId = jwt.getClaimAsString("org_id");
+        if (orgId != null) return orgId;
+        Map<String, Object> orgs = jwt.getClaim("organization");
+        if (orgs != null && !orgs.isEmpty()) {
+            Object first = orgs.values().iterator().next();
+            if (first instanceof Map) {
+                Object id = ((Map<?, ?>) first).get("id");
+                if (id != null) return id.toString();
+            }
+        }
+        return null;
     }
 
     /**
-     * Permission-based path authorization (RBAC). Permissions ride in the JWT as composite-role
-     * members (perm:*). This table is a behavior-preserving translation of the previous role table:
-     * ADMIN short-circuits (superuser); client/driver-facing paths stay role-scoped; the admin surface
-     * is authorized on perm:* so access is managed in Keycloak, not hardcoded here.
+     * Path authorization. Delegates to {@link RbacPolicy} — the single, ordered, data-driven table that
+     * is the canonical reference (and is exhaustively covered by RbacPolicyTest). No ADMIN superuser
+     * bypass: ADMIN passes because its Keycloak composite grants every perm:* the rules require.
      */
     boolean isAuthorized(String path, java.util.Set<String> roles, HttpMethod method) {
-        if (hasRole(roles, "ADMIN")) return true; // superuser safety net during RBAC rollout
-        boolean isGet = HttpMethod.GET.equals(method);
-
-        // Client/driver-facing paths — role-scoped, not part of the admin permission model.
-        if (path.startsWith("/api/orders/")) return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/users/"))  return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/driver/")) return hasRole(roles, "DRIVER");
-
-        // Admin surface — permission-based (order matters: most specific first).
-        if (path.equals("/api/admin/me") || path.startsWith("/api/admin/me/"))
-            return true; // any authenticated admin/dispatcher/manager — only their own profile (read + login-sync)
-        if (path.equals("/api/admin/companies/me"))
-            return roles.contains("perm:company:manage") || roles.contains("perm:dispatch:operate");
-        if (path.startsWith("/api/admin/companies/"))
-            return roles.contains("perm:company:manage");
-        if (path.startsWith("/api/admin/users"))
-            return roles.contains("perm:user:manage");
-        if (path.startsWith("/api/admin/drivers"))
-            return isGet ? roles.contains("perm:driver:view") : roles.contains("perm:driver:manage");
-        if (path.startsWith("/api/admin/vehicles"))
-            return isGet && roles.contains("perm:driver:view");
-        if (path.startsWith("/api/admin/erp/"))
-            return roles.contains("perm:erp:sync");
-        if (path.startsWith("/api/admin/reports/settings"))
-            return roles.contains("perm:settings:manage");
-        if (path.startsWith("/api/admin/stats")
-                || path.startsWith("/api/admin/reports/")
-                || path.startsWith("/api/admin/ops/"))
-            return roles.contains("perm:report:view");
-        if (isGet && path.startsWith("/api/admin/routes"))
-            return roles.contains("perm:route:view");
-        if (isGet && path.startsWith("/api/admin/deliveries"))
-            return roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/admin/"))
-            return roles.contains("perm:dispatch:operate");
-
-        if (path.startsWith("/api/deliveries/"))
-            return hasRole(roles, "DRIVER") || roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/v1/"))
-            return roles.contains("perm:route:view");
-
-        return false;
+        return RbacPolicy.isAuthorized(path, roles, method);
     }
 
     private Mono<Void> writeError(ServerWebExchange exchange, HttpStatus status, String message) {
-        exchange.getResponse().setStatusCode(status);
-        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        var response = exchange.getResponse();
+        // Fail-closed paths can fire while the response is already committed (e.g. a second concurrent
+        // reject on the same exchange). setStatusCode/writeWith on a committed response throws
+        // UnsupportedOperationException, which surfaces as noise in HttpWebHandlerAdapter — the status
+        // is already sent, so just complete quietly instead.
+        if (response.isCommitted()) {
+            return response.setComplete();
+        }
+        response.setStatusCode(status);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         String body = "{\"status\":" + status.value() + ",\"message\":\"" + message + "\"}";
-        var buf = exchange.getResponse().bufferFactory()
+        var buf = response.bufferFactory()
                 .wrap(body.getBytes(StandardCharsets.UTF_8));
-        return exchange.getResponse().writeWith(Mono.just(buf));
+        return response.writeWith(Mono.just(buf));
     }
 }

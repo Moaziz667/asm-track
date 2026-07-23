@@ -15,7 +15,7 @@ import {
   IconPoint, IconPackage
 } from '@tabler/icons-react';
 import type { Driver } from '@/types';
-import { getCurrentRole, isReadOnlyRole } from '@/lib/api/auth';
+import { usePermissions } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/AddButton';
@@ -287,8 +287,10 @@ function VehiclesPageContent() {
     MOTO:  t.vehiclesPage.vehicleTypeMoto,
   };
   const locale = useLocaleStore(state => state.locale);
-  const role = getCurrentRole();
-  const readOnly = isReadOnlyRole(role);
+  // Managing vehicles (create/edit/status/assign/delete) needs perm:driver:manage — same as the backend.
+  // Viewers see the fleet read-only; no action buttons that would just 403.
+  const { has } = usePermissions();
+  const readOnly = !has('perm:driver:manage');
 
   // TanStack Query Hooks
   const { data: vehicles = [], isLoading: loadingVehicles, refetch: refetchVehicles } = useVehicles();

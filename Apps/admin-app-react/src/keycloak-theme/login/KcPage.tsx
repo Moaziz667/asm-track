@@ -54,7 +54,7 @@ export default function KcPage(props: { kcContext: KcContext }) {
                 kcContext={kcContext}
                 i18n={i18n}
                 Template={Template}
-                doUseDefaultCss={true}
+                doUseDefaultCss={false}
                 doMakeUserConfirmPassword={false}
                 UserProfileFormFields={UserProfileFormFields}
               />

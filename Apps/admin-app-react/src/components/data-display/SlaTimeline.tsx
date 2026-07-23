@@ -99,7 +99,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
     let alive = true;
     if (!deliveryId) { setLoading(false); setData(null); return; }
     setLoading(true);
-    api.get(`/api/admin/deliveries/${deliveryId}/sla-timeline`)
+    api.get(`/admin/deliveries/${deliveryId}/sla-timeline`)
       .then((r) => { if (alive) setData(r.data); })
       .catch(() => { if (alive) setData(null); })
       .finally(() => { if (alive) setLoading(false); });

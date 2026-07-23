@@ -17,17 +17,19 @@ export default function LoginConfigTotp({ kcContext, i18n, Template, doUseDefaul
       doUseDefaultCss={doUseDefaultCss}
       headerNode={msg("loginTotpTitle")}
     >
-      {/* Step 1 — Install app */}
+      {/* Step 1 */}
       <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Step 1 — Install an authenticator app
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <p className="asm-step-label">Step 1 &mdash; Install an authenticator app</p>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {totp.supportedApplications.map(app => (
             <span key={app} style={{
-              fontSize: 11, fontWeight: 500, color: "var(--text-secondary)",
-              background: "var(--hover-bg)", border: "1px solid var(--border)",
-              borderRadius: "var(--radius-xs)", padding: "3px 9px"
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: "var(--text-secondary)",
+              background: "var(--hover-bg)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
+              padding: "3px 8px",
             }}>
               {app}
             </span>
@@ -35,30 +37,26 @@ export default function LoginConfigTotp({ kcContext, i18n, Template, doUseDefaul
         </div>
       </div>
 
-      {/* Step 2 — QR code */}
+      {/* Step 2 */}
       <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Step 2 — Scan QR code
-        </p>
+        <p className="asm-step-label">Step 2 &mdash; Scan QR code</p>
         <div className="asm-qr-wrap">
           <img src={`data:image/png;base64,${totp.totpSecretQrCode}`} alt="QR code" />
         </div>
-        <p style={{ fontSize: 11, color: "var(--text-soft)", textAlign: "center", marginTop: 8 }}>
+        <p style={{ fontSize: 11.5, color: "var(--text-soft)", textAlign: "center", marginTop: 8 }}>
           {msg("loginTotpUnableToScan")}{" "}
-          <a href={totp.manualUrl} className="asm-link" style={{ fontSize: 11 }}>
+          <a href={totp.manualUrl} className="asm-link" style={{ fontSize: 11.5 }}>
             {(msg as (key: string) => React.ReactNode)("loginTotpManualMode")}
           </a>
         </p>
-        <div className="asm-secret-key" style={{ marginTop: 10 }}>
+        <div className="asm-secret-key" style={{ marginTop: 8 }}>
           {totp.totpSecretEncoded}
         </div>
       </div>
 
-      {/* Step 3 — Verify */}
+      {/* Step 3 */}
       <div>
-        <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          Step 3 — Verify
-        </p>
+        <p className="asm-step-label">Step 3 &mdash; Verify</p>
         <form
           className="asm-form"
           action={url.loginAction}
@@ -82,7 +80,7 @@ export default function LoginConfigTotp({ kcContext, i18n, Template, doUseDefaul
               autoFocus
               className={`asm-input${messagesPerField.existsError("totp") ? " error" : ""}`}
               placeholder="000000"
-              style={{ textAlign: "center", letterSpacing: "0.12em", fontSize: 16, fontWeight: 600 }}
+              style={{ textAlign: "center", letterSpacing: "0.12em", fontSize: 15, fontWeight: 600 }}
             />
             {messagesPerField.existsError("totp") && (
               <span className="asm-field-error">{messagesPerField.getFirstError("totp")}</span>
@@ -110,8 +108,8 @@ export default function LoginConfigTotp({ kcContext, i18n, Template, doUseDefaul
               </button>
             )}
             <button type="submit" className="asm-btn-primary" disabled={isSubmitting} style={{ flex: 2, marginTop: 0 }}>
-              {isSubmitting ? <span className="asm-spinner" /> : null}
-              {isSubmitting ? "Saving…" : msgStr("doSubmit")}
+              {isSubmitting && <span className="asm-spinner" />}
+              {isSubmitting ? "Saving\u2026" : msgStr("doSubmit")}
             </button>
           </div>
         </form>

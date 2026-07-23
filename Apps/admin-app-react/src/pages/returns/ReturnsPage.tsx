@@ -96,8 +96,8 @@ export default function ReturnsPage() {
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
       const [listRes, kpiRes] = await Promise.all([
-        api.get('/api/admin/returns', { params }),
-        api.get('/api/admin/returns/kpi').catch(() => ({ data: null })),
+        api.get('/admin/returns', { params }),
+        api.get('/admin/returns/kpi').catch(() => ({ data: null })),
       ]);
       // Endpoint is paginated → response is a Spring Page { content, totalPages, totalElements }.
       const data = listRes.data ?? {};
@@ -146,7 +146,7 @@ export default function ReturnsPage() {
   const runTransition = async (r: Rma, target: RmaStatus, note?: string) => {
     setBusyId(r.id);
     try {
-      await api.post(`/api/admin/returns/${r.id}/transition`, null, {
+      await api.post(`/admin/returns/${r.id}/transition`, null, {
         params: { target, ...(note ? { note } : {}) },
       });
       showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
@@ -161,7 +161,7 @@ export default function ReturnsPage() {
   // Save inbound return-shipment tracking (carrier + tracking number) from the drawer.
   const saveShipping = async (r: Rma, data: { trackingNumber: string; shippingCarrier: string }) => {
     try {
-      await api.patch(`/api/admin/returns/${r.id}/shipping`, data);
+      await api.patch(`/admin/returns/${r.id}/shipping`, data);
       showSuccessToast(t.returnsPage?.shippingSaved ?? 'Expédition enregistrée');
       await fetchAll();
     } catch (err) {
@@ -173,7 +173,7 @@ export default function ReturnsPage() {
   const resync = async (r: Rma) => {
     setBusyId(r.id);
     try {
-      await api.post(`/api/admin/returns/${r.id}/resync`);
+      await api.post(`/admin/returns/${r.id}/resync`);
       showSuccessToast(t.returnsPage?.resyncDone ?? 'Resynchronisation lancée');
       await fetchAll();
     } catch (err) {
@@ -192,7 +192,7 @@ export default function ReturnsPage() {
     // close on success, leave open on error so the user can retry.
     setBusyId(rma.id);
     try {
-      await api.post(`/api/admin/returns/${rma.id}/transition`, null, { params: { target, note } });
+      await api.post(`/admin/returns/${rma.id}/transition`, null, { params: { target, note } });
       showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
       setReasonModal(null);
       await fetchAll();

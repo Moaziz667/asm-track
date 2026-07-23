@@ -28,8 +28,8 @@ public class Delivery {
     private String blNumber;
 
     /** Odoo backorder picking id this shipment must validate (set on backorder shipments). */
-    @Column(name = "odoo_backorder_id")
-    private Integer odooBackorderId;
+    @Column(name = "erp_backorder_id")
+    private Integer erpBackorderId;
 
     @Column(name = "driver_id")
     private UUID driverId;

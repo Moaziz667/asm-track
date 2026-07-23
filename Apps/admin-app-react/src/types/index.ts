@@ -106,8 +106,8 @@ export interface Delivery {
   slaLateMinutes?: number;
   routeEtaAt?: string;
   routeProvider?: string;
-  odooSyncStatus?: string;
-  odooBackorderId?: number;
+  erpSyncStatus?: string;
+  erpBackorderId?: number;
   source?: DeliverySource;
   erpId?: string;
   erpOrderId?: string;

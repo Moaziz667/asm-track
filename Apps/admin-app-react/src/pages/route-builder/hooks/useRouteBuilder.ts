@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
-import { canManageRoutes, getCurrentRole } from '@/lib/api/auth';
 import { getBusinessDayKey } from '@/lib/sla';
 import { useT } from '@/lib/i18n/LocaleContext';
 import type { Driver } from '@/types';
@@ -98,13 +97,6 @@ export function useRouteBuilder() {
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
-
-  // Auth check
-  useEffect(() => {
-    if (!canManageRoutes(getCurrentRole())) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
 
   // State
   const [loading, setLoading] = useState(true);
@@ -234,7 +226,7 @@ export function useRouteBuilder() {
 
     const results = await Promise.allSettled(
       items.map(async (route) => {
-        const res = await api.get(`/api/admin/routes/${route.id}/full`);
+        const res = await api.get(`/admin/routes/${route.id}/full`);
         const rawStops = Array.isArray(res.data?.stops) ? res.data.stops : [];
         const totalWeight = rawStops.reduce((sum: number, stop: WeighedStop) => sum + extractStopWeight(stop), 0);
         return { routeId: route.id, totalWeight };
@@ -252,7 +244,7 @@ export function useRouteBuilder() {
   const fetchRoutes = async () => {
     const params: Record<string, string> = {};
     if (routesDate) params.date = routesDate;
-    const res = await api.get('/api/admin/routes', { params });
+    const res = await api.get('/admin/routes', { params });
     const data = (Array.isArray(res.data) ? res.data : []).filter((route: RouteItem) => route.status === 'DRAFT');
     if (!isMounted.current) return;
     setRoutes(data);
@@ -268,8 +260,8 @@ export function useRouteBuilder() {
     if (!date) return;
     try {
       const [driversRes, vehiclesRes] = await Promise.all([
-        api.get('/api/admin/fleet/drivers/available', { params: { date, startTime: '08:00', endTime: '18:00' } }),
-        api.get('/api/admin/vehicles/available', { params: { date, startTime: '08:00', endTime: '18:00' } }),
+        api.get('/admin/fleet/drivers/available', { params: { date, startTime: '08:00', endTime: '18:00' } }),
+        api.get('/admin/vehicles/available', { params: { date, startTime: '08:00', endTime: '18:00' } }),
       ]);
       if (!isMounted.current) return;
       setAvailableDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
@@ -283,10 +275,10 @@ export function useRouteBuilder() {
 
   const fetchMeta = async () => {
     const [driversRes, vehiclesRes, waitingRes, depotsRes] = await Promise.all([
-      api.get('/api/admin/fleet/drivers'),
-      api.get('/api/admin/vehicles'),
-      api.get('/api/admin/deliveries', { params: { status: 'UNSCHEDULED', size: 1000 } }),
-      api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
+      api.get('/admin/fleet/drivers'),
+      api.get('/admin/vehicles'),
+      api.get('/admin/deliveries', { params: { status: 'UNSCHEDULED', size: 1000 } }),
+      api.get('/depots/active').catch(() => ({ data: [] })),
     ]);
 
     if (!isMounted.current) return;
@@ -463,7 +455,7 @@ export function useRouteBuilder() {
         return;
       }
       try {
-        const res = await api.get(`/api/admin/routes/${selectedRouteId}/full`);
+        const res = await api.get(`/admin/routes/${selectedRouteId}/full`);
         if (!active) return;
         const data = res.data as { detectedZoneLabel?: string; city?: string };
         setSelectedRouteZoneLabel(data?.detectedZoneLabel ?? data?.city ?? '');
@@ -518,7 +510,7 @@ export function useRouteBuilder() {
 
     try {
       setCreating(true);
-      const res = await api.post('/api/admin/routes', {
+      const res = await api.post('/admin/routes', {
         date: createForm.date,
         driverId: createForm.driverId,
         vehicleId: createForm.vehicleId || null,
@@ -574,7 +566,7 @@ export function useRouteBuilder() {
     const defaultStart = lastStopEnd || routeStart;
     const defaultEnd = routeEnd > defaultStart ? routeEnd : defaultStart;
 
-    await api.post(`/api/admin/routes/${routeId}/stops`, {
+    await api.post(`/admin/routes/${routeId}/stops`, {
       deliveryId,
       startTimeWindow: defaultStart,
       endTimeWindow: defaultEnd,
@@ -631,7 +623,7 @@ export function useRouteBuilder() {
         }
       }
       await refreshAll(true);
-      await api.post(`/api/admin/routes/${routeIdToUse}/recalculate`).catch(() => undefined);
+      await api.post(`/admin/routes/${routeIdToUse}/recalculate`).catch(() => undefined);
     } finally {
       setBatchAssigning(false);
     }
@@ -651,8 +643,8 @@ export function useRouteBuilder() {
     }
 
     const stopIds = items.map((item) => item.id);
-    await api.put(`/api/admin/routes/${selectedRoute.id}/stops/reorder`, { stopIds });
-    await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+    await api.put(`/admin/routes/${selectedRoute.id}/stops/reorder`, { stopIds });
+    await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
     await refreshAll(true);
   };
 
@@ -660,7 +652,7 @@ export function useRouteBuilder() {
     if (!selectedRoute || selectedRouteStops.length < 2) return;
     try {
       setOptimizing(true);
-      const res = await api.post(`/api/admin/routes/${selectedRoute.id}/optimize`);
+      const res = await api.post(`/admin/routes/${selectedRoute.id}/optimize`);
       setSuggestion(res.data);
       showSuccessToast(t.routeBuilderPage.toastOsrmSuggested);
     } catch {
@@ -676,7 +668,7 @@ export function useRouteBuilder() {
     setLockingRouteId(routeId);
     setRoutes((prev) => prev.map((r) => (r.id === routeId ? { ...r, locked } : r)));
     try {
-      await api.patch(`/api/admin/routes/${routeId}/lock`, { locked });
+      await api.patch(`/admin/routes/${routeId}/lock`, { locked });
       showSuccessToast(locked ? t.routeBuilderPage.toastRouteLocked : t.routeBuilderPage.toastRouteUnlocked);
     } catch {
       // Revert on error
@@ -700,7 +692,7 @@ export function useRouteBuilder() {
     setBatchOptimizing(true);
     try {
       const settled = await Promise.allSettled(
-        candidates.map((r) => api.post(`/api/admin/routes/${r.id}/optimize`)),
+        candidates.map((r) => api.post(`/admin/routes/${r.id}/optimize`)),
       );
       const ok = settled.filter((s) => s.status === 'fulfilled').length;
       const ko = settled.length - ok;
@@ -766,8 +758,8 @@ export function useRouteBuilder() {
         }).filter(c => c.deliveryId),
       };
 
-      await api.put(`/api/admin/routes/${selectedRoute.id}`, payload);
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.put(`/admin/routes/${selectedRoute.id}`, payload);
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
 
       showSuccessToast(t.routeBuilderPage.toastOsrmApplied);
       setSuggestion(null);
@@ -784,8 +776,8 @@ export function useRouteBuilder() {
     if (!selectedRoute || selectedRoute.status !== 'DRAFT') return;
     try {
       setRemovingStopId(stopId);
-      await api.delete(`/api/admin/routes/${selectedRoute.id}/stops/${stopId}`);
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.delete(`/admin/routes/${selectedRoute.id}/stops/${stopId}`);
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(t.routeBuilderPage.toastStopRemoved);
       await refreshAll(true);
     } catch (err) {
@@ -801,14 +793,14 @@ export function useRouteBuilder() {
     let removed = 0;
     for (const stopId of stopIds) {
       try {
-        await api.delete(`/api/admin/routes/${selectedRoute.id}/stops/${stopId}`);
+        await api.delete(`/admin/routes/${selectedRoute.id}/stops/${stopId}`);
         removed += 1;
       } catch {
         // continue — remove as many as possible
       }
     }
     if (removed > 0) {
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(removed === 1 ? t.routeBuilderPage.toastStopRemoved : t.routeBuilderPage.toastStopsRemoved.replace('{count}', String(removed)));
       await refreshAll(true);
     }
@@ -877,8 +869,8 @@ export function useRouteBuilder() {
 
     try {
       setSavingWindows(true);
-      await api.put(`/api/admin/routes/${selectedRoute.id}`, payload);
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.put(`/admin/routes/${selectedRoute.id}`, payload);
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(t.routeBuilderPage.toastTimeWindowsSaved);
       await refreshAll(true);
     } catch (err) {
@@ -924,8 +916,8 @@ export function useRouteBuilder() {
 
     try {
       setSavingSettings(true);
-      await api.put(`/api/admin/routes/${selectedRoute.id}`, payload);
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.put(`/admin/routes/${selectedRoute.id}`, payload);
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(t.routeBuilderPage.toastSettingsSaved);
       setSettingsOpen(false);
       await refreshAll(true);
@@ -946,7 +938,7 @@ export function useRouteBuilder() {
     if (!confirmDeleteRouteId) return;
     try {
       setDeletingRouteId(confirmDeleteRouteId);
-      await api.delete(`/api/admin/routes/${confirmDeleteRouteId}`);
+      await api.delete(`/admin/routes/${confirmDeleteRouteId}`);
       showSuccessToast(t.routeBuilderPage.toastItineraryClear);
       setConfirmDeleteRouteId(null);
       await refreshAll(true);
@@ -960,7 +952,7 @@ export function useRouteBuilder() {
   const validateRoute = async (routeId: string) => {
     try {
       setValidatingRouteId(routeId);
-      await api.put(`/api/admin/routes/${routeId}/validate`);
+      await api.put(`/admin/routes/${routeId}/validate`);
       showSuccessToast(t.routeBuilderPage.toastRouteValidated);
       setConfirmValidateRouteId(null);
       await refreshAll(true);
@@ -1014,7 +1006,7 @@ export function useRouteBuilder() {
     setSelectedOrderIds((prev) => prev.filter((id) => !deliveryIds.includes(id)));
     removeFromUnscheduled(assignedIds);
     await refreshAll(true);
-    await api.post(`/api/admin/routes/${routeId}/recalculate`).catch(() => undefined);
+    await api.post(`/admin/routes/${routeId}/recalculate`).catch(() => undefined);
   };
 
   // ── Drop: order row → route sidebar card ──────────────────────────────────
@@ -1063,7 +1055,7 @@ export function useRouteBuilder() {
       setSelectedOrderIds((prev) => prev.filter((id) => !deliveryIdsToAssign.includes(id)));
       removeFromUnscheduled(assignedIds);
       await refreshAll(true);
-      await api.post(`/api/admin/routes/${routeId}/recalculate`).catch(() => undefined);
+      await api.post(`/admin/routes/${routeId}/recalculate`).catch(() => undefined);
     } catch (err) {
       showErrorToast(err);
     }
@@ -1087,8 +1079,8 @@ export function useRouteBuilder() {
     }));
 
     try {
-      await api.put(`/api/admin/routes/${selectedRoute.id}/stops/reorder`, { stopIds });
-      await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
+      await api.put(`/admin/routes/${selectedRoute.id}/stops/reorder`, { stopIds });
+      await api.post(`/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       await refreshAll(true);
       setSelectedStopIds([]);
     } catch {
@@ -1107,7 +1099,7 @@ export function useRouteBuilder() {
     }));
 
     try {
-      await api.post('/api/admin/routes/transfer-stops', {
+      await api.post('/admin/routes/transfer-stops', {
         sourceRouteId,
         targetRouteId,
         stopIds: [stopId],

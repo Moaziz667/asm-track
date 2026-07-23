@@ -21,7 +21,7 @@ import {
 import type { Driver, DeliveryItem } from '@/types';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
+import { getCurrentRole } from '@/lib/api/auth';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
@@ -122,7 +122,7 @@ function useRouteStops(route: EnrichedRoute, expanded: boolean) {
   useEffect(() => {
     if (!expanded || loaded || loading) return;
     setLoading(true);
-    api.get(`/api/admin/routes/${route.id}/full`)
+    api.get(`/admin/routes/${route.id}/full`)
       .then((res) => {
         const data = res.data ?? {};
         const raw = Array.isArray(data.stops) ? data.stops.map(mapFullStop) : [];
@@ -588,11 +588,6 @@ function RoutesTablePageContent() {
   usePageBreadcrumb([{ label: t.pages.routes?.title || 'Tournées' }]);
   const router = useRouter();
 
-  useEffect(() => {
-    const role = getCurrentRole();
-    if (role !== 'UNKNOWN' && !canDispatch(role)) router('/dashboard', { replace: true });
-  }, [router]);
-
   // ── Filters + pagination (all server-side; the list endpoint is paginated + filtered) ──
   // Multi-select pivots are string[] (empty = no filter, sent as repeated params); date stays a single
   // period pill (mutually-exclusive by nature).
@@ -631,10 +626,10 @@ function RoutesTablePageContent() {
       if (debouncedClient.trim()) params.q = debouncedClient.trim();
       try {
         const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
-          api.get('/api/admin/routes/page', { params }),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
+          api.get('/admin/routes/page', { params }),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/admin/fleet/drivers'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/admin/vehicles'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/depots/active').catch(() => ({ data: [] })),
         ]);
 
         const pageData = routesRes.data ?? {};

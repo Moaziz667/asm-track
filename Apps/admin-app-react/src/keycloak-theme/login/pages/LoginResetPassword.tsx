@@ -18,11 +18,11 @@ export default function LoginResetPassword({ kcContext, i18n, Template, doUseDef
       headerNode={msg("emailForgotTitle")}
       infoNode={
         <a href={url.loginUrl} className="asm-link">
-          ← {msg("backToLogin")}
+          &larr; {msg("backToLogin")}
         </a>
       }
     >
-      <p style={{ fontSize: 12, color: "var(--text-soft)", marginBottom: 20, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.6 }}>
         {realm.duplicateEmailsAllowed
           ? msg("emailInstructionUsername")
           : msg("emailInstruction")}
@@ -60,8 +60,8 @@ export default function LoginResetPassword({ kcContext, i18n, Template, doUseDef
         </div>
 
         <button type="submit" className="asm-btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? <span className="asm-spinner" /> : null}
-          {isSubmitting ? "Sending…" : msgStr("doSubmit")}
+          {isSubmitting && <span className="asm-spinner" />}
+          {isSubmitting ? "Sending\u2026" : msgStr("doSubmit")}
         </button>
       </form>
     </Template>

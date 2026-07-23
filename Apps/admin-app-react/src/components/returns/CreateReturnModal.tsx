@@ -68,7 +68,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
     setSelected(d);
     setLoadingLines(true);
     try {
-      const res = await api.get(`/api/admin/deliveries/${d.deliveryId}`);
+      const res = await api.get(`/admin/deliveries/${d.deliveryId}`);
       const data = res.data ?? {};
       // Enrich the header — in prefill mode we only had the id; fill client/BL from the detail.
       setSelected((prev) => ({
@@ -110,8 +110,8 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
     debounce.current = setTimeout(() => {
       setSearching(true);
       Promise.all([
-        api.get('/api/admin/deliveries', { params: { status: 'DELIVERED', size: 6, q: term } }),
-        api.get('/api/admin/deliveries', { params: { status: 'PARTIALLY_DELIVERED', size: 6, q: term } }),
+        api.get('/admin/deliveries', { params: { status: 'DELIVERED', size: 6, q: term } }),
+        api.get('/admin/deliveries', { params: { status: 'PARTIALLY_DELIVERED', size: 6, q: term } }),
       ])
         .then(([a, b]) => setResults([...(a.data?.content ?? []), ...(b.data?.content ?? [])].slice(0, 12)))
         .catch(() => setResults([]))
@@ -131,7 +131,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
     if (chosen.length === 0) { showErrorToast(null, m?.errNoItems ?? 'Select at least one item'); return; }
     setSubmitting(true);
     try {
-      await api.post('/api/admin/returns', {
+      await api.post('/admin/returns', {
         deliveryId: selected.deliveryId,
         reason,
         items: chosen.map((l) => ({ sku: l.sku, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, condition: l.condition, reason: l.reason })),

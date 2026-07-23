@@ -1,0 +1,38 @@
+{
+  "_comment": "Canonical RBAC policy — THE single source of truth for path→permission authorization across the whole platform. The gateway owns this file; run sync-rbac-policy.py to copy it verbatim into every service's resources so all layers evaluate identical rules (bundled locally = no runtime fetch, no single point of failure). Edit here only. Keep the perm:* strings in sync with the Keycloak composites (keycloak/rbac-roles.json). Rules are ORDERED — first match wins; no match = deny (fail-closed).",
+  "version": 1,
+  "rules": [
+    { "methods": ["*"],   "pathPrefix": "/api/v1/orders/",  "require": { "role": "CLIENT" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/users/",   "require": { "role": "CLIENT" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/driver/",  "require": { "role": "DRIVER" } },
+
+    { "methods": ["*"],   "pathExact": "/api/v1/admin/me",           "require": { "authenticated": true } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/me/",         "require": { "authenticated": true } },
+    { "methods": ["*"],   "pathExact": "/api/v1/admin/companies/me", "require": { "anyPerm": ["perm:company:manage", "perm:dispatch:operate"] } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/companies/",  "require": { "perm": "perm:company:manage" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/users",       "require": { "perm": "perm:user:manage" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/clients/",    "require": { "perm": "perm:user:manage" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/drivers",     "require": { "perm": "perm:driver:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/drivers",     "require": { "perm": "perm:driver:manage" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/vehicles",    "require": { "perm": "perm:driver:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/vehicles",    "require": { "perm": "perm:driver:manage" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/erp/",        "require": { "perm": "perm:erp:sync" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/reports/settings", "require": { "perm": "perm:settings:manage" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/stats",       "require": { "perm": "perm:report:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/reports/",    "require": { "perm": "perm:report:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/ops/",        "require": { "perm": "perm:report:view" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/routes",      "require": { "perm": "perm:route:view" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/deliveries",  "require": { "perm": "perm:delivery:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/",            "require": { "perm": "perm:dispatch:operate" } },
+
+    { "methods": ["*"],   "pathPrefix": "/api/v1/profile/", "require": { "role": "CLIENT" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/settings/internal/", "require": { "role": "SERVICE" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/settings/", "require": { "perm": "perm:settings:manage" } },
+
+    { "methods": ["*"],   "pathPrefix": "/api/v1/deliveries/", "require": { "anyOf": [ { "role": "DRIVER" }, { "perm": "perm:delivery:view" } ] } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/depots",  "require": { "perm": "perm:route:view" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/zones",   "require": { "perm": "perm:route:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/depots",  "require": { "perm": "perm:route:manage" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/zones",   "require": { "perm": "perm:route:manage" } }
+  ]
+}

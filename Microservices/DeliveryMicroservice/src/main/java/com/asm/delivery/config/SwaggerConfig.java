@@ -76,7 +76,7 @@ public class SwaggerConfig {
     public GroupedOpenApi adminApi(OpenApiCustomizer defaultResponsesCustomizer) {
         return GroupedOpenApi.builder()
                 .group("admin")
-                .pathsToMatch("/api/admin/**", "/api/v1/**")
+                .pathsToMatch("/api/v1/admin/**", "/api/v1/**")
                 .addOpenApiCustomizer(defaultResponsesCustomizer)
                 .build();
     }
@@ -85,7 +85,7 @@ public class SwaggerConfig {
     public GroupedOpenApi driverApi(OpenApiCustomizer defaultResponsesCustomizer) {
         return GroupedOpenApi.builder()
                 .group("driver")
-                .pathsToMatch("/api/driver/**")
+                .pathsToMatch("/api/v1/driver/**")
                 .addOpenApiCustomizer(defaultResponsesCustomizer)
                 .build();
     }
@@ -94,7 +94,7 @@ public class SwaggerConfig {
     public GroupedOpenApi clientApi(OpenApiCustomizer defaultResponsesCustomizer) {
         return GroupedOpenApi.builder()
                 .group("client")
-                .pathsToMatch("/api/orders/**", "/api/deliveries/**")
+                .pathsToMatch("/api/v1/orders/**", "/api/v1/deliveries/**")
                 .addOpenApiCustomizer(defaultResponsesCustomizer)
                 .build();
     }
@@ -103,7 +103,7 @@ public class SwaggerConfig {
     public GroupedOpenApi devApi(OpenApiCustomizer defaultResponsesCustomizer) {
         return GroupedOpenApi.builder()
                 .group("dev")
-                .pathsToMatch("/api/dev/**")
+                .pathsToMatch("/api/v1/dev/**")
                 .addOpenApiCustomizer(defaultResponsesCustomizer)
                 .build();
     }

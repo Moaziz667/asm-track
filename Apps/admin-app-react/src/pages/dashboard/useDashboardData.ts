@@ -50,16 +50,16 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
     queryKey: ['dashboard-overview', range, from ?? '', to ?? '', scopeParams],
     queryFn: async () => {
       const [sR, oR, driversRes, routesRes, kR, healthRes, returnsRes, countsRes] = await Promise.all([
-        api.get('/api/admin/deliveries/stats', { params: { ...dateParams, ...scopeParams } }),
+        api.get('/admin/deliveries/stats', { params: { ...dateParams, ...scopeParams } }),
         // LIVE plane — always "now"; only spatial pivots scope it, never the date range.
-        api.get('/api/admin/ops/overview', { params: { ...scopeParams } }),
-        api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
-        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
-        api.get('/api/admin/reports/dashboard', { params: { ...dateParams, ...scopeParams, compare: true } }).catch(() => ({ data: null })),
-        api.get('/api/admin/system/health').catch(() => ({ data: null })),
+        api.get('/admin/ops/overview', { params: { ...scopeParams } }),
+        api.get('/admin/fleet/drivers').catch(() => ({ data: [] })),
+        api.get('/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
+        api.get('/admin/reports/dashboard', { params: { ...dateParams, ...scopeParams, compare: true } }).catch(() => ({ data: null })),
+        api.get('/admin/system/health').catch(() => ({ data: null })),
         // Returns KPI + delivery backlog tallies — live "now" (no date range).
-        api.get('/api/admin/returns/kpi').catch(() => ({ data: null })),
-        api.get('/api/admin/deliveries/counts').catch(() => ({ data: null })),
+        api.get('/admin/returns/kpi').catch(() => ({ data: null })),
+        api.get('/admin/deliveries/counts').catch(() => ({ data: null })),
       ]);
       const driversData = driversRes.data;
       return {

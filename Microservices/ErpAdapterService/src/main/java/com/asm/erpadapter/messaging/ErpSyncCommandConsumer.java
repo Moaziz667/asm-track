@@ -39,7 +39,6 @@ public class ErpSyncCommandConsumer {
         String txId       = str(cmd.get("txId"));
         String deliveryId = str(cmd.get("deliveryId"));
         String orderId    = str(cmd.get("orderId"));
-        String provider   = cmd.get("erpProvider") != null ? str(cmd.get("erpProvider")) : "odoo";
         String erpOrderId = str(cmd.get("erpOrderId"));
         String pickingRef = str(cmd.get("pickingRef"));
 
@@ -48,7 +47,9 @@ public class ErpSyncCommandConsumer {
             return; // ack + drop — not retryable
         }
 
-        ErpSyncPort sync = router.getSync(provider);
+        // Provider resolved per-tenant (TenantContext set by the inbound AMQP post-processor from the
+        // X-Company-Id header), never from the command payload.
+        ErpSyncPort sync = router.getSync();
         switch (op) {
             case "STOCK_FULL" -> {
                 boolean ok = sync.syncFullDelivery(erpOrderId, asInt(cmd.get("backorderPickingId")), txId, pickingRef);

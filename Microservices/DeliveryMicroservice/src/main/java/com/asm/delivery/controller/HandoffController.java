@@ -23,7 +23,7 @@ import java.util.UUID;
  * driver's STOMP topic; the GET here is for initial load only (no polling).
  */
 @RestController
-@RequestMapping("/api/driver/handoffs")
+@RequestMapping("/api/v1/driver/handoffs")
 @Tag(name = "Driver Handoffs", description = "Custody transfer between drivers")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

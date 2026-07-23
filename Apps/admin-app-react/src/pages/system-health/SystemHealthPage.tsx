@@ -238,8 +238,8 @@ export default function SystemHealthPage() {
     if (!silent) setRefreshing(true);
     try {
       const [snapRes, histRes] = await Promise.all([
-        api.get<HealthPayload>('/api/admin/system/health'),
-        api.get<HistoryPoint[]>('/api/admin/system/health/history').catch(() => ({ data: [] as HistoryPoint[] })),
+        api.get<HealthPayload>('/admin/system/health'),
+        api.get<HistoryPoint[]>('/admin/system/health/history').catch(() => ({ data: [] as HistoryPoint[] })),
       ]);
       setData(snapRes.data);
       setHistory(Array.isArray(histRes.data) ? histRes.data : []);
@@ -263,7 +263,7 @@ export default function SystemHealthPage() {
   const replay = async (queue: string) => {
     setReplaying(queue);
     try {
-      const res = await api.post(`/api/admin/dlq/${encodeURIComponent(queue)}/replay`, null, { params: { max: 100 } });
+      const res = await api.post(`/admin/dlq/${encodeURIComponent(queue)}/replay`, null, { params: { max: 100 } });
       showSuccessToast(dd.toastReplaySuccess.replace('{count}', String(res.data?.replayed ?? 0)));
       await fetchHealth(true);
     } catch (err) {
@@ -275,7 +275,7 @@ export default function SystemHealthPage() {
   const resync = async (orderId: string, blNumber: string | null) => {
     setResyncing(orderId);
     try {
-      const res = await api.post(`/api/admin/system/erp-sync/${orderId}/resync`);
+      const res = await api.post(`/admin/system/erp-sync/${orderId}/resync`);
       if (res.data?.queued) {
         showSuccessToast(dd.resync.toastQueued.replace('{bl}', blNumber ?? res.data?.blNumber ?? ''));
       } else {
@@ -291,7 +291,7 @@ export default function SystemHealthPage() {
   const resyncAll = async () => {
     setResyncing('__all__');
     try {
-      const res = await api.post('/api/admin/system/erp-sync/resync-all');
+      const res = await api.post('/admin/system/erp-sync/resync-all');
       showSuccessToast(dd.resync.toastAllQueued.replace('{count}', String(res.data?.queued ?? 0)));
       await fetchHealth(true);
     } catch (err) {

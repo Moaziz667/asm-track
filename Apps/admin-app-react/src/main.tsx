@@ -11,7 +11,7 @@ if (window.kcContext !== undefined) {
   import('./keycloak-theme/kc.gen').then(({ KcPage }) => {
     createRoot(rootElement).render(
       <StrictMode>
-        <KcPage kcContext={window.kcContext!} fallback={null} />
+        <KcPage kcContext={window.kcContext!} />
       </StrictMode>
     );
   });

@@ -1,6 +1,7 @@
 package com.asm.appbackend.config;
 
 import com.asm.appbackend.security.JwtAuthConverter;
+import com.asm.appbackend.security.RbacAuthorizationManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,26 +19,24 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RbacAuthorizationManager rbac) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
-                                "/api/auth/**",
+                                "/api/v1/auth/**",
                                 "/actuator/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs"
                         ).permitAll()
-                        .requestMatchers("/internal/**").hasRole("SERVICE")
-                        .requestMatchers("/api/profile/**").hasRole("CLIENT")
-                        .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                        .anyRequest().authenticated()
+                        .requestMatchers("/internal/**").hasRole("SERVICE")   // service-to-service, not user-facing
+                        // Every application request is authorized by the single canonical policy
+                        // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules re-encoded here.
+                        .anyRequest().access(rbac)
                 )
                 .oauth2ResourceServer(rs -> rs
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))
@@ -94,10 +93,12 @@ public class SecurityConfig {
                             String azp = jwt.getClaimAsString("azp");
                             
                             boolean hasValidAud = aud != null && (aud.contains("admin-web") || aud.contains("erp-adapter")
-                                    || aud.contains("delivery-service") || aud.contains("driver-service"));
-                                    
+                                    || aud.contains("delivery-service") || aud.contains("driver-service")
+                                    || aud.contains("app-backend"));
+
                             boolean hasValidAzp = azp != null && (azp.equals("admin-web") || azp.equals("erp-adapter")
-                                    || azp.equals("delivery-service") || azp.equals("driver-service"));
+                                    || azp.equals("delivery-service") || azp.equals("driver-service")
+                                    || azp.equals("app-backend"));
 
                             if (hasValidAud || hasValidAzp) {
                                 return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();

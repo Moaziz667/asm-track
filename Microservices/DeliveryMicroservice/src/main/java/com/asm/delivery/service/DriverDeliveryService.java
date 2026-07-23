@@ -754,7 +754,7 @@ public class DriverDeliveryService {
         // B5 — A forward failure is pushed to the ERP, so the order must be PENDING_SYNC for the
         // reconciliation sweep to recover it if the ERP result is ever lost. Return collections skip this.
         if (!isReturnPickup && delivery.getOrder() != null) {
-            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+            delivery.getOrder().setErpSyncStatus("PENDING_SYNC");
         }
         delivery = deliveryRepo.save(delivery);
 

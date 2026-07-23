@@ -41,7 +41,7 @@ public class DriverAuditClient {
             int page, int size) {
 
         StringBuilder url = new StringBuilder(driverServiceUrl)
-                .append("/api/admin/drivers/audit-logs")
+                .append("/api/v1/admin/drivers/audit-logs")
                 .append("?page=").append(Math.max(page, 0))
                 .append("&size=").append(Math.min(Math.max(size, 1), 200));
         if (action != null && !action.isBlank())     url.append("&action=").append(action);

@@ -40,7 +40,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/routes")
+@RequestMapping("/api/v1/admin/routes")
 @Tag(name = "Admin Routes", description = "Route/tournee management")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

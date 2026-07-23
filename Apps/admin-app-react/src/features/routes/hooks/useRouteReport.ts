@@ -13,7 +13,7 @@ export function useRouteReport(routeId: string | undefined, enabled = true) {
   return useQuery<RouteReport>({
     queryKey: ['route-report', routeId],
     queryFn: async () => {
-      const res = await api.get<RouteReport>(`/api/admin/routes/${routeId}/report`);
+      const res = await api.get<RouteReport>(`/admin/routes/${routeId}/report`);
       return res.data;
     },
     enabled: Boolean(routeId) && enabled,
@@ -24,7 +24,7 @@ export function useRouteReport(routeId: string | undefined, enabled = true) {
 }
 
 export async function downloadRouteReportPdf(routeId: string, fileName?: string) {
-  const res = await api.get(`/api/admin/routes/${routeId}/report/pdf`, {
+  const res = await api.get(`/admin/routes/${routeId}/report/pdf`, {
     responseType: 'blob',
   });
   const url = URL.createObjectURL(res.data);

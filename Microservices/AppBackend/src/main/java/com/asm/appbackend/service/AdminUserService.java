@@ -7,6 +7,7 @@ import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.messaging.AuditEventPublisher;
 import com.asm.appbackend.repository.AdminUserRepository;
 import com.asm.appbackend.security.KeycloakUserRollbackEvent;
+import com.asm.appbackend.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -48,7 +49,17 @@ public class AdminUserService {
         // Provision in Keycloak (Resilient: caught exceptions will not roll back database).
         // kcSynced stays false until Keycloak confirms, so the reconciler heals a failed provision.
         try {
-            keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password(), req.name());
+            String kcUserId = keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password(), req.name());
+            // Multi-tenant: the new user MUST belong to the creating admin's Organization, or its JWT
+            // carries no org_id and the gateway fail-closes (403 "No tenant assigned") on every request.
+            // The tenant is the creator's company (X-Company-Id → TenantContext). Membership is also
+            // reconciled DB→KC by KeycloakSyncScheduler, so a failure here self-heals.
+            UUID companyId = TenantContext.get();
+            if (companyId != null) {
+                keycloakAdminClient.addOrganizationMember(companyId.toString(), kcUserId);
+            } else {
+                log.warn("Creating admin user {} with no tenant context — org membership skipped (user will 403 until reconciled)", req.email());
+            }
             eventPublisher.publishEvent(new KeycloakUserRollbackEvent(this, user.getId().toString()));
             user.setKcSynced(true);
             adminUserRepo.save(user);

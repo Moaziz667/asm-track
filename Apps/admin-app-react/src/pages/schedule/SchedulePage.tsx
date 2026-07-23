@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
-import { getCurrentRole, canDispatch, isReadOnlyRole } from '@/lib/api/auth';
+import { hasPerm } from '@/lib/api/auth';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRoutes, type RouteItem } from '@/hooks/useRoutes';
 import { useFleetDrivers } from '@/hooks/useVehicles';
@@ -54,12 +54,7 @@ const DOT: Record<string, string> = {
 export default function SchedulePage() {
   const t = useT();
   const router = useRouter();
-  const isReadOnly = isReadOnlyRole(getCurrentRole());
-
-  useEffect(() => {
-    const role = getCurrentRole();
-    if (role !== 'UNKNOWN' && !canDispatch(role)) router('/dashboard', { replace: true });
-  }, [router]);
+  const isReadOnly = !hasPerm('perm:dispatch:operate');
 
   const [tab, setTab] = useState('today');
   const [weekOffset, setWeekOffset] = useState(0);

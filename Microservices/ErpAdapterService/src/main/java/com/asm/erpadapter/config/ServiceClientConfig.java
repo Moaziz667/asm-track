@@ -72,11 +72,15 @@ public class ServiceClientConfig {
         ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attrs == null) {
+            java.util.UUID tenantCompanyId = com.asm.erpadapter.security.TenantContext.get();
+            if (tenantCompanyId != null) {
+                template.header("X-Company-Id", tenantCompanyId.toString());
+            }
             template.header("X-Actor", "SERVICE");
             return;
         }
         boolean forwardedAny = false;
-        for (String header : new String[]{"X-User-Id", "X-User-Role", "X-User-Name"}) {
+        for (String header : new String[]{"X-User-Id", "X-User-Role", "X-User-Name", "X-Company-Id"}) {
             String value = attrs.getRequest().getHeader(header);
             if (value != null && !value.isBlank()) {
                 template.removeHeader(header);
@@ -85,6 +89,10 @@ public class ServiceClientConfig {
             }
         }
         if (!forwardedAny) {
+            java.util.UUID tenantCompanyId = com.asm.erpadapter.security.TenantContext.get();
+            if (tenantCompanyId != null) {
+                template.header("X-Company-Id", tenantCompanyId.toString());
+            }
             template.header("X-Actor", "SERVICE");
         }
     }

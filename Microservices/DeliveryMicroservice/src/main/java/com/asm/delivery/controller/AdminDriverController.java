@@ -19,7 +19,7 @@ import java.time.LocalTime;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/admin/fleet/drivers")
+@RequestMapping("/api/v1/admin/fleet/drivers")
 @Tag(name = "Fleet Drivers", description = "Driver availability and performance for route planning")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
 import com.asm.delivery.erp.ErpWarehouseDTO;
+import com.asm.delivery.erp.TenantErpProviderResolver;
 import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.DepotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,12 +32,13 @@ class DepotSyncServiceTest {
     @Mock ErpPort erpPort;
     @Mock DepotRepository depotRepository;
     @Mock GeocodingService geocodingService;
+    @Mock TenantErpProviderResolver providerResolver;
 
     private DepotSyncService service;
 
     @BeforeEach
     void setUp() {
-        service = new DepotSyncService(erpPort, depotRepository, geocodingService);
+        service = new DepotSyncService(erpPort, depotRepository, geocodingService, providerResolver);
         lenient().when(depotRepository.save(any(Depot.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 

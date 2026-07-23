@@ -2,6 +2,9 @@ package com.asm.appbackend.controller;
 
 import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.messaging.AuditEventPublisher;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
@@ -33,6 +36,9 @@ import java.util.List;
  */
 @Slf4j
 @RestController
+@Tag(name = "Auth · Back-Channel Logout", description = "OIDC Back-Channel Logout 1.0 receiver. Keycloak (not a "
+        + "user) POSTs a signed logout_token here when a session ends, so the client logs out instantly. Public "
+        + "endpoint — authenticity comes from the token's realm signature, not a bearer token.")
 public class BackChannelLogoutController {
 
     /** Marker the logout token must carry in its {@code events} claim. */
@@ -58,6 +64,11 @@ public class BackChannelLogoutController {
 
     @PostMapping(value = "/api/auth/backchannel-logout",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @Operation(summary = "Receive an OIDC back-channel logout",
+            description = "Validates the signed logout_token (form-encoded) and revokes the matching session so "
+                    + "the admin-web or driver-app client logs out immediately. Always returns 200 to Keycloak, "
+                    + "even on a token it can't act on, per the spec.")
+    @ApiResponse(responseCode = "200", description = "Logout processed (or safely ignored)")
     public ResponseEntity<Void> backchannelLogout(@RequestParam("logout_token") String logoutToken) {
         final Jwt jwt;
         try {
