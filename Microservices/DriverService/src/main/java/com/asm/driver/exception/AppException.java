@@ -34,6 +34,10 @@ public class AppException extends RuntimeException {
         return new AppException(HttpStatus.NOT_FOUND, message);
     }
 
+    public static AppException notFound(String errorCode, String message) {
+        return new AppException(HttpStatus.NOT_FOUND, errorCode, message, 0L);
+    }
+
     public static AppException conflict(String message) {
         return new AppException(HttpStatus.CONFLICT, message);
     }

@@ -178,12 +178,12 @@ public class AdminDriverService {
     @Transactional
     public AdminDriverResponse setupAccount(UUID token, String newPassword) {
         DriverInviteToken invite = inviteTokenRepo.findByToken(token)
-                .orElseThrow(() -> AppException.notFound("Invalid or expired invite token"));
+                .orElseThrow(() -> AppException.notFound("INVITE_NOT_FOUND", "Invalid or expired invite token"));
 
         if (invite.isUsed())
-            throw AppException.badRequest("This invite has already been used");
+            throw AppException.badRequest("INVITE_ALREADY_USED", "This invite has already been used");
         if (invite.getExpiresAt().isBefore(LocalDateTime.now()))
-            throw AppException.badRequest("Invite token has expired");
+            throw AppException.badRequest("INVITE_EXPIRED", "Invite token has expired");
 
         Driver driver = driverRepo.findById(invite.getDriverId())
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
@@ -207,13 +207,13 @@ public class AdminDriverService {
 
     public String validateInviteToken(UUID token) {
         DriverInviteToken invite = inviteTokenRepo.findByToken(token)
-                .orElseThrow(() -> AppException.notFound("INVITE_NOT_FOUND"));
+                .orElseThrow(() -> AppException.notFound("INVITE_NOT_FOUND", "Invite token not found"));
 
         if (invite.isUsed())
-            throw AppException.badRequest("INVITE_ALREADY_USED");
+            throw AppException.badRequest("INVITE_ALREADY_USED", "This invite has already been used");
 
         if (invite.getExpiresAt().isBefore(LocalDateTime.now()))
-            throw AppException.badRequest("INVITE_EXPIRED");
+            throw AppException.badRequest("INVITE_EXPIRED", "Invite token has expired");
 
         Driver driver = driverRepo.findById(invite.getDriverId())
                 .orElseThrow(() -> AppException.notFound("DRIVER_NOT_FOUND"));
