@@ -2,6 +2,7 @@ package com.asm.erpadapter.adapter.odoo;
 
 import com.asm.erpadapter.adapter.odoo.workflow.ReturnHandler;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
+import com.asm.erpadapter.dto.ErpPartialItemDTO;
 import com.asm.erpadapter.dto.ErpPodDTO;
 import com.asm.erpadapter.service.IdempotencyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -239,8 +240,7 @@ class OdooSyncAdapterTest {
         assertTrue(result.isSuccess());
         assertEquals(55, result.getPickingId());
         // Immediate transfer uses _action_done directly — verify RPC was called
-        verify(rpc).callRpc(argThat(args ->
-                args instanceof List<?> list && list.size() >= 1));
+        verify(rpc).callRpc(argThat(args -> args instanceof List<?> && ((List<?>) args).size() >= 1));
     }
 
     @Test
