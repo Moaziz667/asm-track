@@ -240,7 +240,7 @@ class OdooSyncAdapterTest {
         assertTrue(result.isSuccess());
         assertEquals(55, result.getPickingId());
         // Immediate transfer uses _action_done directly — verify RPC was called
-        verify(rpc).callRpc(argThat(args -> args instanceof List<?> && ((List<?>) args).size() >= 1));
+        verify(rpc, atLeastOnce()).callRpc(anyList());
     }
 
     @Test
@@ -250,7 +250,6 @@ class OdooSyncAdapterTest {
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(pickingService.readPickingState(55)).thenReturn("assigned");
         when(productService.applyPartialQtyDoneToMoveLines(eq(55), anyList())).thenReturn(0);
-        when(pickingService.findBackorderPickingId(55)).thenReturn(null);
 
         ErpPartialItemDTO item = ErpPartialItemDTO.builder()
                 .referenceKey("SKU-004").quantityDone(0).outcome("REFUSED").build();

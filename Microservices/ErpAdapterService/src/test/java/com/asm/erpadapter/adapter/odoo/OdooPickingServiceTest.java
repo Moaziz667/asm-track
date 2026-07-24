@@ -80,7 +80,7 @@ class OdooPickingServiceTest {
 
     @Test
     void findBackorderPickingId_returnsIdWhenFound() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result",
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result",
                 List.of(Map.of("id", 77))));
 
         assertEquals(77, service.findBackorderPickingId(42));
@@ -88,7 +88,7 @@ class OdooPickingServiceTest {
 
     @Test
     void findBackorderPickingId_returnsNullWhenEmpty() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", List.of()));
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result", List.of()));
 
         assertNull(service.findBackorderPickingId(42));
     }
@@ -97,7 +97,7 @@ class OdooPickingServiceTest {
 
     @Test
     void readPickingState_returnsState() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result",
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result",
                 List.of(Map.of("state", "done"))));
 
         assertEquals("done", service.readPickingState(10));
@@ -105,7 +105,7 @@ class OdooPickingServiceTest {
 
     @Test
     void readPickingState_returnsNullOnEmpty() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", List.of()));
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result", List.of()));
 
         assertNull(service.readPickingState(10));
     }
@@ -147,9 +147,9 @@ class OdooPickingServiceTest {
     @Test
     void cancelPicking_returnsTrueOnCancelState() {
         when(capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY)).thenReturn("action_cancel");
-        when(rpc.callRpc(anyList()))
-                .thenReturn(Map.of("result", true))
-                .thenReturn(Map.of("result", List.of(Map.of("state", "cancel"))));
+        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result",
+                List.of(Map.of("state", "cancel"))));
 
         assertTrue(service.cancelPicking(10));
     }
@@ -165,9 +165,9 @@ class OdooPickingServiceTest {
     @Test
     void cancelPicking_returnsTrueOnDoneState() {
         when(capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY)).thenReturn("action_cancel");
-        when(rpc.callRpc(anyList()))
-                .thenReturn(Map.of("result", true))
-                .thenReturn(Map.of("result", List.of(Map.of("state", "done"))));
+        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
+        when(rpc.callRpcOrThrow(anyList())).thenReturn(Map.of("result",
+                List.of(Map.of("state", "done"))));
 
         assertTrue(service.cancelPicking(10));
     }

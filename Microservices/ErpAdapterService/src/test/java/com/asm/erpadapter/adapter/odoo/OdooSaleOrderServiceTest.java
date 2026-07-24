@@ -60,15 +60,14 @@ class OdooSaleOrderServiceTest {
 
     @Test
     void readSaleOrderState_returnsState() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result",
-                List.of(Map.of("state", "sale"))));
+        when(rpc.readRecordState("sale.order", 10)).thenReturn("sale");
 
         assertEquals("sale", service.readSaleOrderState(10));
     }
 
     @Test
     void readSaleOrderState_returnsNullOnEmpty() {
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", List.of()));
+        when(rpc.readRecordState("sale.order", 10)).thenReturn(null);
 
         assertNull(service.readSaleOrderState(10));
     }

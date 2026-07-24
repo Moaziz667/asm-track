@@ -37,11 +37,11 @@ class CancelHandlerTest {
         when(capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_unlock
-                .thenReturn(Map.of("result", true))   // action_cancel
-                .thenReturn(Map.of("result", List.of(Map.of("state", "cancel"))));  // read state
+                .thenReturn(Map.of("result", true));  // action_cancel
+        when(rpc.readRecordState("sale.order", 10)).thenReturn("cancel");
 
         assertTrue(handler.cancelSaleOrder(10));
-        verify(rpc, times(3)).callRpc(anyList());
+        verify(rpc, times(2)).callRpc(anyList());
     }
 
     @Test
@@ -61,8 +61,8 @@ class CancelHandlerTest {
         when(capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_unlock
-                .thenReturn(Map.of("result", true))   // action_cancel
-                .thenReturn(Map.of("result", List.of(Map.of("state", "sale"))));  // still sale
+                .thenReturn(Map.of("result", true));  // action_cancel
+        when(rpc.readRecordState("sale.order", 10)).thenReturn("sale");
 
         assertFalse(handler.cancelSaleOrder(10));
     }
