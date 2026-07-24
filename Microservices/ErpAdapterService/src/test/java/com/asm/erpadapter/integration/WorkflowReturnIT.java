@@ -14,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests Odoo return picking workflows — create_returns / action_create_returns.
  * Validates that the return method exists and works for each Odoo version.
  *
+ * <p>These integration tests call Odoo methods directly to validate the Odoo contract.
+ * They do NOT test the Capability Engine — that's the unit tests' job.
+ *
  * <p>Odoo 16-17: create_returns on stock.return.picking
  * <p>Odoo 18+: action_create_returns on stock.return.picking
  */

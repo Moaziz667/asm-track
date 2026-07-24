@@ -18,12 +18,14 @@ class OdooPickingServiceTest {
 
     @Mock
     private OdooJsonRpcClient rpc;
+    @Mock
+    private CapabilityResolver capabilityResolver;
 
     private OdooPickingService service;
 
     @BeforeEach
     void setUp() {
-        service = new OdooPickingService(rpc);
+        service = new OdooPickingService(rpc, capabilityResolver);
     }
 
     // ── findSinglePicking ─────────────────────────────────────────────────────
@@ -144,6 +146,7 @@ class OdooPickingServiceTest {
 
     @Test
     void cancelPicking_returnsTrueOnCancelState() {
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))
                 .thenReturn(Map.of("result", List.of(Map.of("state", "cancel"))));
@@ -153,6 +156,7 @@ class OdooPickingServiceTest {
 
     @Test
     void cancelPicking_returnsFalseOnError() {
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList())).thenReturn(Map.of("error", "access denied"));
 
         assertFalse(service.cancelPicking(10));
@@ -160,6 +164,7 @@ class OdooPickingServiceTest {
 
     @Test
     void cancelPicking_returnsTrueOnDoneState() {
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))
                 .thenReturn(Map.of("result", List.of(Map.of("state", "done"))));

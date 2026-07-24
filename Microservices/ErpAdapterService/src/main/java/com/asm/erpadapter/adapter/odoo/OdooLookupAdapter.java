@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 
 /**
- * Odoo implementation of {@link ErpLookupPort} (Odoo 19).
+ * Odoo implementation of {@link ErpLookupPort}.
  *
  * <p>Enterprise multi-depot model: the source of truth for what to deliver is the
  * Odoo <b>delivery order / bon de livraison</b> ({@code stock.picking}, outgoing).
@@ -412,7 +412,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private ProductDetails fetchProductDetails(Set<Integer> productIds) {
         if (productIds == null || productIds.isEmpty()) return new ProductDetails(Map.of(), Map.of(), Map.of());
-        // Odoo 19: product type lives on `type` (consu/service/combo); `is_storable` flags stockable goods.
+        // Product type lives on `type` (consu/service/combo); `is_storable` flags stockable goods.
         List<Map<String, Object>> rows = rpc.searchReadStrict("product.product",
                 List.of(List.of("id", "in", productIds.stream().toList())),
                 List.of("id", "weight", "default_code", "type"), productIds.size(), "id asc");

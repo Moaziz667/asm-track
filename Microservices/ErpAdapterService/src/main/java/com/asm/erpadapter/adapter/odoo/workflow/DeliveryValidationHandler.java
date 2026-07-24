@@ -18,7 +18,7 @@ import java.util.Map;
  * <p>Extracts the unstable Odoo workflow logic that differs across versions:
  * <ul>
  *   <li>Backorder wizard: Odoo 16-17 (wizard in DB) vs Odoo 18-19 (wizard in memory)</li>
- *   <li>SMS confirmation: try {@code action_confirm} (v17), fallback to {@code action_send_and_validate}</li>
+ *   <li>SMS confirmation: resolved via CapabilityResolver SMS_CONFIRM capability</li>
  *   <li>Immediate transfer: null-check on {@code res_id}</li>
  * </ul>
  *

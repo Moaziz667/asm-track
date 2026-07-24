@@ -172,6 +172,98 @@ class OdooSyncAdapterTest {
         assertFalse(result.isSuccess());
     }
 
+    @Test
+    void syncPartialDelivery_success_noWizard() {
+        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(pickingService.findSinglePicking(10))
+                .thenReturn(Map.of("id", 55, "state", "assigned"));
+        when(pickingService.readPickingState(55)).thenReturn("assigned");
+        when(productService.applyPartialQtyDoneToMoveLines(eq(55), anyList())).thenReturn(3);
+        when(validationService.callValidatePicking(55)).thenReturn(Map.of("result", true));
+        when(pickingService.findBackorderPickingId(55)).thenReturn(null);
+
+        ErpPartialItemDTO item = ErpPartialItemDTO.builder()
+                .referenceKey("SKU-001").quantityDone(3).build();
+
+        ErpPartialDeliveryResultDTO result = adapter.syncPartialDelivery("100",
+                List.of(item), "tx-1", null);
+
+        assertTrue(result.isSuccess());
+        assertEquals(55, result.getPickingId());
+        assertNull(result.getBackorderPickingId());
+        verify(productService).syncSaleOrderLineDeliveredQuantities(eq(10), anyList(), eq(false));
+    }
+
+    @Test
+    void syncPartialDelivery_backorderWizard() {
+        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(pickingService.findSinglePicking(10))
+                .thenReturn(Map.of("id", 55, "state", "assigned"));
+        when(pickingService.readPickingState(55)).thenReturn("assigned");
+        when(productService.applyPartialQtyDoneToMoveLines(eq(55), anyList())).thenReturn(3);
+        when(validationService.callValidatePicking(55)).thenReturn(Map.of(
+                "result", Map.of("res_model", "stock.backorder.confirmation", "res_id", 77)));
+        when(pickingService.findBackorderPickingId(55)).thenReturn(88);
+        when(pickingService.readPickingName(88)).thenReturn("WH/OUT/00013");
+
+        ErpPartialItemDTO item = ErpPartialItemDTO.builder()
+                .referenceKey("SKU-002").quantityDone(3).build();
+
+        ErpPartialDeliveryResultDTO result = adapter.syncPartialDelivery("100",
+                List.of(item), "tx-1", null);
+
+        assertTrue(result.isSuccess());
+        assertEquals(55, result.getPickingId());
+        assertEquals(88, result.getBackorderPickingId());
+        assertEquals("WH/OUT/00013", result.getBackorderBlNumber());
+        verify(validationService).handleWizard(eq(55), anyMap());
+    }
+
+    @Test
+    void syncPartialDelivery_immediateTransferWizard() {
+        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(pickingService.findSinglePicking(10))
+                .thenReturn(Map.of("id", 55, "state", "assigned"));
+        when(pickingService.readPickingState(55)).thenReturn("assigned");
+        when(productService.applyPartialQtyDoneToMoveLines(eq(55), anyList())).thenReturn(5);
+        when(validationService.callValidatePicking(55)).thenReturn(Map.of(
+                "result", Map.of("res_model", "stock.immediate.transfer", "res_id", 99)));
+        when(pickingService.findBackorderPickingId(55)).thenReturn(null);
+
+        ErpPartialItemDTO item = ErpPartialItemDTO.builder()
+                .referenceKey("SKU-003").quantityDone(5).build();
+
+        ErpPartialDeliveryResultDTO result = adapter.syncPartialDelivery("100",
+                List.of(item), "tx-1", null);
+
+        assertTrue(result.isSuccess());
+        assertEquals(55, result.getPickingId());
+        // Immediate transfer uses _action_done directly — verify RPC was called
+        verify(rpc).callRpc(argThat(args ->
+                args instanceof List<?> list && list.size() >= 1));
+    }
+
+    @Test
+    void syncPartialDelivery_allQtyZero_skipsValidation() {
+        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(pickingService.findSinglePicking(10))
+                .thenReturn(Map.of("id", 55, "state", "assigned"));
+        when(pickingService.readPickingState(55)).thenReturn("assigned");
+        when(productService.applyPartialQtyDoneToMoveLines(eq(55), anyList())).thenReturn(0);
+        when(pickingService.findBackorderPickingId(55)).thenReturn(null);
+
+        ErpPartialItemDTO item = ErpPartialItemDTO.builder()
+                .referenceKey("SKU-004").quantityDone(0).outcome("REFUSED").build();
+
+        ErpPartialDeliveryResultDTO result = adapter.syncPartialDelivery("100",
+                List.of(item), "tx-1", null);
+
+        assertTrue(result.isSuccess());
+        // Should NOT call validate since qty=0
+        verify(validationService, never()).callValidatePicking(anyInt());
+        verify(saleOrderService).addNoteToSaleOrder(eq(10), contains("Livraison partielle"));
+    }
+
     // ── idempotency ───────────────────────────────────────────────────────────
 
     @Test

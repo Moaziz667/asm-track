@@ -21,14 +21,25 @@ public class IdempotencyService {
     private final IdempotentTransactionRepository repo;
     private final ObjectMapper objectMapper;
 
-    @Transactional
+    /**
+     * Execute an operation with idempotency protection.
+     *
+     * <p>Transaction scope is split into three phases to avoid holding a DB connection
+     * during long-running Odoo RPC calls:
+     * <ol>
+     *   <li>Phase 1: Check cache (transactional, fast)</li>
+     *   <li>Phase 2: Execute operation (no transaction)</li>
+     *   <li>Phase 3: Save result (transactional, fast)</li>
+     * </ol>
+     */
     public <T> T execute(String txId, String erpOrderId, Class<T> returnType, Supplier<T> operation) {
         if (txId == null || txId.isBlank()) {
             log.warn("ERP sync missing transactionId — erpOrderId={} retryable=true unsafe=true", erpOrderId);
             return operation.get();
         }
 
-        Optional<IdempotentTransaction> existing = repo.findById(txId);
+        // Phase 1: Check cache (fast, transactional)
+        Optional<IdempotentTransaction> existing = findExisting(txId);
         if (existing.isPresent()) {
             IdempotentTransaction tx = existing.get();
             log.info("Idempotency hit — txId={} erpOrderId={} processedAt={} action=returning_cached",
@@ -41,9 +52,10 @@ public class IdempotencyService {
             }
         }
 
+        // Phase 2: Execute operation (no transaction — Odoo RPC can take 5-15s)
         try {
             T result = operation.get();
-            // Only cache successful results — caching a failure would block all future retries.
+            // Phase 3: Save result (fast, transactional)
             if (isSuccessResult(result)) {
                 saveResult(txId, erpOrderId, result);
             } else {
@@ -58,7 +70,13 @@ public class IdempotencyService {
         }
     }
 
-    private void saveResult(String txId, String erpOrderId, Object result) {
+    @Transactional
+    protected Optional<IdempotentTransaction> findExisting(String txId) {
+        return repo.findById(txId);
+    }
+
+    @Transactional
+    protected void saveResult(String txId, String erpOrderId, Object result) {
         try {
             IdempotentTransaction tx = IdempotentTransaction.builder()
                     .transactionId(txId)

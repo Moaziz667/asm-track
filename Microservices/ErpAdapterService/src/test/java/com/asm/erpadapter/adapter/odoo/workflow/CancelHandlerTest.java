@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo.workflow;
 
+import com.asm.erpadapter.adapter.odoo.CanonicalCapability;
 import com.asm.erpadapter.adapter.odoo.CapabilityResolver;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,8 @@ class CancelHandlerTest {
 
     @Test
     void cancelSaleOrder_unlocksThenCancels() {
+        when(capabilityResolver.resolve(CanonicalCapability.UNLOCK_SALE_ORDER)).thenReturn("action_unlock");
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_unlock
                 .thenReturn(Map.of("result", true))   // action_cancel
@@ -43,6 +46,8 @@ class CancelHandlerTest {
 
     @Test
     void cancelSaleOrder_returnsFalseOnError() {
+        when(capabilityResolver.resolve(CanonicalCapability.UNLOCK_SALE_ORDER)).thenReturn("action_unlock");
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_unlock
                 .thenReturn(Map.of("error", "user error"));  // action_cancel
@@ -52,6 +57,8 @@ class CancelHandlerTest {
 
     @Test
     void cancelSaleOrder_returnsFalseWhenStateNotCancel() {
+        when(capabilityResolver.resolve(CanonicalCapability.UNLOCK_SALE_ORDER)).thenReturn("action_unlock");
+        when(capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER)).thenReturn("action_cancel");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_unlock
                 .thenReturn(Map.of("result", true))   // action_cancel

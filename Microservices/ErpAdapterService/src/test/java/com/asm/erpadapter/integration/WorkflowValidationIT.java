@@ -14,6 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests Odoo delivery validation workflows — full delivery, partial delivery, backorder creation.
  * Validates that the Odoo RPC operations our code relies on actually work across versions.
  *
+ * <p>These integration tests call Odoo methods directly to validate the Odoo contract.
+ * They do NOT test the Capability Engine — that's the unit tests' job.
+ *
  * <p>Odoo 16: qty_done field, create_returns method
  * <p>Odoo 19: quantity field, action_create_returns method
  */

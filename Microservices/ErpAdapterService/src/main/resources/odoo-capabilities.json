@@ -44,6 +44,11 @@
     "type": "METHOD",
     "candidates": ["action_confirm"]
   },
+  "CANCEL_SALE_ORDER": {
+    "model": "sale.order",
+    "type": "METHOD",
+    "candidates": ["action_cancel"]
+  },
   "BACKORDER_CONFIRM": {
     "model": "stock.backorder.confirmation",
     "type": "METHOD",

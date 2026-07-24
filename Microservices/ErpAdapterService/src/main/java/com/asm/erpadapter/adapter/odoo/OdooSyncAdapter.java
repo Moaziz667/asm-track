@@ -307,7 +307,10 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 String resModel = (String) res.get("res_model");
                 log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard={} action=confirming", pickingId, resModel);
                 if ("stock.immediate.transfer".equals(resModel)) {
-                    // Partial delivery uses _action_done directly (not the standard wizard process)
+                    // NB: Immediate transfer uses _action_done directly (not the standard wizard process).
+                    // This is a deliberate bypass — the IMMEDIATE_TRANSFER capability's `process` method
+                    // doesn't handle partial-qty scenarios where some lines are skipped.
+                    // _action_done is a stable Odoo internal method used by the stock module itself.
                     log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard=immediate_transfer action=_action_done_direct", pickingId);
                     rpc.callRpc(rpc.buildArgs("stock.picking", "_action_done", List.of(List.of(pickingId))));
                 } else {

@@ -25,6 +25,7 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 public class OdooPickingService {
 
     private final OdooJsonRpcClient rpc;
+    private final CapabilityResolver capabilityResolver;
 
     // ── Picking lookups ───────────────────────────────────────────────────────
 
@@ -142,7 +143,8 @@ public class OdooPickingService {
      * Cancel a single delivery note (picking). 'done' is treated as idempotent success.
      */
     public boolean cancelPicking(Integer pickingId) {
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", "action_cancel",
+        String cancelMethod = capabilityResolver.resolve(CanonicalCapability.CANCEL_DELIVERY);
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", cancelMethod,
                 List.of(List.of(pickingId))));
         if (resp != null && resp.containsKey("error")) {
             log.warn("ERP sync failed — provider=odoo operation=cancelPicking pickingId={} odooError={} retryable=true",

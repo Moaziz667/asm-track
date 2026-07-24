@@ -13,6 +13,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Caches Odoo model metadata (available fields) per tenant to avoid repeated {@code fields_get()} calls.
@@ -63,7 +65,11 @@ public class OdooMetadataCache {
                 }));
 
         try {
-            return future.get();
+            return future.get(30, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("OdooMetadataCache: single-flight timed out for model={} after 30s", model);
+            inFlight.remove(key);
+            return Set.of();
         } catch (Exception e) {
             log.warn("OdooMetadataCache: single-flight failed for model={} reason={}", model, e.getMessage());
             return Set.of();

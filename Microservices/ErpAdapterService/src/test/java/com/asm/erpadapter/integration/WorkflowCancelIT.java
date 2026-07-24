@@ -13,6 +13,9 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Tests Odoo cancellation workflows — action_unlock + action_cancel on sale orders and pickings.
  * Validates that the cancel/unlock methods exist and work across Odoo versions.
+ *
+ * <p>These integration tests call Odoo methods directly to validate the Odoo contract.
+ * They do NOT test the Capability Engine — that's the unit tests' job.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WorkflowCancelIT extends AbstractOdooIntegrationTest {

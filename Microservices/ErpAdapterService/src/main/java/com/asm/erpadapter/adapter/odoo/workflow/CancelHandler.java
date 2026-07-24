@@ -36,7 +36,8 @@ public class CancelHandler {
         // Odoo 19 auto-locks confirmed orders — unlock first (no-op on ≤18)
         String unlockMethod = capabilityResolver.resolve(CanonicalCapability.UNLOCK_SALE_ORDER);
         rpc.callRpc(rpc.buildArgs("sale.order", unlockMethod, List.of(List.of(erpOrderId))));
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "action_cancel",
+        String cancelMethod = capabilityResolver.resolve(CanonicalCapability.CANCEL_SALE_ORDER);
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", cancelMethod,
                 List.of(List.of(erpOrderId))));
         if (resp != null && resp.containsKey("error")) {
             String errorMsg = OdooJsonRpcClient.extractOdooErrorMessage(resp.get("error"));
@@ -50,6 +51,9 @@ public class CancelHandler {
                     erpOrderId, resp.get("error"));
             return false;
         }
+        // NB: Direct RPC call instead of OdooSaleOrderService.readSaleOrderState() to avoid
+        // circular dependency (CancelHandler ← CapabilityResolver ← OdooSaleOrderService → CancelHandler).
+        // The 1-line wrapper is intentionally duplicated here.
         String state = rpc.readRecordState("sale.order", erpOrderId);
         log.info("provider=odoo operation=cancelSaleOrder erpId={} finalState={}", erpOrderId, state);
         return "cancel".equalsIgnoreCase(state);
