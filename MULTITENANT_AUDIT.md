@@ -152,6 +152,27 @@ subscriptions. `/topic/driver.{id}` and `/topic/public.{id}` were already dot-fo
 **Tests.** Live verification: no `Invalid destination` relay errors after restart; add an acceptance
 assertion that a published tenant event reaches a relay-backed subscriber.
 
+### C6 — Feign circuit breaker thread hop strips the tenant from outbound calls (found live, post-audit)
+**Files:** `CircuitBreakerContextConfig.java` (new, ×4 services), interacts with every `ServiceClientConfig`
+
+**Root cause.** All four services set `spring.cloud.openfeign.circuitbreaker.enabled=true` with a
+Resilience4j TimeLimiter — which executes every Feign invocation on the circuit breaker factory's
+own thread pool. The Feign `RequestInterceptor` that stamps `X-Company-Id` (from TenantContext on
+non-HTTP threads, or the current request's headers) therefore ran with EMPTY ThreadLocals for calls
+originating from AMQP consumers and scheduled jobs. Live signature: the ERP adapter's settings fetch
+during a partial-delivery sync reached AppBackend with no tenant header → (pre-H1) silent reads of
+the empty `public` schema → `NONE` settings → `syncPartialDelivery returned false` → DLQ →
+SYNC_FAILED. One of the ORIGINAL "Odoo sync inconsistent / randomly fails" root causes; the H1
+fail-closed filters converted it from silent corruption into visible 403s, which is how it was caught.
+
+**Fix (production-ready).** `Customizer<Resilience4JCircuitBreakerFactory>` in each service replaces
+the factory executor with a delegating `ExecutorService` whose `execute()` captures TenantContext,
+MDC and RequestContextHolder on the SUBMITTING thread and restores/clears them around the task.
+Tenant propagation across the breaker hop is now structural; TimeLimiter timeouts are preserved.
+**Tests.** Live verification: no "Missing X-Company-Id" rejections from breaker-wrapped calls after
+restart; partial-delivery resync succeeds. Add an integration test asserting a Feign call made from
+a thread with TenantContext set carries X-Company-Id when the circuit breaker is enabled.
+
 ---
 
 ## HIGH
