@@ -83,11 +83,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     const wsUrl = `${wsBase}/ws`;
     let retryCount = 0;
 
-    // Tenant-scoped topics only: /topic/company/{companyId}/admin.X. The backend no longer allows the
-    // legacy non-tenant /topic/admin.X (it was a cross-tenant channel), so if there's no companyId we
-    // subscribe to nothing rather than to a topic that would be rejected — fail closed.
+    // Tenant-scoped topics only, in DOT notation: /topic/company.{companyId}.admin.X — the RabbitMQ
+    // STOMP relay rejects '/' inside a destination's routing key, so the old slash form was silently
+    // dropped by the broker. The backend no longer allows the legacy non-tenant /topic/admin.X (it
+    // was a cross-tenant channel), so if there's no companyId we subscribe to nothing — fail closed.
     const topics = companyId
-      ? TOPICS.map(t => ({ topic: `/topic/company/${companyId}/${t.sub}`, category: t.category }))
+      ? TOPICS.map(t => ({ topic: `/topic/company.${companyId}.${t.sub}`, category: t.category }))
       : [];
     if (!companyId) {
       console.warn('[RealtimeProvider] No companyId in token — skipping admin topic subscriptions.');
@@ -110,7 +111,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         // Rebuild topics with possibly new companyId — tenant-scoped only (see above; fail closed).
         topics.length = 0;
         if (cid) {
-          TOPICS.forEach(t => topics.push({ topic: `/topic/company/${cid}/${t.sub}`, category: t.category }));
+          TOPICS.forEach(t => topics.push({ topic: `/topic/company.${cid}.${t.sub}`, category: t.category }));
         }
       },
       onConnect: () => {

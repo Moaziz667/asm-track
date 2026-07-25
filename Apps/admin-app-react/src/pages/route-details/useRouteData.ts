@@ -144,7 +144,8 @@ export function useRouteData(routeId: string | undefined) {
       if (token) {
         const decoded = jwtDecode<{ org_id?: string; organization?: Record<string, { id?: string }> }>(token);
         const orgId = decoded.org_id ?? (() => { const o = decoded.organization; return o ? Object.values(o)[0]?.id : undefined; })();
-        if (orgId) topic = `/topic/company/${orgId}/admin.routes`;
+        // DOT notation — the RabbitMQ STOMP relay rejects '/' inside a routing key.
+        if (orgId) topic = `/topic/company.${orgId}.admin.routes`;
       }
     } catch { /* no tenant → no subscription */ }
     if (!topic) return;

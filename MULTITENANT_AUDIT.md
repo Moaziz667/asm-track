@@ -133,6 +133,25 @@ in `preSend`/`afterSendCompletion` from the session principal, never per-connect
 points (TenantContextFilter, PublicTrackingTenantFilter, TenantInboundPostProcessor, TenantIterator,
 task decorators).
 
+### C5 — Tenant-scoped STOMP topics rejected by the RabbitMQ broker relay (found live, post-audit)
+**Files:** `DeliveryMicroservice/.../service/EventPublisher.java`, `service/route/RouteWebSocketService.java`,
+`messaging/AuditEventConsumer.java`, `security/WebSocketSecurityInterceptor.java`,
+`Apps/admin-app-react/src/components/RealtimeProvider.tsx`, `src/pages/route-details/useRouteData.ts`
+
+**Root cause.** With `websocket.broker.relay.enabled=true` (the compose default), `/topic/x` maps to
+RabbitMQ routing key `x` — and RabbitMQ rejects routing keys containing `/`. The Phase-3 tenant topics
+(`/topic/company/{id}/admin.deliveries` etc.) therefore failed broker-side with "Invalid destination":
+**every tenant-scoped realtime event was silently dropped** whenever the relay was on. This alone
+explains much of "various features became unstable after the migration" (dead admin dashboards, no
+live route/driver updates). The in-memory simple broker (used in tests/PoC) accepts slashes, which is
+why the Phase-3 verification passed.
+
+**Fix (production-ready).** Dot notation end-to-end: `/topic/company.{companyId}.{subtopic}` in both
+publishers + the audit consumer, dot-parsing in the subscription interceptor, and matching frontend
+subscriptions. `/topic/driver.{id}` and `/topic/public.{id}` were already dot-form (and already worked).
+**Tests.** Live verification: no `Invalid destination` relay errors after restart; add an acceptance
+assertion that a published tenant event reaches a relay-backed subscriber.
+
 ---
 
 ## HIGH

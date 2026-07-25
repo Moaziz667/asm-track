@@ -74,16 +74,18 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
 
             UserPrincipal user = (UserPrincipal) auth.getPrincipal();
 
-            // Validate tenant-scoped topics: /topic/company/{companyId}/...
-            if (dest.startsWith("/topic/company/")) {
-                // Extract companyId from /topic/company/{companyId}/...
-                String remainder = dest.substring("/topic/company/".length());
-                int slashIdx = remainder.indexOf('/');
-                if (slashIdx < 0) {
+            // Validate tenant-scoped topics: /topic/company.{companyId}.{subtopic} — DOT notation
+            // (the RabbitMQ STOMP relay rejects '/' inside a routing key, so slash-form tenant
+            // topics never worked with the relay enabled). The UUID contains no dots, so the first
+            // '.' after the prefix separates companyId from the subtopic.
+            if (dest.startsWith("/topic/company.")) {
+                String remainder = dest.substring("/topic/company.".length());
+                int dotIdx = remainder.indexOf('.');
+                if (dotIdx < 0) {
                     log.warn("WS Subscription rejected: Invalid tenant topic format {}", dest);
                     throw new MessageDeliveryException("Access denied: Invalid topic format");
                 }
-                String topicCompanyId = remainder.substring(0, slashIdx);
+                String topicCompanyId = remainder.substring(0, dotIdx);
 
                 // Verify the companyId matches the user's org_id
                 if (user.getCompanyId() == null || !user.getCompanyId().toString().equals(topicCompanyId)) {
@@ -92,7 +94,7 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                     throw new MessageDeliveryException("Access denied: Topic company mismatch");
                 }
 
-                String subPath = remainder.substring(slashIdx + 1);
+                String subPath = remainder.substring(dotIdx + 1);
                 if (subPath.startsWith("admin.")) {
                     if (!List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
                         log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to admin topic {}",
@@ -111,7 +113,7 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                 // Global (non-company-scoped) driver topic: SELF ONLY. The topic name carries no tenant,
                 // so a role-based allowance would let an ADMIN/DISPATCHER of another tenant stream this
                 // driver's assignments (client names, addresses) just by knowing the driver UUID.
-                // Staff must use the tenant-validated /topic/company/{companyId}/driver.{id} form.
+                // Staff must use the tenant-validated /topic/company.{companyId}.driver.{id} form.
                 String topicDriverId = dest.substring("/topic/driver.".length());
                 if (!user.getUserId().equals(topicDriverId)) {
                     log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to driver topic {}",

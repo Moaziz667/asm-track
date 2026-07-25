@@ -27,15 +27,19 @@ public class RouteWebSocketService {
         return TenantContext.get();
     }
 
-    /** Tenant-scoped topic; no silent global fallback — see EventPublisher.tenantTopic for rationale. */
+    /**
+     * Tenant-scoped topic in relay-safe DOT notation; no silent global fallback — see
+     * EventPublisher.tenantTopic for the full rationale (slash destinations are rejected by the
+     * RabbitMQ STOMP relay, killing every tenant-scoped event).
+     */
     private String tenantTopic(String subtopic) {
         UUID companyId = getCompanyId();
         if (companyId != null) {
-            return "/topic/company/" + companyId + "/" + subtopic;
+            return "/topic/company." + companyId + "." + subtopic;
         }
         log.error("Tenant event published WITHOUT TenantContext (subtopic={}) — event routed to dead "
                 + "destination; fix the calling path's tenant propagation", subtopic);
-        return "/topic/untenanted/" + subtopic;
+        return "/topic/untenanted." + subtopic;
     }
 
     /**

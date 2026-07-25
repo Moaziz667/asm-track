@@ -49,7 +49,12 @@ public class EventPublisher {
     }
 
     /**
-     * Returns the tenant-scoped topic: /topic/company/{companyId}/{subtopic}.
+     * Returns the tenant-scoped topic: /topic/company.{companyId}.{subtopic}.
+     *
+     * <p>DOT notation, not slashes: with the RabbitMQ STOMP broker relay enabled
+     * (websocket.broker.relay.enabled=true), a "/topic/x" destination maps to routing key "x",
+     * and RabbitMQ rejects routing keys containing '/' — the old "/topic/company/{id}/{sub}"
+     * form made the broker drop EVERY tenant-scoped event with "Invalid destination".
      *
      * <p>No silent global fallback: publishing a tenant event on a bare "/topic/..." destination
      * either leaks it (any subscriber) or vanishes (the interceptor forbids subscribing there) —
@@ -59,11 +64,11 @@ public class EventPublisher {
     private String tenantTopic(String subtopic) {
         UUID companyId = getCompanyId();
         if (companyId != null) {
-            return "/topic/company/" + companyId + "/" + subtopic;
+            return "/topic/company." + companyId + "." + subtopic;
         }
         log.error("Tenant event published WITHOUT TenantContext (subtopic={}) — event routed to dead "
                 + "destination; fix the calling path's tenant propagation", subtopic);
-        return "/topic/untenanted/" + subtopic;
+        return "/topic/untenanted." + subtopic;
     }
 
     private String getDriverName(UUID driverId) {
