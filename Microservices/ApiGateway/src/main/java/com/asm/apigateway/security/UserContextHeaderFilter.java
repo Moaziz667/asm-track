@@ -86,6 +86,20 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                         log.warn("Missing org_id/organization claim for user={} on path={} — rejecting", userId, path);
                         return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "No tenant assigned");
                     }
+                    if (AMBIGUOUS_TENANT.equals(companyId)) {
+                        // A user in MULTIPLE organizations would get a nondeterministic tenant per
+                        // token (claim map iteration order) — silent cross-tenant flapping. The
+                        // platform rule is 1 user = 1 company; enforce it here, fail-closed.
+                        log.warn("User={} belongs to multiple organizations — ambiguous tenant, rejecting (path={})", userId, path);
+                        return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "Ambiguous tenant assignment");
+                    }
+                    try {
+                        java.util.UUID.fromString(companyId);
+                    } catch (IllegalArgumentException e) {
+                        // Downstream services 400 on a malformed tenant id; reject at the edge instead.
+                        log.warn("Non-UUID organization id '{}' for user={} — rejecting", companyId, userId);
+                        return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "Invalid tenant identifier");
+                    }
                     ServerHttpRequest.Builder req = sanitizedExchange.getRequest().mutate()
                             .header("X-User-Id", userId)
                             .header("X-User-Role", role)
@@ -133,12 +147,16 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                 .orElse("CLIENT");
     }
 
+    /** Sentinel returned when the token carries more than one organization (see caller). */
+    static final String AMBIGUOUS_TENANT = "__ambiguous__";
+
     @SuppressWarnings("unchecked")
     private String extractCompanyId(Jwt jwt) {
         String orgId = jwt.getClaimAsString("org_id");
         if (orgId != null) return orgId;
         Map<String, Object> orgs = jwt.getClaim("organization");
         if (orgs != null && !orgs.isEmpty()) {
+            if (orgs.size() > 1) return AMBIGUOUS_TENANT;
             Object first = orgs.values().iterator().next();
             if (first instanceof Map) {
                 Object id = ((Map<?, ?>) first).get("id");

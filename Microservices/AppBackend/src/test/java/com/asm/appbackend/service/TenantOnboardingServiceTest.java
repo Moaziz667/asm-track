@@ -75,6 +75,18 @@ class TenantOnboardingServiceTest {
         when(restClient.post()).thenReturn(requestSpec);
         when(requestSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.toBodilessEntity()).thenReturn(ResponseEntity.ok().build());
+
+        // Step 3 of onboard() inserts the admin_users row via raw JDBC (added after this test was
+        // written): an unstubbed DataSource returns a null Connection → NPE → the whole happy path
+        // "fails and rolls back". Stub the minimal JDBC chain so the insert no-ops successfully.
+        try {
+            java.sql.Connection conn = org.mockito.Mockito.mock(java.sql.Connection.class);
+            java.sql.PreparedStatement ps = org.mockito.Mockito.mock(java.sql.PreparedStatement.class);
+            when(dataSource.getConnection()).thenReturn(conn);
+            when(conn.prepareStatement(anyString())).thenReturn(ps);
+        } catch (java.sql.SQLException e) {
+            throw new IllegalStateException(e); // unreachable: stubbing mocks doesn't hit JDBC
+        }
     }
 
     // ── slugify: KC org alias must be a stable slug ──────────────────────────

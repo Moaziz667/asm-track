@@ -21,18 +21,40 @@ public class MinioStorageService {
 
     private static final String COMPANY_LOGOS_BUCKET = "company-logos";
 
+    /**
+     * Whether the shared POD bucket gets an anonymous-read policy. Historical behavior (and the
+     * default, so nothing breaks on upgrade) is public-read with unguessable UUID paths as the only
+     * protection — every tenant's POD photos are downloadable by anyone holding a URL. Flip this to
+     * false once every read path (admin POD views, PDF reports, public RMA page) uses
+     * {@link #presignedGetUrl}; the ERP sync path already does.
+     */
+    @org.springframework.beans.factory.annotation.Value("${minio.pod-bucket-public-read:true}")
+    private boolean podBucketPublicRead;
+
     @PostConstruct
     public void init() {
-        ensureBucket(minioConfig.getBucket());
-        ensureBucket(COMPANY_LOGOS_BUCKET);
+        ensureBucket(minioConfig.getBucket(), podBucketPublicRead);
+        ensureBucket(COMPANY_LOGOS_BUCKET, true); // branding assets are intentionally public
+        if (podBucketPublicRead) {
+            log.warn("MinIO POD bucket '{}' is PUBLIC-READ (minio.pod-bucket-public-read=true). "
+                    + "All tenants' POD photos are readable by anyone with the URL — migrate read "
+                    + "paths to presigned URLs and disable this.", minioConfig.getBucket());
+        }
     }
 
-    private void ensureBucket(String bucket) {
+    private void ensureBucket(String bucket, boolean publicRead) {
         try {
             boolean exists = minioClient.bucketExists(
                     BucketExistsArgs.builder().bucket(bucket).build());
             if (!exists) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+                log.info("MinIO bucket created: {}", bucket);
+            } else {
+                log.info("MinIO bucket ready: {}", bucket);
+            }
+            // Applied on every start (not only creation) so flipping the flag takes effect on
+            // existing deployments without manual mc commands.
+            if (publicRead) {
                 String policy = """
                         {
                           "Version": "2012-10-17",
@@ -46,12 +68,50 @@ public class MinioStorageService {
                         """.formatted(bucket);
                 minioClient.setBucketPolicy(
                         SetBucketPolicyArgs.builder().bucket(bucket).config(policy).build());
-                log.info("MinIO bucket created: {}", bucket);
             } else {
-                log.info("MinIO bucket ready: {}", bucket);
+                minioClient.deleteBucketPolicy(DeleteBucketPolicyArgs.builder().bucket(bucket).build());
+                log.info("MinIO bucket {} set to private (anonymous policy removed)", bucket);
             }
         } catch (Exception e) {
             log.error("Failed to initialize MinIO bucket {}: {}", bucket, e.getMessage());
+        }
+    }
+
+    /**
+     * Presigned GET for an object this tenant owns — the tenant-safe way to hand a URL to a
+     * downstream consumer (ERP adapter, browser) without a public bucket. Verifies the object
+     * belongs to the current tenant before signing.
+     */
+    public String presignedGetUrl(String url, java.time.Duration ttl) {
+        String objectPath = extractObjectPath(url);
+        if (objectPath == null) return url; // not one of ours (already presigned / external) — pass through
+        requireCurrentTenantObject(objectPath, "presign");
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    io.minio.GetPresignedObjectUrlArgs.builder()
+                            .method(io.minio.http.Method.GET)
+                            .bucket(minioConfig.getBucket())
+                            .object(objectPath)
+                            .expiry((int) ttl.toSeconds())
+                            .build());
+        } catch (Exception e) {
+            log.warn("Failed to presign {}: {} — falling back to canonical URL", objectPath, e.getMessage());
+            return url;
+        }
+    }
+
+    /**
+     * Cross-tenant guard: object paths are {companyId}/... — refuse to touch an object whose prefix
+     * is another tenant's. Stored URLs travel through DB rows, sync payloads and user input; without
+     * this check any code path fed a foreign URL becomes an IDOR primitive.
+     */
+    private void requireCurrentTenantObject(String objectPath, String action) {
+        java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+        if (companyId == null) return; // tenant-less system paths (e.g. legacy logos) — nothing to assert
+        if (!objectPath.startsWith(companyId + "/")) {
+            log.warn("MinIO {} REFUSED — object '{}' does not belong to tenant {}", action, objectPath, companyId);
+            throw new StorageException(objectPath,
+                    new SecurityException("Object does not belong to the current tenant"));
         }
     }
 
@@ -78,10 +138,17 @@ public class MinioStorageService {
     /**
      * Prepends the tenant company ID prefix to the object path.
      * e.g. "pod-files/deliveries/123/photo.jpg" → "{companyId}/pod-files/deliveries/123/photo.jpg"
+     *
+     * <p>Fail-closed: a tenant-scoped upload without a TenantContext used to silently land at the
+     * bucket root outside every tenant's prefix — now it's an error, so the lost-context bug that
+     * caused it surfaces instead of hiding.
      */
     private String tenantPrefix(String path) {
         java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
-        if (companyId == null) return path;
+        if (companyId == null) {
+            throw new StorageException(path,
+                    new IllegalStateException("No tenant context for tenant-scoped upload"));
+        }
         return companyId + "/" + path;
     }
 
@@ -108,6 +175,7 @@ public class MinioStorageService {
         try {
             String objectPath = extractObjectPath(url);
             if (objectPath != null) {
+                requireCurrentTenantObject(objectPath, "delete");
                 minioClient.removeObject(
                         RemoveObjectArgs.builder()
                                 .bucket(minioConfig.getBucket())
@@ -140,6 +208,7 @@ public class MinioStorageService {
     public byte[] getBytes(String url) {
         String objectPath = extractObjectPath(url);
         if (objectPath == null) return null;
+        requireCurrentTenantObject(objectPath, "read");
         try (var stream = minioClient.getObject(
                 io.minio.GetObjectArgs.builder()
                         .bucket(minioConfig.getBucket())

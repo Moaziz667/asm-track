@@ -53,13 +53,21 @@ public class OdooMetadataCache {
             return Collections.unmodifiableSet(cached.fields());
         }
 
+        // The fetch runs on the ForkJoin common pool, which has NO TenantContext — but fetchFields
+        // resolves the Odoo URL/credentials through SettingsClient, which is keyed by TenantContext.
+        // Without restoring the submitting thread's tenant, the fetch would use the no-tenant settings
+        // (usually NONE → empty field set) and cache that WRONG result under the correct tenant's key
+        // for the full TTL. Capture here, restore inside the task.
+        final UUID tenant = TenantContext.get();
         CompletableFuture<Set<String>> future = inFlight.computeIfAbsent(key,
                 k -> CompletableFuture.supplyAsync(() -> {
+                    if (tenant != null) TenantContext.set(tenant);
                     try {
                         Set<String> fields = fetchFields(model);
                         cache.put(key, new CacheEntry(fields, System.currentTimeMillis()));
                         return fields;
                     } finally {
+                        TenantContext.clear();
                         inFlight.remove(k);
                     }
                 }));

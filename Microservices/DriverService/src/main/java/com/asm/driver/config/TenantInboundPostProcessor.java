@@ -23,10 +23,13 @@ public class TenantInboundPostProcessor implements MessagePostProcessor {
     @Override
     public Message postProcessMessage(Message message) {
         TenantContext.clear();
+        org.slf4j.MDC.put("companyId", "-");
         Object header = message.getMessageProperties().getHeader("X-Company-Id");
         if (header != null) {
             try {
-                TenantContext.set(UUID.fromString(header.toString()));
+                UUID companyId = UUID.fromString(header.toString());
+                TenantContext.set(companyId);
+                org.slf4j.MDC.put("companyId", companyId.toString());
             } catch (IllegalArgumentException e) {
                 log.warn("Invalid X-Company-Id header on inbound message: {}", header);
             }

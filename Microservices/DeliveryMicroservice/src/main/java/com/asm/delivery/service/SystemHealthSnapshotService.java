@@ -61,48 +61,93 @@ public class SystemHealthSnapshotService {
             .connectTimeout(Duration.ofMillis(800))
             .build();
 
-    private volatile Map<String, Object> snapshot;
+    /**
+     * MULTI-TENANT SPLIT: the snapshot used to be ONE shared map, but it mixes two kinds of data —
+     * platform infrastructure (breakers, DLQ depths, DB reachability: tenant-agnostic) and ERP sync
+     * state read from {@code orders} (tenant-scoped: BL numbers, ERP refs, error text). A single
+     * shared map either showed the empty {@code public}-schema counts (scheduled refresh has no
+     * TenantContext) or — worse — leaked whichever tenant's failure list happened to build it to
+     * every other tenant. Now the scheduler refreshes only the global part, and the tenant part is
+     * computed lazily per tenant on the caller's request thread (which carries the TenantContext, so
+     * Hibernate routes the queries to the right schema), with a short per-tenant cache and history.
+     */
+    private volatile Map<String, Object> globalSnapshot;
 
-    /** Rolling history of compact health points (~1h at the 10s cadence) for the console's trend
-     *  sparklines and per-component status timelines. In-memory only — resets on restart, which is
-     *  fine for an operational at-a-glance view (it is not an audit/metrics store). */
-    private static final int HISTORY_CAPACITY = 360; // ~1 hour at fixedDelay=10s
-    private final java.util.Deque<Map<String, Object>> history = new java.util.ArrayDeque<>(HISTORY_CAPACITY + 8);
+    private record TenantErpEntry(Map<String, Object> erpSync, long failedCount, long atMs) {}
+    private final Map<java.util.UUID, TenantErpEntry> erpByTenant = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long TENANT_ERP_TTL_MS = 10_000;
 
-    /** Cached snapshot; builds one synchronously on first call before the scheduler has run. */
+    /** Rolling per-tenant history of compact health points for the console's trend sparklines.
+     *  In-memory only — resets on restart, which is fine for an operational at-a-glance view. */
+    private static final int HISTORY_CAPACITY = 360; // ~1 hour at the ~10s console poll cadence
+    private static final long HISTORY_MIN_SPACING_MS = 9_000;
+    private final Map<java.util.UUID, java.util.Deque<Map<String, Object>>> historyByTenant =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Snapshot for the CURRENT tenant: shared infra signals + this tenant's ERP sync state only. */
     public Map<String, Object> current() {
-        Map<String, Object> s = snapshot;
-        if (s == null) {
-            s = build();
-            snapshot = s;
-            recordHistory(s);
+        Map<String, Object> global = globalSnapshot;
+        if (global == null) {
+            global = buildGlobal();
+            globalSnapshot = global;
         }
-        return s;
+        Map<String, Object> out = new LinkedHashMap<>(global);
+        java.util.UUID tenant = com.asm.delivery.security.TenantContext.get();
+        if (tenant != null) {
+            TenantErpEntry entry = freshTenantErp(tenant);
+            out.put("erpSync", entry.erpSync());
+            Map<String, Object> erp = new LinkedHashMap<>();
+            Object baseErp = global.get("erp");
+            if (baseErp instanceof Map<?, ?> m) m.forEach((k, v) -> erp.put(String.valueOf(k), v));
+            erp.put("pendingSyncFailures", entry.failedCount());
+            out.put("erp", erp);
+            recordHistory(tenant, out);
+        }
+        return out;
     }
 
-    /** Snapshot of the rolling history, oldest → newest (a copy, safe to serialize off-thread). */
+    /** Rolling history for the CURRENT tenant, oldest → newest (a copy, safe to serialize off-thread). */
     public List<Map<String, Object>> history() {
-        synchronized (history) {
-            return new ArrayList<>(history);
+        java.util.UUID tenant = com.asm.delivery.security.TenantContext.get();
+        if (tenant == null) return List.of();
+        java.util.Deque<Map<String, Object>> h = historyByTenant.get(tenant);
+        if (h == null) return List.of();
+        synchronized (h) {
+            return new ArrayList<>(h);
         }
     }
 
+    /** Scheduled refresh keeps only the tenant-agnostic infra probes warm (no TenantContext here). */
     @Scheduled(fixedDelay = 10_000)
     public void refresh() {
         try {
-            Map<String, Object> s = build();
-            snapshot = s;
-            recordHistory(s);
+            globalSnapshot = buildGlobal();
         } catch (Exception e) {
             log.warn("System health snapshot refresh failed: {}", e.getMessage());
         }
     }
 
-    private void recordHistory(Map<String, Object> snap) {
-        Map<String, Object> point = buildHistoryPoint(snap);
-        synchronized (history) {
-            history.addLast(point);
-            while (history.size() > HISTORY_CAPACITY) history.removeFirst();
+    private TenantErpEntry freshTenantErp(java.util.UUID tenant) {
+        TenantErpEntry cached = erpByTenant.get(tenant);
+        long now = System.currentTimeMillis();
+        if (cached != null && (now - cached.atMs()) < TENANT_ERP_TTL_MS) return cached;
+        Map<String, Object> erpSync = buildErpSync();
+        long failed = toLong(erpSync.get("failed"));
+        TenantErpEntry entry = new TenantErpEntry(erpSync, failed, now);
+        erpByTenant.put(tenant, entry);
+        return entry;
+    }
+
+    private void recordHistory(java.util.UUID tenant, Map<String, Object> snap) {
+        java.util.Deque<Map<String, Object>> h =
+                historyByTenant.computeIfAbsent(tenant, t -> new java.util.ArrayDeque<>(HISTORY_CAPACITY + 8));
+        synchronized (h) {
+            Map<String, Object> last = h.peekLast();
+            if (last != null && System.currentTimeMillis() - toLong(last.get("t")) < HISTORY_MIN_SPACING_MS) {
+                return; // console polls can be more frequent than the intended cadence — don't flood
+            }
+            h.addLast(buildHistoryPoint(snap));
+            while (h.size() > HISTORY_CAPACITY) h.removeFirst();
         }
     }
 
@@ -161,7 +206,8 @@ public class SystemHealthSnapshotService {
     private static int toneRank(String t) { return "down".equals(t) ? 3 : "warn".equals(t) ? 2 : 1; }
     private static String worse(String a, String b) { return toneRank(a) >= toneRank(b) ? a : b; }
 
-    private Map<String, Object> build() {
+    /** Tenant-agnostic infra probes only — NEVER add order/tenant data here (runs with no TenantContext). */
+    private Map<String, Object> buildGlobal() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("generatedAt", Instant.now().toString());
 
@@ -212,14 +258,16 @@ public class SystemHealthSnapshotService {
         db.put("reachable", isDatabaseReachable());
         out.put("db", db);
 
-        // 4. ERP sync — the accurate signal, from orders.erp_sync_status (not DLQ depth).
-        out.put("erpSync", buildErpSync());
+        // 4. ERP sync data is TENANT-SCOPED and is overlaid per tenant in current() — the scheduled
+        //    thread has no TenantContext, so querying orders here would read the empty public schema
+        //    (and caching one tenant's failure list here would leak it to every other tenant).
+        out.put("erpSync", Map.of("failed", 0L, "inProgress", 0L, "failures", List.of()));
 
-        // 5. Back-compat ERP block consumed by older clients.
+        // 5. Back-compat ERP block: only the tenant-agnostic reachability lives in the global part;
+        //    pendingSyncFailures is overlaid per tenant in current().
         Map<String, Object> erp = new LinkedHashMap<>();
-        long failedCount = orderRepo.countByErpSyncStatus("SYNC_FAILED");
         erp.put("reachable", erpReachable);
-        erp.put("pendingSyncFailures", failedCount);
+        erp.put("pendingSyncFailures", 0L);
         out.put("erp", erp);
 
         return out;

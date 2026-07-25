@@ -37,20 +37,33 @@ public class EventPublisher {
     @Autowired
     private com.asm.delivery.repository.RouteStopRepository routeStopRepository;
 
+    /** Tenant-decorated pool from AsyncConfig — NEVER publish on the ForkJoin common pool. */
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("eventExecutor")
+    private java.util.concurrent.Executor eventExecutor;
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private UUID getCompanyId() {
         return TenantContext.get();
     }
 
-    /** Returns tenant-scoped topic: /topic/company/{companyId}/{subtopic} or fallback for public/driver topics. */
+    /**
+     * Returns the tenant-scoped topic: /topic/company/{companyId}/{subtopic}.
+     *
+     * <p>No silent global fallback: publishing a tenant event on a bare "/topic/..." destination
+     * either leaks it (any subscriber) or vanishes (the interceptor forbids subscribing there) —
+     * both wrong. A missing tenant here is a context-propagation BUG on the calling path; route the
+     * event to a dead letter destination nobody can subscribe to and log loudly so it gets fixed.
+     */
     private String tenantTopic(String subtopic) {
         UUID companyId = getCompanyId();
         if (companyId != null) {
             return "/topic/company/" + companyId + "/" + subtopic;
         }
-        // Fallback for legacy topics without tenant context
-        return "/topic/" + subtopic;
+        log.error("Tenant event published WITHOUT TenantContext (subtopic={}) — event routed to dead "
+                + "destination; fix the calling path's tenant propagation", subtopic);
+        return "/topic/untenanted/" + subtopic;
     }
 
     private String getDriverName(UUID driverId) {
@@ -397,12 +410,14 @@ public class EventPublisher {
     }
 
     /**
-     * Runs the publish task off the request thread. {@link java.util.concurrent.CompletableFuture#runAsync}
-     * discards exceptions silently, which previously hid failures (e.g. a LazyInitializationException while
-     * building a payload) and made events vanish — so we log them here instead.
+     * Runs the publish task off the request thread on the tenant-decorated {@code eventExecutor}
+     * (never the ForkJoin common pool, whose threads carry no TenantContext and are shared with
+     * unrelated work). {@link java.util.concurrent.CompletableFuture#runAsync} discards exceptions
+     * silently, which previously hid failures (e.g. a LazyInitializationException while building a
+     * payload) and made events vanish — so we log them here instead.
      */
     private void runAsyncLogged(Runnable runnable) {
-        java.util.concurrent.CompletableFuture.runAsync(runnable)
+        java.util.concurrent.CompletableFuture.runAsync(runnable, eventExecutor)
             .exceptionally(ex -> {
                 log.error("Async after-commit event publish failed: {}", ex.getMessage(), ex);
                 return null;

@@ -42,13 +42,22 @@ public class IdempotencyService {
         Optional<IdempotentTransaction> existing = findExisting(txId);
         if (existing.isPresent()) {
             IdempotentTransaction tx = existing.get();
-            log.info("Idempotency hit — txId={} erpOrderId={} processedAt={} action=returning_cached",
-                    txId, erpOrderId, tx.getProcessedAt());
-            try {
-                return deserialize(tx.getResponsePayload(), returnType);
-            } catch (Exception e) {
-                log.warn("Idempotency cache deserialize failed — txId={} erpOrderId={} reason={} action=re_executing",
-                        txId, erpOrderId, e.getMessage());
+            // Tenant guard: the store is shared across tenants (single H2), and txIds are
+            // caller-generated. A record written by another tenant must NEVER satisfy this tenant's
+            // replay check — that would return one tenant's ERP response payload to another.
+            java.util.UUID currentTenant = com.asm.erpadapter.security.TenantContext.get();
+            if (tx.getTenantId() != null && !tx.getTenantId().equals(currentTenant)) {
+                log.error("Idempotency txId COLLISION across tenants — txId={} storedTenant={} currentTenant={} "
+                        + "action=ignoring_cached_re_executing", txId, tx.getTenantId(), currentTenant);
+            } else {
+                log.info("Idempotency hit — txId={} erpOrderId={} processedAt={} action=returning_cached",
+                        txId, erpOrderId, tx.getProcessedAt());
+                try {
+                    return deserialize(tx.getResponsePayload(), returnType);
+                } catch (Exception e) {
+                    log.warn("Idempotency cache deserialize failed — txId={} erpOrderId={} reason={} action=re_executing",
+                            txId, erpOrderId, e.getMessage());
+                }
             }
         }
 
@@ -80,6 +89,7 @@ public class IdempotencyService {
         try {
             IdempotentTransaction tx = IdempotentTransaction.builder()
                     .transactionId(txId)
+                    .tenantId(com.asm.erpadapter.security.TenantContext.get())
                     .erpOrderId(erpOrderId)
                     .status("SUCCESS")
                     .responsePayload(objectMapper.writeValueAsString(result))

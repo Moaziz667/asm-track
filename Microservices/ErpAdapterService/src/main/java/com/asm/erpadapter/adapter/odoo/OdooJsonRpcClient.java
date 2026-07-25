@@ -105,17 +105,20 @@ public class OdooJsonRpcClient {
 
     // ── uid resolution (login + API key → uid via common.authenticate) ──────────
     // The admin configures login + apiKey, not the internal numeric uid. We resolve it once via Odoo's
-    // common.authenticate and cache it. Cache key = db|login|secret so a credential change re-resolves.
+    // common.authenticate and cache it PER CREDENTIAL SET (db|login|secret). This client is a singleton
+    // shared by every tenant, and each tenant has its own credentials: a single cache slot would thrash
+    // between tenants and — worse — a racy key/uid pair could send one tenant's uid with another
+    // tenant's credentials. One map entry per credential set makes tenant interleaving irrelevant,
+    // and a credential change still re-resolves (new key).
 
-    private final java.util.concurrent.atomic.AtomicReference<String> cachedUidKey =
-            new java.util.concurrent.atomic.AtomicReference<>();
-    private final java.util.concurrent.atomic.AtomicInteger cachedUid =
-            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final Map<String, Integer> uidByCredentials =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Returns the Odoo uid for the current credentials. Order of resolution:
      *   1. an explicitly configured {@code uid} (legacy/back-compat) — used as-is;
-     *   2. otherwise resolve from {@code login} + secret via {@code common.authenticate}, cached.
+     *   2. otherwise resolve from {@code login} + secret via {@code common.authenticate}, cached
+     *      per credential set (single-flight per key via computeIfAbsent).
      * Throws {@link ErpAdapterException} (retryable) if authentication fails so callers don't mistake
      * an auth problem for "not found".
      */
@@ -126,25 +129,31 @@ public class OdooJsonRpcClient {
         String db = getSettingStr("db");
         String login = getSettingStr("login");
         String secret = getSecret();
-        String key = db + "|" + login + "|" + secret.hashCode();
-        if (key.equals(cachedUidKey.get()) && cachedUid.get() > 0) {
-            return cachedUid.get();
-        }
-        int uid = authenticate(db, login, secret);
-        if (uid <= 0) {
+        String key = credentialsKey(db, login, secret);
+        Integer uid = uidByCredentials.computeIfAbsent(key, k -> {
+            int resolved = authenticate(db, login, secret);
+            if (resolved <= 0) {
+                // Don't cache failures: mapping function returning null leaves the key absent,
+                // so the next call retries authentication.
+                return null;
+            }
+            log.info("Odoo uid resolved via common.authenticate — db={} login={} uid={}", db, login, resolved);
+            return resolved;
+        });
+        if (uid == null) {
             throw new ErpAdapterException(
                     "Odoo authentication failed — check login/API key in ERP settings (db=" + db + ", login=" + login + ")", 502);
         }
-        cachedUid.set(uid);
-        cachedUidKey.set(key);
-        log.info("Odoo uid resolved via common.authenticate — db={} login={} uid={}", db, login, uid);
         return uid;
     }
 
-    /** Invalidate the cached uid (e.g. after a credential change). */
+    private String credentialsKey(String db, String login, String secret) {
+        return db + "|" + login + "|" + (secret != null ? secret.hashCode() : 0);
+    }
+
+    /** Invalidate the cached uid for the CURRENT tenant's credentials (e.g. after a credential change). */
     public void invalidateAuthCache() {
-        cachedUidKey.set(null);
-        cachedUid.set(0);
+        uidByCredentials.remove(credentialsKey(getSettingStr("db"), getSettingStr("login"), getSecret()));
     }
 
     /**

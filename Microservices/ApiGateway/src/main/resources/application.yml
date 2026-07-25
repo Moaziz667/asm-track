@@ -217,21 +217,10 @@ spring:
           predicates:
             - Path=/api/v1/driver/**
 
-        - id: internal-app-backend
-          uri: ${APP_BACKEND_URL:http://localhost:8080}
-          predicates:
-            - Path=/internal/users/**
-            - Path=/internal/settings/**
-
-        - id: internal-app-backend-admin-users
-          uri: ${APP_BACKEND_URL:http://localhost:8080}
-          predicates:
-            - Path=/internal/admin-users/**
-
-        - id: internal-driver-service
-          uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
-          predicates:
-            - Path=/internal/drivers/**
+        # NOTE: /internal/** routes intentionally REMOVED. They are service-to-service endpoints;
+        # every Feign client calls the services directly on the container network, and exposing them
+        # through the public gateway made the internal surface internet-reachable (guarded only by
+        # the SERVICE-role JWT check in each service). Do not re-add without network-level restriction.
 
         - id: delivery-public-tracking
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}

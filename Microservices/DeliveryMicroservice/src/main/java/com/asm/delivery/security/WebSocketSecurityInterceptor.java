@@ -15,7 +15,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import java.security.Principal;
 import java.util.List;
-import java.util.UUID;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -44,21 +43,18 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                 var auth = jwtAuthConverter.convert(jwt);
                 accessor.setUser(auth);
 
-                // Set tenant context from org_id claim
-                String orgId = jwt.getClaimAsString("org_id");
-                if (orgId != null) {
-                    TenantContext.set(UUID.fromString(orgId));
-                    log.debug("WS TenantContext set: companyId={}", orgId);
-                }
+                // NOTE: deliberately NO TenantContext.set() here. STOMP frames are processed on shared
+                // clientInboundChannel pool threads, so a per-CONNECT ThreadLocal write would leak one
+                // session's tenant onto a pooled thread serving other sessions (and the matching clear
+                // on DISCONNECT would run on a different thread anyway). The per-session tenant lives
+                // on the authenticated principal (UserPrincipal.companyId); any future message handler
+                // must set/clear the TenantContext per-message from that principal, never per-connection.
 
                 log.info("WS Connection authenticated for user: {}", auth.getName());
             } catch (Exception e) {
                 log.warn("WS Connection authentication failed: {}", e.getMessage());
                 throw new MessageDeliveryException("Unauthorized: " + e.getMessage());
             }
-        } else if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
-            TenantContext.clear();
-            log.debug("WS TenantContext cleared on disconnect");
         } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String dest = accessor.getDestination();
             if (dest == null) {
@@ -112,8 +108,12 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                     }
                 }
             } else if (dest.startsWith("/topic/driver.")) {
+                // Global (non-company-scoped) driver topic: SELF ONLY. The topic name carries no tenant,
+                // so a role-based allowance would let an ADMIN/DISPATCHER of another tenant stream this
+                // driver's assignments (client names, addresses) just by knowing the driver UUID.
+                // Staff must use the tenant-validated /topic/company/{companyId}/driver.{id} form.
                 String topicDriverId = dest.substring("/topic/driver.".length());
-                if (!user.getUserId().equals(topicDriverId) && !List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
+                if (!user.getUserId().equals(topicDriverId)) {
                     log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to driver topic {}",
                             user.getUserId(), user.getRole(), dest);
                     throw new MessageDeliveryException("Access denied: Subscription resource mismatch");

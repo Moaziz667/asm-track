@@ -6,6 +6,8 @@ outbox:
     webhook-url: ${OUTBOX_ALERT_WEBHOOK_URL:}
 
 logging:
+  pattern:
+    level: "%5p [cid:%X{companyId:-},rid:%X{requestId:-}]"
   level:
     com.asm.delivery.security: DEBUG
 
