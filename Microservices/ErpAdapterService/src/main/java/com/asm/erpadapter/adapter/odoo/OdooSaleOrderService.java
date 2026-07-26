@@ -53,6 +53,46 @@ public class OdooSaleOrderService {
         }
     }
 
+    /**
+     * Resolve the sale order behind a reference that may be a <b>picking name</b>.
+     *
+     * <p>ASM imports BLs, so it stores the picking name ({@code WH/OUT/00338}) as the order's ERP
+     * reference — and a {@code sale.order} is never named that (it is {@code S00244}). Resolving by
+     * name alone therefore returned null for <em>every</em> BL-imported order, and callers turned
+     * that into a silent {@code false}: POD and partial-delivery syncs failed before a single Odoo
+     * write was attempted. Here we fall back to the picking and read its {@code sale_id}.
+     *
+     * @return the sale.order id, or {@code null} when the reference names a standalone picking with
+     *         no sale order — a legitimate case, so callers must degrade rather than abort.
+     */
+    @SuppressWarnings("unchecked")
+    public Integer resolveSaleOrderId(String erpOrderId, String pickingRef) {
+        Integer direct = resolveErpId(erpOrderId);
+        if (direct != null) return direct;
+
+        for (String ref : new String[]{pickingRef, erpOrderId}) {
+            if (ref == null || ref.isBlank()) continue;
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+                    List.of(List.of(List.of("name", "=", ref))),
+                    Map.of("fields", List.of("id", "sale_id"), "limit", 1)));
+            if (resp == null || resp.containsKey("error")) continue;
+            List<Map<String, Object>> rows = (List<Map<String, Object>>) resp.get("result");
+            if (rows == null || rows.isEmpty()) continue;
+            Integer saleId = asRelId(rows.get(0).get("sale_id"));
+            if (saleId != null) {
+                log.debug("provider=odoo resolveSaleOrderId ref={} -> picking {} -> sale.order {}",
+                        ref, rows.get(0).get("id"), saleId);
+                return saleId;
+            }
+            log.info("provider=odoo resolveSaleOrderId ref={} -> picking {} has NO sale order "
+                    + "(standalone picking) — sale-order steps will be skipped", ref, rows.get(0).get("id"));
+            return null;
+        }
+        log.warn("provider=odoo resolveSaleOrderId ref={} pickingRef={} — neither a sale order nor a picking",
+                erpOrderId, pickingRef);
+        return null;
+    }
+
     // ── Cancel ────────────────────────────────────────────────────────────────
 
     /**

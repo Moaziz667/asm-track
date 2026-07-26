@@ -65,16 +65,33 @@ public class OdooPodService {
      * Sync POD to Odoo: attach photos as ir.attachment, post metadata as chatter note.
      */
     public boolean syncProofOfDelivery(Integer erpId, ErpPodDTO pod) {
+        return syncProofOfDelivery("sale.order", erpId, pod);
+    }
+
+    /**
+     * Attach the POD to any Odoo record. {@code sale.order} is the normal target, but a BL can be a
+     * <b>standalone picking with no sale order</b> — in that case the proof belongs on the picking
+     * itself rather than being dropped on the floor (which is what happened before: no sale order
+     * meant the whole POD sync returned false and dead-lettered).
+     */
+    public boolean syncProofOfDelivery(String resModel, Integer resId, ErpPodDTO pod) {
+        if (resId == null) {
+            log.warn("provider=odoo operation=syncPod action=abort reason=no_target_record");
+            return false;
+        }
         if (pod == null) pod = ErpPodDTO.builder().build();
 
-        createPodAttachment(erpId,
+        createPodAttachment(resModel, resId,
                 resolvePhotoBase64(pod.getBonLivraisonPhotoUrl(), pod.getBlPhotoBase64()),
                 "bon-livraison.png");
-        createPodAttachment(erpId,
+        createPodAttachment(resModel, resId,
                 resolvePhotoBase64(pod.getPackagePhotoUrl(), pod.getPackagePhotoBase64()),
                 "package.png");
 
-        saleOrderService.addNoteToSaleOrder(erpId, buildPodNote(pod));
+        if ("sale.order".equals(resModel)) {
+            saleOrderService.addNoteToSaleOrder(resId, buildPodNote(pod));
+        }
+        log.info("provider=odoo operation=syncPod resModel={} resId={} action=done", resModel, resId);
         return true;
     }
 
@@ -99,20 +116,24 @@ public class OdooPodService {
         return legacyBase64;
     }
 
-    private void createPodAttachment(Integer erpId, String base64, String name) {
+    private void createPodAttachment(String resModel, Integer resId, String base64, String name) {
         if (base64 == null || base64.isBlank()) return;
         String data = base64.contains(",") ? base64.substring(base64.indexOf(',') + 1) : base64;
         try {
             Map<String, Object> values = new HashMap<>();
             values.put("name", name);
             values.put("datas", data);
-            values.put("res_model", "sale.order");
-            values.put("res_id", erpId);
+            values.put("res_model", resModel);
+            values.put("res_id", resId);
             values.put("mimetype", "image/png");
-            rpc.callRpc(rpc.buildArgs("ir.attachment", "create", List.of(values)));
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("ir.attachment", "create", List.of(values)));
+            if (resp == null || resp.containsKey("error")) {
+                log.warn("provider=odoo operation=syncPod resModel={} resId={} attachment={} action=failed odooError={}",
+                        resModel, resId, name, resp != null ? resp.get("error") : "null_response");
+            }
         } catch (Exception e) {
-            log.warn("provider=odoo operation=syncPod erpId={} attachment={} action=skip reason={}",
-                    erpId, name, e.getMessage());
+            log.warn("provider=odoo operation=syncPod resModel={} resId={} attachment={} action=skip reason={}",
+                    resModel, resId, name, e.getMessage());
         }
     }
 

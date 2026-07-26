@@ -81,7 +81,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncFullDelivery_fallbackToSaleOrder() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(validationService.validateTransfer(10, null)).thenReturn(true);
 
         boolean result = adapter.syncFullDelivery("100", null, "tx-1", null);
@@ -92,7 +92,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncFullDelivery_returnsFalseWhenErpIdNull() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(null);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(null);
 
         assertFalse(adapter.syncFullDelivery("100", null, "tx-1", null));
     }
@@ -111,7 +111,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncOrderCancellation_withoutPickingRef_cancelsSaleOrder() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(saleOrderService.cancelSaleOrder(10)).thenReturn(true);
 
         assertTrue(adapter.syncOrderCancellation("100", "tx-1", null));
@@ -122,7 +122,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncFailure_postsNoteAndTag() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
 
         assertTrue(adapter.syncFailure("100", "CLIENT_ABSENT", "Not home", "tx-1", null));
         verify(saleOrderService).addNoteToSaleOrder(eq(10), contains("CLIENT_ABSENT"));
@@ -131,7 +131,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncFailure_returnsFalseWhenErpIdNull() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(null);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(null);
 
         assertFalse(adapter.syncFailure("100", "DAMAGED", null, "tx-1", null));
     }
@@ -140,7 +140,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncReschedule_writesCommitmentDate() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
 
         assertTrue(adapter.syncReschedule("100", "2026-06-11T08:00", "tx-1", null));
@@ -152,7 +152,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncProofOfDelivery_delegatesToPodService() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(podService.syncProofOfDelivery(eq(10), any())).thenReturn(true);
 
         ErpPodDTO pod = ErpPodDTO.builder().recipientName("John").build();
@@ -164,7 +164,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncPartialDelivery_returnsFalseWhenNoPicking() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(pickingService.findSinglePicking(10)).thenReturn(null);
 
         ErpPartialDeliveryResultDTO result = adapter.syncPartialDelivery("100",
@@ -175,7 +175,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncPartialDelivery_success_noWizard() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(pickingService.findSinglePicking(10))
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(pickingService.readPickingState(55)).thenReturn("assigned");
@@ -197,7 +197,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncPartialDelivery_backorderWizard() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(pickingService.findSinglePicking(10))
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(pickingService.readPickingState(55)).thenReturn("assigned");
@@ -222,7 +222,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncPartialDelivery_immediateTransferWizard() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(pickingService.findSinglePicking(10))
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(pickingService.readPickingState(55)).thenReturn("assigned");
@@ -245,7 +245,7 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncPartialDelivery_allQtyZero_skipsValidation() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
+        when(saleOrderService.resolveSaleOrderId(eq("100"), any())).thenReturn(10);
         when(pickingService.findSinglePicking(10))
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(pickingService.readPickingState(55)).thenReturn("assigned");

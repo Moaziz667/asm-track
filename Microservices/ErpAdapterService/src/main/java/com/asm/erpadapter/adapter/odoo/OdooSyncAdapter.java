@@ -105,9 +105,22 @@ public class OdooSyncAdapter implements ErpSyncPort {
             String key = inFlightKey(erpOrderId, pickingRef);
             if (!inFlight.add(key)) return false;
             try {
-                Integer erpId = saleOrderService.resolveErpId(erpOrderId);
-                if (erpId == null) return false;
-                return podService.syncProofOfDelivery(erpId, pod);
+                // Resolve through the PICKING when the reference is a BL name — which it always is
+                // for BL-imported orders, and a sale.order is never named "WH/OUT/xxxxx". When the
+                // picking carries no sale order at all, attach the proof to the picking rather than
+                // failing the whole sync.
+                Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, pickingRef);
+                if (erpId != null) {
+                    return podService.syncProofOfDelivery(erpId, pod);
+                }
+                Map<String, Object> picking = findPickingForRef(erpOrderId, pickingRef);
+                if (picking == null) {
+                    log.warn("ERP sync failed — provider=odoo operation=syncPod erpOrderId={} pickingRef={} "
+                            + "reason=no_sale_order_and_no_picking retryable=false", erpOrderId, pickingRef);
+                    return false;
+                }
+                return podService.syncProofOfDelivery("stock.picking",
+                        ((Number) picking.get("id")).intValue(), pod);
             }
             finally { inFlight.remove(key); }
         });
@@ -189,7 +202,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
             return pickingService.cancelPicking(((Number) picking.get("id")).intValue());
         }
 
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, pickingRef);
+        if (erpId == null) log.warn("ERP sync failed — provider=odoo operation=syncOrderCancellation erpOrderId={} reason=sale_order_not_found retryable=false", erpOrderId);
         if (erpId == null) return false;
 
         try {
@@ -233,7 +247,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
             }
         }
 
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, pickingRef);
+        if (erpId == null) log.warn("ERP sync failed — provider=odoo operation=syncFullDelivery erpOrderId={} reason=sale_order_not_found retryable=false", erpOrderId);
         if (erpId == null) return false;
 
         try {
@@ -252,15 +267,31 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
     }
 
+    /**
+     * Locate the picking a sync refers to, tolerating the fact that the ERP reference ASM stores IS
+     * the picking name for BL-imported orders.
+     */
+    private Map<String, Object> findPickingForRef(String erpOrderId, String pickingRef) {
+        for (String ref : new String[]{pickingRef, erpOrderId}) {
+            if (ref == null || ref.isBlank()) continue;
+            Map<String, Object> p = pickingService.findPickingByName(ref);
+            // An id-less map is "not found", not a picking — guards against an empty search_read
+            // payload being mistaken for a hit (and NPE-ing on the id read further down).
+            if (p != null && p.get("id") != null) return p;
+        }
+        return null;
+    }
+
     private ErpPartialDeliveryResultDTO doSyncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String pickingRef) {
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
-        if (erpId == null) return ErpPartialDeliveryResultDTO.builder().success(false).build();
+        // May be null: a BL can be a standalone picking with no sale order. That must NOT abort the
+        // sync — validating the picking is the point; the sale-order steps (delivered quantities,
+        // chatter note) are enrichment and are skipped when there is no order.
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, pickingRef);
 
         try {
-            validationService.confirmOrderIfNeeded(erpId);
-            Map<String, Object> picking = (pickingRef != null && !pickingRef.isBlank())
-                    ? pickingService.findPickingByName(pickingRef)
-                    : pickingService.findSinglePicking(erpId);
+            if (erpId != null) validationService.confirmOrderIfNeeded(erpId);
+            Map<String, Object> picking = findPickingForRef(erpOrderId, pickingRef);
+            if (picking == null && erpId != null) picking = pickingService.findSinglePicking(erpId);
             if (picking == null) {
                 log.warn("ERP sync failed — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} pickingRef={} reason=no_picking_found retryable=true",
                         erpOrderId, erpId, pickingRef);
@@ -271,7 +302,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
             String state = (String) picking.get("state");
 
             if ("done".equals(state)) {
-                productService.syncSaleOrderLineDeliveredQuantities(erpId, items, false);
+                if (erpId != null) productService.syncSaleOrderLineDeliveredQuantities(erpId, items, false);
                 Integer bo = pickingService.findBackorderPickingId(pickingId);
                 return ErpPartialDeliveryResultDTO.builder()
                         .success(true).pickingId(pickingId).backorderPickingId(bo)
@@ -290,7 +321,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
             if (totalQtyDone == 0) {
                 String allRefusedNote = buildPartialDeliveryNote(items);
-                if (allRefusedNote != null) saleOrderService.addNoteToSaleOrder(erpId, allRefusedNote);
+                if (allRefusedNote != null && erpId != null) saleOrderService.addNoteToSaleOrder(erpId, allRefusedNote);
                 log.info("provider=odoo operation=syncPartialDelivery pickingId={} action=skip_validation reason=all_qty_zero", pickingId);
                 return ErpPartialDeliveryResultDTO.builder().success(true).pickingId(pickingId).backorderPickingId(null).build();
             }
@@ -319,11 +350,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 }
             }
 
-            productService.syncSaleOrderLineDeliveredQuantities(erpId, items, false);
-
-            String partialNote = buildPartialDeliveryNote(items);
-            if (partialNote != null) {
-                saleOrderService.addNoteToSaleOrder(erpId, partialNote);
+            // Sale-order enrichment only when the picking actually belongs to an order.
+            if (erpId != null) {
+                productService.syncSaleOrderLineDeliveredQuantities(erpId, items, false);
+                String partialNote = buildPartialDeliveryNote(items);
+                if (partialNote != null) {
+                    saleOrderService.addNoteToSaleOrder(erpId, partialNote);
+                }
             }
 
             Integer backorderPickingId = pickingService.findBackorderPickingId(pickingId);
@@ -339,7 +372,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private boolean doSyncReschedule(String erpOrderId, String scheduledAt) {
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, null);
+        if (erpId == null) log.warn("ERP sync failed — provider=odoo operation=syncReschedule erpOrderId={} reason=sale_order_not_found retryable=false", erpOrderId);
         if (erpId == null) return false;
         String odooDt = toOdooDateTime(scheduledAt);
         if (odooDt != null) {
@@ -367,7 +401,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private boolean doSyncFailure(String erpOrderId, String failureCode, String comment) {
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, null);
+        if (erpId == null) log.warn("ERP sync failed — provider=odoo operation=syncFailure erpOrderId={} reason=sale_order_not_found retryable=false", erpOrderId);
         if (erpId == null) return false;
         saleOrderService.addNoteToSaleOrder(erpId, buildFailureNote(failureCode, comment));
         saleOrderService.tagOrderAsDeliveryFailed(erpId);
@@ -375,7 +410,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private boolean doSyncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String pickingRef) {
-        Integer erpId = saleOrderService.resolveErpId(erpOrderId);
+        Integer erpId = saleOrderService.resolveSaleOrderId(erpOrderId, pickingRef);
+        if (erpId == null) log.warn("ERP sync failed — provider=odoo operation=syncReturn erpOrderId={} reason=sale_order_not_found retryable=false", erpOrderId);
         if (erpId == null) return false;
         saleOrderService.addNoteToSaleOrder(erpId, buildReturnNote(items, reason));
         return createReturnPicking(erpId, items, pickingRef);
