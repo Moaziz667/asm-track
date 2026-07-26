@@ -117,39 +117,54 @@ public class MinioStorageService {
 
     public String uploadFile(byte[] data, String contentType, String path) {
         long start = System.currentTimeMillis();
-        String tenantPath = tenantPrefix(path);
+        String objectKey = objectKey(path);
         try {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(minioConfig.getBucket())
-                            .object(tenantPath)
+                            .object(objectKey)
                             .stream(new ByteArrayInputStream(data), data.length, -1)
                             .contentType(contentType)
                             .build());
 
-            String url = getPublicUrl(tenantPath);
-            log.info("Uploaded {} ({} bytes) in {}ms", tenantPath, data.length, System.currentTimeMillis() - start);
+            String url = urlForKey(objectKey);
+            log.info("Uploaded {} ({} bytes) in {}ms", objectKey, data.length, System.currentTimeMillis() - start);
             return url;
         } catch (Exception e) {
-            throw new StorageException(tenantPath, e);
+            throw new StorageException(objectKey, e);
         }
     }
 
     /**
-     * Prepends the tenant company ID prefix to the object path.
-     * e.g. "pod-files/deliveries/123/photo.jpg" → "{companyId}/pod-files/deliveries/123/photo.jpg"
+     * THE single source of truth for how a logical path becomes a storage key:
+     * {@code "pod/{deliveryId}/photo.png"} → {@code "{companyId}/pod/{deliveryId}/photo.png"}.
      *
-     * <p>Fail-closed: a tenant-scoped upload without a TenantContext used to silently land at the
-     * bucket root outside every tenant's prefix — now it's an error, so the lost-context bug that
-     * caused it surfaces instead of hiding.
+     * <p>Every write AND every URL must go through this. They used to diverge — {@code uploadFile}
+     * prefixed the tenant while the public {@code getPublicUrl(path)} did not, so callers that built
+     * a URL before uploading (POD photos, company logos) persisted a URL pointing at a key that was
+     * never written. The objects were stored correctly; the links in the database were not, so every
+     * POD photo and logo 404'd. Deriving both from this one method makes that class of bug
+     * unrepresentable.
+     *
+     * <p>Fail-closed: a tenant-scoped key without a TenantContext used to silently land at the bucket
+     * root outside every tenant's prefix — now it's an error, so the lost-context bug that caused it
+     * surfaces instead of hiding.
      */
-    private String tenantPrefix(String path) {
+    private String objectKey(String logicalPath) {
         java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
         if (companyId == null) {
-            throw new StorageException(path,
-                    new IllegalStateException("No tenant context for tenant-scoped upload"));
+            throw new StorageException(logicalPath,
+                    new IllegalStateException("No tenant context for tenant-scoped object key"));
         }
-        return companyId + "/" + path;
+        return companyId + "/" + logicalPath;
+    }
+
+    /** Builds the externally reachable URL for an ALREADY-resolved storage key. */
+    private String urlForKey(String objectKey) {
+        String baseUrl = StringUtils.hasText(minioConfig.getPublicUrl())
+                ? minioConfig.getPublicUrl()
+                : minioConfig.getUrl();
+        return baseUrl + "/" + minioConfig.getBucket() + "/" + objectKey;
     }
 
     public String uploadBase64(String base64, String path) {
@@ -188,11 +203,13 @@ public class MinioStorageService {
         }
     }
 
-    public String getPublicUrl(String objectPath) {
-        String baseUrl = StringUtils.hasText(minioConfig.getPublicUrl())
-                ? minioConfig.getPublicUrl()
-                : minioConfig.getUrl();
-        return baseUrl + "/" + minioConfig.getBucket() + "/" + objectPath;
+    /**
+     * Public URL for a LOGICAL path (the same path you pass to {@link #uploadFile}) — the tenant
+     * prefix is applied here, so the URL always addresses the key the upload actually writes.
+     * Callers must NOT pre-prefix.
+     */
+    public String getPublicUrl(String logicalPath) {
+        return urlForKey(objectKey(logicalPath));
     }
 
     public String uploadCompanyLogo(java.util.UUID companyId, byte[] imageBytes) {

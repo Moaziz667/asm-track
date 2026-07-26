@@ -173,6 +173,78 @@ Tenant propagation across the breaker hop is now structural; TimeLimiter timeout
 restart; partial-delivery resync succeeds. Add an integration test asserting a Feign call made from
 a thread with TenantContext set carries X-Company-Id when the circuit breaker is enabled.
 
+### C7 — MinIO object key and URL diverged: every driver-app POD photo 404'd (found live)
+**Files:** `DeliveryMicroservice/.../storage/MinioStorageService.java`,
+`service/DriverDeliveryService.java` (~L619), `service/CompanyService.java` (~L131),
+`db/migration/V33__fix_untenanted_media_urls.sql` (new)
+
+**Root cause.** `uploadFile()` prefixed the storage key with the companyId, but the public
+`getPublicUrl(path)` did **not**. Call sites that build the URL *before* uploading — the driver app's
+POD flow, and company logo upload — persisted a URL addressing a key that was never written. The
+objects were stored correctly under `{companyId}/pod/...`; the pointers in the database were not,
+so every POD photo taken from the mobile app 404'd. Measured on the live DB: 20 rows correct (those
+that store `uploadFile`'s return value) vs 3 broken (the driver path) — two code paths, two
+different key conventions, silently disagreeing. After the H3 tenant guard landed it also became a
+hard failure (`MinIO presign REFUSED`), which is what finally surfaced it: it blocked the POD→Odoo
+sync and dead-lettered the outbox event.
+
+**Fix (production-ready).** `objectKey(logicalPath)` is now the single source of truth for key
+derivation; `urlForKey(key)` builds URLs from an already-resolved key. `uploadFile` derives the key
+once and builds its URL from that same key; the public `getPublicUrl(logicalPath)` applies the same
+prefixing. It is no longer *possible* to construct a URL that disagrees with the upload key.
+Migration `V33` repairs existing rows idempotently (inserts the missing `{companyId}/` segment,
+skips rows already correct, skips non-tenant schemas).
+**Tests.** Delivery suite green. Add a test asserting `getPublicUrl(p)` and the URL returned by
+`uploadFile(_,_,p)` are byte-identical for the same logical path.
+
+### C8 — Odoo capability probe reported existing methods as missing (found live, Odoo 19)
+**Files:** `ErpAdapterService/.../capability/MethodResolver.java`, `capability/CapabilityRegistry.java`,
+`capability/FieldResolver.java`, `messaging/ErpSyncCommandConsumer.java`
+
+**Root cause.** `SET_FULL_QUANTITY` failed with *"No method found … Candidates:
+[action_set_quantities_to_reservation]. None were callable"* — although that name is exactly what
+the tenant's Odoo expects. The registry was right; the **detection** was wrong. `isMethodCallable()`
+probed by invoking the method on record id `0` and then classified the failure by **substring
+matching the error message**, treating `"does not exist"` as "method absent". But that is
+`MissingError`'s wording for a missing **record**: *"Record does not exist or has been deleted."*
+So any method that dereferences a field before returning was declared absent. Whether a given
+capability tripped this depended on the method's internals — which is why only some broke and why it
+looked version-specific. Three further defects in the same 30 lines: the probe **executed real
+business methods** as its discovery mechanism (`action_cancel`, `button_validate`…); a **transport
+failure returned `false`**, so one network blip could cache a false negative and disable a working
+capability for the whole TTL; and `CapabilityRegistry` claimed to be "the single source of truth for
+Odoo version differences" while having **no version dimension at all** — `OdooVersionResolver`
+existed but no resolver consulted it.
+
+**Fix (production-ready), four layers.**
+1. *Declare over discover* — `VersionBinding {minVersion, maxVersion, name}` in the registry;
+   `candidatesFor(major)` puts names declared for the tenant's detected Odoo major first, with the
+   version-agnostic `candidates` as fallback. A rename in a new Odoo release is now a reviewable
+   config change, not a code change.
+2. *Correct, side-effect-free probe* — call on an **empty recordset** (`method([])`): no record can
+   be missing, and no business logic touches a real row. Verdict taken from the **structured
+   exception class** `error.data.name` (`AttributeError` ⇒ absent; `MissingError`/`UserError`/
+   `ValidationError`/`AccessError` ⇒ present). Message text is a last-resort fallback matching only
+   `has no attribute` — never `does not exist`. Locale changes and message rewording can no longer
+   flip a verdict.
+3. *Never cache doubt* — transport failure is `INCONCLUSIVE` → `CapabilityProbeException`
+   (retryable, nothing cached), distinct from `MethodResolutionException` (permanent).
+4. *Fail fast and actionably* — the sync consumer catches resolution failures, publishes the real
+   reason once ("Odoo 19 does not provide capability X on model Y — declare it in
+   odoo-capabilities.json or as a tenant ErpMapping override") and acks, instead of burning five
+   retries to arrive at "ERP sync failed after retries".
+
+**Tests.** New regression cover in `MethodResolverTest`: MissingError ⇒ present (the exact
+SET_FULL_QUANTITY failure), UserError ⇒ present, AttributeError ⇒ absent, transport failure ⇒
+retryable, probe uses an empty recordset, version binding wins for the detected major. Two
+pre-existing tests asserted the *buggy* contract (stubbing `"does not exist"` to mean "absent") and
+were restated. 94 tests green.
+
+**Follow-up (recommended, not yet done).** Resolve all capabilities at ERP-connect time and persist
+a per-tenant profile (`tenant_id, odoo_version, capability → name`), gating CONNECTED on every
+REQUIRED capability resolving. Runtime then reads a validated profile instead of discovering during
+a delivery — incompatibility surfaces at onboarding, not at 2am.
+
 ---
 
 ## HIGH

@@ -18,12 +18,13 @@ class FieldResolverTest {
     @Mock private OdooJsonRpcClient rpc;
     @Mock private CapabilityRegistry registry;
     @Mock private OdooMetadataCache metadataCache;
+    @Mock private OdooVersionResolver versionResolver;
 
     private FieldResolver resolver;
 
     @BeforeEach
     void setUp() {
-        resolver = new FieldResolver(rpc, registry, metadataCache);
+        resolver = new FieldResolver(rpc, registry, metadataCache, versionResolver);
     }
 
     @Test

@@ -25,6 +25,7 @@ public class FieldResolver {
     private final OdooJsonRpcClient rpc;
     private final CapabilityRegistry registry;
     private final OdooMetadataCache metadataCache;
+    private final OdooVersionResolver versionResolver;
 
     /**
      * Resolve the correct field name for a capability.
@@ -41,7 +42,10 @@ public class FieldResolver {
         }
 
         String model = entry.model();
-        List<String> candidates = entry.candidates();
+        // Version-declared names first, then the version-agnostic candidates (same contract as
+        // MethodResolver). fields_get() is authoritative introspection, so a declared binding that
+        // isn't present on the instance simply falls through to the next candidate.
+        List<String> candidates = entry.candidatesFor(versionResolver.major());
 
         // Get available fields for this model (cached)
         Set<String> availableFields = metadataCache.getAvailableFields(model);

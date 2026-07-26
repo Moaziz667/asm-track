@@ -8,16 +8,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Resolves the correct Odoo method name for a capability by trying each candidate in order.
+ * Resolves the correct Odoo method name for a capability.
  *
- * <p>Unlike {@link FieldResolver} (which uses {@code fields_get()}), the MethodResolver
- * uses <b>try/catch</b>: it calls the first candidate method, and if Odoo returns a
- * "method not found" error, it tries the next candidate.
+ * <p>Resolution order: names declared for the tenant's Odoo major version
+ * ({@link CapabilityRegistry.VersionBinding}) first, then the version-agnostic candidates. Because
+ * Odoo exposes no "list methods" RPC (unlike fields via {@code fields_get()}), existence is probed —
+ * but the probe is designed to be <b>side-effect free and unambiguous</b>:
  *
- * <p>This is necessary because Odoo does not expose available methods via introspection —
- * only fields are available via {@code fields_get()}.
+ * <ul>
+ *   <li><b>Empty recordset.</b> The probe calls {@code method([])}, never {@code method([0])}. On a
+ *       missing id Odoo raises {@code MissingError} whose message is "Record <b>does not exist</b> or
+ *       has been deleted" — which the old substring test read as "method not found", declaring
+ *       perfectly good methods missing. Whether that happened depended on whether the method
+ *       dereferenced a field before returning, which is why only some capabilities broke and it
+ *       looked version-specific. With an empty recordset there is no record to be missing, and no
+ *       business logic runs on any real row.</li>
+ *   <li><b>Structured discrimination.</b> The verdict is taken from the JSON-RPC error's
+ *       {@code data.name} (the Python exception class) — {@code AttributeError} means the method
+ *       does not exist; {@code MissingError}, {@code UserError}, {@code ValidationError},
+ *       {@code AccessError}, {@code ValueError} all mean it <em>does</em> (it ran and objected).
+ *       Message text is only a last-resort fallback: it is localized and rewritten between releases,
+ *       so matching on it breaks on a French Odoo or a minor upgrade.</li>
+ *   <li><b>Fail closed on doubt.</b> A transport failure is INCONCLUSIVE, never "missing" — the old
+ *       code returned false on a null response, so one network blip could cache a bogus negative for
+ *       the whole TTL and disable a working capability.</li>
+ * </ul>
  *
- * <p>Results are cached per tenant+capability to avoid repeated try/catch attempts.
+ * <p>Results are cached per tenant+capability by {@link CapabilityResolver}.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,6 +43,17 @@ public class MethodResolver {
 
     private final OdooJsonRpcClient rpc;
     private final CapabilityRegistry registry;
+    private final OdooVersionResolver versionResolver;
+
+    /** Outcome of probing one candidate method. */
+    private enum Probe {
+        /** The method exists (it ran, or raised a business/permission error). */
+        EXISTS,
+        /** Proven absent — Odoo raised AttributeError. */
+        MISSING,
+        /** Could not tell (transport error). Must not be cached as a verdict. */
+        INCONCLUSIVE
+    }
 
     /**
      * Resolve the correct method name for a capability by trying each candidate.
@@ -42,16 +70,24 @@ public class MethodResolver {
         }
 
         String model = entry.model();
-        List<String> candidates = entry.candidates();
+        int major = versionResolver.major();
+        List<String> candidates = entry.candidatesFor(major);
 
         for (String candidate : candidates) {
-            if (isMethodCallable(model, candidate)) {
-                log.debug("MethodResolver: capability={} model={} resolved={}", capability, model, candidate);
+            Probe probe = probe(model, candidate);
+            if (probe == Probe.EXISTS) {
+                log.debug("MethodResolver: capability={} model={} odooMajor={} resolved={}",
+                        capability, model, major, candidate);
                 return candidate;
+            }
+            if (probe == Probe.INCONCLUSIVE) {
+                // Never let a transport hiccup masquerade as "capability unavailable": that verdict
+                // would be cached and would disable a working integration until the TTL expires.
+                throw new CapabilityProbeException(capability, model, candidate);
             }
         }
 
-        throw new MethodResolutionException(capability, model, candidates);
+        throw new MethodResolutionException(capability, model, candidates, major);
     }
 
     /**
@@ -69,7 +105,7 @@ public class MethodResolver {
         CapabilityRegistry.CapabilityEntry entry = registry.getRequired(capability);
         String model = entry.model();
 
-        if (isMethodCallable(model, customerOverride)) {
+        if (probe(model, customerOverride) == Probe.EXISTS) {
             log.debug("MethodResolver: capability={} model={} using customer override={}", capability, model, customerOverride);
             return customerOverride;
         }
@@ -86,40 +122,61 @@ public class MethodResolver {
     }
 
     /**
-     * Try to call a method on a test record to check if it exists.
-     * Uses a dummy call that will fail gracefully (not modify data).
+     * Probe whether {@code method} exists on {@code model}, without touching any real record.
+     *
+     * <p>Called on an EMPTY recordset: an existing method iterates nothing and returns (or raises a
+     * business error such as "Expected singleton"); a non-existent one makes Odoo's RPC dispatcher
+     * raise {@code AttributeError}. No row is read, no row is written — the probe cannot have side
+     * effects even if the method is destructive.
      */
-    @SuppressWarnings("unchecked")
-    private boolean isMethodCallable(String model, String method) {
+    private Probe probe(String model, String method) {
+        Map<String, Object> resp;
         try {
-            // Try calling the method on an empty list — Odoo returns "no record" (not "method not found")
-            // if the method exists. A "method not found" error means the method doesn't exist.
-            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(model, method, List.of(List.of(0))));
-            if (resp == null) return false;
-
-            if (resp.containsKey("error")) {
-                Object error = resp.get("error");
-                String errorMsg = extractErrorMessage(error);
-
-                // "Method does not exist" or "object has no attribute" → method not available
-                if (errorMsg != null && (
-                        errorMsg.contains("does not exist") ||
-                        errorMsg.contains("has no attribute") ||
-                        errorMsg.contains("Missing operator") ||
-                        errorMsg.contains("non-existent method"))) {
-                    return false;
-                }
-
-                // Any other error (access denied, validation error, etc.) → method exists but failed
-                return true;
-            }
-
-            // No error → method exists and was callable
-            return true;
+            resp = rpc.callRpc(rpc.buildArgs(model, method, List.of(List.of())));
         } catch (Exception e) {
-            log.debug("MethodResolver: method check failed model={} method={} reason={}", model, method, e.getMessage());
-            return false;
+            log.warn("MethodResolver: probe transport failure model={} method={} reason={}",
+                    model, method, e.getMessage());
+            return Probe.INCONCLUSIVE;
         }
+        // callRpc swallows transport errors and returns null — that is "we don't know", not "absent".
+        if (resp == null) {
+            log.warn("MethodResolver: probe inconclusive (no response) model={} method={}", model, method);
+            return Probe.INCONCLUSIVE;
+        }
+        if (!resp.containsKey("error")) return Probe.EXISTS;
+
+        Object error = resp.get("error");
+        String exceptionClass = extractExceptionClass(error);
+        if (exceptionClass != null) {
+            // Structured, locale-independent verdict. Only AttributeError proves absence; every other
+            // exception means the method resolved and then objected (missing record, permission,
+            // validation, wrong arity...) — i.e. it exists.
+            boolean missing = exceptionClass.contains("AttributeError");
+            log.debug("MethodResolver: probe model={} method={} exception={} verdict={}",
+                    model, method, exceptionClass, missing ? "MISSING" : "EXISTS");
+            return missing ? Probe.MISSING : Probe.EXISTS;
+        }
+
+        // No exception class in the payload (non-standard error shape): fall back to the ONE message
+        // signature that unambiguously means "no such attribute". Deliberately NOT matching
+        // "does not exist" — that is MissingError's wording for a missing RECORD and misclassifying
+        // it is exactly the bug this method replaces.
+        String msg = extractErrorMessage(error);
+        if (msg != null && (msg.contains("has no attribute") || msg.contains("non-existent method"))) {
+            return Probe.MISSING;
+        }
+        log.debug("MethodResolver: probe model={} method={} unrecognised error shape, assuming EXISTS: {}",
+                model, method, msg);
+        return Probe.EXISTS;
+    }
+
+    /** The Python exception class from an Odoo JSON-RPC fault, e.g. {@code builtins.AttributeError}. */
+    private String extractExceptionClass(Object error) {
+        if (error instanceof Map<?, ?> m && m.get("data") instanceof Map<?, ?> dm) {
+            Object name = dm.get("name");
+            if (name != null && !String.valueOf(name).isBlank()) return String.valueOf(name);
+        }
+        return null;
     }
 
     private String extractErrorMessage(Object error) {
@@ -138,23 +195,44 @@ public class MethodResolver {
     }
 
     /**
-     * Exception thrown when no candidate method is callable on the Odoo instance.
+     * No candidate method exists on this Odoo instance — a structural incompatibility between the
+     * adapter and the tenant's Odoo version. PERMANENT: retrying cannot help, so callers must fail
+     * the operation immediately with an actionable message instead of burning the retry budget.
+     * The remedy is a version binding in {@code odoo-capabilities.json} or a tenant ErpMapping
+     * override — both configuration, not code.
      */
     public static class MethodResolutionException extends RuntimeException {
         private final String capability;
         private final String model;
         private final List<String> candidates;
+        private final int odooMajor;
 
-        public MethodResolutionException(String capability, String model, List<String> candidates) {
-            super("No method found for capability '" + capability + "' on model '" + model
-                    + "'. Candidates: " + candidates + ". None were callable.");
+        public MethodResolutionException(String capability, String model, List<String> candidates, int odooMajor) {
+            super("Odoo " + (odooMajor > 0 ? odooMajor : "?") + " does not provide capability '" + capability
+                    + "' on model '" + model + "'. Tried: " + candidates
+                    + ". Declare the correct name for this version in odoo-capabilities.json"
+                    + " (bindings) or as a tenant ErpMapping override.");
             this.capability = capability;
             this.model = model;
             this.candidates = candidates;
+            this.odooMajor = odooMajor;
         }
 
         public String getCapability() { return capability; }
         public String getModel() { return model; }
         public List<String> getCandidates() { return candidates; }
+        public int getOdooMajor() { return odooMajor; }
+    }
+
+    /**
+     * The instance could not be probed (transport failure). TRANSIENT — unlike
+     * {@link MethodResolutionException} this one SHOULD be retried, and nothing is cached, so a
+     * network blip can never leave a capability permanently marked unavailable.
+     */
+    public static class CapabilityProbeException extends RuntimeException {
+        public CapabilityProbeException(String capability, String model, String method) {
+            super("Could not determine availability of '" + method + "' on '" + model
+                    + "' for capability '" + capability + "' — Odoo unreachable. Retryable.");
+        }
     }
 }
