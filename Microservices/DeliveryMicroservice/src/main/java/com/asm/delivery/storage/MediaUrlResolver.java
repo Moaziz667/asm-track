@@ -69,20 +69,33 @@ public class MediaUrlResolver {
      */
     public String toKey(String keyOrLegacyUrl) {
         if (!StringUtils.hasText(keyOrLegacyUrl)) return null;
+        String key;
         if (!keyOrLegacyUrl.startsWith("http://") && !keyOrLegacyUrl.startsWith("https://")) {
-            return stripLeadingSlash(keyOrLegacyUrl);
+            key = stripLeadingSlash(keyOrLegacyUrl);
+        } else {
+            // Legacy absolute URL: everything after "/{bucket}/" is the key, regardless of which host
+            // or proxy path it was written with.
+            String marker = "/" + minioConfig.getBucket() + "/";
+            int at = keyOrLegacyUrl.indexOf(marker);
+            if (at < 0) {
+                log.debug("MediaUrlResolver: '{}' does not reference bucket '{}' — leaving as-is",
+                        keyOrLegacyUrl, minioConfig.getBucket());
+                return null;
+            }
+            key = stripLeadingSlash(keyOrLegacyUrl.substring(at + marker.length()));
         }
-        // Legacy absolute URL: everything after "/{bucket}/" is the key, regardless of which host or
-        // proxy path it was written with.
-        String marker = "/" + minioConfig.getBucket() + "/";
-        int at = keyOrLegacyUrl.indexOf(marker);
-        if (at < 0) {
-            log.debug("MediaUrlResolver: '{}' does not reference bucket '{}' — leaving as-is",
-                    keyOrLegacyUrl, minioConfig.getBucket());
-            return null;
+        // Legacy tenant-less reference (a bare logical path): the object lives under this tenant's
+        // prefix. Keys that already name a tenant are left untouched.
+        if (!TENANT_PREFIXED.matcher(key).matches()) {
+            java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+            if (companyId != null) key = companyId + "/" + key;
         }
-        return stripLeadingSlash(keyOrLegacyUrl.substring(at + marker.length()));
+        return key;
     }
+
+    /** A key that already carries an owning tenant, i.e. "{uuid}/rest/of/path". */
+    private static final java.util.regex.Pattern TENANT_PREFIXED = java.util.regex.Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.+");
 
     private static String stripLeadingSlash(String s) {
         return s.startsWith("/") ? s.substring(1) : s;

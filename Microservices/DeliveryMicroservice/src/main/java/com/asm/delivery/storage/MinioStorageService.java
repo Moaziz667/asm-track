@@ -215,16 +215,40 @@ public class MinioStorageService {
         }
     }
 
+    /** A key that already carries an owning tenant, i.e. "{uuid}/rest/of/path". */
+    private static final java.util.regex.Pattern TENANT_PREFIXED = java.util.regex.Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/.+");
+
     /**
-     * Accepts either a storage key or a legacy absolute URL and returns the key, so every entry
-     * point below works with rows written before media references became keys.
+     * Accepts a storage key, a legacy absolute URL, or a legacy tenant-less logical path, and
+     * returns the storage key.
+     *
+     * <p>The third case matters: references written before keys carried the tenant survive in places
+     * a table migration cannot reach — outbox payloads, in-flight AMQP messages, ERP command bodies.
+     * Such a value is a bare logical path ({@code pod/{deliveryId}/photo.png}) and the object it
+     * names lives under this tenant's prefix, so we resolve it there.
+     *
+     * <p>A key that already carries a tenant is never rewritten — if it names a <em>different</em>
+     * tenant, {@link #requireCurrentTenantObject} must still reject it. Normalising only un-prefixed
+     * paths fixes legacy data without opening a cross-tenant hole.
      */
     private String resolveKey(String keyOrUrl) {
         if (keyOrUrl == null || keyOrUrl.isBlank()) return null;
-        if (!keyOrUrl.startsWith("http://") && !keyOrUrl.startsWith("https://")) {
-            return keyOrUrl.startsWith("/") ? keyOrUrl.substring(1) : keyOrUrl;
+        String key;
+        if (keyOrUrl.startsWith("http://") || keyOrUrl.startsWith("https://")) {
+            key = extractObjectPath(keyOrUrl);
+        } else {
+            key = keyOrUrl.startsWith("/") ? keyOrUrl.substring(1) : keyOrUrl;
         }
-        return extractObjectPath(keyOrUrl);
+        if (key == null) return null;
+        if (!TENANT_PREFIXED.matcher(key).matches()) {
+            java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+            if (companyId != null) {
+                log.debug("Normalising legacy tenant-less media reference '{}' under tenant {}", key, companyId);
+                key = companyId + "/" + key;
+            }
+        }
+        return key;
     }
 
     public String uploadCompanyLogo(java.util.UUID companyId, byte[] imageBytes) {
