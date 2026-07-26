@@ -102,7 +102,7 @@ public class OdooPodService {
     String resolvePhotoBase64(String url, String legacyBase64) {
         if (url != null && !url.isBlank()) {
             try {
-                byte[] bytes = podHttpClient.get().uri(internalMinioUrl(url))
+                byte[] bytes = podHttpClient.get().uri(java.net.URI.create(internalMinioUrl(url)))
                         .retrieve().body(byte[].class);
                 if (bytes != null && bytes.length > 0) {
                     return Base64.getEncoder().encodeToString(bytes);
