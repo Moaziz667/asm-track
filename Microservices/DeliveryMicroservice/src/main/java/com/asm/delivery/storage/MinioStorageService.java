@@ -83,7 +83,7 @@ public class MinioStorageService {
      * belongs to the current tenant before signing.
      */
     public String presignedGetUrl(String url, java.time.Duration ttl) {
-        String objectPath = extractObjectPath(url);
+        String objectPath = resolveKey(url);
         if (objectPath == null) return url; // not one of ours (already presigned / external) — pass through
         requireCurrentTenantObject(objectPath, "presign");
         try {
@@ -115,6 +115,11 @@ public class MinioStorageService {
         }
     }
 
+    /**
+     * Stores the bytes and returns the <b>storage key</b> (not a URL) — that key is what callers
+     * persist. Absolute URLs are built late, per request, by {@link MediaUrlResolver}, so no row
+     * ever freezes a hostname.
+     */
     public String uploadFile(byte[] data, String contentType, String path) {
         long start = System.currentTimeMillis();
         String objectKey = objectKey(path);
@@ -127,12 +132,19 @@ public class MinioStorageService {
                             .contentType(contentType)
                             .build());
 
-            String url = urlForKey(objectKey);
             log.info("Uploaded {} ({} bytes) in {}ms", objectKey, data.length, System.currentTimeMillis() - start);
-            return url;
+            return objectKey;
         } catch (Exception e) {
             throw new StorageException(objectKey, e);
         }
+    }
+
+    /**
+     * The storage key a given logical path will be written to. Call sites that need to record the
+     * reference before the (deferred) upload use this — never a URL.
+     */
+    public String objectKeyFor(String logicalPath) {
+        return objectKey(logicalPath);
     }
 
     /**
@@ -188,7 +200,7 @@ public class MinioStorageService {
 
     public void deleteFile(String url) {
         try {
-            String objectPath = extractObjectPath(url);
+            String objectPath = resolveKey(url);
             if (objectPath != null) {
                 requireCurrentTenantObject(objectPath, "delete");
                 minioClient.removeObject(
@@ -204,12 +216,15 @@ public class MinioStorageService {
     }
 
     /**
-     * Public URL for a LOGICAL path (the same path you pass to {@link #uploadFile}) — the tenant
-     * prefix is applied here, so the URL always addresses the key the upload actually writes.
-     * Callers must NOT pre-prefix.
+     * Accepts either a storage key or a legacy absolute URL and returns the key, so every entry
+     * point below works with rows written before media references became keys.
      */
-    public String getPublicUrl(String logicalPath) {
-        return urlForKey(objectKey(logicalPath));
+    private String resolveKey(String keyOrUrl) {
+        if (keyOrUrl == null || keyOrUrl.isBlank()) return null;
+        if (!keyOrUrl.startsWith("http://") && !keyOrUrl.startsWith("https://")) {
+            return keyOrUrl.startsWith("/") ? keyOrUrl.substring(1) : keyOrUrl;
+        }
+        return extractObjectPath(keyOrUrl);
     }
 
     public String uploadCompanyLogo(java.util.UUID companyId, byte[] imageBytes) {
@@ -223,7 +238,7 @@ public class MinioStorageService {
     }
 
     public byte[] getBytes(String url) {
-        String objectPath = extractObjectPath(url);
+        String objectPath = resolveKey(url);
         if (objectPath == null) return null;
         requireCurrentTenantObject(objectPath, "read");
         try (var stream = minioClient.getObject(

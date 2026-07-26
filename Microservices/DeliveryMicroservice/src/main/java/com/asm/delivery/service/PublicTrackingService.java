@@ -31,6 +31,7 @@ import java.util.UUID;
 public class PublicTrackingService {
 
     private final DeliveryRepository    deliveryRepo;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final RouteStopRepository   routeStopRepo;
     private final DepotRepository       depotRepo;
     private final CompanyRepository     companyRepo;
@@ -169,7 +170,7 @@ public class PublicTrackingService {
         var company = companyRepo.findAll().stream().findFirst().orElse(null);
         if (company != null) {
             if (company.getName() != null && !company.getName().isBlank()) companyName = company.getName();
-            companyLogoUrl = company.getLogoUrl();
+            companyLogoUrl = mediaUrlResolver.toPublicUrl(company.getLogoUrl());
         }
 
         return new TrackingData(delivery, startWindow, endWindow, etaAt, routeGeometry, driverId, depotLat, depotLng, depotName, companyName, companyLogoUrl);

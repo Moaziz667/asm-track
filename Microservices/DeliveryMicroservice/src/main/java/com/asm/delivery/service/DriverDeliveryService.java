@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 public class DriverDeliveryService {
 
     private final DeliveryRepository              deliveryRepo;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
@@ -616,8 +617,11 @@ public class DriverDeliveryService {
         String bonLivraisonPhotoPath = deliveryFolder + "/bon-livraison.png";
         String packagePhotoPath = deliveryFolder + "/package.png";
 
-        String bonLivraisonPhotoUrl = hasBonLivraison ? minioStorageService.getPublicUrl(bonLivraisonPhotoPath) : null;
-        String packagePhotoUrl = minioStorageService.getPublicUrl(packagePhotoPath);
+        // Persist the STORAGE KEY, not an absolute URL: a URL would freeze this server's address
+        // into the row and break the photo the moment the host changes (new Wi-Fi/DHCP lease, VPS,
+        // production domain). MediaUrlResolver turns the key into a caller-reachable URL at read time.
+        String bonLivraisonPhotoUrl = hasBonLivraison ? minioStorageService.objectKeyFor(bonLivraisonPhotoPath) : null;
+        String packagePhotoUrl = minioStorageService.objectKeyFor(packagePhotoPath);
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
                 .deliveryId(deliveryId)
@@ -1078,9 +1082,9 @@ public class DriverDeliveryService {
                 podResponse = ProofOfDeliveryResponse.builder()
                         .id(pod.getId())
                         .deliveryId(pod.getDeliveryId())
-                        .photoUrl(pod.getPhotoUrl())
-                        .signatureUrl(pod.getSignatureUrl())
-                        .bonLivraisonPhotoUrl(pod.getBonLivraisonPhotoUrl())
+                        .photoUrl(mediaUrlResolver.toPublicUrl(pod.getPhotoUrl()))
+                        .signatureUrl(mediaUrlResolver.toPublicUrl(pod.getSignatureUrl()))
+                        .bonLivraisonPhotoUrl(mediaUrlResolver.toPublicUrl(pod.getBonLivraisonPhotoUrl()))
                         .comment(pod.getComment())
                         .collectedAt(pod.getCollectedAt())
                         .lat(pod.getLat())

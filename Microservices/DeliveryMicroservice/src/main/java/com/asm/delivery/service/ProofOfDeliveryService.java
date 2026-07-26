@@ -16,6 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProofOfDeliveryService {
     private final ProofOfDeliveryRepository podRepo;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
 
     @Transactional(readOnly = true)
     public ProofOfDeliveryResponse getPod(UUID deliveryId, String role) {
@@ -51,8 +52,9 @@ public class ProofOfDeliveryService {
                 .deliveryId(pod.getDeliveryId())
                 .photoBase64(null)
                 .signatureBase64(null)
-                .signatureUrl(pod.getBonLivraisonPhotoUrl() != null ? pod.getBonLivraisonPhotoUrl() : pod.getSignatureUrl())
-                .photoUrl(pod.getPhotoUrl())
+                .signatureUrl(mediaUrlResolver.toPublicUrl(
+                        pod.getBonLivraisonPhotoUrl() != null ? pod.getBonLivraisonPhotoUrl() : pod.getSignatureUrl()))
+                .photoUrl(mediaUrlResolver.toPublicUrl(pod.getPhotoUrl()))
                 .comment(pod.getComment())
                 .collectedAt(pod.getCollectedAt())
                 .lat(pod.getLat())
