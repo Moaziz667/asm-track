@@ -105,12 +105,28 @@ public class OdooValidationService {
     // ── Force availability ────────────────────────────────────────────────────
 
     /**
-     * Force availability when stock reservation fails ({@code action_force_availability}).
+     * Best-effort nudge for a picking stuck in {@code confirmed} because stock could not be reserved.
+     *
+     * <p>{@code action_force_availability} exists on <b>neither Odoo 16 nor 19</b> — it was dropped
+     * long ago — yet this resolved it as a hard requirement, so any picking that failed to reserve
+     * raised MethodResolutionException and dead-lettered the delivery. It never surfaced in testing
+     * because a picking only reaches {@code confirmed} when stock is short, and test data always had
+     * stock. On real inventory it would fire constantly, on every Odoo version.
+     *
+     * <p>It is optional because it is not load-bearing: forcing availability only pre-fills quantities
+     * that the caller writes explicitly on the next step anyway. When the ERP does not offer it, the
+     * right behaviour is to carry on, not to abandon a delivery the driver has already made.
      */
     public void forceAvailability(Integer pickingId) {
+        java.util.Optional<String> method =
+                capabilityResolver.resolveOptional(CanonicalCapability.FORCE_AVAILABILITY);
+        if (method.isEmpty()) {
+            log.info("provider=odoo operation=forceAvailability pickingId={} action=skip "
+                    + "reason=not_provided_by_this_erp note=quantities_written_explicitly_next", pickingId);
+            return;
+        }
         log.info("provider=odoo operation=forceAvailability pickingId={}", pickingId);
-        String method = capabilityResolver.resolve(CanonicalCapability.FORCE_AVAILABILITY);
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", method, List.of(List.of(pickingId))));
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", method.get(), List.of(List.of(pickingId))));
         Object error = resp != null ? resp.get("error") : null;
         if (error != null) {
             log.warn("provider=odoo operation=forceAvailability pickingId={} odooError={}", pickingId, error);

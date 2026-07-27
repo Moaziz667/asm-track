@@ -138,6 +138,35 @@ class OdooValidationServiceTest {
         verify(rpc, never()).callRpc(anyList());
     }
 
+    // ── FORCE_AVAILABILITY exists on no current Odoo ──────────────────────────
+
+    /**
+     * {@code action_force_availability} is present on neither Odoo 16 nor 19, yet it was resolved as a
+     * hard requirement — so a picking that failed to reserve raised MethodResolutionException and
+     * dead-lettered a delivery the driver had already made. It only fires when stock is short, which
+     * is why seeded test data never hit it.
+     */
+    @Test
+    void forceAvailability_skipsQuietlyWhenTheErpDoesNotProvideIt() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.FORCE_AVAILABILITY))
+                .thenReturn(java.util.Optional.empty());
+
+        service.forceAvailability(388);
+
+        verify(rpc, never()).callRpc(anyList());
+    }
+
+    @Test
+    void forceAvailability_callsItWhenAvailable() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.FORCE_AVAILABILITY))
+                .thenReturn(java.util.Optional.of("action_force_availability"));
+        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
+
+        service.forceAvailability(388);
+
+        verify(rpc).buildArgs(eq("stock.picking"), eq("action_force_availability"), anyList());
+    }
+
     @Test
     void setFullQuantities_skipsWriteWhenPickingHasNoMoveLines() {
         when(capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY))
