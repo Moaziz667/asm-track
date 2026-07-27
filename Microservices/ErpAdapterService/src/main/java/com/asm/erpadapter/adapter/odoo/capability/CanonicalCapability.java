@@ -21,6 +21,8 @@ public enum CanonicalCapability {
     RESERVE_STOCK,
     FORCE_AVAILABILITY,
     SET_FULL_QUANTITY,
+    /** Flags a move line as actually picked (Odoo 17+); absent on 16, where the done qty alone decides. */
+    MARK_PICKED,
     CONFIRM_SALE_ORDER,
     CANCEL_SALE_ORDER,
     BACKORDER_CONFIRM,

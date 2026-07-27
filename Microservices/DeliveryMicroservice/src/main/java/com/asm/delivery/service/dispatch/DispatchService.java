@@ -319,7 +319,16 @@ public class DispatchService {
 
     // Removed @Transactional so the DB write lock drops before the HTTP read in getDeliveryDetail
     public AdminDeliveryDetailResponse assignDelivery(UUID deliveryId, AssignDeliveryRequest request, UserPrincipal principal) {
-        driverDeliveryService.accept(deliveryId, request.getDriverId(), principal);
+        // The driver id is untrusted here. accept() is shared with the driver's own self-accept, where
+        // the id comes from the verified JWT and needs no check; on this admin path it arrives in the
+        // request body and was never validated, so any UUID was accepted. Assigning to a driver that
+        // does not exist left the delivery SCHEDULED and unworkable — no driver can act on it and
+        // there is no unassign endpoint to recover it. Validate before the state transition.
+        UUID driverId = request.getDriverId();
+        if (driverId == null || !transportPort.driverExists(driverId.toString())) {
+            throw AppException.notFound("DRIVER_NOT_FOUND", "Chauffeur introuvable.");
+        }
+        driverDeliveryService.accept(deliveryId, driverId, principal);
         return getDeliveryDetail(deliveryId);
     }
 

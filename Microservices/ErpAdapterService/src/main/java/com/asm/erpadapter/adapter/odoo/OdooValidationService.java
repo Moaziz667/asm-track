@@ -120,19 +120,68 @@ public class OdooValidationService {
     // ── Set full quantities ───────────────────────────────────────────────────
 
     /**
-     * Set qty_done = reserved_qty on all move lines ({@code action_set_quantities_to_reservation}).
-     * Works on Odoo 16, 17, and 18 without field-name version differences.
+     * Brings every move line to "fully delivered" before validation.
+     *
+     * <p>Odoo 16–18 expose a one-shot button for this
+     * ({@code action_set_quantities_to_reservation}). <b>Odoo 19 removed it</b>, and treating that as
+     * a hard failure broke every full delivery against 19: the command retried, exhausted its
+     * attempts and dead-lettered, while partial deliveries — which write quantities explicitly — kept
+     * working. The capability is therefore optional, with a fallback that reaches the same end state
+     * through the model instead of the button.
+     *
+     * <p>The fallback rests on what reservation has already done: {@code action_assign} sets each move
+     * line's quantity to the reserved quantity, so a full delivery only needs those lines flagged as
+     * picked. That flag ({@code picked}) is itself version-dependent — it does not exist on Odoo 16 —
+     * so it is resolved as a capability too; on a version offering neither, the reserved quantities
+     * alone already describe a full delivery and validation proceeds unaided.
      */
     public void setFullQuantityDoneOnMoveLines(Integer pickingId) {
-        String method = capabilityResolver.resolve(CanonicalCapability.SET_FULL_QUANTITY);
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
-                "stock.picking", method, List.of(List.of(pickingId))));
-        Object error = resp != null ? resp.get("error") : null;
+        java.util.Optional<String> method =
+                capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY);
+        if (method.isPresent()) {
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
+                    "stock.picking", method.get(), List.of(List.of(pickingId))));
+            Object error = resp != null ? resp.get("error") : null;
+            if (error != null) {
+                log.warn("provider=odoo operation=setFullQuantityDone pickingId={} odooError={}", pickingId, error);
+            } else {
+                log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
+                        pickingId, resp != null ? resp.get("result") : "null");
+            }
+            return;
+        }
+        markMoveLinesPicked(pickingId);
+    }
+
+    /** Fallback for versions without the set-quantities button: flag the reserved lines as picked. */
+    @SuppressWarnings("unchecked")
+    private void markMoveLinesPicked(Integer pickingId) {
+        java.util.Optional<String> pickedField =
+                capabilityResolver.resolveOptional(CanonicalCapability.MARK_PICKED);
+        if (pickedField.isEmpty()) {
+            log.info("provider=odoo operation=setFullQuantityDone pickingId={} action=skip "
+                    + "reason=no_set_quantities_button_and_no_picked_field", pickingId);
+            return;
+        }
+
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.move.line", "search",
+                List.of(List.of(List.of("picking_id", "=", pickingId)))));
+        List<Integer> lineIds = resp != null ? (List<Integer>) resp.get("result") : null;
+        if (lineIds == null || lineIds.isEmpty()) {
+            log.info("provider=odoo operation=setFullQuantityDone pickingId={} action=skip reason=no_move_lines",
+                    pickingId);
+            return;
+        }
+
+        Map<String, Object> write = rpc.callRpc(rpc.buildArgs("stock.move.line", "write",
+                List.of(lineIds, Map.of(pickedField.get(), true))));
+        Object error = write != null ? write.get("error") : null;
         if (error != null) {
-            log.warn("provider=odoo operation=setFullQuantityDone pickingId={} odooError={}", pickingId, error);
+            log.warn("provider=odoo operation=setFullQuantityDone pickingId={} strategy=mark_picked odooError={}",
+                    pickingId, error);
         } else {
-            log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
-                    pickingId, resp != null ? resp.get("result") : "null");
+            log.info("provider=odoo operation=setFullQuantityDone pickingId={} strategy=mark_picked lines={}",
+                    pickingId, lineIds.size());
         }
     }
 

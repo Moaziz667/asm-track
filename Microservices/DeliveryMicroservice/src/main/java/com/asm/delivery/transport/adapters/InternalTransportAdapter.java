@@ -43,6 +43,35 @@ public class InternalTransportAdapter implements TransportPort {
     }
 
     @Override
+    public boolean driverExists(String driverId) {
+        try {
+            return driverInternalClient.getDriver(driverId) != null;
+        } catch (Exception e) {
+            // Spring Cloud CircuitBreaker wraps every Feign call, so a 404 does not arrive as
+            // FeignException.NotFound — it arrives as NoFallbackAvailableException with the real
+            // cause underneath. Catching only the unwrapped type reported "driver unknown" as
+            // "DriverService down", which is the wrong answer to give an operator.
+            if (isNotFound(e)) return false;
+
+            // Deliberately NOT a fallback: this gates a write, so an unreachable DriverService must
+            // surface as "unknown", never as "does not exist" (which would reject a valid driver
+            // during an outage) nor as "exists" (which would let the bad input through).
+            log.warn("Driver Service driverExists({}) unreachable: {}", driverId, e.getMessage());
+            throw com.asm.delivery.exception.AppException.serviceUnavailable(
+                    "DRIVER_SERVICE_UNAVAILABLE",
+                    "Impossible de vérifier le chauffeur : le service chauffeurs est injoignable.");
+        }
+    }
+
+    /** Walks the cause chain, since the circuit-breaker decorator hides the original FeignException. */
+    private static boolean isNotFound(Throwable t) {
+        for (Throwable c = t; c != null && c != c.getCause(); c = c.getCause()) {
+            if (c instanceof feign.FeignException fe && fe.status() == 404) return true;
+        }
+        return false;
+    }
+
+    @Override
     public boolean incrementStat(String driverId, String field) {
         try {
             driverInternalClient.incrementStat(driverId, Map.of("field", field));
