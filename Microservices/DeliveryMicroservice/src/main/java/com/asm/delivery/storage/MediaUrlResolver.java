@@ -44,6 +44,10 @@ public class MediaUrlResolver {
     private static final String FILES_PREFIX = "/files";
 
     private final MinioConfig minioConfig;
+    private final MinioStorageService minioStorageService;
+
+    /** Long enough to open a report or reload a tracking page; short enough that a leaked link dies. */
+    private static final java.time.Duration SIGNED_URL_TTL = java.time.Duration.ofHours(6);
 
     /** Explicit public base (scheme://host[:port]); wins over the request origin when set. */
     @Value("${app.public-base-url:}")
@@ -60,7 +64,19 @@ public class MediaUrlResolver {
         if (!StringUtils.hasText(keyOrLegacyUrl)) return null;
         String key = toKey(keyOrLegacyUrl);
         if (key == null) return keyOrLegacyUrl; // foreign URL (not ours) — hand back untouched
-        return baseUrl() + FILES_PREFIX + "/" + minioConfig.getBucket() + "/" + key;
+        String url = baseUrl() + FILES_PREFIX + "/" + minioConfig.getBucket() + "/" + key;
+
+        // Sign it. This bucket holds every tenant's proof-of-delivery photos and used to be
+        // anonymously readable: the object key was the only protection, and it is derived from ids the
+        // caller already holds ({companyId}/pod/{deliveryId}/…), so anyone with — or guessing — a URL
+        // could read another tenant's evidence. Signing makes the URL itself the grant, and a
+        // short-lived one, so a link that leaks stops working.
+        //
+        // The origin stays the caller's own, so this keeps working across networks (phone, laptop,
+        // production domain): the gateway rewrites Host to MinIO's when proxying /files/**, which is
+        // exactly what the signature was computed against.
+        String query = minioStorageService.presignedQueryForKey(key, SIGNED_URL_TTL);
+        return query != null ? url + "?" + query : url;
     }
 
     /**
