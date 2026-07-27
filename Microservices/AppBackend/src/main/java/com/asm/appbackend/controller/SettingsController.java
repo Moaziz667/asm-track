@@ -337,6 +337,18 @@ public class SettingsController {
             String error = result != null ? result.get("error") : null;
 
             if (success) {
+                // Valid credentials are necessary but not sufficient. Marking a tenant CONNECTED on
+                // authentication alone is what let instances go live against an ERP missing a
+                // capability the write path needs: the gap only surfaced later, as a delivery the
+                // driver had already made dead-lettering in the outbox. Certify the integration
+                // contract here, while an admin is watching and can act on it.
+                String incompatibility = certifyContract(companyId, token);
+                if (incompatibility != null) {
+                    persistTestResult(false, uid, incompatibility);
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "status", "incompatible",
+                            "error", incompatibility));
+                }
                 persistTestResult(true, uid, null);
                 return ResponseEntity.ok(result);
             } else {
@@ -347,6 +359,55 @@ public class SettingsController {
             log.warn("ERP test-auth proxy failed for {}: {}", providerType, e.getMessage());
             persistTestResult(false, null, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Runs the conformance probe and reports why the instance cannot be certified, or {@code null}
+     * when it can.
+     *
+     * <p>Only a {@code NO_GO} blocks: that means a REQUIRED capability is genuinely absent, so the
+     * write path would fail on a real delivery. {@code DEGRADED} is allowed through — the adapter has
+     * a working alternative for every RECOMMENDED capability, and refusing those would reject
+     * perfectly usable ERP versions.
+     *
+     * <p>A probe that cannot run is deliberately <b>not</b> treated as incompatible. Its own failure
+     * is evidence about the probe, not about the ERP, and blocking on it would lock an admin out of a
+     * working integration over a transient hiccup.
+     */
+    @SuppressWarnings("unchecked")
+    private String certifyContract(java.util.UUID companyId, String token) {
+        try {
+            Map<String, Object> report = restClientBuilder.build()
+                    .get()
+                    .uri(erpAdapterUrl + "/api/erp/conformance")
+                    .headers(h -> {
+                        if (companyId != null) h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .retrieve()
+                    .body(Map.class);
+            if (report == null || !"NO_GO".equals(String.valueOf(report.get("verdict")))) return null;
+
+            java.util.List<String> blocking = new java.util.ArrayList<>();
+            Object checks = report.get("checks");
+            if (checks instanceof java.util.List<?> list) {
+                for (Object o : list) {
+                    if (!(o instanceof Map<?, ?> c)) continue;
+                    if ("REQUIRED".equals(String.valueOf(c.get("severity")))
+                            && "MISSING".equals(String.valueOf(c.get("status")))) {
+                        blocking.add(String.valueOf(c.get("name")));
+                    }
+                }
+            }
+            log.warn("ERP certification NO_GO for tenant {} — missing REQUIRED: {}", companyId, blocking);
+            return "L'ERP ne fournit pas tout ce dont la synchronisation a besoin : "
+                    + (blocking.isEmpty() ? "voir le rapport de conformité" : String.join(", ", blocking))
+                    + ". Connexion refusée pour éviter des livraisons non synchronisées.";
+        } catch (Exception e) {
+            log.warn("ERP certification could not run for tenant {} ({}) — not treated as incompatible",
+                    companyId, e.getMessage());
+            return null;
         }
     }
 
