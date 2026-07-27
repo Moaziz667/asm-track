@@ -47,12 +47,12 @@ public class ErpNextConformanceProbe implements ErpConformanceProbe {
         // ── Doctypes + the exact fields the adapter reads ─────────────────────────────────────────
         checkFields(checks, "Sales Order", Severity.REQUIRED,
                 List.of("name", "status", "docstatus", "customer", "delivery_date", "company"));
-        checkFields(checks, "Sales Order Item", Severity.REQUIRED,
-                List.of("item_code", "qty", "delivered_qty", "parent"));
+        checkChildFields(checks, "Sales Order", Severity.REQUIRED,
+                List.of("item_code", "qty", "delivered_qty"));
         checkFields(checks, "Delivery Note", Severity.REQUIRED,
                 List.of("name", "status", "docstatus", "is_return", "return_against"));
-        checkFields(checks, "Delivery Note Item", Severity.REQUIRED,
-                List.of("item_code", "qty", "against_sales_order", "parent"));
+        checkChildFields(checks, "Delivery Note", Severity.REQUIRED,
+                List.of("item_code", "qty", "against_sales_order"));
         checkFields(checks, "Item", Severity.REQUIRED, List.of("item_code", "item_name"));
         checkFields(checks, "Customer", Severity.REQUIRED, List.of("name", "customer_name"));
         checkFields(checks, "Address", Severity.RECOMMENDED,
@@ -68,10 +68,17 @@ public class ErpNextConformanceProbe implements ErpConformanceProbe {
                 Severity.REQUIRED, "Builds the delivery note from the sales order — the core sync.");
         checkMethod(checks, "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_return",
                 Severity.REQUIRED, "Reverse delivery note for RMAs.");
-        checkMethod(checks, "frappe.client.set_value",
-                Severity.REQUIRED, "Pushes the rescheduled delivery date.");
-        checkMethod(checks, "frappe.client.cancel",
-                Severity.REQUIRED, "Cancels the delivery note / order.");
+        // frappe.client.set_value and frappe.client.cancel are core framework APIs that always exist;
+        // what actually varies per tenant is whether the integration user may write and cancel. They
+        // are also POST-only, so probing them the way the make_* methods are probed answers 403 and
+        // would report a working instance as incompatible. Check the permission instead — read-only,
+        // and it is the thing that can genuinely be wrong.
+        checkPermission(checks, "Sales Order", "write", Severity.REQUIRED,
+                "Needed to push the rescheduled delivery date (frappe.client.set_value).");
+        checkPermission(checks, "Delivery Note", "cancel", Severity.REQUIRED,
+                "Needed to cancel a delivery note (frappe.client.cancel).");
+        checkPermission(checks, "Delivery Note", "create", Severity.REQUIRED,
+                "Needed to record a delivery.");
         checkMethod(checks, "erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice",
                 Severity.RECOMMENDED, "Invoice creation from the order.");
         checkMethod(checks, "erpnext.stock.doctype.delivery_note.delivery_note.make_sales_invoice",
@@ -156,12 +163,79 @@ public class ErpNextConformanceProbe implements ErpConformanceProbe {
         }
     }
 
-    /** A network/transport failure says nothing about the ERP's capabilities, so it must not fail one. */
+    /**
+     * Verify the fields of a child table by reading them off a real parent document.
+     *
+     * <p>A child doctype cannot be listed on its own in Frappe — {@code /api/resource/Sales Order Item}
+     * answers 403 without a {@code parent} argument — so querying it like a top-level doctype reported
+     * a perfectly good instance as broken.
+     */
+    @SuppressWarnings("unchecked")
+    private void checkChildFields(List<CapabilityCheck> checks, String parentDoctype, Severity sev,
+                                  List<String> fields) {
+        String label = parentDoctype + ".items " + fields;
+        try {
+            List<Map<String, Object>> parents = erp.getListStrict(parentDoctype, List.of("name"), List.of(), 1, null);
+            if (parents == null || parents.isEmpty()) {
+                checks.add(new CapabilityCheck(label, Kind.FIELD, sev, Status.UNKNOWN,
+                        "No " + parentDoctype + " exists yet to inspect its lines."));
+                return;
+            }
+            Map<String, Object> doc = erp.getDoc(parentDoctype, String.valueOf(parents.get(0).get("name")));
+            Object raw = doc != null ? doc.get("items") : null;
+            if (!(raw instanceof List<?> rows) || rows.isEmpty() || !(rows.get(0) instanceof Map<?, ?> row)) {
+                checks.add(new CapabilityCheck(label, Kind.FIELD, sev, Status.UNKNOWN,
+                        "The sampled " + parentDoctype + " has no lines to inspect."));
+                return;
+            }
+            List<String> missing = new ArrayList<>();
+            for (String f : fields) if (!row.containsKey(f)) missing.add(f);
+            checks.add(new CapabilityCheck(label, Kind.FIELD, sev,
+                    missing.isEmpty() ? Status.OK : Status.MISSING,
+                    missing.isEmpty() ? "All line fields present." : "Absent on the line: " + missing));
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(label, Kind.FIELD, sev, Status.UNKNOWN,
+                    "Could not inspect: " + e.getMessage()));
+        }
+    }
+
+    /** Ask ERPNext whether the integration user holds a permission — read-only, and the real risk. */
+    @SuppressWarnings("unchecked")
+    private void checkPermission(List<CapabilityCheck> checks, String doctype, String permType,
+                                 Severity sev, String note) {
+        String label = doctype + " (" + permType + ")";
+        try {
+            Object res = erp.methodGet("frappe.client.has_permission",
+                    Map.of("doctype", doctype, "docname", "", "perm_type", permType));
+            Boolean granted = null;
+            if (res instanceof Map<?, ?> m && m.get("has_permission") instanceof Boolean b) granted = b;
+            if (granted == null) {
+                checks.add(new CapabilityCheck(label, Kind.ACCESS, sev, Status.UNKNOWN,
+                        "Permission could not be read. " + note));
+                return;
+            }
+            checks.add(new CapabilityCheck(label, Kind.ACCESS, sev,
+                    granted ? Status.OK : Status.MISSING,
+                    granted ? note : "The integration user lacks '" + permType + "' on " + doctype + ". " + note));
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(label, Kind.ACCESS, sev, Status.UNKNOWN,
+                    "Could not be checked: " + e.getMessage() + ". " + note));
+        }
+    }
+
+    /**
+     * A network/transport failure says nothing about the ERP's capabilities, so it must not fail one.
+     *
+     * <p>Deliberately narrow: {@code getListStrict} labels <em>every</em> failure it raises
+     * "transport error", so matching that phrase turned genuine 403s and unknown fields into UNKNOWN
+     * — which never fails a verdict, and would have made the probe certify anything.
+     */
     private static boolean transportOnly(String msg) {
         if (msg == null) return false;
         String m = msg.toLowerCase();
-        return m.contains("timeout") || m.contains("connect") || m.contains("unreachable")
-                || m.contains("transport error");
+        if (m.contains("403") || m.contains("404") || m.contains("permission")) return false;
+        return m.contains("timeout") || m.contains("timed out") || m.contains("connection refused")
+                || m.contains("unreachable") || m.contains("unknownhost");
     }
 
     private String detectVersion() {
