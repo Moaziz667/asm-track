@@ -33,8 +33,33 @@ import java.util.UUID;
 @Slf4j
 public class OdooFieldMappingResolver implements FieldMappingResolver {
 
-    /** The document a bare path is relative to when the mapping names no model. */
+    /** The document a bare header path is relative to when the mapping names no model. */
     private static final String PRIMARY_MODEL = "stock.picking";
+
+    /**
+     * The document a bare <em>line</em> path is relative to.
+     *
+     * <p>A line mapping written as {@code x_lot_number} means "on the stock move", not "on the
+     * delivery note" — the integrator is looking at one row of the order. Resolving both against the
+     * picking would make every line mapping silently return nothing, since the picking has no such
+     * field. Header records stay in scope, so a line may still reach {@code sale.order:name}.
+     */
+    private static final String LINE_PRIMARY_MODEL = "stock.move";
+
+    /** Which document a bare path hangs off, given the canonical field it fills. */
+    private static String primaryModelFor(CanonicalField field) {
+        return field != null && field.isLine() ? LINE_PRIMARY_MODEL : PRIMARY_MODEL;
+    }
+
+    /** Same, from the stored name — an extra (null canonical field) is always header-scoped. */
+    private static String primaryModelFor(String canonicalFieldName) {
+        if (canonicalFieldName == null || canonicalFieldName.isBlank()) return PRIMARY_MODEL;
+        try {
+            return primaryModelFor(CanonicalField.valueOf(canonicalFieldName));
+        } catch (IllegalArgumentException e) {
+            return PRIMARY_MODEL;   // a field removed from the enum; treat its rows as header
+        }
+    }
 
     /** Guards against a mapping like {@code a.b.c.d.e...} turning one import into a fetch storm. */
     private static final int MAX_PATH_DEPTH = 4;
@@ -60,7 +85,8 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
 
         // Mapped: its result stands even when empty — see FieldMappingResolver#resolveOrDefault.
         ErpFieldMapping m = mapping.get();
-        return readPath(m.getSourcePath(), SourceKind.from(m.getReadAs()), records, new HashMap<>());
+        return readPath(m.getSourcePath(), SourceKind.from(m.getReadAs()),
+                primaryModelFor(field), records, new HashMap<>());
     }
 
     @Override
@@ -70,7 +96,7 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
 
         java.util.Set<String> out = new java.util.LinkedHashSet<>();
         for (ErpFieldMapping m : repository.findByTenantIdAndProvider(tenant, provider())) {
-            String root = rootFieldFor(m.getSourcePath(), model);
+            String root = rootFieldFor(m.getSourcePath(), model, primaryModelFor(m.getCanonicalField()));
             if (root != null) out.add(root);
         }
         return out;
@@ -80,13 +106,14 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
      * The first path segment, when {@code path} is rooted on {@code model}.
      *
      * <p>A path either names its model explicitly ({@code res.partner:city}) or is relative to the
-     * primary document. Returns {@code null} when the path belongs to a different model, so each
-     * fetch only widens by what it actually needs.
+     * primary document — which is the stock move for a line mapping and the picking otherwise.
+     * Returns {@code null} when the path belongs to a different model, so each fetch only widens by
+     * what it actually needs.
      */
-    private static String rootFieldFor(String path, String model) {
+    private static String rootFieldFor(String path, String model, String primaryModel) {
         if (path == null || path.isBlank()) return null;
         String expr = path.trim();
-        String target = PRIMARY_MODEL;
+        String target = primaryModel;
         int colon = expr.indexOf(':');
         if (colon > 0) {
             target = expr.substring(0, colon).trim();
@@ -111,7 +138,8 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
         Map<String, Object> out = new LinkedHashMap<>();
         for (ErpFieldMapping m : extras) {
             if (m.getCustomKey() == null || m.getCustomKey().isBlank()) continue;
-            Object value = readPath(m.getSourcePath(), SourceKind.from(m.getReadAs()), records, fetched);
+            Object value = readPath(m.getSourcePath(), SourceKind.from(m.getReadAs()),
+                    PRIMARY_MODEL, records, fetched);
             if (value != null) out.put(m.getCustomKey(), value);
         }
         return out;
@@ -133,12 +161,12 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
      * abort the import of an otherwise valid order, and the integrator sees the blank in the preview
      * screen. The reason is logged at debug so support can explain it.
      */
-    private Object readPath(String path, SourceKind kind,
+    private Object readPath(String path, SourceKind kind, String primaryModel,
                             Map<String, Map<String, Object>> records,
                             Map<String, Map<String, Object>> fetched) {
         if (path == null || path.isBlank()) return null;
 
-        String model = PRIMARY_MODEL;
+        String model = primaryModel;
         String expr = path.trim();
         int colon = expr.indexOf(':');
         if (colon > 0) {
@@ -255,8 +283,20 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
         return Map.of();
     }
 
-    /** Exposed for the preview screen: the models a mapping path may start from. */
+    /**
+     * The models a mapping path may start from, offered to the integrator's picker.
+     *
+     * <p>Line models come last: they only apply to the six per-line fields, and putting them ahead of
+     * {@code res.partner} would push the fields most people are looking for down the list.
+     *
+     * <p>{@code stock.warehouse} is deliberately absent. The adapter never holds a warehouse record —
+     * only a {@code (code, name)} pair it derived — so a {@code stock.warehouse:x} path would resolve
+     * against nothing and hand the integrator a silent blank. The warehouse is still reachable, by
+     * walking to it: {@code picking_type_id.warehouse_id.code}.
+     */
     public static List<String> addressableModels() {
-        return new ArrayList<>(List.of("stock.picking", "sale.order", "res.partner", "stock.warehouse"));
+        return new ArrayList<>(List.of(
+                "stock.picking", "sale.order", "res.partner",
+                "stock.move", "product.product", "sale.order.line"));
     }
 }

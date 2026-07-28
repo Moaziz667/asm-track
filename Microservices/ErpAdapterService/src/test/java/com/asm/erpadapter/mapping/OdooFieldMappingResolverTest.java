@@ -231,4 +231,70 @@ class OdooFieldMappingResolverTest {
         when(repository.findByTenantIdAndProvider(TENANT, "odoo")).thenReturn(List.of());
         assertThat(resolver.extraFieldsFor("stock.picking")).isEmpty();
     }
+
+    // ── Line scope ───────────────────────────────────────────────────────────────────────────────
+    //
+    // An integrator mapping ITEM_SKU writes "x_ref" while looking at one row of the order — meaning the
+    // stock move. Resolving that against the delivery note, which has no such field, would hand back a
+    // blank on every line and make the six per-line fields look broken.
+
+    private final Map<String, Map<String, Object>> lineRecords = Map.of(
+            "stock.picking", Map.of("name", "WH/OUT/00341", "x_ref", "SUR-LE-BL"),
+            "sale.order", Map.of("client_order_ref", "REF-001"),
+            "stock.move", Map.of("x_ref", "SUR-LA-LIGNE", "product_id", List.of(7, "Bidon 20L")),
+            "product.product", Map.of("default_code", "BID-20", "x_ref_client", "CLI-77"));
+
+    @Test
+    void aBareLinePathReadsFromTheStockMoveNotTheDeliveryNote() {
+        mapped(CanonicalField.ITEM_SKU, "x_ref", "AUTO");
+
+        assertThat(resolver.resolveOrDefault(CanonicalField.ITEM_SKU, lineRecords, () -> "défaut"))
+                .isEqualTo("SUR-LA-LIGNE");
+    }
+
+    /** The same bare path on a header field still means the picking — the two scopes must not swap. */
+    @Test
+    void aBareHeaderPathStillReadsFromTheDeliveryNote() {
+        mapped(CanonicalField.EXTERNAL_REF, "x_ref", "AUTO");
+
+        assertThat(resolver.resolveOrDefault(CanonicalField.EXTERNAL_REF, lineRecords, () -> "défaut"))
+                .isEqualTo("SUR-LE-BL");
+    }
+
+    /** Most per-line values live on the product, one hop from the move. */
+    @Test
+    void aLinePathReachesTheProductItNamesExplicitly() {
+        mapped(CanonicalField.ITEM_SKU, "product.product:x_ref_client", "AUTO");
+
+        assertThat(resolver.resolveOrDefault(CanonicalField.ITEM_SKU, lineRecords, () -> "défaut"))
+                .isEqualTo("CLI-77");
+    }
+
+    /** Header records stay addressable from a line: a per-line value is sometimes held on the order. */
+    @Test
+    void aLineCanStillReachTheHeaderRecords() {
+        mapped(CanonicalField.ITEM_NAME, "sale.order:client_order_ref", "AUTO");
+
+        assertThat(resolver.resolveOrDefault(CanonicalField.ITEM_NAME, lineRecords, () -> "défaut"))
+                .isEqualTo("REF-001");
+    }
+
+    /** The move's own fields must be fetched, or the mapping above resolves against nothing. */
+    @Test
+    void aLineMappingWidensTheStockMoveFetchNotThePicking() {
+        when(repository.findByTenantIdAndProvider(TENANT, "odoo")).thenReturn(List.of(
+                ErpFieldMapping.builder().tenantId(TENANT).provider("odoo")
+                        .canonicalField("ITEM_SKU").sourcePath("x_lot").readAs("AUTO").build()));
+
+        assertThat(resolver.extraFieldsFor("stock.move")).containsExactly("x_lot");
+        assertThat(resolver.extraFieldsFor("stock.picking")).isEmpty();
+    }
+
+    /** stock.warehouse is not offered: the adapter holds no such record, so it would always be blank. */
+    @Test
+    void onlyModelsTheAdapterActuallyHoldsAreOffered() {
+        assertThat(OdooFieldMappingResolver.addressableModels())
+                .contains("stock.move", "product.product", "sale.order.line")
+                .doesNotContain("stock.warehouse");
+    }
 }
