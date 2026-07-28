@@ -65,8 +65,12 @@ public class OrderService {
             Optional<Order> existing = orderRepo.findByErpOrderId(erpOrderId);
             if (existing.isPresent()) {
             Order order = existing.get();
-            applyCanonicalToOrder(order, canonical, false);
+            boolean committed = isCommittedToARoute(order);
+            List<String> refused = applyCanonicalToOrder(order, canonical, false, committed);
             orderRepo.save(order);
+            if (!refused.isEmpty()) {
+                reportRefusedChanges(order, refused);
+            }
             log.info("Updated Odoo order id={} erpOrderId={}", order.getId(), erpOrderId);
             return;
             }
@@ -79,7 +83,7 @@ public class OrderService {
 
             .build();
 
-        applyCanonicalToOrder(order, canonical, true);
+        applyCanonicalToOrder(order, canonical, true, false);
         order = orderRepo.save(order);
 
         auditLogService.logAction(null, "ODOO_RECV_ORDER", "DELIVERY", order.getId().toString(),
@@ -93,6 +97,35 @@ public class OrderService {
         erpLookupService.invalidateCache();
 
         log.info("Created Odoo order id={} erpOrderId={}", order.getId(), erpOrderId);
+    }
+
+    /**
+     * Whether the order's parcel is already committed to a route or to a driver's hands.
+     *
+     * The line is on the delivery, not the order: {@link OrderStatus} only knows PENDING/DELIVERED,
+     * so an order whose parcel is IN_TRANSIT is still PENDING. Anything past UNSCHEDULED means a
+     * route was planned around this address, or the goods physically left — including terminal
+     * states, where the address is history and rewriting it would falsify the record.
+     */
+    private boolean isCommittedToARoute(Order order) {
+        return deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                .map(d -> d.getStatus() != DeliveryStatus.UNSCHEDULED)
+                .orElse(false);
+    }
+
+    /**
+     * Surfaces an ERP change we declined to apply, so a human decides instead of the divergence
+     * living only in Odoo. Silently keeping the old value would be as wrong as silently taking the
+     * new one — the point is that someone knows the two systems disagree.
+     */
+    private void reportRefusedChanges(Order order, List<String> fields) {
+        log.warn("ERP re-sync refused on committed order id={} erpOrderId={} fields={}",
+                order.getId(), order.getErpOrderId(), fields);
+        auditLogService.logAction(null, "ERP_SYNC_REFUSED_ON_COMMITTED_ORDER", "DELIVERY",
+                order.getId().toString(),
+                Map.of("erpId", order.getErpOrderId() != null ? order.getErpOrderId() : "N/A",
+                       "fields", String.join(", ", fields),
+                       "action", "Modification ERP non appliquée : livraison déjà planifiée"));
     }
 
     // ── Query endpoints ───────────────────────────────────────────────────────
@@ -234,7 +267,23 @@ public class OrderService {
         }
     }
 
-            private void applyCanonicalToOrder(Order order, CanonicalDelivery canonical, boolean isNew) {
+    /**
+     * Applies an ERP payload onto an order.
+     *
+     * <p>Everything is refreshed on every re-sync — that is the feature: correct an address in Odoo,
+     * re-import, ASM follows. But once the delivery is committed to a route ({@code freezeLogistics}),
+     * where the parcel is going and when stop being the ERP's to decide: a route was planned around
+     * that address, or the goods are already in a driver's hands. Those writes are skipped and
+     * returned to the caller, which reports them.
+     *
+     * <p>The rest (contacts, items, totals, instructions, financials) keeps flowing through — a
+     * corrected phone number or an added line is useful to the driver and costs nothing.
+     *
+     * @return the logistics fields whose ERP change was declined; empty when nothing was refused.
+     */
+    private List<String> applyCanonicalToOrder(Order order, CanonicalDelivery canonical, boolean isNew,
+                                               boolean freezeLogistics) {
+            List<String> refused = new ArrayList<>();
             CanonicalDelivery.Origin origin = canonical.getOrigin();
             CanonicalDelivery.Destination dest = canonical.getDestination();
             CanonicalDelivery.Financial fin = canonical.getFinancial();
@@ -280,20 +329,31 @@ public class OrderService {
             order.setOriginContactPhone(origContact != null ? origContact.getPhone() : null);
             order.setOriginContactEmail(origContact != null ? origContact.getEmail() : null);
 
-            order.setDropoffAddress(destAddress != null && StringUtils.hasText(destAddress.getFullAddress())
-                ? destAddress.getFullAddress() : "N/A");
-            order.setDropoffCity(destAddress != null ? destAddress.getCity() : null);
-            order.setDropoffPostalCode(destAddress != null ? destAddress.getPostalCode() : null);
-            order.setDropoffCountryCode(destAddress != null && StringUtils.hasText(destAddress.getCountryCode())
-                ? destAddress.getCountryCode() : "TN");
-            order.setDropoffLat(null);
-            order.setDropoffLng(null);
+            String newDropoff = destAddress != null && StringUtils.hasText(destAddress.getFullAddress())
+                ? destAddress.getFullAddress() : "N/A";
+            LocalDateTime newScheduledAt = plan != null ? parseDateTime(plan.getScheduledAt()) : null;
+
+            if (freezeLogistics) {
+                // A route was planned around this address, or the parcel already left. Only record the
+                // divergence when the ERP actually differs — an unchanged re-sync is not news.
+                if (!Objects.equals(order.getDropoffAddress(), newDropoff)) refused.add("dropoffAddress");
+                if (!Objects.equals(order.getScheduledAt(), newScheduledAt)) refused.add("scheduledAt");
+            } else {
+                order.setDropoffAddress(newDropoff);
+                order.setDropoffCity(destAddress != null ? destAddress.getCity() : null);
+                order.setDropoffPostalCode(destAddress != null ? destAddress.getPostalCode() : null);
+                order.setDropoffCountryCode(destAddress != null && StringUtils.hasText(destAddress.getCountryCode())
+                    ? destAddress.getCountryCode() : "TN");
+                order.setDropoffLat(null);
+                order.setDropoffLng(null);
+                order.setScheduledAt(newScheduledAt);
+            }
+
             order.setDeliveryInstructions(dest != null ? dest.getDeliveryInstructions() : null);
 
             order.setTotalAmount(fin != null && fin.getTotalAmount() != null ? fin.getTotalAmount() : BigDecimal.ZERO);
             order.setCurrency(fin != null && StringUtils.hasText(fin.getCurrency()) ? fin.getCurrency() : "TND");
 
-            order.setScheduledAt(plan != null ? parseDateTime(plan.getScheduledAt()) : null);
             order.setPriority(parsePriority(plan != null ? plan.getPriority() : null));
 
             order.setItems(items);
@@ -304,6 +364,7 @@ public class OrderService {
             if (isNew) {
                 order.setStatus(OrderStatus.PENDING);
             }
+            return refused;
             }
 
     private OrderPriority parsePriority(String value) {
