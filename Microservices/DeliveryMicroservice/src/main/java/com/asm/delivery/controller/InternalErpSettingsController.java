@@ -28,6 +28,26 @@ import java.util.Map;
 public class InternalErpSettingsController {
 
     private final SystemSettingsService settingsService;
+    private final com.asm.delivery.erp.ErpLookupService erpLookupService;
+
+    /**
+     * Drops this tenant's cached ERP lookups.
+     *
+     * <p>Called when a business-field mapping changes. That mapping decides which ERP field each
+     * imported value is read from, but the pending-order list is cached here for five minutes and
+     * knew nothing about it — so an integrator would change a mapping, see the list unchanged, and
+     * reasonably conclude the feature was broken. Eviction on write keeps the cache without letting
+     * it lie: it happens rarely (someone editing configuration), so nothing is lost by it.
+     */
+    @PostMapping("/cache/evict")
+    @Operation(summary = "[internal] Drop this tenant's cached ERP lookups",
+            description = "Called after a mapping or settings change so the next read reflects it "
+                    + "immediately instead of after the cache TTL.")
+    @ApiResponse(responseCode = "204", description = "Cache dropped")
+    public ResponseEntity<Void> evictCache() {
+        erpLookupService.evictTenantCaches();
+        return ResponseEntity.noContent().build();
+    }
 
     /**
      * Updates the active ERP provider for the current tenant.

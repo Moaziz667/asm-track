@@ -568,10 +568,41 @@ public class SettingsController {
             ResponseEntity<Object> res = spec.retrieve()
                     .onStatus(s -> s.value() == 400, (req, rsp) -> { })   // let the adapter's message through
                     .toEntity(Object.class);
+
+            // A mapping change alters which ERP field every imported value is read from, but
+            // delivery-service caches ERP lookups for five minutes and knows nothing about it. Without
+            // this the integrator edits a mapping, sees the list unchanged, and concludes it is broken.
+            if (method != HttpMethod.GET && res.getStatusCode().is2xxSuccessful()) {
+                evictDeliveryErpCache(companyId, token);
+            }
             return ResponseEntity.status(res.getStatusCode()).body(res.getBody());
         } catch (Exception e) {
             log.warn("Field mapping call {} failed for tenant {}: {}", path, companyId, e.getMessage());
             return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Tell delivery-service to drop this tenant's cached ERP lookups.
+     *
+     * <p>Best-effort on purpose: the mapping is already saved, and a cache that clears itself in five
+     * minutes anyway must not turn a successful write into a failed request. A warning is enough for
+     * support to explain a stale list.
+     */
+    private void evictDeliveryErpCache(java.util.UUID companyId, String token) {
+        try {
+            restClientBuilder.build()
+                    .post()
+                    .uri(deliveryUrl + "/internal/erp/cache/evict")
+                    .headers(h -> {
+                        h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("Could not evict delivery ERP cache for tenant {} — the list may be stale for up "
+                    + "to the cache TTL: {}", companyId, e.getMessage());
         }
     }
 
