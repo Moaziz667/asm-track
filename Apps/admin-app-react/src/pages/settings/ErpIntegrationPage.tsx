@@ -222,7 +222,6 @@ export default function ErpIntegrationPage() {
 
   const connected = effectiveStatus === 'CONNECTED';
   const blocking = blockingChecks(report);
-  const certified = connected && report !== null && blocking.length === 0;
 
   const steps: StepDescriptor[] = useMemo(() => {
     const s = c('steps');
@@ -235,7 +234,11 @@ export default function ErpIntegrationPage() {
           return report ? (blocking.length > 0 ? 'attention' : 'done') : 'available';
         case 'mapping':       return connected ? 'available' : 'locked';
         case 'preview':       return connected ? 'available' : 'locked';
-        case 'activation':    return !connected ? 'locked' : certified ? 'done' : 'attention';
+        // "Not certified yet" is not the same as "something is wrong". Until the report is loaded we
+        // know nothing, and an alarm on a healthy long-running integration is worse than silence.
+        case 'activation':
+          if (!connected) return 'locked';
+          return report ? (blocking.length > 0 ? 'attention' : 'done') : 'available';
       }
     };
     const lockReason = !connected ? s.lockedNeedsConnection : undefined;
@@ -247,7 +250,7 @@ export default function ErpIntegrationPage() {
       { id: 'activation',    label: s.activation,    hint: s.activationHint,    state: state('activation'), lockReason },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, connected, report, blocking.length, certified, t]);
+  }, [step, connected, report, blocking.length, t]);
 
   const activeStep = steps.find((s) => s.id === step);
 
