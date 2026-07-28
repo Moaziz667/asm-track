@@ -3,9 +3,9 @@ import { api } from './api';
 /**
  * The ERP integration surface: connection, certification, business-field mapping, preview.
  *
- * Every path is `/api/v1/**` — the only prefix the gateway routes. Older ERP screens called
- * `/api/settings/…` and `/api/admin/erp/…`, which match no route; those are corrected here so the
- * whole flow speaks one, working vocabulary.
+ * Paths here are resource-relative (`/settings/erp`, not `/api/v1/settings/erp`): the `/api/v1`
+ * prefix lives once in the client's `baseURL`, so a future v2 is a second axios instance rather
+ * than a rewrite of every call site.
  */
 
 // ── Connection ────────────────────────────────────────────────────────────────────────────────────
@@ -34,19 +34,19 @@ export interface ErpSettings {
 }
 
 export const getErpSettings = () =>
-  api.get<ErpSettings>('/api/v1/settings/erp').then((r) => r.data);
+  api.get<ErpSettings>('/settings/erp').then((r) => r.data);
 
 export const saveErpSettings = (settings: ErpSettings) =>
-  api.put('/api/v1/settings/erp', settings).then((r) => r.data);
+  api.put('/settings/erp', settings).then((r) => r.data);
 
 /** Verifies the values on screen. Also certifies the contract — a NO_GO is refused. */
 export const testErpSettings = (settings: ErpSettings) =>
-  api.post<{ status?: string; uid?: string; error?: string }>('/api/v1/settings/erp/test', settings)
+  api.post<{ status?: string; uid?: string; error?: string }>('/settings/erp/test', settings)
     .then((r) => r.data);
 
 /** Verifies what is stored, so a masked secret can't let stale credentials pass. */
 export const testStoredErpSettings = () =>
-  api.post<{ status?: string; uid?: string; error?: string }>('/api/v1/settings/erp/test-stored')
+  api.post<{ status?: string; uid?: string; error?: string }>('/settings/erp/test-stored')
     .then((r) => r.data);
 
 // ── Certification ─────────────────────────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ export interface ConformanceReport {
 
 /** 204 when no ERP is configured — the caller renders the "nothing to certify yet" state. */
 export const getConformance = () =>
-  api.get<ConformanceReport | ''>('/api/v1/settings/erp/conformance')
+  api.get<ConformanceReport | ''>('/settings/erp/conformance')
     .then((r) => (r.status === 204 || !r.data ? null : (r.data as ConformanceReport)));
 
 // ── Business-field mapping ────────────────────────────────────────────────────────────────────────
@@ -110,15 +110,15 @@ export interface ErpField {
 }
 
 export const getFieldMappings = (provider = 'odoo') =>
-  api.get<FieldMapping[]>('/api/v1/settings/erp/field-mappings', { params: { provider } })
+  api.get<FieldMapping[]>('/settings/erp/field-mappings', { params: { provider } })
     .then((r) => r.data);
 
 export const getCanonicalFields = () =>
-  api.get<CanonicalFieldInfo[]>('/api/v1/settings/erp/field-mappings/canonical-fields')
+  api.get<CanonicalFieldInfo[]>('/settings/erp/field-mappings/canonical-fields')
     .then((r) => r.data);
 
 export const getAvailableFields = (model?: string) =>
-  api.get<Record<string, ErpField[]>>('/api/v1/settings/erp/field-mappings/available-fields',
+  api.get<Record<string, ErpField[]>>('/settings/erp/field-mappings/available-fields',
     { params: model ? { model } : undefined })
     .then((r) => r.data);
 
@@ -132,15 +132,15 @@ export interface UpsertMappingInput {
 }
 
 export const upsertFieldMapping = (input: UpsertMappingInput) =>
-  api.post<FieldMapping>('/api/v1/settings/erp/field-mappings', input).then((r) => r.data);
+  api.post<FieldMapping>('/settings/erp/field-mappings', input).then((r) => r.data);
 
 /** Removing a mapping restores the shipped default; it does not blank the field. */
 export const deleteFieldMapping = (canonicalField: string, provider = 'odoo') =>
-  api.delete(`/api/v1/settings/erp/field-mappings/${encodeURIComponent(canonicalField)}`,
+  api.delete(`/settings/erp/field-mappings/${encodeURIComponent(canonicalField)}`,
     { params: { provider } });
 
 export const deleteFieldMappingById = (id: number) =>
-  api.delete(`/api/v1/settings/erp/field-mappings/by-id/${id}`);
+  api.delete(`/settings/erp/field-mappings/by-id/${id}`);
 
 // ── Preview on a real order ───────────────────────────────────────────────────────────────────────
 
@@ -177,11 +177,11 @@ export interface OrderPreview {
 }
 
 export const getPendingOrders = (limit = 40, forceRefresh = false) =>
-  api.get<PendingOrderSummary[]>('/api/v1/admin/erp/pending-orders',
+  api.get<PendingOrderSummary[]>('/admin/erp/pending-orders',
     { params: { limit, forceRefresh } }).then((r) => r.data);
 
 export const getOrderPreview = (erpOrderId: string) =>
-  api.get<OrderPreview>('/api/v1/admin/erp/pending-orders/preview',
+  api.get<OrderPreview>('/admin/erp/pending-orders/preview',
     { params: { erpOrderId } }).then((r) => r.data);
 
 // ── Derived helpers ───────────────────────────────────────────────────────────────────────────────
