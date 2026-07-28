@@ -35,7 +35,46 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 @Slf4j
 public class OdooLookupAdapter implements ErpLookupPort {
 
+    // Static import of the mapped fields keeps the builder chain readable.
+    private static final com.asm.erpadapter.mapping.CanonicalField
+            CUSTOMER_NAME = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_NAME,
+            CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
+            DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
+            DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
+            DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
+            SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
+            EXTERNAL_REF = com.asm.erpadapter.mapping.CanonicalField.EXTERNAL_REF,
+            CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
+            PAYMENT_TERM_NAME = com.asm.erpadapter.mapping.CanonicalField.PAYMENT_TERM_NAME,
+            PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY;
+
     private final OdooJsonRpcClient rpc;
+    private final com.asm.erpadapter.mapping.OdooFieldMappingResolver fieldMapping;
+
+    /**
+     * Applies the tenant's field mapping, falling back to this class's own reader.
+     *
+     * <p>Every business value below goes through here. When the tenant has mapped nothing — the case
+     * for every existing customer — the supplier runs and the result is identical to before mapping
+     * existed, which is what makes this safe to introduce against ERPs already in production.
+     */
+    private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
+                                Map<String, Map<String, Object>> records,
+                                java.util.function.Supplier<String> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
+    }
+
+    /** The documents a mapping path may address, for one order. */
+    private static Map<String, Map<String, Object>> scope(Map<String, Object> picking,
+                                                          Map<String, Object> sale,
+                                                          Map<String, Object> partner) {
+        Map<String, Map<String, Object>> records = new java.util.HashMap<>();
+        if (picking != null) records.put("stock.picking", picking);
+        if (sale != null) records.put("sale.order", sale);
+        if (partner != null) records.put("res.partner", partner);
+        return records;
+    }
 
     // ── Search Clients ──────────────────────────────────────────────────────────
 
@@ -179,24 +218,35 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
         boolean ready = "assigned".equals(asString(picking.get("state")));
 
+        final Map<String, Map<String, Object>> records = scope(picking, sale, partner);
+        final Map<String, Object> saleRef = sale;
+        final Map<String, Object> partnerRef = partner;
+
         return ErpPendingOrderPreviewDTO.builder()
                 .source("ODOO")
                 .erpOrderId(asString(picking.get("name")))            // import identity = the BL number
                 .blNumber(asString(picking.get("name")))
-                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
-                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
+                .saleOrderRef(mappedString(SALE_ORDER_REF, records,
+                        () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
+                .externalRef(mappedString(EXTERNAL_REF, records,
+                        () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
                 .warehouseCode(wh != null ? wh.code() : null)
                 .warehouseName(wh != null ? wh.name() : null)
                 .ready(ready)
-                .customerName(resolveCustomerName(sale, partner, picking))
-                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
-                .deliveryAddress(buildAddress(partner))
-                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
-                .deliveryInstructions(sale != null ? asString(sale.get("note")) : null)
+                .customerName(mappedString(CUSTOMER_NAME, records,
+                        () -> resolveCustomerName(saleRef, partnerRef, picking)))
+                .customerPhone(mappedString(CUSTOMER_PHONE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("phone")) : null))
+                .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
+                .deliveryCity(mappedString(DELIVERY_CITY, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
+                .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records,
+                        () -> saleRef != null ? asString(saleRef.get("note")) : null))
                 .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
-                .currency(resolveCurrency(sale))
-                .paymentTermName(sale != null ? asRelName(sale.get("payment_term_id")) : null)
-                .priority("NORMAL")
+                .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
+                .paymentTermName(mappedString(PAYMENT_TERM_NAME, records,
+                        () -> saleRef != null ? asRelName(saleRef.get("payment_term_id")) : null))
+                .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
                 .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
                 .items(items)
@@ -442,20 +492,29 @@ public class OdooLookupAdapter implements ErpLookupPort {
         Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
         Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
 
+        final Map<String, Map<String, Object>> records = scope(picking, sale, partner);
+        final Map<String, Object> saleRef = sale;
+        final Map<String, Object> partnerRef = partner;
+
         return ErpPendingOrderSummaryDTO.builder()
                 .erpOrderId(bl)                                       // import identity = BL number
                 .blNumber(bl)
-                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
-                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
+                .saleOrderRef(mappedString(SALE_ORDER_REF, records,
+                        () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
+                .externalRef(mappedString(EXTERNAL_REF, records,
+                        () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
                 .warehouseCode(wh != null ? wh.code() : null)
                 .warehouseName(wh != null ? wh.name() : null)
                 .ready("assigned".equals(asString(picking.get("state"))))
-                .customerName(resolveCustomerName(sale, partner, picking))
-                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
-                .deliveryAddress(buildAddress(partner))
-                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
+                .customerName(mappedString(CUSTOMER_NAME, records,
+                        () -> resolveCustomerName(saleRef, partnerRef, picking)))
+                .customerPhone(mappedString(CUSTOMER_PHONE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("phone")) : null))
+                .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
+                .deliveryCity(mappedString(DELIVERY_CITY, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
                 .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
-                .currency(resolveCurrency(sale))
+                .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
                 .backorder(asRelId(picking.get("backorder_id")) != null)
