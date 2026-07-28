@@ -212,6 +212,8 @@ public class ErpLookupService {
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.NORMAL)
                 .items(new ArrayList<>())
+                // ERP values the integrator mapped that ASM has no field for; kept as-is for display.
+                .customFields(preview.getCustomFields())
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
@@ -347,6 +349,7 @@ public class ErpLookupService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())
                 .status(order.getStatus().name())

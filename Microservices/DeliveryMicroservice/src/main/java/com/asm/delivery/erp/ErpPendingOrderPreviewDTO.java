@@ -29,6 +29,9 @@ public class ErpPendingOrderPreviewDTO {
     private String source;
 
     @Schema(description = "End client full name", example = "Mohamed Ali Ben Salah")
+    /** ERP values the integrator mapped that have no canonical ASM field; display-only. */
+    private java.util.Map<String, Object> customFields;
+
     private String customerName;
 
     @Schema(description = "End client phone number", example = "21612345678")

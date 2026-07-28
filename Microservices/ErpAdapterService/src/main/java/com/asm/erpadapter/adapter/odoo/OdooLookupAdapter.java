@@ -80,6 +80,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
         return List.copyOf(all);
     }
 
+    /** Keep an untouched order's payload free of an empty object nobody will render. */
+    private static Map<String, Object> emptyToNull(Map<String, Object> m) {
+        return (m == null || m.isEmpty()) ? null : m;
+    }
+
     /** The documents a mapping path may address, for one order. */
     private static Map<String, Map<String, Object>> scope(Map<String, Object> picking,
                                                           Map<String, Object> sale,
@@ -262,6 +267,9 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .paymentTermName(mappedString(PAYMENT_TERM_NAME, records,
                         () -> saleRef != null ? asRelName(saleRef.get("payment_term_id")) : null))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
+                // Whatever the integrator mapped that ASM has no field for — carried through so the
+                // value is not silently read and dropped.
+                .customFields(emptyToNull(fieldMapping.resolveCustomFields(records)))
                 .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
                 .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
                 .items(items)

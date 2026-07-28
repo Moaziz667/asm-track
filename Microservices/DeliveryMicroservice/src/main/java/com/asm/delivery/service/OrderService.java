@@ -206,6 +206,7 @@ public class OrderService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())
                 .status(order.getStatus().name())
