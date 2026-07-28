@@ -1,0 +1,213 @@
+import { api } from './api';
+
+/**
+ * The ERP integration surface: connection, certification, business-field mapping, preview.
+ *
+ * Every path is `/api/v1/**` — the only prefix the gateway routes. Older ERP screens called
+ * `/api/settings/…` and `/api/admin/erp/…`, which match no route; those are corrected here so the
+ * whole flow speaks one, working vocabulary.
+ */
+
+// ── Connection ────────────────────────────────────────────────────────────────────────────────────
+
+export type ErpProvider = 'NONE' | 'ODOO' | 'DUX' | 'ERPNEXT';
+export type ConnStatus = 'NOT_CONFIGURED' | 'CONFIGURED' | 'CONNECTED' | 'ERROR';
+
+export interface ErpConfig {
+  url?: string;
+  db?: string;
+  login?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  company?: string;
+  reportId?: string;
+}
+
+export interface ErpSettings {
+  activeErpProvider: ErpProvider;
+  erpConfiguration: ErpConfig | null;
+  connectionStatus?: ConnStatus;
+  lastTestedAt?: string | null;
+  lastConnectedAt?: string | null;
+  lastError?: string | null;
+  lastTestUid?: string | null;
+}
+
+export const getErpSettings = () =>
+  api.get<ErpSettings>('/api/v1/settings/erp').then((r) => r.data);
+
+export const saveErpSettings = (settings: ErpSettings) =>
+  api.put('/api/v1/settings/erp', settings).then((r) => r.data);
+
+/** Verifies the values on screen. Also certifies the contract — a NO_GO is refused. */
+export const testErpSettings = (settings: ErpSettings) =>
+  api.post<{ status?: string; uid?: string; error?: string }>('/api/v1/settings/erp/test', settings)
+    .then((r) => r.data);
+
+/** Verifies what is stored, so a masked secret can't let stale credentials pass. */
+export const testStoredErpSettings = () =>
+  api.post<{ status?: string; uid?: string; error?: string }>('/api/v1/settings/erp/test-stored')
+    .then((r) => r.data);
+
+// ── Certification ─────────────────────────────────────────────────────────────────────────────────
+
+export type Verdict = 'GO' | 'DEGRADED' | 'NO_GO';
+export type CheckStatus = 'OK' | 'MISSING' | 'UNKNOWN';
+export type Severity = 'REQUIRED' | 'RECOMMENDED';
+export type CheckKind = 'MODEL' | 'FIELD' | 'METHOD' | 'ACCESS';
+
+export interface CapabilityCheck {
+  capability: string;
+  kind: CheckKind;
+  severity: Severity;
+  status: CheckStatus;
+  detail: string;
+}
+
+export interface ConformanceReport {
+  provider: string;
+  detectedVersion: string;
+  verdict: Verdict;
+  checks: CapabilityCheck[];
+  checkedAt: string;
+}
+
+/** 204 when no ERP is configured — the caller renders the "nothing to certify yet" state. */
+export const getConformance = () =>
+  api.get<ConformanceReport | ''>('/api/v1/settings/erp/conformance')
+    .then((r) => (r.status === 204 || !r.data ? null : (r.data as ConformanceReport)));
+
+// ── Business-field mapping ────────────────────────────────────────────────────────────────────────
+
+export type FieldScope = 'HEADER' | 'LINE';
+export type SourceKind = 'AUTO' | 'LABEL' | 'ID' | 'RAW';
+
+export interface CanonicalFieldInfo {
+  field: string;
+  scope: FieldScope;
+}
+
+export interface FieldMapping {
+  id: number;
+  tenantId: string;
+  provider: string;
+  /** Null for a customer-defined extra, which is identified by customKey instead. */
+  canonicalField: string | null;
+  customKey: string | null;
+  sourcePath: string;
+  readAs: SourceKind;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
+/** One selectable ERP field. `custom` marks the customer's own `x_*` fields — the interesting ones. */
+export interface ErpField {
+  name: string;
+  label: string;
+  type: string;
+  relation?: string | null;
+  custom: boolean;
+}
+
+export const getFieldMappings = (provider = 'odoo') =>
+  api.get<FieldMapping[]>('/api/v1/settings/erp/field-mappings', { params: { provider } })
+    .then((r) => r.data);
+
+export const getCanonicalFields = () =>
+  api.get<CanonicalFieldInfo[]>('/api/v1/settings/erp/field-mappings/canonical-fields')
+    .then((r) => r.data);
+
+export const getAvailableFields = (model?: string) =>
+  api.get<Record<string, ErpField[]>>('/api/v1/settings/erp/field-mappings/available-fields',
+    { params: model ? { model } : undefined })
+    .then((r) => r.data);
+
+export interface UpsertMappingInput {
+  provider?: string;
+  canonicalField?: string | null;
+  customKey?: string | null;
+  sourcePath: string;
+  readAs?: SourceKind;
+  updatedBy?: string | null;
+}
+
+export const upsertFieldMapping = (input: UpsertMappingInput) =>
+  api.post<FieldMapping>('/api/v1/settings/erp/field-mappings', input).then((r) => r.data);
+
+/** Removing a mapping restores the shipped default; it does not blank the field. */
+export const deleteFieldMapping = (canonicalField: string, provider = 'odoo') =>
+  api.delete(`/api/v1/settings/erp/field-mappings/${encodeURIComponent(canonicalField)}`,
+    { params: { provider } });
+
+export const deleteFieldMappingById = (id: number) =>
+  api.delete(`/api/v1/settings/erp/field-mappings/by-id/${id}`);
+
+// ── Preview on a real order ───────────────────────────────────────────────────────────────────────
+
+export interface PendingOrderSummary {
+  erpOrderId: string;
+  blNumber?: string | null;
+  saleOrderRef?: string | null;
+  customerName?: string | null;
+  alreadyImported: boolean;
+  ready: boolean;
+}
+
+export interface OrderPreview {
+  erpOrderId?: string | null;
+  blNumber?: string | null;
+  saleOrderRef?: string | null;
+  externalRef?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  deliveryAddress?: string | null;
+  deliveryCity?: string | null;
+  deliveryInstructions?: string | null;
+  totalAmount?: number | null;
+  currency?: string | null;
+  paymentTermName?: string | null;
+  priority?: string | null;
+  scheduledAt?: string | null;
+  dateOrder?: string | null;
+  warehouseCode?: string | null;
+  warehouseName?: string | null;
+  totalQuantity?: number | null;
+  customFields?: Record<string, unknown> | null;
+  items?: Array<{ sku?: string | null; name?: string | null; quantity?: number | null }> | null;
+}
+
+export const getPendingOrders = (limit = 40, forceRefresh = false) =>
+  api.get<PendingOrderSummary[]>('/api/v1/admin/erp/pending-orders',
+    { params: { limit, forceRefresh } }).then((r) => r.data);
+
+export const getOrderPreview = (erpOrderId: string) =>
+  api.get<OrderPreview>('/api/v1/admin/erp/pending-orders/preview',
+    { params: { erpOrderId } }).then((r) => r.data);
+
+// ── Derived helpers ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Which canonical field each preview key comes from, so the preview can show the mapping that
+ * produced a value next to the value itself.
+ */
+export const PREVIEW_FIELD_MAP: Array<{ canonical: string; key: keyof OrderPreview }> = [
+  { canonical: 'CUSTOMER_NAME', key: 'customerName' },
+  { canonical: 'CUSTOMER_PHONE', key: 'customerPhone' },
+  { canonical: 'DELIVERY_ADDRESS', key: 'deliveryAddress' },
+  { canonical: 'DELIVERY_CITY', key: 'deliveryCity' },
+  { canonical: 'DELIVERY_INSTRUCTIONS', key: 'deliveryInstructions' },
+  { canonical: 'SALE_ORDER_REF', key: 'saleOrderRef' },
+  { canonical: 'EXTERNAL_REF', key: 'externalRef' },
+  { canonical: 'TOTAL_AMOUNT', key: 'totalAmount' },
+  { canonical: 'CURRENCY', key: 'currency' },
+  { canonical: 'PAYMENT_TERM_NAME', key: 'paymentTermName' },
+  { canonical: 'PRIORITY', key: 'priority' },
+  { canonical: 'SCHEDULED_AT', key: 'scheduledAt' },
+  { canonical: 'DATE_ORDER', key: 'dateOrder' },
+  { canonical: 'WAREHOUSE_CODE', key: 'warehouseCode' },
+  { canonical: 'WAREHOUSE_NAME', key: 'warehouseName' },
+];
+
+/** A REQUIRED capability that is genuinely absent is what blocks activation. */
+export const blockingChecks = (report: ConformanceReport | null): CapabilityCheck[] =>
+  (report?.checks ?? []).filter((c) => c.severity === 'REQUIRED' && c.status === 'MISSING');

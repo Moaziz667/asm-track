@@ -1,467 +1,349 @@
-import { useEffect, useState, useCallback } from 'react';
-import { api } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { IconLock } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { tlabel } from '@/lib/i18n/i18n-dict';
-import { getCurrentRole, hasPerm } from '@/lib/api/auth';
+import { hasPerm } from '@/lib/api/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock, IconAlertTriangle, IconClock, IconCircleCheck, IconCircleDot, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { tw } from '@/lib/ui/typography';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { FieldInput, FieldSelect } from '@/components/ui/field';
-import { SectionCard } from '@/components/ui/section-card';
+import {
+  getErpSettings, saveErpSettings, testErpSettings, testStoredErpSettings,
+  getConformance, getFieldMappings, getCanonicalFields, getAvailableFields,
+  upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks,
+  type ErpSettings, type ErpConfig, type ErpProvider, type ConnStatus,
+  type ConformanceReport, type FieldMapping, type CanonicalFieldInfo, type ErpField,
+  type UpsertMappingInput,
+} from '@/lib/api/erpIntegration';
+import { StepRail, type StepDescriptor, type StepId, type StepState } from './erp/StepRail';
+import { StepConnection, type EffStatus } from './erp/StepConnection';
+import { StepCompatibility } from './erp/StepCompatibility';
+import { StepMapping } from './erp/StepMapping';
+import { StepPreview } from './erp/StepPreview';
+import { StepActivation } from './erp/StepActivation';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-type ErpProvider = 'NONE' | 'ODOO' | 'DUX' | 'ERPNEXT';
-type ConnStatus = 'NOT_CONFIGURED' | 'CONFIGURED' | 'CONNECTED' | 'ERROR';
-interface OdooConfig {
-  url?: string; db?: string; login?: string; apiKey?: string; reportId?: string;
-  // ERPNext token auth (Authorization: token apiKey:apiSecret) + optional company scoping:
-  apiSecret?: string; company?: string;
-  // legacy fields tolerated for back-compat (not shown in the UI):
-  uid?: number; password?: string;
-}
-interface ErpSettings {
-  activeErpProvider: ErpProvider;
-  erpConfiguration: OdooConfig | null;
-  // Persisted connection lifecycle (read-only, set by the backend on save/test).
-  connectionStatus?: ConnStatus;
-  lastTestedAt?: string | null;
-  lastConnectedAt?: string | null;
-  lastError?: string | null;
-  lastTestUid?: string | null;
-}
-// 'dirty' = the admin edited a field since loading, so any persisted CONNECTED is stale
-// until they re-test. It's a client-only overlay on top of the persisted status.
-type ConnState = { status: 'idle' | 'ok' | 'fail'; uid?: string };
+const EMPTY_ODOO: ErpConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
+const EMPTY_ERPNEXT: ErpConfig = { url: '', apiKey: '', apiSecret: '', company: '' };
 
-// ── Conformance (drytest) report — certifies the live ERP instance against ASM's contract ──
-type Verdict = 'GO' | 'DEGRADED' | 'NO_GO';
-type CheckStatus = 'OK' | 'MISSING' | 'DENIED' | 'UNKNOWN';
-interface CapabilityCheck {
-  capability: string;
-  kind: 'MODEL' | 'FIELD' | 'METHOD' | 'ACCESS';
-  severity: 'REQUIRED' | 'RECOMMENDED';
-  status: CheckStatus;
-  detail?: string | null;
-}
-interface ConformanceReport {
-  provider: string;
-  detectedVersion: string;
-  verdict: Verdict;
-  checks: CapabilityCheck[];
-  checkedAt: string;
-}
-
-const EMPTY_ODOO: OdooConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
-const EMPTY_ERPNEXT: OdooConfig = { url: '', apiKey: '', apiSecret: '', company: '' };
-
-// ── Connection-status pill — the persisted lifecycle, at a glance ────────────
-type EffStatus = ConnStatus | 'STALE';
-
-function ConnStatusBadge({ status, uid, sp }: { status: EffStatus; uid?: string; sp: Record<string, string> }) {
-  const map: Record<EffStatus, { label: string; icon: React.ReactNode; fg: string; bg: string }> = {
-    CONNECTED:      { label: `${sp.statusConnected ?? 'Connecté'}${uid ? ` · uid ${uid}` : ''}`, icon: <IconCircleCheck size={13} />,   fg: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 14%, transparent)' },
-    ERROR:          { label: sp.statusError ?? 'Échec de connexion',  icon: <IconPlugConnectedX size={13} />, fg: 'var(--danger)',  bg: 'color-mix(in srgb, var(--danger) 14%, transparent)' },
-    CONFIGURED:     { label: sp.statusConfigured ?? 'Configuré · non testé', icon: <IconCircleDot size={13} />, fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 14%, transparent)' },
-    STALE:          { label: sp.statusStale ?? 'Modifié · à re-tester', icon: <IconAlertTriangle size={13} />, fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 14%, transparent)' },
-    NOT_CONFIGURED: { label: sp.statusNotConfigured ?? 'Non configuré', icon: <IconCircleDot size={13} />,   fg: 'var(--text-muted)', bg: 'var(--hover-bg)' },
-  };
-  const s = map[status];
-  return (
-    <Badge className="gap-1" style={{ background: s.bg, color: s.fg }}>
-      {s.icon} {s.label}
-    </Badge>
-  );
-}
-
-// ── Conformance report panel — verdict + the checks that need attention ──────
-function ConformancePanel({ report, sp }: { report: ConformanceReport; sp: Record<string, string> }) {
-  const tone =
-    report.verdict === 'GO' ? { fg: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 12%, transparent)', icon: <IconShieldCheck size={15} />, label: sp.verdictGo ?? 'Compatible' }
-    : report.verdict === 'DEGRADED' ? { fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 12%, transparent)', icon: <IconAlertTriangle size={15} />, label: sp.verdictDegraded ?? 'Compatible avec limites' }
-    : { fg: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 12%, transparent)', icon: <IconShieldX size={15} />, label: sp.verdictNoGo ?? 'Incompatible' };
-
-  // Only the checks that need attention (MISSING/DENIED). OK/UNKNOWN are noise for the operator.
-  const problems = report.checks.filter((c) => c.status === 'MISSING' || c.status === 'DENIED');
-
-  return (
-    <div className="rounded-lg border border-[var(--border)] overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
-        <div className="flex items-center gap-2">
-          <Badge className="gap-1" style={{ background: tone.bg, color: tone.fg }}>{tone.icon} {tone.label}</Badge>
-          <span className="text-2xs text-[var(--text-muted)]">
-            {report.provider} · {sp.detectedVersion ?? 'version'} {report.detectedVersion}
-          </span>
-        </div>
-        <span className="text-2xs text-[var(--text-muted)]">
-          {report.checks.length} {sp.checksLabel ?? 'contrôles'}
-        </span>
-      </div>
-      {problems.length === 0 ? (
-        <div className="flex items-center gap-2 px-4 py-3 text-xs text-[var(--success)]">
-          <IconCircleCheck size={15} /> {sp.allChecksOk ?? 'Tous les contrôles requis sont satisfaits.'}
-        </div>
-      ) : (
-        <ul className="divide-y divide-[var(--border)]">
-          {problems.map((c) => (
-            <li key={c.capability} className="flex items-start gap-2.5 px-4 py-2.5">
-              <span className="shrink-0 mt-0.5" style={{ color: c.severity === 'REQUIRED' ? 'var(--danger)' : 'var(--warning)' }}>
-                {c.severity === 'REQUIRED' ? <IconShieldX size={14} /> : <IconAlertTriangle size={14} />}
-              </span>
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-xs font-[600] font-mono text-[var(--text)]">{c.capability}</span>
-                {c.detail && <span className="text-2xs text-[var(--text-muted)] leading-snug">{c.detail}</span>}
-              </div>
-              <Badge variant="outline" className="ml-auto shrink-0 text-2xs" style={{ color: c.severity === 'REQUIRED' ? 'var(--danger)' : 'var(--warning)' }}>
-                {c.status}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
+/**
+ * The ERP integration surface, as a flow an integrator can walk.
+ *
+ * It is deliberately not a modal wizard. This screen is two things at once: an onboarding walked
+ * once, and the place someone returns to months later to remap a single field. A wizard serves the
+ * first and punishes the second — so steps unlock linearly but stay reachable afterwards.
+ */
 export default function ErpIntegrationPage() {
   const t = useT();
-  const sp = t.settingsPage as Record<string, string>;
-  const [role, setRole] = useState<'ADMIN' | 'DISPATCHER' | 'MANAGER' | 'UNKNOWN'>('UNKNOWN');
-  const [erp, setErp] = useState<ErpSettings | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [conn, setConn] = useState<ConnState>({ status: 'idle' });
-  const [report, setReport] = useState<ConformanceReport | null>(null);
-  const [certifying, setCertifying] = useState(false);
-  // True once the admin edits any field; means a persisted CONNECTED is stale until re-test.
-  const [dirty, setDirty] = useState(false);
+  // The dictionary is deeply typed per key; the step components take a flat string map, so each
+  // section is widened once here rather than at every call site.
+  const copy = t.erpSetup as unknown as Record<string, Record<string, string>>;
+  const c = (section: string): Record<string, string> => copy?.[section] ?? {};
 
+  // The route already gates on this permission; the page re-reads it to decide read-only vs editable.
   const canManage = hasPerm('perm:settings:manage');
 
-  const fetchErp = useCallback(async () => {
-    setLoading(true);
+  const [settings, setSettings] = useState<ErpSettings | null>(null);
+  const [report, setReport] = useState<ConformanceReport | null>(null);
+  const [mappings, setMappings] = useState<FieldMapping[]>([]);
+  const [canonicalFields, setCanonicalFields] = useState<CanonicalFieldInfo[]>([]);
+  const [availableFields, setAvailableFields] = useState<Record<string, ErpField[]>>({});
+
+  const [loading, setLoading] = useState(true);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [loadingMapping, setLoadingMapping] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [live, setLive] = useState<'idle' | 'ok' | 'fail'>('idle');
+  const [step, setStep] = useState<StepId>('connection');
+
+  // ── Loading ────────────────────────────────────────────────────────────────────────────────────
+
+  const loadSettings = useCallback(async () => {
     try {
-      const res = await api.get('/settings/erp');
-      if (res.data) { setErp(res.data); setDirty(false); setConn({ status: 'idle' }); }
-    } catch { /* fail safe */ }
-    finally { setLoading(false); }
+      const data = await getErpSettings();
+      setSettings(data);
+      setDirty(false);
+      setLive('idle');
+      return data;
+    } catch {
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    const r = getCurrentRole();
-    setRole(r);
-    if (r === 'ADMIN') fetchErp();
-  }, [fetchErp]);
+  const loadReport = useCallback(async () => {
+    setLoadingReport(true);
+    try { setReport(await getConformance()); }
+    catch { setReport(null); }
+    finally { setLoadingReport(false); }
+  }, []);
 
-  const patchConf = (patch: Partial<OdooConfig>) => {
-    setDirty(true);
-    setConn({ status: 'idle' });
-    setReport(null);
-    setErp((prev) => prev ? { ...prev, erpConfiguration: { ...(prev.erpConfiguration ?? {}), ...patch } } : prev);
-  };
-
-  const setProvider = (p: ErpProvider) => {
-    setDirty(true);
-    setConn({ status: 'idle' });
-    setReport(null);
-    setErp((prev) => prev ? {
-      ...prev,
-      activeErpProvider: p,
-      erpConfiguration: p === 'NONE' ? null
-        : (prev.erpConfiguration ?? { ...(p === 'ERPNEXT' ? EMPTY_ERPNEXT : EMPTY_ODOO) }),
-    } : prev);
-  };
-
-  // Run the connection test against the current config. Returns true on success. Persists
-  // CONNECTED/ERROR backend-side; the caller decides whether to refetch (we skip the refetch
-  // when chaining after a save, so we refetch once at the end instead).
-  // `stored` = test the persisted config (used after a save, so there's no masked-secret
-  // ambiguity — the exact saved values are verified). Otherwise test the current form values.
-  const runTest = async (refetch = true, stored = false): Promise<boolean> => {
-    setConn({ status: 'idle' });
+  const loadMapping = useCallback(async () => {
+    setLoadingMapping(true);
     try {
-      const res = stored
-        ? await api.post('/settings/erp/test-stored')
-        : await api.post('/settings/erp/test', erp);
-      setConn({ status: 'ok', uid: res.data?.uid });
-      setDirty(false);
-      if (refetch) fetchErp();
+      const [fields, current] = await Promise.all([getCanonicalFields(), getFieldMappings()]);
+      setCanonicalFields(fields);
+      setMappings(current);
+      // The field catalogue is the slowest call (one fields_get per model); never let it block the
+      // rows from rendering, so the integrator sees their existing mapping immediately.
+      getAvailableFields().then(setAvailableFields).catch(() => setAvailableFields({}));
+    } catch { /* the step renders its own empty state */ }
+    finally { setLoadingMapping(false); }
+  }, []);
+
+  useEffect(() => { loadSettings(); }, [loadSettings]);
+
+  // Each step fetches what it needs when first opened, so the page is fast to land on.
+  useEffect(() => {
+    if (step === 'compatibility' && !report && !loadingReport) loadReport();
+    if ((step === 'mapping' || step === 'preview') && canonicalFields.length === 0 && !loadingMapping) loadMapping();
+  }, [step, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
+
+  // ── Connection ─────────────────────────────────────────────────────────────────────────────────
+
+  const patchConfig = (patch: Partial<ErpConfig>) => {
+    setDirty(true); setLive('idle');
+    setSettings((p) => p ? { ...p, erpConfiguration: { ...(p.erpConfiguration ?? {}), ...patch } } : p);
+  };
+
+  const setProvider = (provider: ErpProvider) => {
+    setDirty(true); setLive('idle');
+    setSettings((p) => p ? {
+      ...p,
+      activeErpProvider: provider,
+      erpConfiguration: provider === 'NONE' ? null
+        : (p.erpConfiguration ?? { ...(provider === 'ERPNEXT' ? EMPTY_ERPNEXT : EMPTY_ODOO) }),
+    } : p);
+  };
+
+  /** A passing test invalidates the report: the instance it certified may not be the one now configured. */
+  const afterConnectionChange = async () => {
+    setReport(null);
+    await loadSettings();
+  };
+
+  const runTest = async (stored: boolean) => {
+    try {
+      if (stored) await testStoredErpSettings();
+      else if (settings) await testErpSettings(settings);
+      setLive('ok'); setDirty(false);
       return true;
     } catch {
-      setConn({ status: 'fail' });
-      if (refetch) fetchErp();
+      setLive('fail');
       return false;
-    }
-  };
-
-  // Save = persist the config AND verify it in one click, so the result is "saved + tested"
-  // (CONNECTED or ERROR) rather than the limbo "saved but untested" state.
-  const handleSave = async () => {
-    if (!erp) return;
-    setSaving(true);
-    try {
-      await api.put('/settings/erp', erp);
-      if (erp.activeErpProvider === 'NONE') {
-        showSuccessToast('successErpUpdated');
-        fetchErp();
-        return;
-      }
-      // Chained test against the just-saved config (stored = no mask ambiguity).
-      setTesting(true);
-      const ok = await runTest(false, true);
-      if (ok) showSuccessToast(sp.savedAndTested ?? 'Saved and connection verified.');
-      else    showErrorToast(new Error(sp.savedTestFailed ?? 'Saved, but connection test failed.'));
-      fetchErp(); // final persisted state (CONNECTED / ERROR)
-    } catch {
-      showErrorToast(null, 'errorSaveFailed');
-    } finally {
-      setTesting(false);
-      setSaving(false);
     }
   };
 
   const handleTest = async () => {
     setTesting(true);
     try {
-      const ok = await runTest(true);
-      if (ok) showSuccessToast(sp.testSuccess);
-      else    showErrorToast(new Error(sp.testFailed));
-    } finally {
-      setTesting(false);
-    }
+      const ok = await runTest(false);
+      ok ? showSuccessToast(c('connection').testSuccess) : showErrorToast(new Error(c('connection').testFailed));
+      await afterConnectionChange();
+    } finally { setTesting(false); }
   };
 
-  // Certify the live ERP instance against the ASM contract (the drytest). Runs against the SAVED
-  // config, so it's disabled while dirty — like the standalone Test.
-  const runConformance = async () => {
-    setCertifying(true);
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
     try {
-      const res = await api.get('/settings/erp/conformance');
-      if (res.status === 204 || !res.data) {
-        setReport(null);
-        showErrorToast(new Error(sp.certifyNoErp ?? 'Aucun ERP configuré à certifier.'));
-      } else {
-        setReport(res.data as ConformanceReport);
+      await saveErpSettings(settings);
+      if (settings.activeErpProvider === 'NONE') {
+        showSuccessToast(c('connection').saved);
+        await afterConnectionChange();
+        return;
       }
+      setTesting(true);
+      const ok = await runTest(true);
+      ok ? showSuccessToast(c('connection').savedAndTested)
+         : showErrorToast(new Error(c('connection').savedTestFailed));
+      await afterConnectionChange();
+    } catch {
+      showErrorToast(new Error(c('connection').saveFailed));
+    } finally { setTesting(false); setSaving(false); }
+  };
+
+  // ── Mapping actions ────────────────────────────────────────────────────────────────────────────
+
+  const refreshMappings = async () => { setMappings(await getFieldMappings()); };
+
+  const handleUpsert = async (input: UpsertMappingInput) => {
+    try {
+      await upsertFieldMapping(input);
+      await refreshMappings();
+      showSuccessToast(c('mapping').saved);
     } catch (e) {
-      showErrorToast(e as Error);
-    } finally {
-      setCertifying(false);
+      // The backend writes these messages for the integrator ("Chemin trop profond…"); showing our
+      // own generic text instead would throw away the only thing that tells them how to fix it.
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      showErrorToast(new Error(msg || c('mapping').saveFailed));
+      throw e;
     }
   };
 
-  const provider = erp?.activeErpProvider ?? 'NONE';
-  const conf = erp?.erpConfiguration ?? null;
+  const handleReset = async (canonicalField: string) => {
+    try {
+      await deleteFieldMapping(canonicalField);
+      await refreshMappings();
+      showSuccessToast(c('mapping').reset);
+    } catch { showErrorToast(new Error(c('mapping').resetFailed)); }
+  };
 
-  // Effective lifecycle state shown to the admin. A live test result (conn) wins; otherwise
-  // the persisted status, but a CONNECTED that the admin has since edited shows as STALE.
-  const persisted = (erp?.connectionStatus ?? 'NOT_CONFIGURED') as ConnStatus;
-  const effectiveStatus: ConnStatus | 'STALE' =
-    conn.status === 'ok' ? 'CONNECTED'
-    : conn.status === 'fail' ? 'ERROR'
+  const handleDeleteExtra = async (id: number) => {
+    try {
+      await deleteFieldMappingById(id);
+      await refreshMappings();
+    } catch { showErrorToast(new Error(c('mapping').resetFailed)); }
+  };
+
+  /** A capability override is a different table; it lands next to the failing check, then re-certifies. */
+  const handleCapabilityOverride = async (capability: string, odooName: string) => {
+    const name = capability.includes('.') ? capability.slice(capability.lastIndexOf('.') + 1) : capability;
+    try {
+      await upsertFieldMapping({ canonicalField: name.toUpperCase(), sourcePath: odooName });
+      showSuccessToast(c('compat').overrideSaved);
+      await loadReport();
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      showErrorToast(new Error(msg || c('compat').overrideFailed));
+    }
+  };
+
+  // ── Step model ─────────────────────────────────────────────────────────────────────────────────
+
+  const persisted = (settings?.connectionStatus ?? 'NOT_CONFIGURED') as ConnStatus;
+  const effectiveStatus: EffStatus =
+    live === 'ok' ? 'CONNECTED'
+    : live === 'fail' ? 'ERROR'
     : (dirty && (persisted === 'CONNECTED' || persisted === 'ERROR')) ? 'STALE'
     : persisted;
 
+  const connected = effectiveStatus === 'CONNECTED';
+  const blocking = blockingChecks(report);
+  const certified = connected && report !== null && blocking.length === 0;
+
+  const steps: StepDescriptor[] = useMemo(() => {
+    const s = c('steps');
+    const state = (id: StepId): StepState => {
+      if (step === id) return 'current';
+      switch (id) {
+        case 'connection':    return connected ? 'done' : 'available';
+        case 'compatibility':
+          if (!connected) return 'locked';
+          return report ? (blocking.length > 0 ? 'attention' : 'done') : 'available';
+        case 'mapping':       return connected ? 'available' : 'locked';
+        case 'preview':       return connected ? 'available' : 'locked';
+        case 'activation':    return !connected ? 'locked' : certified ? 'done' : 'attention';
+      }
+    };
+    const lockReason = !connected ? s.lockedNeedsConnection : undefined;
+    return [
+      { id: 'connection',    label: s.connection,    hint: s.connectionHint,    state: state('connection') },
+      { id: 'compatibility', label: s.compatibility, hint: s.compatibilityHint, state: state('compatibility'), lockReason },
+      { id: 'mapping',       label: s.mapping,       hint: s.mappingHint,       state: state('mapping'), lockReason },
+      { id: 'preview',       label: s.preview,       hint: s.previewHint,       state: state('preview'), lockReason },
+      { id: 'activation',    label: s.activation,    hint: s.activationHint,    state: state('activation'), lockReason },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, connected, report, blocking.length, certified, t]);
+
+  const activeStep = steps.find((s) => s.id === step);
+
+  // ── Render ─────────────────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="h-[calc(100vh-64px)] overflow-y-auto bg-[var(--app-bg)]">
-      <div className="max-w-[820px] mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-[var(--border)]">
-          <div>
-            <h1 className={tw.pageTitle}>{tlabel(t.sidebar.items, 'erpIntegration') ?? 'Intégration ERP'}</h1>
-            <p className={cn(tw.subtitle, 'mt-0.5')}>
-              {provider === 'ODOO' ? sp.erpOdooDesc : provider === 'DUX' ? sp.erpDuxDesc : sp.noErpDesc}
-            </p>
+      <div className="mx-auto max-w-[1080px] p-6">
+        <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-5">
+          <div className="min-w-0">
+            <h1 className={tw.pageTitle}>{c('page').title}</h1>
+            <p className={cn(tw.subtitle, 'mt-0.5 max-w-[68ch]')}>{c('page').subtitle}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {!canManage && (
-              <Badge variant="outline" className="gap-1 text-[var(--warning)] border-[var(--warning)]/30">
-                <IconLock size={12} /> {sp.readOnlyMode}
-              </Badge>
-            )}
-            <ConnStatusBadge status={effectiveStatus} uid={conn.uid ?? erp?.lastTestUid ?? undefined} sp={sp} />
+          {!canManage && (
+            <Badge variant="outline" className="shrink-0 gap-1 border-[var(--warning)]/30 text-[var(--warning)]">
+              <IconLock size={12} /> {c('page').readOnly}
+            </Badge>
+          )}
+        </header>
+
+        {loading ? (
+          <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:gap-8">
+            <Skeleton className="h-[220px] w-full rounded-lg lg:w-[248px]" />
+            <Skeleton className="h-[420px] w-full rounded-lg" />
           </div>
-        </div>
-
-        {loading && !erp ? (
-          <div className="flex items-center justify-center p-20">
-            <div className="h-8 w-8 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
-          </div>
-        ) : erp ? (
-          <div className="flex flex-col gap-6">
-            <SectionCard title={sp.erpProvider}>
-              <div className="flex flex-col gap-5">
-                <FieldSelect
-                  label={sp.erpProvider}
-                  value={provider}
-                  onChange={(e) => setProvider(e.target.value as ErpProvider)}
-                  disabled={!canManage}
-                  options={[
-                    { value: 'NONE', label: 'NONE' },
-                    { value: 'ODOO', label: 'ODOO' },
-                    { value: 'ERPNEXT', label: 'ERPNEXT' },
-                    { value: 'DUX', label: 'DUX' },
-                  ]}
-                />
-
-                {/* ODOO config */}
-                {provider === 'ODOO' && conf && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
-                    <FieldInput
-                      wrapperClassName="md:col-span-2"
-                      label={sp.erpUrl}
-                      placeholder={sp.erpUrlDesc}
-                      value={conf.url ?? ''}
-                      onChange={(e) => patchConf({ url: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput label={sp.erpDb} value={conf.db ?? ''} onChange={(e) => patchConf({ db: e.target.value })} disabled={!canManage} />
-                    <FieldInput label={sp.erpLogin} value={conf.login ?? ''} onChange={(e) => patchConf({ login: e.target.value })} disabled={!canManage} />
-                    <FieldInput
-                      wrapperClassName="md:col-span-2"
-                      type="password"
-                      label={sp.erpApiKey}
-                      hint={sp.erpApiKeyHint}
-                      placeholder="••••••••"
-                      value={conf.apiKey ?? ''}
-                      onChange={(e) => patchConf({ apiKey: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput
-                      wrapperClassName="md:col-span-2"
-                      label={sp.erpReportId}
-                      placeholder={t.erpIntegrationPage.reportIdPlaceholder}
-                      value={conf.reportId ?? ''}
-                      onChange={(e) => patchConf({ reportId: e.target.value })}
-                      disabled={!canManage}
-                    />
-                  </div>
-                )}
-
-                {/* ERPNEXT config — token auth (apiKey:apiSecret), optional company scoping */}
-                {provider === 'ERPNEXT' && conf && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
-                    <FieldInput
-                      wrapperClassName="md:col-span-2"
-                      label={sp.erpUrl}
-                      placeholder="https://your-site.frappe.cloud"
-                      value={conf.url ?? ''}
-                      onChange={(e) => patchConf({ url: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput
-                      type="password"
-                      label={sp.erpApiKey}
-                      placeholder="••••••••"
-                      value={conf.apiKey ?? ''}
-                      onChange={(e) => patchConf({ apiKey: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput
-                      type="password"
-                      label={sp.erpApiSecret ?? 'API Secret'}
-                      placeholder="••••••••"
-                      value={conf.apiSecret ?? ''}
-                      onChange={(e) => patchConf({ apiSecret: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput
-                      wrapperClassName="md:col-span-2"
-                      label={sp.erpCompany ?? 'Company (optional)'}
-                      hint={sp.erpCompanyHint ?? 'Only if the instance hosts several companies'}
-                      placeholder="e.g. TEST (Demo)"
-                      value={conf.company ?? ''}
-                      onChange={(e) => patchConf({ company: e.target.value })}
-                      disabled={!canManage}
-                    />
-                  </div>
-                )}
-
-                {/* DUX placeholder */}
-                {provider === 'DUX' && conf && (
-                  <div className="grid grid-cols-1 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
-                    <FieldInput
-                      label={sp.erpUrl}
-                      placeholder={t.erpIntegrationPage.apiUrlPlaceholder}
-                      value={conf.url ?? ''}
-                      onChange={(e) => patchConf({ url: e.target.value })}
-                      disabled={!canManage}
-                    />
-                    <FieldInput
-                      type="password"
-                      label={sp.erpApiKey}
-                      placeholder="••••••••"
-                      value={conf.apiKey ?? ''}
-                      onChange={(e) => patchConf({ apiKey: e.target.value })}
-                      disabled={!canManage}
-                    />
-                  </div>
-                )}
-
-                {/* Lifecycle banner — makes the connection state explicit and tells the admin
-                    what to do next (test, or re-test after edits). */}
-                {provider !== 'NONE' && (() => {
-                  const tone =
-                    effectiveStatus === 'CONNECTED' ? { fg: 'var(--success)', bg: 'color-mix(in srgb, var(--success) 8%, transparent)', icon: <IconCircleCheck size={16} /> }
-                    : effectiveStatus === 'ERROR' ? { fg: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: <IconPlugConnectedX size={16} /> }
-                    : { fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: <IconAlertTriangle size={16} /> };
-                  const msg =
-                    effectiveStatus === 'CONNECTED' ? (sp.lifecycleConnected ?? 'Connection verified. This source is active on the Import page.')
-                    : effectiveStatus === 'ERROR' ? (erp?.lastError || sp.lifecycleError || 'Last test failed — fix credentials and re-test.')
-                    : effectiveStatus === 'STALE' ? (sp.lifecycleStale ?? 'Configuration modified. Test again before saving.')
-                    : effectiveStatus === 'CONFIGURED' ? (sp.lifecycleConfigured ?? 'Configuration saved but never tested. Run a test to confirm.')
-                    : (sp.lifecycleNotConfigured ?? 'No source configured.');
-                  return (
-                    <div className="flex items-start gap-2.5 p-3 rounded-lg text-xs" style={{ background: tone.bg, color: tone.fg }}>
-                      <span className="shrink-0 mt-px">{tone.icon}</span>
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="font-[600] leading-snug">{msg}</span>
-                        {erp?.lastTestedAt && (
-                          <span className="inline-flex items-center gap-1 text-2xs opacity-80">
-                            <IconClock size={11} /> {sp.lastTestedLabel ?? 'Dernier test'} : {new Date(erp.lastTestedAt).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Actions. The standalone Test re-verifies the SAVED config; once the admin
-                    edits a field (dirty), they must "Save & test" so the new values are what
-                    gets verified — otherwise a masked secret could let stale creds pass. */}
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <Button
-                    variant="outline" size="sm" onClick={handleTest}
-                    disabled={testing || saving || provider === 'NONE' || dirty}
-                    title={dirty ? (sp.testDirtyHint ?? 'Enregistrez vos modifications pour les tester') : undefined}
-                  >
-                    <IconPlugConnected size={15} /> {testing ? sp.erpTesting : sp.testConnection}
-                  </Button>
-                  <Button
-                    variant="outline" size="sm" onClick={runConformance}
-                    disabled={certifying || testing || saving || provider === 'NONE' || provider === 'DUX' || dirty}
-                    title={dirty ? (sp.testDirtyHint ?? 'Enregistrez vos modifications pour les tester') : undefined}
-                  >
-                    <IconShieldCheck size={15} /> {certifying ? (sp.certifying ?? 'Certification…') : (sp.certify ?? 'Certifier')}
-                  </Button>
-                  {canManage && (
-                    <Button size="sm" onClick={handleSave} disabled={saving || testing}>
-                      <IconDatabase size={15} /> {saving ? (sp.savingTestingLabel ?? 'Enregistrement & test…') : (sp.saveAndTest ?? sp.saveConfig)}
-                    </Button>
-                  )}
-                </div>
-
-                {/* Conformance (drytest) report — shown after a certification run. */}
-                {report && <ConformancePanel report={report} sp={sp} />}
-              </div>
-            </SectionCard>
-          </div>
+        ) : !settings ? (
+          <p className="py-20 text-center text-sm text-[var(--text-muted)]">{c('page').loadError}</p>
         ) : (
-          <div className="text-center py-20 text-sm text-[var(--text-muted)]">
-            {tlabel(t.erpIntegrationPage, 'loadError') ?? 'Aucune configuration ERP disponible.'}
+          <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:gap-8">
+            <StepRail steps={steps} onSelect={setStep} />
+
+            <main className="min-w-0 flex-1">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">{activeStep?.label}</h2>
+                <p className="mt-0.5 text-xs text-[var(--text-muted)]">{activeStep?.hint}</p>
+              </div>
+
+              {/* key on step: a fresh mount per step, so no stale local state bleeds across. */}
+              <div key={step} className="erp-step-panel">
+                {step === 'connection' && (
+                  <StepConnection
+                    settings={settings}
+                    status={effectiveStatus}
+                    dirty={dirty}
+                    saving={saving}
+                    testing={testing}
+                    canManage={canManage}
+                    copy={c('connection')}
+                    onPatchConfig={patchConfig}
+                    onSetProvider={setProvider}
+                    onSave={handleSave}
+                    onTest={handleTest}
+                  />
+                )}
+
+                {step === 'compatibility' && (
+                  <StepCompatibility
+                    report={report}
+                    loading={loadingReport}
+                    onRun={loadReport}
+                    onOverride={handleCapabilityOverride}
+                    canManage={canManage}
+                    copy={c('compat')}
+                  />
+                )}
+
+                {step === 'mapping' && (
+                  <StepMapping
+                    canonicalFields={canonicalFields}
+                    mappings={mappings}
+                    availableFields={availableFields}
+                    loading={loadingMapping}
+                    canManage={canManage}
+                    copy={c('mapping')}
+                    onUpsert={handleUpsert}
+                    onReset={handleReset}
+                    onDeleteCustom={handleDeleteExtra}
+                  />
+                )}
+
+                {step === 'preview' && <StepPreview mappings={mappings} copy={c('preview')} />}
+
+                {step === 'activation' && (
+                  <StepActivation
+                    status={effectiveStatus === 'STALE' ? 'CONFIGURED' : effectiveStatus}
+                    report={report}
+                    lastConnectedAt={settings.lastConnectedAt}
+                    lastError={settings.lastError}
+                    onRetest={handleTest}
+                    testing={testing}
+                    onGoToStep={setStep}
+                    copy={c('activation')}
+                  />
+                )}
+              </div>
+            </main>
           </div>
         )}
       </div>
