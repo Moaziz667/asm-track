@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -473,6 +474,103 @@ public class SettingsController {
             return report != null ? ResponseEntity.ok(report) : ResponseEntity.noContent().build();
         } catch (Exception e) {
             log.warn("ERP conformance probe failed for tenant {}: {}", companyId, e.getMessage());
+            return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ── Business field mapping ────────────────────────────────────────────────────────────────────
+    // Where, in this customer's ERP, each piece of business data lives. Proxied to ErpAdapterService
+    // for the same reason as the conformance probe: the adapter is not routed through the gateway, and
+    // the permission check belongs here where the caller's token is.
+    //
+    // Kept apart from /erp/mappings (capability overrides) on purpose. A wrong capability mapping
+    // breaks stock; a wrong field mapping shows a wrong label. Separate endpoints let the UI be
+    // separate screens, so nobody corrupts quantities while relabelling a customer reference.
+
+    @GetMapping("/erp/field-mappings")
+    @Operation(summary = "List this company's business-field mappings")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> listFieldMappings(
+            @RequestParam(required = false, defaultValue = "odoo") String provider) {
+        return proxyToAdapter("/api/erp/field-mappings?provider=" + provider, HttpMethod.GET, null);
+    }
+
+    /** The ASM vocabulary — one row per mappable field, so the screen does not hardcode the list. */
+    @GetMapping("/erp/field-mappings/canonical-fields")
+    @Operation(summary = "The ASM business fields that can be mapped")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> canonicalFields() {
+        return proxyToAdapter("/api/erp/field-mappings/canonical-fields", HttpMethod.GET, null);
+    }
+
+    /**
+     * The customer's own ERP fields, for the dropdown — their {@code x_*} fields included, which are
+     * exactly the ones no automatic detection could have found.
+     */
+    @GetMapping("/erp/field-mappings/available-fields")
+    @Operation(summary = "Fields available on this company's ERP, for the mapping dropdown")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> availableFields(@RequestParam(required = false) String model) {
+        String path = "/api/erp/field-mappings/available-fields"
+                + (model != null && !model.isBlank() ? "?model=" + model : "");
+        return proxyToAdapter(path, HttpMethod.GET, null);
+    }
+
+    @PostMapping("/erp/field-mappings")
+    @Operation(summary = "Create or replace one business-field mapping")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> upsertFieldMapping(@RequestBody Map<String, Object> body) {
+        return proxyToAdapter("/api/erp/field-mappings", HttpMethod.POST, body);
+    }
+
+    /** Removing a mapping restores the shipped default; it does not blank the field. */
+    @DeleteMapping("/erp/field-mappings/{canonicalField}")
+    @Operation(summary = "Remove a mapping and fall back to the default")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> deleteFieldMapping(
+            @PathVariable String canonicalField,
+            @RequestParam(required = false, defaultValue = "odoo") String provider) {
+        return proxyToAdapter("/api/erp/field-mappings/" + canonicalField + "?provider=" + provider,
+                HttpMethod.DELETE, null);
+    }
+
+    @DeleteMapping("/erp/field-mappings/by-id/{id}")
+    @Operation(summary = "Remove a custom (non-canonical) mapping by id")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> deleteFieldMappingById(@PathVariable Long id) {
+        return proxyToAdapter("/api/erp/field-mappings/by-id/" + id, HttpMethod.DELETE, null);
+    }
+
+    /**
+     * Forward a field-mapping call to ErpAdapterService under this tenant.
+     *
+     * <p>The adapter's 400s carry a message written for the integrator ("Chemin trop profond…"), so
+     * they are passed through rather than flattened into a generic error — the whole point of the
+     * screen is that the person configuring it can fix their own mistake.
+     */
+    private ResponseEntity<Object> proxyToAdapter(String path, HttpMethod method, Object body) {
+        java.util.UUID companyId = TenantContext.get();
+        if (companyId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No tenant context"));
+        }
+        try {
+            String token = getServiceToken();
+            RestClient.RequestBodySpec spec = restClientBuilder.build()
+                    .method(method)
+                    .uri(erpAdapterUrl + path)
+                    .headers(h -> {
+                        h.set("X-Company-Id", companyId.toString());
+                        h.setContentType(MediaType.APPLICATION_JSON);
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    });
+            if (body != null) spec.body(body);
+
+            ResponseEntity<Object> res = spec.retrieve()
+                    .onStatus(s -> s.value() == 400, (req, rsp) -> { })   // let the adapter's message through
+                    .toEntity(Object.class);
+            return ResponseEntity.status(res.getStatusCode()).body(res.getBody());
+        } catch (Exception e) {
+            log.warn("Field mapping call {} failed for tenant {}: {}", path, companyId, e.getMessage());
             return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
         }
     }
