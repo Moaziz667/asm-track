@@ -65,6 +65,21 @@ public class OdooLookupAdapter implements ErpLookupPort {
         return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
     }
 
+
+    /**
+     * The adapter's own field list, widened by whatever this tenant has mapped.
+     *
+     * <p>Without this a mapping onto a field the adapter never requests resolves to nothing, and the
+     * integrator cannot tell an empty ERP field from one that was never fetched.
+     */
+    private List<String> withMappedFields(String model, List<String> base) {
+        java.util.Set<String> extra = fieldMapping.extraFieldsFor(model);
+        if (extra.isEmpty()) return base;
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(base);
+        all.addAll(extra);
+        return List.copyOf(all);
+    }
+
     /** The documents a mapping path may address, for one order. */
     private static Map<String, Map<String, Object>> scope(Map<String, Object> picking,
                                                           Map<String, Object> sale,
@@ -169,7 +184,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         long start = System.currentTimeMillis();
         List<Map<String, Object>> pickings = rpc.searchReadStrict(
-                "stock.picking", READY_DELIVERY_DOMAIN, PICKING_FIELDS, limit, "id desc");
+                "stock.picking", READY_DELIVERY_DOMAIN, withMappedFields("stock.picking", PICKING_FIELDS), limit, "id desc");
         if (pickings.isEmpty()) return List.of();
 
         Map<Integer, Warehouse> warehouses = resolveWarehouses(pickings);
@@ -345,7 +360,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (name == null) return null;
         List<Map<String, Object>> rows = rpc.searchReadStrict("stock.picking",
                 List.of(List.of("name", "=", name), List.of("picking_type_id.code", "=", "outgoing")),
-                PICKING_FIELDS, 1, "id desc");
+                withMappedFields("stock.picking", PICKING_FIELDS), 1, "id desc");
         return rows.isEmpty() ? null : rows.get(0);
     }
 
@@ -389,7 +404,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (partnerIds.isEmpty()) return Map.of();
         List<Map<String, Object>> rows = rpc.searchReadStrict("res.partner",
                 List.of(List.of("id", "in", partnerIds.stream().toList())),
-                List.of("id", "name", "phone", "street", "street2", "city", "zip"),
+                withMappedFields("res.partner",
+                        List.of("id", "name", "phone", "street", "street2", "city", "zip")),
                 partnerIds.size(), "id asc");
         Map<Integer, Map<String, Object>> result = new HashMap<>();
         for (Map<String, Object> pr : rows) {
@@ -403,8 +419,9 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (saleIds.isEmpty()) return Map.of();
         List<Map<String, Object>> rows = rpc.searchReadStrict("sale.order",
                 List.of(List.of("id", "in", saleIds.stream().toList())),
-                List.of("id", "name", "client_order_ref", "partner_id", "amount_total",
-                        "currency_id", "payment_term_id", "note", "date_order"),
+                withMappedFields("sale.order",
+                        List.of("id", "name", "client_order_ref", "partner_id", "amount_total",
+                                "currency_id", "payment_term_id", "note", "date_order")),
                 saleIds.size(), "id asc");
         Map<Integer, Map<String, Object>> result = new HashMap<>();
         for (Map<String, Object> r : rows) {

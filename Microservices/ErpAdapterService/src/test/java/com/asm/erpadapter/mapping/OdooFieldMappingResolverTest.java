@@ -195,4 +195,40 @@ class OdooFieldMappingResolverTest {
 
         assertThat(resolver.resolveCustomFields(records)).isEmpty();
     }
+
+    // ── Widening what the adapter fetches ────────────────────────────────────────────────────────
+
+    /**
+     * The adapter reads a fixed field list. A mapping points at a field nobody anticipated, so unless
+     * the request is widened the value is simply absent and the mapping yields nothing — leaving the
+     * integrator unable to tell an empty ERP field from one that was never asked for.
+     */
+    @Test
+    void reportsTheExtraFieldsTheAdapterMustFetch() {
+        when(repository.findByTenantIdAndProvider(TENANT, "odoo")).thenReturn(List.of(
+                ErpFieldMapping.builder().tenantId(TENANT).provider("odoo")
+                        .canonicalField("CUSTOMER_NAME").sourcePath("x_client_nom").readAs("AUTO").build(),
+                ErpFieldMapping.builder().tenantId(TENANT).provider("odoo")
+                        .canonicalField("DELIVERY_CITY").sourcePath("res.partner:x_ville").readAs("AUTO").build()));
+
+        assertThat(resolver.extraFieldsFor("stock.picking")).containsExactly("x_client_nom");
+        assertThat(resolver.extraFieldsFor("res.partner")).containsExactly("x_ville");
+        assertThat(resolver.extraFieldsFor("sale.order")).isEmpty();
+    }
+
+    /** Only the first hop needs fetching; the rest is read from the related record. */
+    @Test
+    void onlyTheRootOfARelationPathNeedsFetching() {
+        when(repository.findByTenantIdAndProvider(TENANT, "odoo")).thenReturn(List.of(
+                ErpFieldMapping.builder().tenantId(TENANT).provider("odoo")
+                        .canonicalField("DELIVERY_CITY").sourcePath("partner_id.country_id.code").readAs("AUTO").build()));
+
+        assertThat(resolver.extraFieldsFor("stock.picking")).containsExactly("partner_id");
+    }
+
+    @Test
+    void nothingMappedWidensNothing() {
+        when(repository.findByTenantIdAndProvider(TENANT, "odoo")).thenReturn(List.of());
+        assertThat(resolver.extraFieldsFor("stock.picking")).isEmpty();
+    }
 }

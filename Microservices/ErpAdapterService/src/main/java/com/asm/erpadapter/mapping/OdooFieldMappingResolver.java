@@ -64,6 +64,40 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
     }
 
     @Override
+    public java.util.Set<String> extraFieldsFor(String model) {
+        UUID tenant = TenantContext.get();
+        if (tenant == null || model == null) return java.util.Set.of();
+
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (ErpFieldMapping m : repository.findByTenantIdAndProvider(tenant, provider())) {
+            String root = rootFieldFor(m.getSourcePath(), model);
+            if (root != null) out.add(root);
+        }
+        return out;
+    }
+
+    /**
+     * The first path segment, when {@code path} is rooted on {@code model}.
+     *
+     * <p>A path either names its model explicitly ({@code res.partner:city}) or is relative to the
+     * primary document. Returns {@code null} when the path belongs to a different model, so each
+     * fetch only widens by what it actually needs.
+     */
+    private static String rootFieldFor(String path, String model) {
+        if (path == null || path.isBlank()) return null;
+        String expr = path.trim();
+        String target = PRIMARY_MODEL;
+        int colon = expr.indexOf(':');
+        if (colon > 0) {
+            target = expr.substring(0, colon).trim();
+            expr = expr.substring(colon + 1).trim();
+        }
+        if (!target.equals(model)) return null;
+        String first = expr.split("\\.")[0].trim();
+        return first.isEmpty() ? null : first;
+    }
+
+    @Override
     public Map<String, Object> resolveCustomFields(Map<String, Map<String, Object>> records) {
         UUID tenant = TenantContext.get();
         if (tenant == null) return Map.of();

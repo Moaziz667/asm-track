@@ -50,6 +50,22 @@ public interface FieldMappingResolver {
                             java.util.function.Supplier<Object> builtIn);
 
     /**
+     * The extra fields of {@code model} that must be fetched for this tenant's mappings to resolve.
+     *
+     * <p>Adapters read a fixed field list from the ERP — asking for everything on every document would
+     * be wasteful. But a mapping points at a field nobody anticipated, by definition: unless the
+     * adapter widens its request, {@code x_client_nom} is simply absent from the record and the
+     * mapping silently yields nothing. That is the worst possible outcome, because the integrator
+     * cannot tell "my ERP field is empty" from "the system never asked for it".
+     *
+     * <p>Only the first segment of a path is returned: fetching {@code partner_id} is what makes
+     * {@code partner_id.city} walkable, and the rest is read from the related record.
+     *
+     * @return field names to add to the adapter's own list; empty when the tenant mapped nothing
+     */
+    java.util.Set<String> extraFieldsFor(String model);
+
+    /**
      * The customer-defined extras for this tenant, keyed by the label the integrator chose.
      *
      * <p>These have no canonical equivalent, so ASM cannot reason about them — they are carried
