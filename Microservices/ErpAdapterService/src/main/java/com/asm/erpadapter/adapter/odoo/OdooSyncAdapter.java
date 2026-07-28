@@ -454,6 +454,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
             return false;
         }
 
+        // Odoo only prefills the wizard's lines for a UI-driven create; over RPC, 16 leaves it empty.
+        // Without lines, create_returns fails with "specify at least one non-zero quantity".
+        if (productService.ensureReturnWizardLines(wizardId, pickingId) == 0) {
+            log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} wizardId={} pickingId={} reason=return_wizard_has_no_lines retryable=true",
+                    erpId, wizardId, pickingId);
+            return false;
+        }
         productService.applyReturnQuantities(wizardId, items);
 
         Map<String, Object> returnResp = returnHandler.callCreateReturns(wizardId, ctx);

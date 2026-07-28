@@ -199,10 +199,39 @@ public class AdminDriverService {
         // owner) so the driver can log in immediately. A failure throws → the whole setup rolls back
         // (token stays unused) so the driver can retry, rather than leaving an ACTIVE driver who can't
         // sign in. This is the one IAM op that must not be eventual.
-        iamClient.setPassword(driver.getId().toString(), Map.of("password", newPassword));
-        iamClient.setEnabled(driver.getId().toString(), Map.of("enabled", true));
+        try {
+            iamClient.setPassword(driver.getId().toString(), Map.of("password", newPassword));
+            iamClient.setEnabled(driver.getId().toString(), Map.of("enabled", true));
+        } catch (Exception e) {
+            // The Keycloak identity is provisioned asynchronously (IAM_PROVISION over AMQP), so a
+            // driver opening the setup link within seconds of being invited can arrive before it
+            // exists. That is a timing condition, not a server fault: answering 500 told the driver
+            // something had broken when simply retrying would have worked. 409 with an explicit code,
+            // so the app can say "account not ready yet — try again in a moment". The transaction
+            // still rolls back, so the invite token stays usable for that retry.
+            if (isIamUserNotFound(e)) {
+                log.info("Driver {} attempted setup before its IAM identity existed — asking to retry",
+                        driver.getId());
+                throw AppException.conflict("ACCOUNT_NOT_READY",
+                        "Votre compte est en cours de création. Réessayez dans quelques instants.");
+            }
+            throw e;
+        }
 
         return toResponse(driver);
+    }
+
+    /**
+     * Whether the failure is "no such user in Keycloak (yet)".
+     *
+     * <p>Walks the cause chain: Feign calls are wrapped by the circuit breaker, so the 404 arrives as
+     * NoFallbackAvailableException rather than as a bare FeignException.
+     */
+    private static boolean isIamUserNotFound(Throwable t) {
+        for (Throwable c = t; c != null && c != c.getCause(); c = c.getCause()) {
+            if (c instanceof feign.FeignException fe && fe.status() == 404) return true;
+        }
+        return false;
     }
 
     public String validateInviteToken(UUID token) {

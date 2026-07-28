@@ -248,6 +248,12 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 15s
         permittedNumberOfCallsInHalfOpenState: 3
+        # A 404 answers the question asked; it is not a fault of the downstream service. Counting it
+        # as a failure lets a handful of lookups for unknown ids (a stale admin page, a bad driver id
+        # retried twice) open the breaker and start rejecting calls that would have succeeded — an
+        # input error escalating into a self-inflicted outage.
+        ignoreExceptions:
+          - feign.FeignException$NotFound
   # With spring.cloud.openfeign.circuitbreaker.enabled=true, every Feign method is wrapped in a
   # resilience4j TimeLimiter. Its DEFAULT is 1s — far too short for ERP calls that authenticate +
   # look up a picking + render a PDF in Odoo. Raise the default so the BL download (and other ERP

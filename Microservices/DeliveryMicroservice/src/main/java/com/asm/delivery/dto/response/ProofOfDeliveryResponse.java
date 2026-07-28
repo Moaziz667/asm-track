@@ -22,6 +22,7 @@ public class ProofOfDeliveryResponse {
     private String photoUrl;
     private String bonLivraisonPhotoUrl; // signed receipt (bon de livraison) photo
     private String comment;
+    private String recipientName;
     private LocalDateTime collectedAt;
     private BigDecimal lat;
     private BigDecimal lng;

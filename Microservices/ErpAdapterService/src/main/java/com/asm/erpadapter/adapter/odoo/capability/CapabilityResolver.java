@@ -77,6 +77,27 @@ public class CapabilityResolver {
     }
 
     /**
+     * Resolve a capability the ERP may legitimately not provide.
+     *
+     * <p>{@link #resolve} treats an unresolvable capability as fatal, which is right for anything the
+     * workflow cannot proceed without. Some capabilities are only a convenience the vendor may drop
+     * between versions — Odoo 19 removed {@code action_set_quantities_to_reservation} outright — and
+     * for those the caller has an equivalent way to reach the same end state. Returning empty lets it
+     * take that path instead of failing the entire sync over a missing shortcut.
+     *
+     * @return the resolved Odoo name, or empty when this Odoo version does not provide it
+     */
+    public Optional<String> resolveOptional(CanonicalCapability capability) {
+        try {
+            return Optional.ofNullable(resolve(capability));
+        } catch (MethodResolver.MethodResolutionException | FieldResolver.FieldResolutionException e) {
+            log.info("CapabilityResolver: capability={} not provided by this ERP — caller falls back",
+                    capability);
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Resolve a capability with a specific customer override.
      */
     public String resolveWithOverride(CanonicalCapability capability, String customerOverride) {

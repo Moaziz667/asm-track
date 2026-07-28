@@ -2,6 +2,7 @@ package com.asm.delivery.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -15,6 +16,15 @@ public class ProofOfDeliveryRequest {
 
     @NotBlank
     private String packagePhotoBase64;       // package handover photo
+
+    /**
+     * Who took delivery of the parcel. Shown on the Odoo chatter note ("Reçu par") and kept on the POD
+     * row as part of the delivery evidence: the photo shows the parcel, this names the person who
+     * signed for it, which is what a delivery dispute actually turns on. The ERP payload has always
+     * carried the field — nothing ever populated it.
+     */
+    @Size(max = 150)
+    private String recipientName;
 
     private String comment;
     private BigDecimal lat;

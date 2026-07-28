@@ -61,6 +61,23 @@ public class ErpLookupService {
         return companyId != null ? companyId.toString() : "global";
     }
 
+    /**
+     * Drop this tenant's cached lookups.
+     *
+     * <p>These caches answer "what does the ERP hold", but a business-field mapping changes what that
+     * answer <em>means</em> — which ERP field each value is read from. Without eviction an integrator
+     * changes a mapping, sees the list unchanged for five minutes, and reasonably concludes the
+     * feature is broken. Only this tenant's entries go, so one company's configuration change cannot
+     * flush another's cache.
+     */
+    public void evictTenantCaches() {
+        String prefix = cacheScope() + "-";
+        clientCache.keySet().removeIf(k -> k.startsWith(prefix));
+        productCache.keySet().removeIf(k -> k.startsWith(prefix));
+        pendingOrderCache.keySet().removeIf(k -> k.startsWith(prefix));
+        log.info("ERP lookup caches evicted for tenant scope {}", cacheScope());
+    }
+
     /** A delivery attempt is finished (no longer blocking a reliquat) in these states. */
     private static final List<DeliveryStatus> TERMINAL_DELIVERY_STATUSES = List.of(
             DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
@@ -195,6 +212,8 @@ public class ErpLookupService {
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.NORMAL)
                 .items(new ArrayList<>())
+                // ERP values the integrator mapped that ASM has no field for; kept as-is for display.
+                .customFields(preview.getCustomFields())
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
@@ -330,6 +349,7 @@ public class ErpLookupService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())
                 .status(order.getStatus().name())

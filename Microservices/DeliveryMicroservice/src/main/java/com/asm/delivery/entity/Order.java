@@ -113,7 +113,7 @@ public class Order {
     private String deliveryInstructions;
 
     // ── Financial ─────────────────────────────────────────────────────────────
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 3)
     private BigDecimal totalAmount;
 
     @Column(name = "currency", nullable = false, length = 3)
@@ -151,11 +151,25 @@ public class Order {
     @Column(name = "items", columnDefinition = "jsonb", nullable = false)
     private List<OrderItem> items;
 
+    /**
+     * ERP values the integrator mapped that have no field of their own here, keyed by the label they
+     * chose ({@code {"Référence interne": "REF-4471"}}).
+     *
+     * <p>Every customer keeps something in their ERP that ASM has no concept of. Without somewhere for
+     * it to land, mapping such a field means the value is read and then dropped — so the integrator
+     * either gets nothing, or we grow a column per customer. This is display-only on purpose: ASM
+     * cannot sort, filter or reason about what it does not understand, and a field that needs to drive
+     * behaviour deserves promoting to a real column rather than hiding in here.
+     */
+    @Type(JsonType.class)
+    @Column(name = "custom_fields", columnDefinition = "jsonb")
+    private java.util.Map<String, Object> customFields;
+
     @Column(name = "total_quantity", nullable = false)
     @Builder.Default
     private Integer totalQuantity = 0;
 
-    @Column(name = "total_weight_kg", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_weight_kg", nullable = false, precision = 19, scale = 3)
     @Builder.Default
     private BigDecimal totalWeightKg = BigDecimal.ZERO;
 

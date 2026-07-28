@@ -29,6 +29,11 @@ public class MockTransportAdapter implements TransportPort {
     }
 
     @Override
+    public boolean driverExists(String driverId) {
+        return true; // the mock invents a driver for any id
+    }
+
+    @Override
     public boolean incrementStat(String driverId, String field) {
         log.info("[Mock] incrementStat driverId={} field={}", driverId, field);
         return true;

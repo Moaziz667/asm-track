@@ -88,7 +88,8 @@ class OdooValidationServiceTest {
         when(pickingService.findPickingById(10))
                 .thenReturn(Map.of("id", 10, "state", "assigned"));
         when(capabilityResolver.resolve(CanonicalCapability.RESERVE_STOCK)).thenReturn("action_assign");
-        when(capabilityResolver.resolve(CanonicalCapability.SET_FULL_QUANTITY)).thenReturn("action_set_quantities_to_reservation");
+        when(capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY))
+                .thenReturn(java.util.Optional.of("action_set_quantities_to_reservation"));
         when(capabilityResolver.resolve(CanonicalCapability.DELIVERY_VALIDATE)).thenReturn("button_validate");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("result", true))   // action_assign
@@ -99,6 +100,84 @@ class OdooValidationServiceTest {
 
         assertTrue(service.validateTransferByPickingId(10));
         verify(wizardHandler).handleWizard(eq(10), anyMap());
+    }
+
+    // ── SET_FULL_QUANTITY fallback (Odoo 19 removed the button) ───────────────
+
+    /**
+     * Odoo 19 has no {@code action_set_quantities_to_reservation}. Treating that as fatal
+     * dead-lettered every full delivery; the reserved quantities are already on the lines, so
+     * flagging them picked reaches the same end state.
+     */
+    @Test
+    void setFullQuantities_marksLinesPickedWhenButtonIsAbsent() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY))
+                .thenReturn(java.util.Optional.empty());
+        when(capabilityResolver.resolveOptional(CanonicalCapability.MARK_PICKED))
+                .thenReturn(java.util.Optional.of("picked"));
+        when(rpc.callRpc(anyList()))
+                .thenReturn(Map.of("result", List.of(442, 443)))  // search move lines
+                .thenReturn(Map.of("result", true));              // write picked=true
+
+        service.setFullQuantityDoneOnMoveLines(388);
+
+        verify(rpc).buildArgs(eq("stock.move.line"), eq("write"),
+                eq(List.of(List.of(442, 443), Map.of("picked", true))));
+    }
+
+    /** Odoo 16 has neither the button nor {@code picked}; reserved quantities already suffice. */
+    @Test
+    void setFullQuantities_noOpWhenNeitherCapabilityExists() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY))
+                .thenReturn(java.util.Optional.empty());
+        when(capabilityResolver.resolveOptional(CanonicalCapability.MARK_PICKED))
+                .thenReturn(java.util.Optional.empty());
+
+        service.setFullQuantityDoneOnMoveLines(388);
+
+        verify(rpc, never()).callRpc(anyList());
+    }
+
+    // ── FORCE_AVAILABILITY exists on no current Odoo ──────────────────────────
+
+    /**
+     * {@code action_force_availability} is present on neither Odoo 16 nor 19, yet it was resolved as a
+     * hard requirement — so a picking that failed to reserve raised MethodResolutionException and
+     * dead-lettered a delivery the driver had already made. It only fires when stock is short, which
+     * is why seeded test data never hit it.
+     */
+    @Test
+    void forceAvailability_skipsQuietlyWhenTheErpDoesNotProvideIt() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.FORCE_AVAILABILITY))
+                .thenReturn(java.util.Optional.empty());
+
+        service.forceAvailability(388);
+
+        verify(rpc, never()).callRpc(anyList());
+    }
+
+    @Test
+    void forceAvailability_callsItWhenAvailable() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.FORCE_AVAILABILITY))
+                .thenReturn(java.util.Optional.of("action_force_availability"));
+        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
+
+        service.forceAvailability(388);
+
+        verify(rpc).buildArgs(eq("stock.picking"), eq("action_force_availability"), anyList());
+    }
+
+    @Test
+    void setFullQuantities_skipsWriteWhenPickingHasNoMoveLines() {
+        when(capabilityResolver.resolveOptional(CanonicalCapability.SET_FULL_QUANTITY))
+                .thenReturn(java.util.Optional.empty());
+        when(capabilityResolver.resolveOptional(CanonicalCapability.MARK_PICKED))
+                .thenReturn(java.util.Optional.of("picked"));
+        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", List.of()));
+
+        service.setFullQuantityDoneOnMoveLines(388);
+
+        verify(rpc, never()).buildArgs(eq("stock.move.line"), eq("write"), anyList());
     }
 
     // ── readSaleOrderState ────────────────────────────────────────────────────

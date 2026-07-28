@@ -46,7 +46,7 @@ public class MethodResolver {
     private final OdooVersionResolver versionResolver;
 
     /** Outcome of probing one candidate method. */
-    private enum Probe {
+    public enum Probe {
         /** The method exists (it ran, or raised a business/permission error). */
         EXISTS,
         /** Proven absent — Odoo raised AttributeError. */
@@ -129,7 +129,7 @@ public class MethodResolver {
      * raise {@code AttributeError}. No row is read, no row is written — the probe cannot have side
      * effects even if the method is destructive.
      */
-    private Probe probe(String model, String method) {
+    public Probe probe(String model, String method) {
         Map<String, Object> resp;
         try {
             resp = rpc.callRpc(rpc.buildArgs(model, method, List.of(List.of())));

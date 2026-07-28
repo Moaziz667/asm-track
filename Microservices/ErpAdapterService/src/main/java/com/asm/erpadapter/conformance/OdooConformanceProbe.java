@@ -31,6 +31,7 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
     private final OdooJsonRpcClient rpc;
     private final OdooVersionResolver versionResolver;
     private final CapabilityRegistry registry;
+    private final com.asm.erpadapter.adapter.odoo.MethodResolver methodResolver;
 
     @Override
     public String provider() {
@@ -75,12 +76,31 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         checkAccess(checks, "stock.scrap", "create", Severity.RECOMMENDED);
         checkAccess(checks, "ir.attachment", "create", Severity.RECOMMENDED);
 
-        // ── Version-derived method resolutions (cannot be probed read-only → UNKNOWN, never fails) ─
-        checks.add(new CapabilityCheck(
-                "stock.return.picking." + registry.getCandidates("CREATE_RETURN").get(0),
-                Kind.METHOD, Severity.REQUIRED, Status.UNKNOWN,
-                "Version-resolved via CapabilityRegistry; call-with-fallback tries "
-                        + registry.getCandidates("CREATE_RETURN") + " (method existence not verifiable read-only)."));
+        // ── Methods the write path calls ──────────────────────────────────────────────────────────
+        // These were reported UNKNOWN on the assumption that method existence "is not verifiable
+        // read-only". That assumption is exactly what let two capabilities reach live use
+        // unresolvable — SET_FULL_QUANTITY (dropped in Odoo 19) and FORCE_AVAILABILITY (absent from
+        // every current version) — each dead-lettering a delivery the driver had already made.
+        // MethodResolver probes on an EMPTY recordset: the method iterates nothing, so the probe has
+        // no side effects even when the method is destructive. Methods are therefore verifiable, and
+        // a missing one now fails certification instead of surfacing months later in production.
+        checkMethod(checks, "DELIVERY_VALIDATE", Severity.REQUIRED,
+                "Validates the transfer; without it nothing can be delivered.");
+        checkMethod(checks, "RESERVE_STOCK", Severity.REQUIRED,
+                "Reserves stock before validation.");
+        checkMethod(checks, "CREATE_RETURN", Severity.REQUIRED,
+                "Reverse stock move for RMAs.");
+        checkMethod(checks, "CANCEL_DELIVERY", Severity.REQUIRED,
+                "Cancels the picking when an order is cancelled.");
+        checkMethod(checks, "BACKORDER_CONFIRM", Severity.REQUIRED,
+                "Confirms the backorder wizard after a partial delivery.");
+        // RECOMMENDED, not REQUIRED: the adapter has an equivalent path when these are absent, so a
+        // version lacking them is degraded, not unusable.
+        checkMethod(checks, "SET_FULL_QUANTITY", Severity.RECOMMENDED,
+                "Full-delivery shortcut; falls back to marking the reserved lines picked.");
+        checkMethod(checks, "FORCE_AVAILABILITY", Severity.RECOMMENDED,
+                "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).");
+
         checks.add(new CapabilityCheck(
                 "sale.order.action_unlock", Kind.METHOD, Severity.RECOMMENDED, Status.UNKNOWN,
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
@@ -97,6 +117,40 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
     // ══════════════════════════════════════════════════════════════════════════════════════════════
 
     /** Verify a model exists (fields_get succeeds) — reported under the model name itself. */
+    /**
+     * Verify that at least one candidate method of a capability actually exists on this instance.
+     *
+     * <p>Probes on an empty recordset, so it is side-effect free regardless of what the method does.
+     * INCONCLUSIVE (transport failure) maps to UNKNOWN, which never fails the verdict — an unreachable
+     * instance is not evidence of a missing method.
+     */
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note) {
+        List<String> candidates;
+        String model;
+        try {
+            candidates = registry.getCandidates(capability);
+            model = registry.getModel(capability);
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(capability, Kind.METHOD, sev, Status.UNKNOWN,
+                    "Not declared in the capability registry. " + note));
+            return;
+        }
+
+        boolean inconclusive = false;
+        for (String candidate : candidates) {
+            com.asm.erpadapter.adapter.odoo.MethodResolver.Probe p = methodResolver.probe(model, candidate);
+            if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.EXISTS) {
+                checks.add(new CapabilityCheck(model + "." + candidate, Kind.METHOD, sev, Status.OK, note));
+                return;
+            }
+            if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.INCONCLUSIVE) inconclusive = true;
+        }
+        checks.add(new CapabilityCheck(model + "." + String.join("|", candidates), Kind.METHOD, sev,
+                inconclusive ? Status.UNKNOWN : Status.MISSING,
+                inconclusive ? "Could not be probed (transport failure). " + note
+                             : "No candidate exists on this instance: " + candidates + ". " + note));
+    }
+
     private void checkModel(List<CapabilityCheck> checks, String model, Severity sev, String note) {
         Map<String, Object> fields = fieldsGet(model);
         Status status = fields != null ? Status.OK : Status.MISSING;

@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -337,6 +338,18 @@ public class SettingsController {
             String error = result != null ? result.get("error") : null;
 
             if (success) {
+                // Valid credentials are necessary but not sufficient. Marking a tenant CONNECTED on
+                // authentication alone is what let instances go live against an ERP missing a
+                // capability the write path needs: the gap only surfaced later, as a delivery the
+                // driver had already made dead-lettering in the outbox. Certify the integration
+                // contract here, while an admin is watching and can act on it.
+                String incompatibility = certifyContract(companyId, token);
+                if (incompatibility != null) {
+                    persistTestResult(false, uid, incompatibility);
+                    return ResponseEntity.badRequest().body(Map.of(
+                            "status", "incompatible",
+                            "error", incompatibility));
+                }
                 persistTestResult(true, uid, null);
                 return ResponseEntity.ok(result);
             } else {
@@ -347,6 +360,55 @@ public class SettingsController {
             log.warn("ERP test-auth proxy failed for {}: {}", providerType, e.getMessage());
             persistTestResult(false, null, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Runs the conformance probe and reports why the instance cannot be certified, or {@code null}
+     * when it can.
+     *
+     * <p>Only a {@code NO_GO} blocks: that means a REQUIRED capability is genuinely absent, so the
+     * write path would fail on a real delivery. {@code DEGRADED} is allowed through — the adapter has
+     * a working alternative for every RECOMMENDED capability, and refusing those would reject
+     * perfectly usable ERP versions.
+     *
+     * <p>A probe that cannot run is deliberately <b>not</b> treated as incompatible. Its own failure
+     * is evidence about the probe, not about the ERP, and blocking on it would lock an admin out of a
+     * working integration over a transient hiccup.
+     */
+    @SuppressWarnings("unchecked")
+    private String certifyContract(java.util.UUID companyId, String token) {
+        try {
+            Map<String, Object> report = restClientBuilder.build()
+                    .get()
+                    .uri(erpAdapterUrl + "/api/erp/conformance")
+                    .headers(h -> {
+                        if (companyId != null) h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .retrieve()
+                    .body(Map.class);
+            if (report == null || !"NO_GO".equals(String.valueOf(report.get("verdict")))) return null;
+
+            java.util.List<String> blocking = new java.util.ArrayList<>();
+            Object checks = report.get("checks");
+            if (checks instanceof java.util.List<?> list) {
+                for (Object o : list) {
+                    if (!(o instanceof Map<?, ?> c)) continue;
+                    if ("REQUIRED".equals(String.valueOf(c.get("severity")))
+                            && "MISSING".equals(String.valueOf(c.get("status")))) {
+                        blocking.add(String.valueOf(c.get("name")));
+                    }
+                }
+            }
+            log.warn("ERP certification NO_GO for tenant {} — missing REQUIRED: {}", companyId, blocking);
+            return "L'ERP ne fournit pas tout ce dont la synchronisation a besoin : "
+                    + (blocking.isEmpty() ? "voir le rapport de conformité" : String.join(", ", blocking))
+                    + ". Connexion refusée pour éviter des livraisons non synchronisées.";
+        } catch (Exception e) {
+            log.warn("ERP certification could not run for tenant {} ({}) — not treated as incompatible",
+                    companyId, e.getMessage());
+            return null;
         }
     }
 
@@ -413,6 +475,134 @@ public class SettingsController {
         } catch (Exception e) {
             log.warn("ERP conformance probe failed for tenant {}: {}", companyId, e.getMessage());
             return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ── Business field mapping ────────────────────────────────────────────────────────────────────
+    // Where, in this customer's ERP, each piece of business data lives. Proxied to ErpAdapterService
+    // for the same reason as the conformance probe: the adapter is not routed through the gateway, and
+    // the permission check belongs here where the caller's token is.
+    //
+    // Kept apart from /erp/mappings (capability overrides) on purpose. A wrong capability mapping
+    // breaks stock; a wrong field mapping shows a wrong label. Separate endpoints let the UI be
+    // separate screens, so nobody corrupts quantities while relabelling a customer reference.
+
+    @GetMapping("/erp/field-mappings")
+    @Operation(summary = "List this company's business-field mappings")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> listFieldMappings(
+            @RequestParam(required = false, defaultValue = "odoo") String provider) {
+        return proxyToAdapter("/api/erp/field-mappings?provider=" + provider, HttpMethod.GET, null);
+    }
+
+    /** The ASM vocabulary — one row per mappable field, so the screen does not hardcode the list. */
+    @GetMapping("/erp/field-mappings/canonical-fields")
+    @Operation(summary = "The ASM business fields that can be mapped")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> canonicalFields() {
+        return proxyToAdapter("/api/erp/field-mappings/canonical-fields", HttpMethod.GET, null);
+    }
+
+    /**
+     * The customer's own ERP fields, for the dropdown — their {@code x_*} fields included, which are
+     * exactly the ones no automatic detection could have found.
+     */
+    @GetMapping("/erp/field-mappings/available-fields")
+    @Operation(summary = "Fields available on this company's ERP, for the mapping dropdown")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> availableFields(@RequestParam(required = false) String model) {
+        String path = "/api/erp/field-mappings/available-fields"
+                + (model != null && !model.isBlank() ? "?model=" + model : "");
+        return proxyToAdapter(path, HttpMethod.GET, null);
+    }
+
+    @PostMapping("/erp/field-mappings")
+    @Operation(summary = "Create or replace one business-field mapping")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> upsertFieldMapping(@RequestBody Map<String, Object> body) {
+        return proxyToAdapter("/api/erp/field-mappings", HttpMethod.POST, body);
+    }
+
+    /** Removing a mapping restores the shipped default; it does not blank the field. */
+    @DeleteMapping("/erp/field-mappings/{canonicalField}")
+    @Operation(summary = "Remove a mapping and fall back to the default")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> deleteFieldMapping(
+            @PathVariable String canonicalField,
+            @RequestParam(required = false, defaultValue = "odoo") String provider) {
+        return proxyToAdapter("/api/erp/field-mappings/" + canonicalField + "?provider=" + provider,
+                HttpMethod.DELETE, null);
+    }
+
+    @DeleteMapping("/erp/field-mappings/by-id/{id}")
+    @Operation(summary = "Remove a custom (non-canonical) mapping by id")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> deleteFieldMappingById(@PathVariable Long id) {
+        return proxyToAdapter("/api/erp/field-mappings/by-id/" + id, HttpMethod.DELETE, null);
+    }
+
+    /**
+     * Forward a field-mapping call to ErpAdapterService under this tenant.
+     *
+     * <p>The adapter's 400s carry a message written for the integrator ("Chemin trop profond…"), so
+     * they are passed through rather than flattened into a generic error — the whole point of the
+     * screen is that the person configuring it can fix their own mistake.
+     */
+    private ResponseEntity<Object> proxyToAdapter(String path, HttpMethod method, Object body) {
+        java.util.UUID companyId = TenantContext.get();
+        if (companyId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No tenant context"));
+        }
+        try {
+            String token = getServiceToken();
+            RestClient.RequestBodySpec spec = restClientBuilder.build()
+                    .method(method)
+                    .uri(erpAdapterUrl + path)
+                    .headers(h -> {
+                        h.set("X-Company-Id", companyId.toString());
+                        h.setContentType(MediaType.APPLICATION_JSON);
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    });
+            if (body != null) spec.body(body);
+
+            ResponseEntity<Object> res = spec.retrieve()
+                    .onStatus(s -> s.value() == 400, (req, rsp) -> { })   // let the adapter's message through
+                    .toEntity(Object.class);
+
+            // A mapping change alters which ERP field every imported value is read from, but
+            // delivery-service caches ERP lookups for five minutes and knows nothing about it. Without
+            // this the integrator edits a mapping, sees the list unchanged, and concludes it is broken.
+            if (method != HttpMethod.GET && res.getStatusCode().is2xxSuccessful()) {
+                evictDeliveryErpCache(companyId, token);
+            }
+            return ResponseEntity.status(res.getStatusCode()).body(res.getBody());
+        } catch (Exception e) {
+            log.warn("Field mapping call {} failed for tenant {}: {}", path, companyId, e.getMessage());
+            return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Tell delivery-service to drop this tenant's cached ERP lookups.
+     *
+     * <p>Best-effort on purpose: the mapping is already saved, and a cache that clears itself in five
+     * minutes anyway must not turn a successful write into a failed request. A warning is enough for
+     * support to explain a stale list.
+     */
+    private void evictDeliveryErpCache(java.util.UUID companyId, String token) {
+        try {
+            restClientBuilder.build()
+                    .post()
+                    .uri(deliveryUrl + "/internal/erp/cache/evict")
+                    .headers(h -> {
+                        h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("Could not evict delivery ERP cache for tenant {} — the list may be stale for up "
+                    + "to the cache TTL: {}", companyId, e.getMessage());
         }
     }
 

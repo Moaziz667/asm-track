@@ -22,13 +22,18 @@ public class MinioStorageService {
     private static final String COMPANY_LOGOS_BUCKET = "company-logos";
 
     /**
-     * Whether the shared POD bucket gets an anonymous-read policy. Historical behavior (and the
-     * default, so nothing breaks on upgrade) is public-read with unguessable UUID paths as the only
-     * protection — every tenant's POD photos are downloadable by anyone holding a URL. Flip this to
-     * false once every read path (admin POD views, PDF reports, public RMA page) uses
-     * {@link #presignedGetUrl}; the ERP sync path already does.
+     * Whether the shared POD bucket gets an anonymous-read policy. <b>Now false by default.</b>
+     *
+     * <p>It used to default to true: the bucket was anonymously readable and the object key was the
+     * only protection — except the key is derived from ids the caller already holds
+     * ({@code {companyId}/pod/{deliveryId}/…}), so a URL, guessed or leaked, exposed another tenant's
+     * proof of delivery. Every read path now goes through {@code MediaUrlResolver}, which signs the
+     * URL it hands out, so the anonymous policy has no remaining purpose.
+     *
+     * <p>Left configurable only as an escape hatch for an operator who hits an unforeseen read path;
+     * turning it back on re-opens the cross-tenant exposure, hence the warning on startup.
      */
-    @org.springframework.beans.factory.annotation.Value("${minio.pod-bucket-public-read:true}")
+    @org.springframework.beans.factory.annotation.Value("${minio.pod-bucket-public-read:false}")
     private boolean podBucketPublicRead;
 
     @PostConstruct
@@ -97,6 +102,36 @@ public class MinioStorageService {
         } catch (Exception e) {
             log.warn("Failed to presign {}: {} — falling back to canonical URL", objectPath, e.getMessage());
             return url;
+        }
+    }
+
+    /**
+     * The signed query string authorising a GET on {@code key}, without any host or path.
+     *
+     * <p>Exists so a caller can keep serving media through its own origin — the phone gets
+     * {@code http://192.168.1.7/files/...}, the browser gets localhost — while the bucket stays
+     * private. The signature covers the object path and the {@code Host} header, and the gateway
+     * rewrites Host to MinIO's when it proxies {@code /files/**}, so a URL built this way verifies
+     * even though the client never talks to MinIO directly.
+     *
+     * @return the query string (no leading {@code ?}), or {@code null} when signing failed
+     */
+    public String presignedQueryForKey(String key, java.time.Duration ttl) {
+        if (key == null || key.isBlank()) return null;
+        requireCurrentTenantObject(key, "presign");
+        try {
+            String signed = minioClient.getPresignedObjectUrl(
+                    io.minio.GetPresignedObjectUrlArgs.builder()
+                            .method(io.minio.http.Method.GET)
+                            .bucket(minioConfig.getBucket())
+                            .object(key)
+                            .expiry((int) ttl.toSeconds())
+                            .build());
+            int q = signed.indexOf('?');
+            return q >= 0 ? signed.substring(q + 1) : null;
+        } catch (Exception e) {
+            log.warn("Failed to presign {}: {}", key, e.getMessage());
+            return null;
         }
     }
 

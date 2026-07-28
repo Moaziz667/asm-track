@@ -232,6 +232,63 @@ public class OdooProductService {
     }
 
     /**
+     * Makes sure the return wizard actually has lines to work on.
+     *
+     * <p>{@code stock.return.picking} fills its lines from the source picking in {@code default_get},
+     * which the web client triggers but a plain {@code create()} over RPC does not — on <b>Odoo 16 the
+     * wizard therefore comes back empty</b> and {@code create_returns} refuses with "Please specify at
+     * least one non-zero quantity". Odoo 17+ computes the lines instead, which is why the same code
+     * worked there and only 16 broke.
+     *
+     * <p>Rather than depend on which version prefills what, the lines are materialised here from the
+     * source picking's moves when they are missing. Quantities stay at zero because
+     * {@link #applyReturnQuantities} owns them; this only guarantees one line per returnable move,
+     * keyed to the move so Odoo can build the reverse transfer from it.
+     *
+     * @return the number of lines the wizard has after this call
+     */
+    @SuppressWarnings("unchecked")
+    public int ensureReturnWizardLines(Integer wizardId, Integer pickingId) {
+        Map<String, Object> existingResp = rpc.callRpc(rpc.buildArgs("stock.return.picking.line", "search",
+                List.of(List.of(List.of("wizard_id", "=", wizardId)))));
+        List<Integer> existing = existingResp != null ? (List<Integer>) existingResp.get("result") : null;
+        if (existing != null && !existing.isEmpty()) return existing.size();
+
+        Map<String, Object> movesResp = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id", "product_id"))));
+        List<Map<String, Object>> moves = movesResp != null ? (List<Map<String, Object>>) movesResp.get("result") : null;
+        if (moves == null || moves.isEmpty()) {
+            log.warn("provider=odoo operation=ensureReturnWizardLines wizardId={} pickingId={} action=abort reason=no_source_moves",
+                    wizardId, pickingId);
+            return 0;
+        }
+
+        int created = 0;
+        for (Map<String, Object> move : moves) {
+            Integer moveId = asInt(move.get("id"));
+            Integer productId = asRelId(move.get("product_id"));
+            if (moveId == null || productId == null) continue;
+            Map<String, Object> line = new HashMap<>();
+            line.put("wizard_id", wizardId);
+            line.put("product_id", productId);
+            line.put("move_id", moveId);
+            line.put("quantity", 0);
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.return.picking.line", "create",
+                    List.of(line)));
+            if (resp != null && resp.containsKey("error")) {
+                log.warn("provider=odoo operation=ensureReturnWizardLines wizardId={} moveId={} action=failed odooError={}",
+                        wizardId, moveId, resp.get("error"));
+                continue;
+            }
+            created++;
+        }
+        log.info("provider=odoo operation=ensureReturnWizardLines wizardId={} pickingId={} action=materialised lines={}",
+                wizardId, pickingId, created);
+        return created;
+    }
+
+    /**
      * Writes return quantities on {@code stock.return.picking.line} records matched by SKU.
      * Lines for products not present in the RMA items list are set to 0.
      *

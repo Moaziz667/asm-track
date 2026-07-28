@@ -394,9 +394,10 @@ services:
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       ERP_DB_PATH: /data/erp_adapter_db
-      # POD photo fetch: rewrite the stored public MinIO URL to the internal container URL.
+      # POD photo fetch: media is stored as an object key, resolved against internal MinIO.
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
       MINIO_INTERNAL_URL: http://minio:9000
+      MINIO_BUCKET: pod-files
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}

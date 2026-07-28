@@ -51,6 +51,8 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
     private String minioPublicUrl;
     @org.springframework.beans.factory.annotation.Value("${minio.internal-url:}")
     private String minioInternalUrl;
+    @org.springframework.beans.factory.annotation.Value("${minio.bucket:pod-files}")
+    private String minioBucket;
 
     /** Short-timeout client just to pull POD photo bytes from MinIO over plain HTTP. */
     private final org.springframework.web.client.RestClient podHttp = buildPodHttp();
@@ -335,21 +337,45 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
         return out;
     }
 
-    /** Rewrite a public MinIO URL to the container-internal URL so the adapter can fetch it inside Docker. */
+    /** Rewrite a stored POD reference to something reachable from inside the container network. */
     private String internalMinio(String url) {
-        if (url != null && minioPublicUrl != null && !minioPublicUrl.isBlank()
-                && minioInternalUrl != null && !minioInternalUrl.isBlank() && url.startsWith(minioPublicUrl)) {
-            return minioInternalUrl + url.substring(minioPublicUrl.length());
+        if (url == null || url.isBlank()) return url;
+        if (minioInternalUrl == null || minioInternalUrl.isBlank()) return url;
+
+        // A bare object key (what delivery-service persists) resolves straight against internal MinIO;
+        // an absolute URL is rebuilt from the bucket marker, because legacy rows carry whatever origin
+        // was live when they were written rather than the configured minio.public-url.
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            String key = url.startsWith("/") ? url.substring(1) : url;
+            String prefix = minioBucket + "/";
+            if (!key.startsWith(prefix)) key = prefix + key;
+            return trimSlash(minioInternalUrl) + "/" + key;
+        }
+        String marker = "/" + minioBucket + "/";
+        int at = url.indexOf(marker);
+        if (at >= 0) return trimSlash(minioInternalUrl) + marker + url.substring(at + marker.length());
+        if (minioPublicUrl != null && !minioPublicUrl.isBlank() && url.startsWith(minioPublicUrl)) {
+            return trimSlash(minioInternalUrl) + url.substring(trimSlash(minioPublicUrl).length());
         }
         return url;
+    }
+
+    private static String trimSlash(String s) {
+        return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
     }
 
     /** Resolve a POD photo to base64: prefer the MinIO URL (fetched + encoded), else the legacy base64. */
     private String fetchBase64(String url, String legacyBase64) {
         if (url != null && !url.isBlank()) {
             try {
-                byte[] bytes = podHttp.get().uri(internalMinio(url)).retrieve().body(byte[].class);
+                // URI.create, never the String overload: a presigned URL carries an already-encoded
+                // query (X-Amz-Credential contains %2F) and the String overload encodes it a second
+                // time, so MinIO rejected every photo with "Credential is mal-formed". Same defect
+                // that was fixed on the Odoo POD path; this copy was missed.
+                byte[] bytes = podHttp.get().uri(java.net.URI.create(internalMinio(url)))
+                        .retrieve().body(byte[].class);
                 if (bytes != null && bytes.length > 0) return java.util.Base64.getEncoder().encodeToString(bytes);
+                log.warn("[erpnext] POD photo fetch returned empty url={}", url);
             } catch (Exception e) {
                 log.warn("[erpnext] POD photo fetch failed url={}: {}", url, e.getMessage());
             }
