@@ -113,7 +113,7 @@ public class Order {
     private String deliveryInstructions;
 
     // ── Financial ─────────────────────────────────────────────────────────────
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 3)
     private BigDecimal totalAmount;
 
     @Column(name = "currency", nullable = false, length = 3)
@@ -169,7 +169,7 @@ public class Order {
     @Builder.Default
     private Integer totalQuantity = 0;
 
-    @Column(name = "total_weight_kg", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_weight_kg", nullable = false, precision = 19, scale = 3)
     @Builder.Default
     private BigDecimal totalWeightKg = BigDecimal.ZERO;
 
