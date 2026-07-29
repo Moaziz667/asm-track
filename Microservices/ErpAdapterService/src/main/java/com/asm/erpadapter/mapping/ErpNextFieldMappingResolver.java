@@ -38,21 +38,29 @@ import java.util.UUID;
 @Slf4j
 public class ErpNextFieldMappingResolver implements FieldMappingResolver {
 
-    /** The document a bare header path is relative to when the mapping names none. */
-    private static final String PRIMARY_DOCTYPE = "Delivery Note";
+    /**
+     * The document a bare header path is relative to when the mapping names none.
+     *
+     * <p>The Sales Order, not the Delivery Note — and the difference is not cosmetic. ERPNext has no
+     * delivery note for an order still waiting to be delivered: the adapter creates one at delivery
+     * time. Everything ASM reads here comes from the order, so offering {@code Delivery Note} in the
+     * picker would hand the integrator a document that does not exist yet, and every mapping made
+     * against it would resolve to nothing.
+     */
+    private static final String PRIMARY_DOCTYPE = "Sales Order";
 
     /**
      * The document a bare <em>line</em> path is relative to.
      *
-     * <p>A line mapping written as {@code custom_lot} means "on this delivery row", not "on the
-     * delivery note". Resolving both against the note would make every line mapping return nothing,
-     * since the note has no such field — a blank that looks like an empty ERP rather than a mistake.
+     * <p>A line mapping written as {@code custom_lot} means "on this order row", not "on the order".
+     * Resolving both against the order would make every line mapping return nothing, since the order
+     * has no such field — a blank that reads as an empty ERP rather than a mistake.
      */
-    private static final String LINE_PRIMARY_DOCTYPE = "Delivery Note Item";
+    private static final String LINE_PRIMARY_DOCTYPE = "Sales Order Item";
 
     /** Header documents, in the order an integrator is most likely to want them. */
     private static final List<String> HEADER_DOCTYPES =
-            List.of(PRIMARY_DOCTYPE, "Sales Order", "Customer", "Address");
+            List.of(PRIMARY_DOCTYPE, "Customer", "Address");
 
     /**
      * Line documents first, then the header ones.
@@ -61,7 +69,7 @@ public class ErpNextFieldMappingResolver implements FieldMappingResolver {
      * reverse: filling one per-order value from a document with many rows has no single answer.
      */
     private static final List<String> LINE_DOCTYPES = java.util.stream.Stream.concat(
-            java.util.stream.Stream.of(LINE_PRIMARY_DOCTYPE, "Item", "Sales Order Item"),
+            java.util.stream.Stream.of(LINE_PRIMARY_DOCTYPE, "Item"),
             HEADER_DOCTYPES.stream()).toList();
 
     /** Guards against a mapping like {@code a.b.c.d.e...} turning one import into a fetch storm. */

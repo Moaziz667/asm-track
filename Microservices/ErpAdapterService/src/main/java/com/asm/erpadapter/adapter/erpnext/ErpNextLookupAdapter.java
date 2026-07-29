@@ -45,6 +45,95 @@ import static com.asm.erpadapter.adapter.erpnext.ErpNextRestClient.*;
 public class ErpNextLookupAdapter implements ErpLookupPort {
 
     private final ErpNextRestClient erp;
+    private final com.asm.erpadapter.mapping.ErpNextFieldMappingResolver fieldMapping;
+
+    // ── Mapped reads ──────────────────────────────────────────────────────────────────────────────
+    // Each canonical value goes through the tenant's mapping first and falls back to the reader that
+    // ran before mapping existed, so a tenant who has mapped nothing behaves exactly as before.
+
+    private static final com.asm.erpadapter.mapping.CanonicalField
+            ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
+            BL_NUMBER = com.asm.erpadapter.mapping.CanonicalField.BL_NUMBER,
+            SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
+            EXTERNAL_REF = com.asm.erpadapter.mapping.CanonicalField.EXTERNAL_REF,
+            CUSTOMER_NAME = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_NAME,
+            CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
+            DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
+            DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
+            DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
+            TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
+            CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
+            PAYMENT_TERM_NAME = com.asm.erpadapter.mapping.CanonicalField.PAYMENT_TERM_NAME,
+            DATE_ORDER = com.asm.erpadapter.mapping.CanonicalField.DATE_ORDER,
+            SCHEDULED_AT = com.asm.erpadapter.mapping.CanonicalField.SCHEDULED_AT,
+            PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
+            WAREHOUSE_CODE = com.asm.erpadapter.mapping.CanonicalField.WAREHOUSE_CODE,
+            WAREHOUSE_NAME = com.asm.erpadapter.mapping.CanonicalField.WAREHOUSE_NAME,
+            READY = com.asm.erpadapter.mapping.CanonicalField.READY,
+            ITEM_SKU = com.asm.erpadapter.mapping.CanonicalField.ITEM_SKU,
+            ITEM_NAME = com.asm.erpadapter.mapping.CanonicalField.ITEM_NAME,
+            ITEM_QUANTITY = com.asm.erpadapter.mapping.CanonicalField.ITEM_QUANTITY,
+            ITEM_UNIT_PRICE = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_PRICE,
+            ITEM_UNIT_WEIGHT_KG = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_WEIGHT_KG,
+            ITEM_PRODUCT_TYPE = com.asm.erpadapter.mapping.CanonicalField.ITEM_PRODUCT_TYPE;
+
+    private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
+                                Map<String, Map<String, Object>> records,
+                                java.util.function.Supplier<String> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
+    }
+
+    private BigDecimal mappedDecimal(com.asm.erpadapter.mapping.CanonicalField field,
+                                     Map<String, Map<String, Object>> records,
+                                     java.util.function.Supplier<BigDecimal> builtIn) {
+        return asBigDecimal(fieldMapping.resolveOrDefault(field, records, builtIn::get));
+    }
+
+    private Integer mappedInt(com.asm.erpadapter.mapping.CanonicalField field,
+                              Map<String, Map<String, Object>> records,
+                              java.util.function.Supplier<Integer> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        return v instanceof Integer i ? i : asInt(v);
+    }
+
+    private LocalDateTime mappedDateTime(com.asm.erpadapter.mapping.CanonicalField field,
+                                         Map<String, Map<String, Object>> records,
+                                         java.util.function.Supplier<LocalDateTime> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        if (v instanceof LocalDateTime dt) return dt;
+        return parseDateTime(v, null);
+    }
+
+    private boolean mappedBoolean(com.asm.erpadapter.mapping.CanonicalField field,
+                                  Map<String, Map<String, Object>> records,
+                                  java.util.function.Supplier<Boolean> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        if (v instanceof Boolean b) return b;
+        if (v instanceof Number n) return n.doubleValue() != 0d;
+        // A customer often flags readiness with a status word rather than a checkbox.
+        if (v instanceof String str) {
+            String t = str.trim().toLowerCase();
+            return t.equals("1") || t.equals("true") || t.equals("yes") || t.equals("to deliver");
+        }
+        return false;
+    }
+
+    /** An empty bag is noise on the delivery card; null keeps the section hidden. */
+    private static Map<String, Object> emptyToNull(Map<String, Object> m) {
+        return m == null || m.isEmpty() ? null : m;
+    }
+
+    /** The documents in scope for a header mapping on this order. */
+    private Map<String, Map<String, Object>> headerRecords(Map<String, Object> so,
+                                                           Map<String, Object> customer,
+                                                           Map<String, Object> address) {
+        Map<String, Map<String, Object>> records = new HashMap<>();
+        records.put("Sales Order", so);
+        if (customer != null) records.put("Customer", customer);
+        if (address != null) records.put("Address", address);
+        return records;
+    }
 
     /** Frappe stores dates as {@code yyyy-MM-dd} and times as {@code HH:mm:ss}. */
     private static final DateTimeFormatter D = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -158,39 +247,47 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 List.of("status", "in", TO_DELIVER_STATUSES));
 
         List<Map<String, Object>> rows = erp.getList("Sales Order",
-                List.of("name", "customer_name", "contact_mobile", "transaction_date", "delivery_date",
+                widened(List.of("name", "customer_name", "contact_mobile", "transaction_date", "delivery_date",
                         "grand_total", "currency", "set_warehouse", "total_qty", "per_delivered",
-                        "shipping_address_name", "customer_address"),
+                        "po_no", "payment_terms_template", "instructions",
+                        "shipping_address_name", "customer_address"), "Sales Order"),
                 filters, limit, "delivery_date asc");
 
         // Batch-resolve delivery addresses in ONE call (mirrors the Odoo adapter's partner batch), so the
         // list shows the destination without an N+1 per-order Address fetch.
-        Map<String, String[]> addrByName = batchAddresses(rows);
+        Map<String, Map<String, Object>> addrByName = batchAddresses(rows);
 
         List<ErpPendingOrderSummaryDTO> result = new ArrayList<>();
         for (Map<String, Object> r : rows) {
             String so = asString(r.get("name"));
             if (so == null) continue;
-            String wh = asString(r.get("set_warehouse"));
-            String[] addr = addrByName.get(firstNonBlank(asString(r.get("shipping_address_name")), asString(r.get("customer_address"))));
+            final String wh = asString(r.get("set_warehouse"));
+            final Map<String, Object> addr = addrByName.get(
+                    firstNonBlank(asString(r.get("shipping_address_name")), asString(r.get("customer_address"))));
+            // Mapped here as well as in the preview: wiring only one of the two would show different
+            // values for the same order depending on which screen you were looking at.
+            Map<String, Map<String, Object>> records = headerRecords(r, null, addr);
             // A partially-delivered SO (per_delivered > 0) re-appearing here IS the reliquat/backorder.
             Double perDelivered = asDouble(r.get("per_delivered"));
             boolean isBackorder = perDelivered != null && perDelivered > 0;
             result.add(ErpPendingOrderSummaryDTO.builder()
-                    .erpOrderId(so)                        // import identity = the Sales Order (no BL until delivery)
-                    .saleOrderRef(so)
-                    .customerName(asString(r.get("customer_name")))
-                    .customerPhone(asString(r.get("contact_mobile")))
-                    .deliveryAddress(addr != null ? addr[0] : null)
-                    .deliveryCity(addr != null ? addr[1] : null)
-                    .totalAmount(asBigDecimal(r.get("grand_total")))
-                    .currency(asString(r.get("currency")))
-                    .warehouseCode(wh)
-                    .warehouseName(wh)                     // ERPNext warehouse name == its code (natural key)
-                    .ready(true)
+                    .erpOrderId(mappedString(ERP_ORDER_ID, records, () -> so))
+                    .saleOrderRef(mappedString(SALE_ORDER_REF, records, () -> so))
+                    .externalRef(mappedString(EXTERNAL_REF, records, () -> asString(r.get("po_no"))))
+                    .customerName(mappedString(CUSTOMER_NAME, records, () -> asString(r.get("customer_name"))))
+                    .customerPhone(mappedString(CUSTOMER_PHONE, records, () -> asString(r.get("contact_mobile"))))
+                    .deliveryAddress(mappedString(DELIVERY_ADDRESS, records,
+                            () -> addr != null ? buildAddress(addr) : null))
+                    .deliveryCity(mappedString(DELIVERY_CITY, records,
+                            () -> addr != null ? asString(addr.get("city")) : null))
+                    .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(r.get("grand_total"))))
+                    .currency(mappedString(CURRENCY, records, () -> asString(r.get("currency"))))
+                    .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh))
+                    .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh))
+                    .ready(mappedBoolean(READY, records, () -> true))
                     .backorder(isBackorder)   // reliquat badge; no originBl — the row already shows the SO (self-reference)
-                    .scheduledAt(parseDateTime(r.get("delivery_date"), null))
-                    .dateOrder(parseDateTime(r.get("transaction_date"), null))
+                    .scheduledAt(mappedDateTime(SCHEDULED_AT, records, () -> parseDateTime(r.get("delivery_date"), null)))
+                    .dateOrder(mappedDateTime(DATE_ORDER, records, () -> parseDateTime(r.get("transaction_date"), null)))
                     .build());
         }
         log.info("[erpnext] getPendingOrders (SO to-deliver) company='{}' count={} durationMs={}", company, result.size(), System.currentTimeMillis() - start);
@@ -217,16 +314,31 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 Integer delivered = asInt(li.get("delivered_qty"));
                 int remaining = (qty != null ? qty : 0) - (delivered != null ? delivered : 0);
                 if (remaining <= 0) continue;              // this line is already fully delivered
-                BigDecimal unitWeight = asBigDecimal(li.get("weight_per_unit"));
+                // Line scope: a bare path is read against the order row, and the Item is fetched only
+                // when the tenant mapped something onto it.
+                Map<String, Map<String, Object>> lineRecords = new HashMap<>();
+                lineRecords.put("Sales Order Item", li);
+                lineRecords.put("Sales Order", so);
+                if (!fieldMapping.extraFieldsFor("Item").isEmpty()) {
+                    Map<String, Object> item = erp.getDoc("Item", asString(li.get("item_code")));
+                    if (item != null) lineRecords.put("Item", item);
+                }
+
+                final int left = remaining;
+                Integer mappedQty = mappedInt(ITEM_QUANTITY, lineRecords, () -> left);
+                int quantity = mappedQty != null ? mappedQty : left;
+                BigDecimal unitWeight = mappedDecimal(ITEM_UNIT_WEIGHT_KG, lineRecords,
+                        () -> asBigDecimal(li.get("weight_per_unit")));
                 items.add(ErpOrderItemDTO.builder()
-                        .name(asString(li.get("item_name")))
-                        .sku(asString(li.get("item_code")))
-                        .quantity(remaining)               // what's left to deliver (handles partial/backorder)
-                        .unitPrice(asBigDecimal(li.get("rate")))
+                        .name(mappedString(ITEM_NAME, lineRecords, () -> asString(li.get("item_name"))))
+                        .sku(mappedString(ITEM_SKU, lineRecords, () -> asString(li.get("item_code"))))
+                        .quantity(quantity)                // what's left to deliver (handles partial/backorder)
+                        .unitPrice(mappedDecimal(ITEM_UNIT_PRICE, lineRecords, () -> asBigDecimal(li.get("rate"))))
                         .unitWeightKg(unitWeight)
+                        .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> asString(li.get("item_group"))))
                         .build());
-                totalQty += remaining;
-                if (unitWeight != null) totalWeight = totalWeight.add(unitWeight.multiply(BigDecimal.valueOf(remaining)));
+                totalQty += quantity;
+                if (unitWeight != null) totalWeight = totalWeight.add(unitWeight.multiply(BigDecimal.valueOf(quantity)));
                 if (firstWarehouse == null) firstWarehouse = asString(li.get("warehouse"));
             }
         }
@@ -238,8 +350,9 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         String city = null;
         String addrName = firstNonBlank(asString(so.get("shipping_address_name")), asString(so.get("customer_address")));
         if (addrName == null) addrName = defaultCustomerAddress(asString(so.get("customer")));
+        Map<String, Object> addr = null;
         if (addrName != null) {
-            Map<String, Object> addr = erp.getDoc("Address", addrName);
+            addr = erp.getDoc("Address", addrName);
             if (addr != null) {
                 city = asString(addr.get("city"));
                 address = buildAddress(addr);
@@ -247,26 +360,44 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         }
         if (address == null) address = stripHtml(asString(so.get("address_display")));
 
-        String warehouse = firstNonBlank(asString(so.get("set_warehouse")), firstWarehouse);
+        // Kept so a mapping can name Customer: or Address: explicitly. Fetched only when the tenant
+        // has actually mapped something onto the customer — an unmapped tenant pays nothing.
+        Map<String, Object> customer = null;
+        if (!fieldMapping.extraFieldsFor("Customer").isEmpty()) {
+            customer = erp.getDoc("Customer", asString(so.get("customer")));
+        }
+        Map<String, Map<String, Object>> records = headerRecords(so, customer, addr);
+        final String builtAddress = address;
+        final String builtCity = city;
+        final String builtWarehouse = firstNonBlank(asString(so.get("set_warehouse")), firstWarehouse);
+
         return ErpPendingOrderPreviewDTO.builder()
                 .source("ERPNEXT")
-                .erpOrderId(erpOrderId)                     // = Sales Order ref; blNumber assigned at delivery
-                .saleOrderRef(erpOrderId)
-                .customerName(asString(so.get("customer_name")))
-                .customerPhone(asString(so.get("contact_mobile")))
-                .deliveryAddress(address)
-                .deliveryCity(city)
-                .deliveryInstructions(asString(so.get("instructions")))
-                .totalAmount(asBigDecimal(so.get("grand_total")))
-                .currency(asString(so.get("currency")))
-                .scheduledAt(parseDateTime(so.get("delivery_date"), null))
-                .dateOrder(parseDateTime(so.get("transaction_date"), null))
+                .erpOrderId(mappedString(ERP_ORDER_ID, records, () -> erpOrderId))
+                .saleOrderRef(mappedString(SALE_ORDER_REF, records, () -> erpOrderId))
+                // No delivery note exists until the order is delivered, so there is no number to
+                // read; a tenant that has one elsewhere can map it.
+                .blNumber(mappedString(BL_NUMBER, records, () -> null))
+                .externalRef(mappedString(EXTERNAL_REF, records, () -> asString(so.get("po_no"))))
+                .customerName(mappedString(CUSTOMER_NAME, records, () -> asString(so.get("customer_name"))))
+                .customerPhone(mappedString(CUSTOMER_PHONE, records, () -> asString(so.get("contact_mobile"))))
+                .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> builtAddress))
+                .deliveryCity(mappedString(DELIVERY_CITY, records, () -> builtCity))
+                .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records, () -> asString(so.get("instructions"))))
+                .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(so.get("grand_total"))))
+                .currency(mappedString(CURRENCY, records, () -> asString(so.get("currency"))))
+                .paymentTermName(mappedString(PAYMENT_TERM_NAME, records, () -> asString(so.get("payment_terms_template"))))
+                .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
+                .scheduledAt(mappedDateTime(SCHEDULED_AT, records, () -> parseDateTime(so.get("delivery_date"), null)))
+                .dateOrder(mappedDateTime(DATE_ORDER, records, () -> parseDateTime(so.get("transaction_date"), null)))
                 .items(items)
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
-                .warehouseCode(warehouse)
-                .warehouseName(warehouse)
-                .ready(true)
+                .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> builtWarehouse))
+                .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> builtWarehouse))
+                .ready(mappedBoolean(READY, records, () -> true))
+                // ERP values ASM has no field of its own for.
+                .customFields(emptyToNull(fieldMapping.resolveCustomFields(records)))
                 .build();
     }
 
@@ -358,7 +489,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
     }
 
     /** One batch fetch of the Sales Orders' shipping addresses → address name → [address, city]. */
-    private Map<String, String[]> batchAddresses(List<Map<String, Object>> soRows) {
+    private Map<String, Map<String, Object>> batchAddresses(List<Map<String, Object>> soRows) {
         List<Object> names = new ArrayList<>();
         for (Map<String, Object> r : soRows) {
             String n = firstNonBlank(asString(r.get("shipping_address_name")), asString(r.get("customer_address")));
@@ -366,14 +497,28 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         }
         if (names.isEmpty()) return Map.of();
         List<Map<String, Object>> addrs = erp.getList("Address",
-                List.of("name", "address_line1", "address_line2", "city", "pincode"),
+                widened(List.of("name", "address_line1", "address_line2", "city", "pincode"), "Address"),
                 List.of(List.of("name", "in", names)), 0, null);
-        Map<String, String[]> byName = new HashMap<>();
+        Map<String, Map<String, Object>> byName = new HashMap<>();
         for (Map<String, Object> a : addrs) {
             String n = asString(a.get("name"));
-            if (n != null) byName.put(n, new String[]{buildAddress(a), asString(a.get("city"))});
+            if (n != null) byName.put(n, a);
         }
         return byName;
+    }
+
+    /**
+     * The adapter's own field list plus whatever this tenant mapped onto {@code doctype}.
+     *
+     * <p>Without this a mapping points at a field the request never asked for, so the value is
+     * absent from the row and resolves to nothing — and the integrator cannot tell "my ERP field is
+     * empty" from "the system never fetched it". Only needed on the list reads; {@code getDoc}
+     * already returns the whole document.
+     */
+    private List<String> widened(List<String> base, String doctype) {
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(base);
+        all.addAll(fieldMapping.extraFieldsFor(doctype));
+        return List.copyOf(all);
     }
 
     /** Resolve the customer's shipping (or primary) Address name via the Dynamic Link (best-effort). */
