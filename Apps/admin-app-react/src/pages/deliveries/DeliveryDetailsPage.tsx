@@ -377,6 +377,30 @@ export default function DeliveryDetailPage() {
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
                   <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />
                 </div>
+
+                {/* Not an InfoRow: this is a sentence the driver will act on, and the row layout
+                    right-aligns and truncates it. The admin was the only place it did not appear —
+                    the driver's app has shown it all along, so a dispatcher on the phone was the
+                    one person who could not see what the delivery actually asks for. */}
+                {delivery.deliveryInstructions && (
+                  <div
+                    className="mt-3 flex items-start gap-2 rounded-sm px-3 py-2"
+                    style={{
+                      background: 'var(--surface-sunken)',
+                      borderInlineStart: '2px solid var(--brand)',
+                    }}
+                  >
+                    <IconQuote size={13} className="shrink-0 mt-0.5 text-[var(--text-muted)]" />
+                    <div className="min-w-0">
+                      <p className="text-2xs font-medium text-[var(--text-muted)]">
+                        {t.deliveryPage.deliveryInstructions}
+                      </p>
+                      <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+                        {delivery.deliveryInstructions}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </Section>
 
               {/* Order */}

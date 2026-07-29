@@ -63,6 +63,8 @@ export interface Delivery {
   dropoffAddress?: string;
   dropoffCity?: string;
   dropoffPostalCode?: string;
+  /** Free text the driver acts on at the door. Served by the API and shown in the driver app. */
+  deliveryInstructions?: string | null;
   dropoffCountryCode?: string;
   dropoffLat?: number;
   dropoffLng?: number;

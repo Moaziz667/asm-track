@@ -1302,6 +1302,7 @@ export const EN_COPY = {
     returnButton: 'Back',
     // Section: Client
     sectionClient: 'Client',
+    deliveryInstructions: 'Delivery instructions',
     labelName: 'Name',
     labelPhone: 'Phone',
     labelAddress: 'Address',

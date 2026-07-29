@@ -1389,6 +1389,7 @@ export const FR_COPY = {
     returnButton: 'Retour',
     // Section: Client
     sectionClient: 'Client',
+    deliveryInstructions: 'Instructions de livraison',
     labelName: 'Nom',
     labelPhone: 'Téléphone',
     labelAddress: 'Adresse',
