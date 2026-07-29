@@ -73,8 +73,8 @@ export interface ConformanceReport {
 }
 
 /** 204 when no ERP is configured — the caller renders the "nothing to certify yet" state. */
-export const getConformance = () =>
-  api.get<ConformanceReport | ''>('/settings/erp/conformance')
+export const getConformance = (forceRefresh = false) =>
+  api.get<ConformanceReport | ''>('/settings/erp/conformance', { params: { forceRefresh } })
     .then((r) => (r.status === 204 || !r.data ? null : (r.data as ConformanceReport)));
 
 // ── Business-field mapping ────────────────────────────────────────────────────────────────────────

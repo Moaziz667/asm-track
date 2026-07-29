@@ -455,16 +455,19 @@ public class SettingsController {
             @ApiResponse(responseCode = "502", description = "ERP adapter unreachable")
     })
     @PreAuthorize("hasAuthority('perm:settings:manage')")
-    public ResponseEntity<Object> getErpConformance() {
+    public ResponseEntity<Object> getErpConformance(
+            @RequestParam(defaultValue = "false") boolean forceRefresh) {
         java.util.UUID companyId = TenantContext.get();
         if (companyId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "No tenant context"));
         }
         try {
             String token = getServiceToken();
+            // Passed through rather than absorbed: the adapter owns the cache, and the re-check
+            // button means nothing if the proxy answers it from a stale copy of its own.
             Object report = restClientBuilder.build()
                     .get()
-                    .uri(erpAdapterUrl + "/api/erp/conformance")
+                    .uri(erpAdapterUrl + "/api/erp/conformance?forceRefresh=" + forceRefresh)
                     .headers(h -> {
                         h.set("X-Company-Id", companyId.toString());
                         if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconLock } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { hasPerm } from '@/lib/api/auth';
@@ -50,6 +50,8 @@ export default function ErpIntegrationPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
+  /** Set when the configured instance changed, so the next probe ignores the adapter's cache. */
+  const forceNextReport = useRef(false);
   const [loadingMapping, setLoadingMapping] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -73,9 +75,11 @@ export default function ErpIntegrationPage() {
     }
   }, []);
 
-  const loadReport = useCallback(async () => {
+  // forceRefresh only from the re-check button: everything else is happy with the adapter's
+  // short-lived cache, which is what stops a page visit costing seconds against the customer's ERP.
+  const loadReport = useCallback(async (forceRefresh = false) => {
     setLoadingReport(true);
-    try { setReport(await getConformance()); }
+    try { setReport(await getConformance(forceRefresh)); }
     catch { setReport(null); }
     finally { setLoadingReport(false); }
   }, []);
@@ -111,7 +115,10 @@ export default function ErpIntegrationPage() {
   // report, which the rail itself depends on and so is fetched as soon as a connection exists.
   useEffect(() => {
     const needsReport = connected || step === 'compatibility';
-    if (needsReport && !report && !loadingReport) loadReport();
+    if (needsReport && !report && !loadingReport) {
+      loadReport(forceNextReport.current);
+      forceNextReport.current = false;
+    }
     if ((step === 'mapping' || step === 'preview') && canonicalFields.length === 0 && !loadingMapping) loadMapping();
   }, [step, connected, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
 
@@ -136,6 +143,11 @@ export default function ErpIntegrationPage() {
   /** A passing test invalidates the report: the instance it certified may not be the one now configured. */
   const afterConnectionChange = async () => {
     setReport(null);
+    // Dropping the local copy is no longer enough now that the adapter caches per tenant: the
+    // refetch below would be handed the report for the instance we just stopped pointing at. A ref
+    // rather than a second fetch here, so the reload stays a single request with no race over which
+    // answer lands last.
+    forceNextReport.current = true;
     await loadSettings();
   };
 
@@ -219,7 +231,9 @@ export default function ErpIntegrationPage() {
     try {
       await upsertFieldMapping({ canonicalField: name.toUpperCase(), sourcePath: odooName });
       showSuccessToast(c('compat').overrideSaved);
-      await loadReport();
+      // Forced: the override is precisely what the cached report does not know about, and showing
+      // the stale one here would read as the override having done nothing.
+      await loadReport(true);
     } catch (e) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       showErrorToast(new Error(msg || c('compat').overrideFailed));
@@ -317,7 +331,7 @@ export default function ErpIntegrationPage() {
                   <StepCompatibility
                     report={report}
                     loading={loadingReport}
-                    onRun={loadReport}
+                    onRun={() => loadReport(true)}
                     onOverride={handleCapabilityOverride}
                     canManage={canManage}
                     copy={c('compat')}
