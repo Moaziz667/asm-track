@@ -101,10 +101,12 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         checkMethod(checks, "FORCE_AVAILABILITY", Severity.RECOMMENDED,
                 "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).");
 
-        checks.add(new CapabilityCheck(
-                "sale.order.action_unlock", Kind.METHOD, Severity.RECOMMENDED, Status.UNKNOWN,
+        // Probed like every other method rather than asserted from the version number. Reporting it
+        // as UNKNOWN listed a capability this instance does have among the ones it lacks, which reads
+        // as a defect in the integration rather than a gap in our own certification.
+        checkMethod(checks, "UNLOCK_SALE_ORDER", Severity.RECOMMENDED,
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
-                            : "No-op on Odoo ≤18 (orders are not auto-locked)."));
+                            : "No-op on Odoo ≤18 (orders are not auto-locked).");
 
         ConformanceReport.Verdict verdict = ConformanceReport.deriveVerdict(checks);
         log.info("provider=odoo operation=conformanceProbe version={} verdict={} checks={}",
