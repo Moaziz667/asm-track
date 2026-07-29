@@ -34,7 +34,7 @@ export function StepCompatibility({
   canManage: boolean;
   copy: Record<string, string>;
 }) {
-  if (loading && !report) return <ReportSkeleton />;
+  if (loading && !report) return <ReportProgress copy={copy} />;
 
   if (!report) {
     return (
@@ -246,10 +246,47 @@ function PlainRow({ check }: { check: CapabilityCheck }) {
   );
 }
 
-function ReportSkeleton() {
+/**
+ * The wait while the probe runs — several seconds against a real Odoo.
+ *
+ * <p>Deliberately not a progress bar. The probe is one request; the client has no idea how far
+ * along it is, so any percentage or step-by-step tick would be invented, and a progress indicator
+ * that does not track progress is a lie told at the exact moment the user is deciding whether the
+ * product is trustworthy. What can be said honestly is *what* is being verified and *why* it is not
+ * instant — every check is a round trip to the customer's own server.
+ *
+ * <p>The four groups mirror the probe's own structure and are named at category level, not per
+ * check: a hardcoded list of models would silently drift from the backend the first time one is
+ * added.
+ */
+function ReportProgress({ copy }: { copy: Record<string, string> }) {
+  const groups = [copy.probeModels, copy.probeAccess, copy.probeMethods, copy.probeVersion];
   return (
     <div className="flex flex-col gap-4">
-      <Skeleton className="h-[86px] w-full rounded-lg" />
+      <section className="rounded-lg border border-[var(--border)] overflow-hidden">
+        <header className="flex items-center gap-2 px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
+          <IconRefresh size={14} className="shrink-0 animate-spin text-[var(--text-muted)]" />
+          <h3 className="text-xs font-semibold text-[var(--text-primary)]">{copy.probeTitle}</h3>
+        </header>
+        <div className="px-4 py-3">
+          <p className="text-2xs text-[var(--text-muted)] leading-relaxed max-w-[62ch]">
+            {copy.probeWhy}
+          </p>
+          <ul className="mt-3 flex flex-col gap-1.5">
+            {groups.map((label) => (
+              <li key={label} className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                <span
+                  className="h-1.5 w-1.5 shrink-0 rounded-full animate-pulse"
+                  style={{ background: 'var(--brand)' }}
+                />
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* The shape of the answer, so the panel does not jump when it lands. */}
       <Skeleton className="h-[140px] w-full rounded-lg" />
       <Skeleton className="h-[96px] w-full rounded-lg" />
     </div>
