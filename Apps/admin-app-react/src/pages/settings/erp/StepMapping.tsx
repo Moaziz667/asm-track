@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { SourceCombobox } from './SourceCombobox';
+import { PRIMARY_MODEL, modelsFor } from './mappingScope';
 import type {
   CanonicalFieldInfo, ErpField, FieldMapping, UpsertMappingInput,
 } from '@/lib/api/erpIntegration';
@@ -160,11 +162,14 @@ function MappingRow({
         <p className="font-mono text-2xs text-[var(--text-soft)] truncate">{field.field}</p>
       </div>
 
-      <SourcePicker
+      <SourceCombobox
         value={mapping?.sourcePath ?? ''}
         availableFields={availableFields}
+        models={modelsFor(field.scope, availableFields)}
+        primaryModel={PRIMARY_MODEL[field.scope]}
         disabled={!canManage || busy}
         placeholder={copy.usingDefault}
+        copy={copy}
         onChange={change}
       />
 
@@ -199,70 +204,6 @@ function MappingRow({
         )}
       </div>
     </li>
-  );
-}
-
-// ── The picker ────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * A native `<select>` on purpose. It is searchable by typing on every platform, it never gets clipped
- * by an overflow container, and it is the control users already know — reinventing it for flavour is
- * exactly the product-register trap. Custom `x_*` fields are grouped first because they are what the
- * integrator came here for.
- */
-function SourcePicker({
-  value, availableFields, disabled, placeholder, onChange,
-}: {
-  value: string;
-  availableFields: Record<string, ErpField[]>;
-  disabled: boolean;
-  placeholder: string;
-  onChange: (path: string) => void;
-}) {
-  const models = Object.keys(availableFields);
-
-  // A stored path may point at a field the ERP no longer exposes; keep it selectable so the
-  // integrator sees what is configured instead of the row silently resetting itself.
-  const known = models.some((m) =>
-    availableFields[m].some((f) => f.name === value || `${m}:${f.name}` === value));
-
-  return (
-    <select
-      value={value}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(
-        'w-full h-8 rounded-lg px-2 text-xs font-mono',
-        'bg-[var(--surface)] border border-[var(--border-strong)] text-[var(--text-primary)]',
-        'transition-colors duration-150',
-        'hover:border-[var(--brand)] focus:border-[var(--brand)]',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-1',
-        'disabled:opacity-60 disabled:cursor-not-allowed',
-      )}
-    >
-      <option value="">{placeholder}</option>
-      {value && !known && <option value={value}>{value}</option>}
-      {models.map((model) => {
-        const fields = availableFields[model] ?? [];
-        const custom = fields.filter((f) => f.custom);
-        const standard = fields.filter((f) => !f.custom);
-        const prefix = model === 'stock.picking' ? '' : `${model}:`;
-        return (
-          <optgroup key={model} label={model}>
-            {custom.map((f) => (
-              <option key={`${model}.${f.name}`} value={`${prefix}${f.name}`}>
-                ★ {f.name} — {f.label}
-              </option>
-            ))}
-            {standard.map((f) => (
-              <option key={`${model}.${f.name}`} value={`${prefix}${f.name}`}>
-                {f.name} — {f.label}
-              </option>
-            ))}
-          </optgroup>
-        );
-      })}
-    </select>
   );
 }
 
@@ -348,11 +289,15 @@ function ExtraFields({
             <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
               {copy.extraSource}
             </span>
-            <SourcePicker
+            {/* Header-scoped: the resolver reads every extra against the picking. */}
+            <SourceCombobox
               value={path}
               availableFields={availableFields}
+              models={modelsFor('HEADER', availableFields)}
+              primaryModel={PRIMARY_MODEL.HEADER}
               disabled={busy}
               placeholder={copy.chooseField}
+              copy={copy}
               onChange={setPath}
             />
           </div>
