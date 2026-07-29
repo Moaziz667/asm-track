@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { PRIMARY_MODEL, buildOptions, modelsFor, rank } from './mappingScope';
+import { buildOptions, modelsFor, primaryModelFor, rank, type MappingScopes } from './mappingScope';
 import type { ErpField } from '@/lib/api/erpIntegration';
 
 const f = (name: string, label: string, custom = false): ErpField =>
   ({ name, label, type: 'char', custom });
+
+/**
+ * What the backend serves for an Odoo tenant. Hardcoded in the test on purpose: the point of these
+ * cases is that the frontend builds the right path *given* a scope, not that it knows Odoo's models.
+ */
+const ODOO_SCOPES: MappingScopes = {
+  HEADER: { primary: 'stock.picking', addressable: ['stock.picking', 'sale.order', 'res.partner'] },
+  LINE: {
+    primary: 'stock.move',
+    addressable: ['stock.move', 'product.product', 'sale.order.line',
+                  'stock.picking', 'sale.order', 'res.partner'],
+  },
+};
 
 const CATALOGUE: Record<string, ErpField[]> = {
   'stock.picking': [f('name', 'Reference'), f('origin', 'Source Document')],
@@ -16,21 +29,29 @@ const CATALOGUE: Record<string, ErpField[]> = {
 
 describe('scope', () => {
   it('offers a line row the line models first, header models still reachable', () => {
-    const models = modelsFor('LINE', CATALOGUE);
+    const models = modelsFor('LINE', CATALOGUE, ODOO_SCOPES);
     expect(models[0]).toBe('stock.move');
     expect(models).toContain('sale.order');
     expect(models.indexOf('stock.move')).toBeLessThan(models.indexOf('stock.picking'));
   });
 
   it('never offers a header row a line model, which it could not read', () => {
-    const models = modelsFor('HEADER', CATALOGUE);
+    const models = modelsFor('HEADER', CATALOGUE, ODOO_SCOPES);
     expect(models).not.toContain('stock.move');
     expect(models).not.toContain('sale.order.line');
     expect(models).not.toContain('product.product');
   });
 
+  it('offers nothing until the backend has said what is in scope', () => {
+    // Guessing a default here is exactly what this refactor removed: an ERPNext tenant would have
+    // been handed Odoo's documents.
+    expect(modelsFor('HEADER', CATALOGUE, {})).toEqual([]);
+    expect(primaryModelFor('HEADER', {})).toBeUndefined();
+    expect(buildOptions(['stock.picking'], CATALOGUE, undefined)).toEqual([]);
+  });
+
   it('drops models this ERP did not report rather than showing an empty group', () => {
-    expect(modelsFor('HEADER', { 'stock.picking': [f('name', 'Reference')] }))
+    expect(modelsFor('HEADER', { 'stock.picking': [f('name', 'Reference')] }, ODOO_SCOPES))
       .toEqual(['stock.picking']);
   });
 });
@@ -39,7 +60,7 @@ describe('path building', () => {
   // The rule the backend depends on: a bare line path is read against the stock move, so a line
   // field must be stored bare and a picking field must be qualified — the reverse of a header row.
   it('stores a line field bare and qualifies everything else', () => {
-    const options = buildOptions(modelsFor('LINE', CATALOGUE), CATALOGUE, PRIMARY_MODEL.LINE);
+    const options = buildOptions(modelsFor('LINE', CATALOGUE, ODOO_SCOPES), CATALOGUE, primaryModelFor('LINE', ODOO_SCOPES));
     const path = (name: string) => options.find((o) => o.name === name)?.path;
 
     expect(path('x_lot_number')).toBe('x_lot_number');
@@ -48,7 +69,7 @@ describe('path building', () => {
   });
 
   it('stores a header field bare against the picking', () => {
-    const options = buildOptions(modelsFor('HEADER', CATALOGUE), CATALOGUE, PRIMARY_MODEL.HEADER);
+    const options = buildOptions(modelsFor('HEADER', CATALOGUE, ODOO_SCOPES), CATALOGUE, primaryModelFor('HEADER', ODOO_SCOPES));
     const path = (name: string) => options.find((o) => o.model === 'stock.picking' && o.name === name)?.path;
 
     expect(path('origin')).toBe('origin');
@@ -57,14 +78,14 @@ describe('path building', () => {
   });
 
   it('distinguishes the same field name on two models', () => {
-    const options = buildOptions(modelsFor('HEADER', CATALOGUE), CATALOGUE, PRIMARY_MODEL.HEADER);
+    const options = buildOptions(modelsFor('HEADER', CATALOGUE, ODOO_SCOPES), CATALOGUE, primaryModelFor('HEADER', ODOO_SCOPES));
     const names = options.filter((o) => o.name === 'name').map((o) => o.path);
     expect(names).toEqual(['name', 'sale.order:name']);
   });
 });
 
 describe('ranking', () => {
-  const options = buildOptions(modelsFor('HEADER', CATALOGUE), CATALOGUE, PRIMARY_MODEL.HEADER);
+  const options = buildOptions(modelsFor('HEADER', CATALOGUE, ODOO_SCOPES), CATALOGUE, primaryModelFor('HEADER', ODOO_SCOPES));
 
   it('leads with the customer’s own fields when nothing is typed', () => {
     const partner = rank(options, '').filter((o) => o.model === 'res.partner');

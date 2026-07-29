@@ -26,7 +26,12 @@ import java.util.Set;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class OdooFieldCatalog {
+public class OdooFieldCatalog implements ErpFieldCatalog {
+
+    @Override
+    public String provider() {
+        return "odoo";
+    }
 
     /**
      * Types worth offering. Collection types ({@code one2many}, {@code many2many}) are excluded because
@@ -45,7 +50,8 @@ public class OdooFieldCatalog {
      * @return its mappable fields, technical name first, sorted by label
      */
     @SuppressWarnings("unchecked")
-    public List<OdooField> fieldsOf(String model) {
+    @Override
+    public List<Field> fieldsOf(String model) {
         if (model == null || model.isBlank()) return List.of();
         try {
             Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(model, "fields_get",
@@ -56,20 +62,20 @@ public class OdooFieldCatalog {
                 return List.of();
             }
 
-            List<OdooField> out = new ArrayList<>();
+            List<Field> out = new ArrayList<>();
             for (Map.Entry<?, ?> e : fields.entrySet()) {
                 if (!(e.getKey() instanceof String name) || !(e.getValue() instanceof Map<?, ?> meta)) continue;
                 String type = str(meta.get("type"));
                 if (type == null || !MAPPABLE_TYPES.contains(type)) continue;
 
-                out.add(new OdooField(
+                out.add(new Field(
                         name,
                         firstNonBlank(str(meta.get("string")), name),
                         type,
                         str(meta.get("relation")),
                         name.startsWith("x_")));
             }
-            out.sort(Comparator.comparing(OdooField::label, String.CASE_INSENSITIVE_ORDER));
+            out.sort(Comparator.comparing(Field::label, String.CASE_INSENSITIVE_ORDER));
             return out;
         } catch (Exception e) {
             log.warn("Field catalog: could not read fields of {}: {}", model, e.getMessage());
@@ -84,17 +90,4 @@ public class OdooFieldCatalog {
     private static String firstNonBlank(String a, String b) {
         return a != null ? a : b;
     }
-
-    /**
-     * One selectable field.
-     *
-     * @param name     technical name, what goes into the mapping path
-     * @param label    the customer's own label, what the integrator recognises
-     * @param type     Odoo type, so the UI can warn about an obvious mismatch
-     * @param relation target model when {@code type} is many2one — lets the UI offer to go one hop
-     *                 further ({@code partner_id.city}), which is where most customer data lives
-     * @param custom   whether it is a customer-added field; these are the interesting ones and the UI
-     *                 should surface them rather than bury them among 200 standard fields
-     */
-    public record OdooField(String name, String label, String type, String relation, boolean custom) {}
 }

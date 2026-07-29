@@ -507,6 +507,19 @@ public class SettingsController {
     }
 
     /**
+     * Which ERP documents each scope may be mapped from, for this company's provider.
+     *
+     * <p>Served rather than known by the screen: the picker stores the exact path shape the resolver
+     * will later parse, and the two disagreeing produces a mapping that resolves to nothing.
+     */
+    @GetMapping("/erp/field-mappings/scopes")
+    @Operation(summary = "The ERP documents each canonical scope may be mapped from")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> mappingScopes() {
+        return proxyToAdapter("/api/erp/field-mappings/scopes", HttpMethod.GET, null);
+    }
+
+    /**
      * The customer's own ERP fields, for the dropdown — their {@code x_*} fields included, which are
      * exactly the ones no automatic detection could have found.
      */

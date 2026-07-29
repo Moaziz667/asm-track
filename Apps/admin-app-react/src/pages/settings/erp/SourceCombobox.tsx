@@ -27,8 +27,12 @@ export function SourceCombobox({
   availableFields: Record<string, ErpField[]>;
   /** Models this row may read from, most relevant first. */
   models: string[];
-  /** The model a bare path is relative to — must match the resolver, or the mapping reads nothing. */
-  primaryModel: string;
+  /**
+   * The document a bare path is relative to — must match the resolver, or the mapping reads nothing.
+   * Undefined until the scopes have loaded, which disables the control: without it there is no way
+   * to know whether a chosen field is stored bare or qualified, and guessing writes a broken path.
+   */
+  primaryModel: string | undefined;
   disabled: boolean;
   placeholder: string;
   copy: Record<string, string>;
@@ -90,7 +94,7 @@ export function SourceCombobox({
   return (
     <Popover open={open} onOpenChange={toggle}>
       <PopoverTrigger
-        disabled={disabled}
+        disabled={disabled || !primaryModel}
         className={cn(
           'flex w-full h-8 items-center gap-1.5 rounded-lg px-2 text-left',
           'bg-[var(--surface)] border border-[var(--border-strong)]',

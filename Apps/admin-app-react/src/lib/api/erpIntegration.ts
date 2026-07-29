@@ -117,6 +117,14 @@ export const getCanonicalFields = () =>
   api.get<CanonicalFieldInfo[]>('/settings/erp/field-mappings/canonical-fields')
     .then((r) => r.data);
 
+/**
+ * Which documents each scope may be mapped from — served rather than hardcoded, so the picker and
+ * the resolver cannot drift, and so a non-Odoo tenant is not offered Odoo's models.
+ */
+export const getMappingScopes = () =>
+  api.get<Partial<Record<FieldScope, { primary: string; addressable: string[] }>>>(
+    '/settings/erp/field-mappings/scopes').then((r) => r.data);
+
 export const getAvailableFields = (model?: string) =>
   api.get<Record<string, ErpField[]>>('/settings/erp/field-mappings/available-fields',
     { params: model ? { model } : undefined })

@@ -3,38 +3,41 @@ import type { ErpField, FieldScope } from '@/lib/api/erpIntegration';
 /**
  * What a mapping row may read from, and how a chosen field becomes a stored path.
  *
- * <p>Kept apart from the components so it can be tested without a DOM, and because it is the half of
- * the picker that has to agree with the backend: every rule here mirrors `OdooFieldMappingResolver`,
- * and a disagreement does not fail loudly — it writes a mapping that resolves to a silent blank.
+ * <p>Kept apart from the components so it can be tested without a DOM. The scope itself is no longer
+ * declared here: it comes from the backend, because it is the one rule the picker and the resolver
+ * must agree on and the one whose disagreement is silent — a path built against the wrong document
+ * resolves to nothing and reads as an empty ERP rather than a bad mapping. Hardcoding Odoo's models
+ * here also meant an ERPNext tenant would have been offered `stock.picking`.
  */
 
-/** Documents in scope for a per-order value, most commonly used first. */
-export const HEADER_MODELS = ['stock.picking', 'sale.order', 'res.partner'];
+/** Where a scope's mappings may read from, as served by the backend. */
+export interface ScopeInfo {
+  /** The document a path with no `Model:` prefix is relative to. */
+  primary: string;
+  /** Every document in scope including the primary, most relevant first. */
+  addressable: string[];
+}
+
+export type MappingScopes = Partial<Record<FieldScope, ScopeInfo>>;
 
 /**
- * Documents in scope for a per-article value.
+ * Drop what this ERP did not report, so the picker never offers an empty group.
  *
- * <p>The header models stay reachable — an article row can legitimately name its order — but they
- * come after the line models, which are what the row is actually about.
+ * <p>Returns nothing until the scopes have loaded: an empty picker for a moment is honest, whereas
+ * guessing a default would be the hardcoding this call exists to remove.
  */
-export const LINE_MODELS = ['stock.move', 'product.product', 'sale.order.line', ...HEADER_MODELS];
-
-/**
- * The document a bare path hangs off.
- *
- * <p>This is the rule worth getting right: the resolver reads a line's bare path against the stock
- * move, so a line row that offered picking-relative paths would quietly produce mappings that read
- * nothing at all.
- */
-export const PRIMARY_MODEL: Record<FieldScope, string> = {
-  HEADER: 'stock.picking',
-  LINE: 'stock.move',
-};
-
-/** Drop what this ERP did not report, so the picker never offers an empty group. */
-export function modelsFor(scope: FieldScope, availableFields: Record<string, ErpField[]>) {
-  const wanted = scope === 'LINE' ? LINE_MODELS : HEADER_MODELS;
+export function modelsFor(
+  scope: FieldScope,
+  availableFields: Record<string, ErpField[]>,
+  scopes: MappingScopes,
+) {
+  const wanted = scopes[scope]?.addressable ?? [];
   return wanted.filter((m) => (availableFields[m]?.length ?? 0) > 0);
+}
+
+/** The document a bare path hangs off, or `undefined` while the scopes are still loading. */
+export function primaryModelFor(scope: FieldScope, scopes: MappingScopes) {
+  return scopes[scope]?.primary;
 }
 
 /** One selectable ERP field, with the path the resolver will later parse. */
@@ -55,8 +58,9 @@ export interface Option {
 export function buildOptions(
   models: string[],
   availableFields: Record<string, ErpField[]>,
-  primaryModel: string,
+  primaryModel: string | undefined,
 ): Option[] {
+  if (!primaryModel) return [];
   const out: Option[] = [];
   for (const model of models) {
     for (const f of availableFields[model] ?? []) {

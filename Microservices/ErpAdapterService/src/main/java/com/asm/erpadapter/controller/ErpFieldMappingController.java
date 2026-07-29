@@ -3,8 +3,9 @@ package com.asm.erpadapter.controller;
 import com.asm.erpadapter.entity.ErpFieldMapping;
 import com.asm.erpadapter.mapping.CanonicalField;
 import com.asm.erpadapter.mapping.ErpFieldMappingService;
-import com.asm.erpadapter.mapping.OdooFieldCatalog;
-import com.asm.erpadapter.mapping.OdooFieldMappingResolver;
+import com.asm.erpadapter.mapping.ErpFieldCatalog;
+import com.asm.erpadapter.mapping.FieldMappingResolver;
+import com.asm.erpadapter.routing.ErpProviderRouter;
 import com.asm.erpadapter.security.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +42,26 @@ import java.util.UUID;
 public class ErpFieldMappingController {
 
     private final ErpFieldMappingService service;
-    private final OdooFieldCatalog catalog;
+    private final ErpProviderRouter router;
+    private final List<ErpFieldCatalog> catalogs;
+    private final List<FieldMappingResolver> resolvers;
+
+    /**
+     * The catalogue and resolver for the tenant's own ERP.
+     *
+     * <p>Both used to be the Odoo implementation, injected by concrete type — which was invisible
+     * while Odoo was the only provider with a mapping, and would have quietly served Odoo's models
+     * to an ERPNext tenant the moment a second one existed.
+     */
+    private java.util.Optional<ErpFieldCatalog> catalog() {
+        String provider = router.provider();
+        return catalogs.stream().filter(c -> c.provider().equalsIgnoreCase(provider)).findFirst();
+    }
+
+    private java.util.Optional<FieldMappingResolver> resolver() {
+        String provider = router.provider();
+        return resolvers.stream().filter(r -> r.provider().equalsIgnoreCase(provider)).findFirst();
+    }
 
     /** The ASM vocabulary, so the screen can render one row per field without hardcoding the list. */
     @GetMapping("/canonical-fields")
@@ -62,15 +82,51 @@ public class ErpFieldMappingController {
     @Operation(summary = "Fields available on the tenant's ERP, for the mapping dropdown")
     public ResponseEntity<Map<String, Object>> availableFields(@RequestParam(required = false) String model) {
         requireTenant();
+        ErpFieldCatalog fieldCatalog = catalog().orElse(null);
+        if (fieldCatalog == null) return ResponseEntity.ok(Map.of());
+
         List<String> models = (model != null && !model.isBlank())
                 ? List.of(model.trim())
-                : OdooFieldMappingResolver.addressableModels();
+                : addressableModels();
 
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         for (String m : models) {
-            out.put(m, catalog.fieldsOf(m));
+            out.put(m, fieldCatalog.fieldsOf(m));
         }
         return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Which documents each scope may read from, and which one a bare path hangs off.
+     *
+     * <p>Served rather than duplicated in the frontend: the picker has to store the exact path shape
+     * the resolver will later parse, and the two disagreeing does not fail — it writes a mapping that
+     * resolves against a document with no such field and reads as an empty ERP.
+     */
+    @GetMapping("/scopes")
+    @Operation(summary = "The documents each canonical scope may be mapped from")
+    public ResponseEntity<Map<String, Object>> scopes() {
+        requireTenant();
+        FieldMappingResolver r = resolver().orElse(null);
+        if (r == null) return ResponseEntity.ok(Map.of());
+
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        for (CanonicalField.Scope scope : CanonicalField.Scope.values()) {
+            FieldMappingResolver.MappingScope s = r.scopeFor(scope);
+            out.put(scope.name(), Map.of("primary", s.primary(), "addressable", s.addressable()));
+        }
+        return ResponseEntity.ok(out);
+    }
+
+    /** Every document in scope for any field — what the picker asks the catalogue about. */
+    private List<String> addressableModels() {
+        FieldMappingResolver r = resolver().orElse(null);
+        if (r == null) return List.of();
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>();
+        for (CanonicalField.Scope scope : CanonicalField.Scope.values()) {
+            all.addAll(r.scopeFor(scope).addressable());
+        }
+        return List.copyOf(all);
     }
 
     @GetMapping

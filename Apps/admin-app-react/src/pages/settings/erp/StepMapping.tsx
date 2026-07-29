@@ -5,7 +5,7 @@ import { FieldInput } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { SourceCombobox } from './SourceCombobox';
-import { PRIMARY_MODEL, modelsFor } from './mappingScope';
+import { modelsFor, primaryModelFor, type MappingScopes } from './mappingScope';
 import type {
   CanonicalFieldInfo, ErpField, FieldMapping, UpsertMappingInput,
 } from '@/lib/api/erpIntegration';
@@ -22,12 +22,13 @@ import type {
  * runs the code that ran before mapping existed.
  */
 export function StepMapping({
-  canonicalFields, mappings, availableFields, loading, canManage, copy,
+  canonicalFields, mappings, availableFields, scopes, loading, canManage, copy,
   onUpsert, onReset, onDeleteCustom,
 }: {
   canonicalFields: CanonicalFieldInfo[];
   mappings: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
+  scopes: MappingScopes;
   loading: boolean;
   canManage: boolean;
   copy: Record<string, string>;
@@ -60,6 +61,7 @@ export function StepMapping({
         fields={header}
         byField={byField}
         availableFields={availableFields}
+        scopes={scopes}
         canManage={canManage}
         copy={copy}
         onUpsert={onUpsert}
@@ -72,6 +74,7 @@ export function StepMapping({
         fields={lines}
         byField={byField}
         availableFields={availableFields}
+        scopes={scopes}
         canManage={canManage}
         copy={copy}
         onUpsert={onUpsert}
@@ -81,6 +84,7 @@ export function StepMapping({
       <ExtraFields
         extras={extras}
         availableFields={availableFields}
+        scopes={scopes}
         canManage={canManage}
         copy={copy}
         onUpsert={onUpsert}
@@ -93,12 +97,13 @@ export function StepMapping({
 // ── One section (header / lines) ──────────────────────────────────────────────────────────────────
 
 function MappingSection({
-  title, subtitle, fields, byField, availableFields, canManage, copy, onUpsert, onReset,
+  title, subtitle, fields, byField, availableFields, scopes, canManage, copy, onUpsert, onReset,
 }: {
   title: string; subtitle: string;
   fields: CanonicalFieldInfo[];
   byField: Map<string, FieldMapping>;
   availableFields: Record<string, ErpField[]>;
+  scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
   onUpsert: (input: UpsertMappingInput) => Promise<void>;
@@ -118,6 +123,7 @@ function MappingSection({
             field={f}
             mapping={byField.get(f.field)}
             availableFields={availableFields}
+            scopes={scopes}
             canManage={canManage}
             copy={copy}
             onUpsert={onUpsert}
@@ -132,11 +138,12 @@ function MappingSection({
 // ── One mappable field ────────────────────────────────────────────────────────────────────────────
 
 function MappingRow({
-  field, mapping, availableFields, canManage, copy, onUpsert, onReset,
+  field, mapping, availableFields, scopes, canManage, copy, onUpsert, onReset,
 }: {
   field: CanonicalFieldInfo;
   mapping?: FieldMapping;
   availableFields: Record<string, ErpField[]>;
+  scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
   onUpsert: (input: UpsertMappingInput) => Promise<void>;
@@ -165,8 +172,8 @@ function MappingRow({
       <SourceCombobox
         value={mapping?.sourcePath ?? ''}
         availableFields={availableFields}
-        models={modelsFor(field.scope, availableFields)}
-        primaryModel={PRIMARY_MODEL[field.scope]}
+        models={modelsFor(field.scope, availableFields, scopes)}
+        primaryModel={primaryModelFor(field.scope, scopes)}
         disabled={!canManage || busy}
         placeholder={copy.usingDefault}
         copy={copy}
@@ -215,10 +222,11 @@ function MappingRow({
  * sorts by it.
  */
 function ExtraFields({
-  extras, availableFields, canManage, copy, onUpsert, onDelete,
+  extras, availableFields, scopes, canManage, copy, onUpsert, onDelete,
 }: {
   extras: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
+  scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
   onUpsert: (input: UpsertMappingInput) => Promise<void>;
@@ -293,8 +301,8 @@ function ExtraFields({
             <SourceCombobox
               value={path}
               availableFields={availableFields}
-              models={modelsFor('HEADER', availableFields)}
-              primaryModel={PRIMARY_MODEL.HEADER}
+              models={modelsFor('HEADER', availableFields, scopes)}
+              primaryModel={primaryModelFor('HEADER', scopes)}
               disabled={busy}
               placeholder={copy.chooseField}
               copy={copy}

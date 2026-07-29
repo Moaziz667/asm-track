@@ -9,13 +9,14 @@ import { cn } from '@/lib/utils';
 import { tw } from '@/lib/ui/typography';
 import {
   getErpSettings, saveErpSettings, testErpSettings, testStoredErpSettings,
-  getConformance, getFieldMappings, getCanonicalFields, getAvailableFields,
+  getConformance, getFieldMappings, getCanonicalFields, getAvailableFields, getMappingScopes,
   upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks,
   type ErpSettings, type ErpConfig, type ErpProvider, type ConnStatus,
   type ConformanceReport, type FieldMapping, type CanonicalFieldInfo, type ErpField,
   type UpsertMappingInput,
 } from '@/lib/api/erpIntegration';
 import { StepRail, type StepDescriptor, type StepId, type StepState } from './erp/StepRail';
+import type { MappingScopes } from './erp/mappingScope';
 import { StepConnection, type EffStatus } from './erp/StepConnection';
 import { StepCompatibility } from './erp/StepCompatibility';
 import { StepMapping } from './erp/StepMapping';
@@ -47,6 +48,8 @@ export default function ErpIntegrationPage() {
   const [mappings, setMappings] = useState<FieldMapping[]>([]);
   const [canonicalFields, setCanonicalFields] = useState<CanonicalFieldInfo[]>([]);
   const [availableFields, setAvailableFields] = useState<Record<string, ErpField[]>>({});
+  /** Which documents each scope may read from — from the backend, never assumed. */
+  const [scopes, setScopes] = useState<MappingScopes>({});
 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -93,6 +96,7 @@ export default function ErpIntegrationPage() {
       // The field catalogue is the slowest call (one fields_get per model); never let it block the
       // rows from rendering, so the integrator sees their existing mapping immediately.
       getAvailableFields().then(setAvailableFields).catch(() => setAvailableFields({}));
+      getMappingScopes().then(setScopes).catch(() => setScopes({}));
     } catch { /* the step renders its own empty state */ }
     finally { setLoadingMapping(false); }
   }, []);
@@ -343,6 +347,7 @@ export default function ErpIntegrationPage() {
                     canonicalFields={canonicalFields}
                     mappings={mappings}
                     availableFields={availableFields}
+                    scopes={scopes}
                     loading={loadingMapping}
                     canManage={canManage}
                     copy={c('mapping')}

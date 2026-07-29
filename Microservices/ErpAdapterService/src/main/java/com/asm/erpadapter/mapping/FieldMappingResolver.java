@@ -24,6 +24,28 @@ public interface FieldMappingResolver {
     String provider();
 
     /**
+     * Which documents a mapping of {@code scope} may read from, and which one a bare path hangs off.
+     *
+     * <p>Declared here because it is the one rule the picker and the resolver must agree on, and the
+     * one whose disagreement is silent: offering a line row a header-relative path writes a mapping
+     * that resolves against a document with no such field, so the import yields nothing and looks
+     * like an empty ERP rather than a bad mapping. Serving it from the resolver that will later walk
+     * the path leaves a single source of truth instead of the same table copied into the frontend.
+     *
+     * @param scope   whether the field is filled once per order or once per article
+     * @return the primary document plus every other document in scope, most relevant first
+     */
+    MappingScope scopeFor(CanonicalField.Scope scope);
+
+    /**
+     * The documents a mapping may start from, for one scope.
+     *
+     * @param primary    the document a path with no {@code Model:} prefix is relative to
+     * @param addressable every document in scope including {@code primary}, most relevant first
+     */
+    record MappingScope(String primary, java.util.List<String> addressable) {}
+
+    /**
      * The tenant's mapped value for one canonical field, or the caller's own default when they have
      * not mapped it.
      *

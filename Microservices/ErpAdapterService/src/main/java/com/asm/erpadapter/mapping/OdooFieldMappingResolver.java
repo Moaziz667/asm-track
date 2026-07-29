@@ -299,4 +299,25 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
                 "stock.picking", "sale.order", "res.partner",
                 "stock.move", "product.product", "sale.order.line"));
     }
+
+    /** Header documents, in the order an integrator is most likely to want them. */
+    private static final List<String> HEADER_MODELS =
+            List.of(PRIMARY_MODEL, "sale.order", "res.partner");
+
+    /**
+     * Line documents first, then the header ones.
+     *
+     * <p>A line may legitimately reach the header — an article row naming its order — but never the
+     * reverse: filling one per-order value from a document that has many rows has no single answer.
+     */
+    private static final List<String> LINE_MODELS = java.util.stream.Stream.concat(
+            java.util.stream.Stream.of(LINE_PRIMARY_MODEL, "product.product", "sale.order.line"),
+            HEADER_MODELS.stream()).toList();
+
+    @Override
+    public MappingScope scopeFor(CanonicalField.Scope scope) {
+        return scope == CanonicalField.Scope.LINE
+                ? new MappingScope(LINE_PRIMARY_MODEL, LINE_MODELS)
+                : new MappingScope(PRIMARY_MODEL, HEADER_MODELS);
+    }
 }
