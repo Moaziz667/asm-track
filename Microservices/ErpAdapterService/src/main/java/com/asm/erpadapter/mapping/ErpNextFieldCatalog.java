@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,31 +60,34 @@ public class ErpNextFieldCatalog implements ErpFieldCatalog {
             return List.of();
         }
 
-        Set<String> custom = customFieldNames(doctype.trim());
         List<Field> out = new ArrayList<>();
         for (Object row : rows) {
-            if (!(row instanceof Map<?, ?> f)) continue;
-            String name = str(f.get("fieldname"));
-            String type = str(f.get("fieldtype"));
-            if (name == null || type == null || !MAPPABLE_TYPES.contains(type)) continue;
-
-            // For a Link, `options` names the target doctype — so a relation is walkable without the
-            // guessed lookup table Odoo needs, where the record itself never says what it points at.
-            String relation = "Link".equals(type) ? str(f.get("options")) : null;
-
-            out.add(new Field(
-                    name,
-                    firstNonBlank(str(f.get("label")), name),
-                    type,
-                    relation,
-                    custom.contains(name)));
+            if (row instanceof Map<?, ?> f) addField(out, f, false);
+        }
+        // Appended, not merely flagged: Frappe keeps added fields in their own Custom Field doctype
+        // and they are absent from DocType.fields entirely. Reading only the doctype would leave the
+        // picker offering the standard fields and none of the ones a human is here to choose.
+        for (Map<String, Object> f : customFields(doctype.trim())) {
+            addField(out, f, true);
         }
         out.sort(Comparator.comparing(Field::label, String.CASE_INSENSITIVE_ORDER));
         return out;
     }
 
+    /** Add one field definition, whichever doctype it was declared in. */
+    private static void addField(List<Field> out, Map<?, ?> f, boolean custom) {
+        String name = str(f.get("fieldname"));
+        String type = str(f.get("fieldtype"));
+        if (name == null || type == null || !MAPPABLE_TYPES.contains(type)) return;
+
+        // For a Link, `options` names the target doctype — so a relation is walkable without the
+        // guessed lookup table Odoo needs, where the record itself never says what it points at.
+        String relation = "Link".equals(type) ? str(f.get("options")) : null;
+        out.add(new Field(name, firstNonBlank(str(f.get("label")), name), type, relation, custom));
+    }
+
     /**
-     * The fieldnames on {@code doctype} that are not part of the shipped definition.
+     * The fields added to {@code doctype} on this instance, with their definitions.
      *
      * <p>Read from the {@code Custom Field} doctype rather than inferred from the {@code custom_}
      * prefix. Frappe only applies that prefix to fields created through Customize Form, so a field
@@ -93,18 +95,14 @@ public class ErpNextFieldCatalog implements ErpFieldCatalog {
      * the demo instance every single Custom Field record fails the prefix test, which would have made
      * the heuristic silently useless.
      *
-     * <p>This does mean fields contributed by apps are flagged alongside the customer's own. That is
-     * the honest answer to the question the star actually asks: this field is not part of standard
-     * ERPNext.
+     * <p>This does mean fields contributed by apps appear alongside the customer's own. That is the
+     * honest answer to the question the star actually asks: this field is not part of standard
+     * ERPNext, and mapping onto it is legitimate.
      */
-    private Set<String> customFieldNames(String doctype) {
-        Set<String> names = new LinkedHashSet<>();
-        for (Map<String, Object> row : rest.getList("Custom Field", List.of("fieldname"),
-                List.of(List.of("dt", "=", doctype)), 500, null)) {
-            String name = str(row.get("fieldname"));
-            if (name != null) names.add(name);
-        }
-        return names;
+    private List<Map<String, Object>> customFields(String doctype) {
+        return rest.getList("Custom Field",
+                List.of("fieldname", "label", "fieldtype", "options"),
+                List.of(List.of("dt", "=", doctype)), 500, null);
     }
 
     private static String str(Object o) {

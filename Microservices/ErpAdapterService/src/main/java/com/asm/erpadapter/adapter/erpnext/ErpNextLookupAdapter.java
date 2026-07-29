@@ -246,16 +246,15 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 companyFilter(company),
                 List.of("status", "in", TO_DELIVER_STATUSES));
 
-        List<Map<String, Object>> rows = erp.getList("Sales Order",
-                widened(List.of("name", "customer_name", "contact_mobile", "transaction_date", "delivery_date",
-                        "grand_total", "currency", "set_warehouse", "total_qty", "per_delivered",
-                        "po_no", "payment_terms_template", "instructions",
-                        "shipping_address_name", "customer_address"), "Sales Order"),
-                filters, limit, "delivery_date asc");
+        List<String> soFields = List.of("name", "customer", "customer_name", "contact_mobile", "transaction_date",
+                "delivery_date", "grand_total", "currency", "set_warehouse", "total_qty", "per_delivered",
+                "po_no", "payment_terms_template", "shipping_address_name", "customer_address");
+        List<Map<String, Object>> rows = listWidened("Sales Order", soFields, filters, limit, "delivery_date asc");
 
         // Batch-resolve delivery addresses in ONE call (mirrors the Odoo adapter's partner batch), so the
         // list shows the destination without an N+1 per-order Address fetch.
         Map<String, Map<String, Object>> addrByName = batchAddresses(rows);
+        Map<String, Map<String, Object>> customerByName = batchCustomers(rows);
 
         List<ErpPendingOrderSummaryDTO> result = new ArrayList<>();
         for (Map<String, Object> r : rows) {
@@ -266,7 +265,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                     firstNonBlank(asString(r.get("shipping_address_name")), asString(r.get("customer_address"))));
             // Mapped here as well as in the preview: wiring only one of the two would show different
             // values for the same order depending on which screen you were looking at.
-            Map<String, Map<String, Object>> records = headerRecords(r, null, addr);
+            Map<String, Map<String, Object>> records =
+                    headerRecords(r, customerByName.get(asString(r.get("customer"))), addr);
             // A partially-delivered SO (per_delivered > 0) re-appearing here IS the reliquat/backorder.
             Double perDelivered = asDouble(r.get("per_delivered"));
             boolean isBackorder = perDelivered != null && perDelivered > 0;
@@ -496,8 +496,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             if (n != null && !names.contains(n)) names.add(n);
         }
         if (names.isEmpty()) return Map.of();
-        List<Map<String, Object>> addrs = erp.getList("Address",
-                widened(List.of("name", "address_line1", "address_line2", "city", "pincode"), "Address"),
+        List<Map<String, Object>> addrs = listWidened("Address",
+                List.of("name", "address_line1", "address_line2", "city", "pincode"),
                 List.of(List.of("name", "in", names)), 0, null);
         Map<String, Map<String, Object>> byName = new HashMap<>();
         for (Map<String, Object> a : addrs) {
@@ -519,6 +519,53 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(base);
         all.addAll(fieldMapping.extraFieldsFor(doctype));
         return List.copyOf(all);
+    }
+
+    /**
+     * List {@code doctype} asking for the mapped fields too, falling back to the base list if that is
+     * refused.
+     *
+     * <p>Frappe rejects the <em>whole query</em> when one requested field does not exist — so a single
+     * bad path would empty the pending-orders screen rather than blank one value, and the screen would
+     * say the ERP has no orders. The retry keeps that failure proportionate: the mapping stops
+     * resolving in the list, the orders still arrive.
+     */
+    private List<Map<String, Object>> listWidened(String doctype, List<String> base,
+                                                  List<List<Object>> filters, int limit, String orderBy) {
+        List<String> fields = widened(base, doctype);
+        if (fields.size() == base.size()) return erp.getList(doctype, base, filters, limit, orderBy);
+        try {
+            return erp.getListStrict(doctype, fields, filters, limit, orderBy);
+        } catch (Exception e) {
+            log.warn("[erpnext] {} list refused the mapped fields, retrying without them: {}",
+                    doctype, e.getMessage());
+            return erp.getList(doctype, base, filters, limit, orderBy);
+        }
+    }
+
+    /**
+     * The customer documents these orders point at, in one call — and only when the tenant has
+     * actually mapped something onto Customer.
+     *
+     * <p>Mirrors {@link #batchAddresses}. Without it a Customer-scoped mapping resolved on the
+     * preview and came back blank in the list, so the same order showed two different values
+     * depending on which screen you were looking at.
+     */
+    private Map<String, Map<String, Object>> batchCustomers(List<Map<String, Object>> soRows) {
+        if (fieldMapping.extraFieldsFor("Customer").isEmpty()) return Map.of();
+        List<Object> names = new ArrayList<>();
+        for (Map<String, Object> r : soRows) {
+            String n = asString(r.get("customer"));
+            if (n != null && !names.contains(n)) names.add(n);
+        }
+        if (names.isEmpty()) return Map.of();
+        Map<String, Map<String, Object>> byName = new HashMap<>();
+        for (Map<String, Object> c : listWidened("Customer", List.of("name", "customer_name"),
+                List.of(List.of("name", "in", names)), 0, null)) {
+            String n = asString(c.get("name"));
+            if (n != null) byName.put(n, c);
+        }
+        return byName;
     }
 
     /** Resolve the customer's shipping (or primary) Address name via the Dynamic Link (best-effort). */
