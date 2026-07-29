@@ -1502,6 +1502,9 @@ export const EN_COPY = {
     erpUnhealthyError: 'The ERP connection failed — orders are not syncing.',
     erpUnhealthyUntested: 'The ERP source is not verified — test the connection to ensure syncing.',
     erpFixLink: 'Configure',
+    importBlockedNoErp: 'No ERP is configured for this company.',
+    importBlockedNotConnected: 'The ERP connection is not established.',
+    importDisabledSuffix: 'Importing stays disabled until the connection is restored.',
 
     // Mobile tabs
     tabFilters: 'Filters',

@@ -93,13 +93,28 @@ export default function ErpIntegrationPage() {
     finally { setLoadingMapping(false); }
   }, []);
 
+  // Derived here rather than beside the step model, because the loader below needs it: the rail's
+  // ticks come from the report and are not stored anywhere, so a reload that never fetches it
+  // redraws a certified integration as an unfinished one.
+  const persisted = (settings?.connectionStatus ?? 'NOT_CONFIGURED') as ConnStatus;
+  const effectiveStatus: EffStatus =
+    live === 'ok' ? 'CONNECTED'
+    : live === 'fail' ? 'ERROR'
+    : (dirty && (persisted === 'CONNECTED' || persisted === 'ERROR')) ? 'STALE'
+    : persisted;
+
+  const connected = effectiveStatus === 'CONNECTED';
+
   useEffect(() => { loadSettings(); }, [loadSettings]);
 
-  // Each step fetches what it needs when first opened, so the page is fast to land on.
+  // Each step fetches what it needs when first opened, so the page is fast to land on — except the
+  // report, which the rail itself depends on and so is fetched as soon as a connection exists.
   useEffect(() => {
-    if (step === 'compatibility' && !report && !loadingReport) loadReport();
+    const needsReport = connected || step === 'compatibility';
+    if (needsReport && !report && !loadingReport) loadReport();
     if ((step === 'mapping' || step === 'preview') && canonicalFields.length === 0 && !loadingMapping) loadMapping();
-  }, [step, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
+  }, [step, connected, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
+
 
   // ── Connection ─────────────────────────────────────────────────────────────────────────────────
 
@@ -213,14 +228,6 @@ export default function ErpIntegrationPage() {
 
   // ── Step model ─────────────────────────────────────────────────────────────────────────────────
 
-  const persisted = (settings?.connectionStatus ?? 'NOT_CONFIGURED') as ConnStatus;
-  const effectiveStatus: EffStatus =
-    live === 'ok' ? 'CONNECTED'
-    : live === 'fail' ? 'ERROR'
-    : (dirty && (persisted === 'CONNECTED' || persisted === 'ERROR')) ? 'STALE'
-    : persisted;
-
-  const connected = effectiveStatus === 'CONNECTED';
   const blocking = blockingChecks(report);
 
   const steps: StepDescriptor[] = useMemo(() => {

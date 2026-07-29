@@ -112,6 +112,28 @@ function ImportErpPageContent() {
   }, []);
   const erpUnhealthy = erpConn && erpConn.provider !== 'NONE' && erpConn.status !== 'CONNECTED';
 
+  /**
+   * Whether importing is allowed at all.
+   *
+   * <p>Deliberately keyed on the connection alone, not on the conformance verdict. A probe that has
+   * not run, or could not reach the instance, is not evidence of a broken ERP — gating on it would
+   * lock an integration that works out of the product on the strength of something we failed to
+   * measure. A refused connection is different: every import would fail anyway, and failing at the
+   * button with a reason beats failing per order with a toast.
+   *
+   * <p>Null while the settings call is in flight, so the button is never disabled on a state we have
+   * not read yet — a control that flickers to "unavailable" on every load teaches people to
+   * distrust it. Callers treat null as allowed and let the request decide.
+   */
+  const importBlockedReason: string | null = !erpConn
+    ? null
+    : erpConn.provider === 'NONE'
+      ? (t.importPage.importBlockedNoErp ?? 'Aucun ERP configuré.')
+      : erpConn.status !== 'CONNECTED'
+        ? (t.importPage.importBlockedNotConnected ?? 'La connexion ERP n’est pas établie.')
+        : null;
+  const importBlocked = importBlockedReason !== null;
+
   const loadPendingOrders = useCallback(async (silent = false, forceRefresh = false) => {
     try {
       if (silent) setRefreshing(true);
@@ -208,6 +230,9 @@ function ImportErpPageContent() {
   }, []);
 
   const doBulkImport = useCallback(async () => {
+    // Guarded here as well as on the button: the same import is reachable from the preview modal,
+    // and a rule enforced only where it happens to be rendered is not a rule.
+    if (importBlocked) { showErrorToast(importBlockedReason); return; }
     const ids = Array.from(selectedIds).filter(id => {
       const row = rows.find(r => r.erpOrderId === id);
       return row && !row.alreadyImported;
@@ -224,7 +249,7 @@ function ImportErpPageContent() {
     } finally {
       setBulkImporting(false);
     }
-  }, [selectedIds, rows, loadPendingOrders]);
+  }, [selectedIds, rows, loadPendingOrders, importBlocked, importBlockedReason]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -246,6 +271,7 @@ function ImportErpPageContent() {
   }, [allPageSelected, selectablePage]);
 
   const doImport = useCallback(async (erpOrderId: string) => {
+    if (importBlocked) { showErrorToast(importBlockedReason); return; }
     try {
       setImportingId(erpOrderId);
       await api.post('/admin/erp/import-order', null, { params: { erpOrderId } });
@@ -265,7 +291,7 @@ function ImportErpPageContent() {
     } finally {
       setImportingId(null);
     }
-  }, [loadPendingOrders]);
+  }, [loadPendingOrders, importBlocked, importBlockedReason]);
 
   const importQuickFilters = [
     { value: 'all',   label: t.importPage.pillAll,   count: stats.total },
@@ -288,16 +314,21 @@ function ImportErpPageContent() {
 
       {/* ERP connection health banner — the active source's creds aren't verified, so this
           list may be empty or stale. Sends the admin straight to the config page to fix it. */}
-      {erpUnhealthy && (
+      {(erpUnhealthy || importBlocked) && (
         <div
           className="flex items-center gap-2.5 px-4 py-2.5 shrink-0 text-xs"
           style={{ background: 'color-mix(in srgb, var(--warning) 10%, transparent)', color: 'var(--warning)', borderBottom: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)' }}
         >
           <IconAlertCircle size={15} className="shrink-0" />
           <span className="font-[600] min-w-0">
-            {erpConn?.status === 'ERROR'
-              ? (t.importPage.erpUnhealthyError ?? 'La connexion ERP a échoué — les commandes ne sont pas synchronisées.')
-              : (t.importPage.erpUnhealthyUntested ?? 'La source ERP n’est pas vérifiée — testez la connexion pour garantir la synchronisation.')}
+            {/* When the import is actually disabled, say so here too. The tooltip on a disabled
+                button is the one piece of UI a user cannot discover by clicking. */}
+            {erpConn?.provider === 'NONE'
+              ? (t.importPage.importBlockedNoErp ?? 'Aucun ERP configuré.')
+              : erpConn?.status === 'ERROR'
+                ? (t.importPage.erpUnhealthyError ?? 'La connexion ERP a échoué — les commandes ne sont pas synchronisées.')
+                : (t.importPage.erpUnhealthyUntested ?? 'La source ERP n’est pas vérifiée — testez la connexion pour garantir la synchronisation.')}
+            {importBlocked ? ` ${t.importPage.importDisabledSuffix ?? 'L’import est désactivé.'}` : ''}
             {erpConn?.error ? ` (${erpConn.error})` : ''}
           </span>
           <button
@@ -601,7 +632,8 @@ function ImportErpPageContent() {
                                     ? "bg-amber-500 hover:bg-amber-600 text-white animate-pulse border-amber-600"
                                     : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
                                 )}
-                                disabled={importingId === row.erpOrderId}
+                                disabled={importingId === row.erpOrderId || importBlocked}
+                                title={importBlockedReason ?? undefined}
                                 onClick={() => confirmForId === row.erpOrderId ? doImport(row.erpOrderId) : setConfirmForId(row.erpOrderId)}
                               >
                                 {importingId === row.erpOrderId ? (
@@ -638,7 +670,8 @@ function ImportErpPageContent() {
               <button
                 type="button"
                 className="flex items-center gap-1.5 h-7 px-3 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-xs rounded-md transition-opacity"
-                disabled={bulkImporting}
+                disabled={bulkImporting || importBlocked}
+                title={importBlockedReason ?? undefined}
                 onClick={doBulkImport}
               >
                 {bulkImporting
@@ -799,8 +832,10 @@ function ImportErpPageContent() {
                       ? "bg-[var(--success)] hover:opacity-90 text-white border-[var(--success)]"
                       : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-sm"
                   )}
+                  title={preview.alreadyImported ? undefined : (importBlockedReason ?? undefined)}
                   onClick={() => preview.alreadyImported ? window.open('/deliveries', '_blank') : doImport(preview.erpOrderId)}
-                  disabled={importingId === preview.erpOrderId}
+                  disabled={importingId === preview.erpOrderId
+                    || (!preview.alreadyImported && importBlocked)}
                 >
                   {importingId === preview.erpOrderId ? (
                     <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

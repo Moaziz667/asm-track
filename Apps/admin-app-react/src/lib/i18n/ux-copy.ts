@@ -1590,6 +1590,9 @@ export const FR_COPY = {
     erpUnhealthyError: 'La connexion ERP a échoué — les commandes ne sont pas synchronisées.',
     erpUnhealthyUntested: 'La source ERP n’est pas vérifiée — testez la connexion pour garantir la synchronisation.',
     erpFixLink: 'Configurer',
+    importBlockedNoErp: `Aucun ERP n'est configuré pour cette société.`,
+    importBlockedNotConnected: `La connexion ERP n'est pas établie.`,
+    importDisabledSuffix: `L'import est désactivé tant que la connexion n'est pas rétablie.`,
 
     // Mobile tabs
     tabFilters: 'Filtres',

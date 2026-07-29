@@ -1561,6 +1561,9 @@ export const AR_COPY = {
     erpUnhealthyError: 'فشل اتصال ERP — لا تتم مزامنة الطلبات.',
     erpUnhealthyUntested: 'مصدر ERP غير مُتحقق منه — اختبر الاتصال لضمان المزامنة.',
     erpFixLink: 'تهيئة',
+    importBlockedNoErp: 'لا يوجد نظام ERP مُهيّأ لهذه الشركة.',
+    importBlockedNotConnected: 'لم يتم إنشاء الاتصال بالنظام.',
+    importDisabledSuffix: 'الاستيراد معطّل إلى أن يُستعاد الاتصال.',
 
     // Mobile tabs
     tabFilters: 'المرشحات',
