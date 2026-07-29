@@ -96,10 +96,14 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
                 "Confirms the backorder wizard after a partial delivery.");
         // RECOMMENDED, not REQUIRED: the adapter has an equivalent path when these are absent, so a
         // version lacking them is degraded, not unusable.
+        // Both were dropped by Odoo, not by this customer: 19 removed the set-quantities button, and
+        // force-availability has been gone since before the oldest version ASM supports. Flagging
+        // either as a gap sends an integrator hunting for a repair no Odoo of that version can offer.
         checkMethod(checks, "SET_FULL_QUANTITY", Severity.RECOMMENDED,
-                "Full-delivery shortcut; falls back to marking the reserved lines picked.");
+                "Full-delivery shortcut; falls back to marking the reserved lines picked.", 19, major);
         checkMethod(checks, "FORCE_AVAILABILITY", Severity.RECOMMENDED,
-                "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).");
+                "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).",
+                16, major);
 
         // Probed like every other method rather than asserted from the version number. Reporting it
         // as UNKNOWN listed a capability this instance does have among the ones it lacks, which reads
@@ -127,6 +131,22 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
      * instance is not evidence of a missing method.
      */
     private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note) {
+        checkMethod(checks, capability, sev, note, 0, 0);
+    }
+
+    /**
+     * Same, for a method the vendor removed in a known release.
+     *
+     * <p>An absence the vendor chose is not a defect in the customer's instance. Reporting it as
+     * MISSING drags the whole verdict to DEGRADED, so a current, healthy Odoo 19 is presented as an
+     * installation with gaps — and the integrator goes looking for something to repair that no
+     * version of Odoo 19 will ever have. Below {@code absentFrom} the absence is still real news.
+     *
+     * @param absentFrom the first major version where the absence is expected, {@code 0} if never
+     * @param major      the version actually running
+     */
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note,
+                             int absentFrom, int major) {
         List<String> candidates;
         String model;
         try {
@@ -147,10 +167,20 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
             }
             if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.INCONCLUSIVE) inconclusive = true;
         }
-        checks.add(new CapabilityCheck(model + "." + String.join("|", candidates), Kind.METHOD, sev,
-                inconclusive ? Status.UNKNOWN : Status.MISSING,
-                inconclusive ? "Could not be probed (transport failure). " + note
-                             : "No candidate exists on this instance: " + candidates + ". " + note));
+        String name = model + "." + String.join("|", candidates);
+        if (inconclusive) {
+            checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.UNKNOWN,
+                    "Could not be probed (transport failure). " + note));
+            return;
+        }
+        if (absentFrom > 0 && major >= absentFrom) {
+            checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.OK,
+                    "Absent from Odoo " + absentFrom + " onward — expected on this version, not a gap "
+                            + "in this instance; the adapter's fallback covers it. " + note));
+            return;
+        }
+        checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.MISSING,
+                "No candidate exists on this instance: " + candidates + ". " + note));
     }
 
     private void checkModel(List<CapabilityCheck> checks, String model, Severity sev, String note) {
