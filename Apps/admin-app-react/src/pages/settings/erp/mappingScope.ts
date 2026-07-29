@@ -97,6 +97,9 @@ export function rank(options: Option[], query: string): Option[] {
     else if (label.startsWith(q)) score = 2;
     else if (name.includes(q)) score = 3;
     else if (label.includes(q)) score = 4;
+    // Weakest signal, and last on purpose: "partner" should show the partner's fields rather than
+    // nothing, but only once no field has answered to the word itself.
+    else if (o.model.toLowerCase().includes(q)) score = 5;
     return score < 0 ? -1 : score - (o.custom ? 0.5 : 0);
   };
 

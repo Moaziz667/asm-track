@@ -90,6 +90,16 @@ describe('ranking', () => {
       (m) => models.filter((x) => x === m)));
   });
 
+  it('finds a document by name when no field answers to the word', () => {
+    expect(rank(options, 'partner').every((o) => o.model === 'res.partner')).toBe(true);
+  });
+
+  it('still puts a field that matches ahead of one that only shares a model name', () => {
+    // "order" hits sale.order's name/label and the res.partner model not at all; the fields win.
+    const first = rank(options, 'order')[0];
+    expect(`${first.name} ${first.label}`.toLowerCase()).toContain('order');
+  });
+
   it('excludes what does not match at all', () => {
     expect(rank(options, 'zzzz')).toEqual([]);
   });
