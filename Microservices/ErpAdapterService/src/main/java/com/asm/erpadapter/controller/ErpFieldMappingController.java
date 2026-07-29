@@ -63,13 +63,27 @@ public class ErpFieldMappingController {
         return resolvers.stream().filter(r -> r.provider().equalsIgnoreCase(provider)).findFirst();
     }
 
-    /** The ASM vocabulary, so the screen can render one row per field without hardcoding the list. */
+    /**
+     * The ASM vocabulary, so the screen can render one row per field without hardcoding the list.
+     *
+     * <p>Each row carries where its value comes from today, so an unmapped field can say
+     * "défaut · res.partner.phone" rather than a bare "défaut". Knowing what you are about to
+     * override is most of the decision, and it is per-provider: the same field reads from
+     * {@code partner_id.phone} on Odoo and {@code Sales Order.contact_mobile} on ERPNext.
+     */
     @GetMapping("/canonical-fields")
-    @Operation(summary = "The ASM business fields that can be mapped")
+    @Operation(summary = "The ASM business fields that can be mapped, with their built-in source")
     public ResponseEntity<List<Map<String, Object>>> canonicalFields() {
+        FieldMappingResolver r = resolver().orElse(null);
         List<Map<String, Object>> out = new ArrayList<>();
         for (CanonicalField f : CanonicalField.values()) {
-            out.add(Map.of("field", f.name(), "scope", f.scope().name()));
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("field", f.name());
+            row.put("scope", f.scope().name());
+            // Absent rather than guessed when no provider is configured: an empty hint reads as
+            // "not known yet", where a wrong one would send someone to the wrong field.
+            if (r != null) row.put("defaultSource", r.defaultSourceFor(f));
+            out.add(row);
         }
         return ResponseEntity.ok(out);
     }
@@ -132,16 +146,30 @@ public class ErpFieldMappingController {
     @GetMapping
     @Operation(summary = "The current tenant's field mappings")
     public ResponseEntity<List<ErpFieldMapping>> list(
-            @RequestParam(defaultValue = "odoo") String provider) {
-        return ResponseEntity.ok(service.list(requireTenant(), provider));
+            @RequestParam(required = false) String provider) {
+        return ResponseEntity.ok(service.list(requireTenant(), providerOrTenants(provider)));
+    }
+
+    /**
+     * The provider a request is about: what the caller asked for, else the tenant's own.
+     *
+     * <p>This used to default to the literal {@code "odoo"}, which was invisible while Odoo was the
+     * only provider with a mapping and actively wrong afterwards. An ERPNext tenant's screen listed
+     * Odoo's mappings — so it looked empty — and a mapping created from it was stored under
+     * {@code odoo}, where no ERPNext read would ever look for it. Silently writing to the wrong
+     * provider is worse than refusing, so the tenant's configured ERP is the only sane default.
+     */
+    private String providerOrTenants(String requested) {
+        if (requested != null && !requested.isBlank()) return requested.trim().toLowerCase();
+        String tenants = router.provider();
+        return "none".equals(tenants) ? "odoo" : tenants;
     }
 
     @PostMapping
     @Operation(summary = "Create or replace one field mapping")
     public ResponseEntity<?> upsert(@RequestBody FieldMappingRequest request) {
         UUID tenantId = requireTenant();
-        String provider = request.provider() != null && !request.provider().isBlank()
-                ? request.provider().trim().toLowerCase() : "odoo";
+        String provider = providerOrTenants(request.provider());
         try {
             return ResponseEntity.ok(service.upsert(tenantId, provider,
                     request.canonicalField(), request.customKey(),
@@ -157,8 +185,8 @@ public class ErpFieldMappingController {
     @DeleteMapping("/{canonicalField}")
     @Operation(summary = "Remove a mapping and fall back to the default")
     public ResponseEntity<Void> delete(@PathVariable String canonicalField,
-                                       @RequestParam(defaultValue = "odoo") String provider) {
-        service.delete(requireTenant(), provider, canonicalField);
+                                       @RequestParam(required = false) String provider) {
+        service.delete(requireTenant(), providerOrTenants(provider), canonicalField);
         return ResponseEntity.noContent().build();
     }
 

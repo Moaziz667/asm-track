@@ -38,6 +38,22 @@ public interface FieldMappingResolver {
     MappingScope scopeFor(CanonicalField.Scope scope);
 
     /**
+     * Where this field is read from when the tenant has mapped nothing.
+     *
+     * <p>Descriptive only — the real default is the supplier the adapter passes in, which for a
+     * composed value is logic rather than a field name. It exists so the screen can say
+     * "défaut · res.partner.phone" instead of a bare "défaut", which is the difference between an
+     * integrator knowing what they are about to override and guessing at it.
+     *
+     * @return the path the built-in reader uses, or {@link #DERIVED} when several fields combine into
+     *         one and naming any single candidate would be wrong more often than right
+     */
+    String defaultSourceFor(CanonicalField field);
+
+    /** Marks a default no single path can express, so the UI renders it as prose instead. */
+    String DERIVED = "—";
+
+    /**
      * The documents a mapping may start from, for one scope.
      *
      * @param primary    the document a path with no {@code Model:} prefix is relative to

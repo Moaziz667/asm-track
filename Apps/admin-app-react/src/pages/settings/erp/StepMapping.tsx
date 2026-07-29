@@ -175,7 +175,7 @@ function MappingRow({
         models={modelsFor(field.scope, availableFields, scopes)}
         primaryModel={primaryModelFor(field.scope, scopes)}
         disabled={!canManage || busy}
-        placeholder={copy.usingDefault}
+        placeholder={defaultHint(field, copy)}
         copy={copy}
         onChange={change}
       />
@@ -207,7 +207,13 @@ function MappingRow({
             )}
           </>
         ) : (
-          <span className="text-2xs text-[var(--text-soft)]">{copy.defaultTag}</span>
+          <span
+            className="text-2xs text-[var(--text-soft)]"
+            title={field.defaultSource && field.defaultSource !== DERIVED
+              ? `${copy.defaultTag} · ${field.defaultSource}` : undefined}
+          >
+            {copy.defaultTag}
+          </span>
         )}
       </div>
     </li>
@@ -323,6 +329,22 @@ function ExtraFields({
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────────────────────────
+
+/** What the backend sends when several ERP fields combine into one value. */
+const DERIVED = '—';
+
+/**
+ * "Défaut · res.partner.phone", or a bare "Défaut" when no single field can be named.
+ *
+ * <p>Shown in the empty picker rather than beside it: that is where someone looks when deciding
+ * whether to override, and knowing what they are about to replace is most of the decision. A
+ * composed default — an address assembled from four parts — has no path to show, and naming one of
+ * its four would be wrong three times out of four.
+ */
+function defaultHint(field: CanonicalFieldInfo, copy: Record<string, string>) {
+  const src = field.defaultSource;
+  return src && src !== DERIVED ? `${copy.usingDefault} · ${src}` : copy.usingDefault;
+}
 
 /** CUSTOMER_NAME → "Customer name". The canonical key stays visible underneath for support. */
 function humanize(field: string) {

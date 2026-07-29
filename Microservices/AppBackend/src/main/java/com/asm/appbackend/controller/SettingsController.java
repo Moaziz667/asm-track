@@ -494,8 +494,15 @@ public class SettingsController {
     @Operation(summary = "List this company's business-field mappings")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> listFieldMappings(
-            @RequestParam(required = false, defaultValue = "odoo") String provider) {
-        return proxyToAdapter("/api/erp/field-mappings?provider=" + provider, HttpMethod.GET, null);
+            @RequestParam(required = false) String provider) {
+        // Not defaulted here: the adapter knows this company's ERP, and a default of "odoo" listed
+        // the wrong provider's mappings for everyone else — an ERPNext screen simply looked empty.
+        return proxyToAdapter("/api/erp/field-mappings" + providerQuery(provider), HttpMethod.GET, null);
+    }
+
+    /** Forward {@code provider} only when the caller named one, so the adapter can use the tenant's. */
+    private static String providerQuery(String provider) {
+        return provider == null || provider.isBlank() ? "" : "?provider=" + provider;
     }
 
     /** The ASM vocabulary — one row per mappable field, so the screen does not hardcode the list. */
@@ -545,8 +552,8 @@ public class SettingsController {
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> deleteFieldMapping(
             @PathVariable String canonicalField,
-            @RequestParam(required = false, defaultValue = "odoo") String provider) {
-        return proxyToAdapter("/api/erp/field-mappings/" + canonicalField + "?provider=" + provider,
+            @RequestParam(required = false) String provider) {
+        return proxyToAdapter("/api/erp/field-mappings/" + canonicalField + providerQuery(provider),
                 HttpMethod.DELETE, null);
     }
 

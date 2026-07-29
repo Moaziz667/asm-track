@@ -90,6 +90,11 @@ public class ErpNextFieldMappingResolver implements FieldMappingResolver {
                 : new MappingScope(PRIMARY_DOCTYPE, HEADER_DOCTYPES);
     }
 
+    @Override
+    public String defaultSourceFor(CanonicalField field) {
+        return ErpNextDefaultSources.of(field);
+    }
+
     /** Which document a bare path hangs off, given the canonical field it fills. */
     private static String primaryFor(CanonicalField field) {
         return field != null && field.isLine() ? LINE_PRIMARY_DOCTYPE : PRIMARY_DOCTYPE;

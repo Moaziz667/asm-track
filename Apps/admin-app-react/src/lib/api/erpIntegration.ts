@@ -85,6 +85,13 @@ export type SourceKind = 'AUTO' | 'LABEL' | 'ID' | 'RAW';
 export interface CanonicalFieldInfo {
   field: string;
   scope: FieldScope;
+  /**
+   * Where the value comes from when nothing is mapped, e.g. `res.partner.phone`.
+   *
+   * `'—'` when several ERP fields combine into one, and absent while no ERP is configured — an
+   * empty hint reads as "not known yet", a wrong one sends someone to the wrong field.
+   */
+  defaultSource?: string;
 }
 
 export interface FieldMapping {
@@ -109,8 +116,10 @@ export interface ErpField {
   custom: boolean;
 }
 
-export const getFieldMappings = (provider = 'odoo') =>
-  api.get<FieldMapping[]>('/settings/erp/field-mappings', { params: { provider } })
+/** No provider: the backend answers for whichever ERP this company has configured. */
+export const getFieldMappings = (provider?: string) =>
+  api.get<FieldMapping[]>('/settings/erp/field-mappings',
+    { params: provider ? { provider } : undefined })
     .then((r) => r.data);
 
 export const getCanonicalFields = () =>
@@ -143,9 +152,9 @@ export const upsertFieldMapping = (input: UpsertMappingInput) =>
   api.post<FieldMapping>('/settings/erp/field-mappings', input).then((r) => r.data);
 
 /** Removing a mapping restores the shipped default; it does not blank the field. */
-export const deleteFieldMapping = (canonicalField: string, provider = 'odoo') =>
+export const deleteFieldMapping = (canonicalField: string, provider?: string) =>
   api.delete(`/settings/erp/field-mappings/${encodeURIComponent(canonicalField)}`,
-    { params: { provider } });
+    { params: provider ? { provider } : undefined });
 
 export const deleteFieldMappingById = (id: number) =>
   api.delete(`/settings/erp/field-mappings/by-id/${id}`);

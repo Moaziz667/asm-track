@@ -320,4 +320,9 @@ public class OdooFieldMappingResolver implements FieldMappingResolver {
                 ? new MappingScope(LINE_PRIMARY_MODEL, LINE_MODELS)
                 : new MappingScope(PRIMARY_MODEL, HEADER_MODELS);
     }
+
+    @Override
+    public String defaultSourceFor(CanonicalField field) {
+        return OdooDefaultSources.of(field);
+    }
 }
