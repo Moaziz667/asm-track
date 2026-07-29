@@ -193,6 +193,12 @@ export default function DeliveryDetailPage() {
   );
 
   const items: DeliveryItem[] = delivery.items ?? [];
+
+  // Rendered as text whatever the ERP returned: a mapped value can be a number, a date or a
+  // boolean, and InfoRow hides anything that came back empty.
+  const customFields: Array<[string, string]> = Object.entries(delivery.customFields ?? {})
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => [k, String(v)]);
   // Human ERP reference — mirrors the backend Order.resolveRef() priority (erpOrderId →
   // erpExternalRef → uuid) so the header/breadcrumb never fall back to a bare UUID when the ERP id exists.
   const orderRef = (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
@@ -467,6 +473,20 @@ export default function DeliveryDetailPage() {
                   </button>
                 )}
               </Section>
+
+              {/* ERP values with no ASM equivalent — last, because nothing here is actionable */}
+              {customFields.length > 0 && (
+                <Section title={t.deliveryPage.sectionCustomFields} icon={<IconReceipt size={12} />}>
+                  <p className="text-2xs text-[var(--text-muted)] mb-2">
+                    {t.deliveryPage.customFieldsHint}
+                  </p>
+                  <div className="flex flex-col">
+                    {customFields.map(([key, value]) => (
+                      <InfoRow key={key} label={key} value={value} />
+                    ))}
+                  </div>
+                </Section>
+              )}
             </div>{/* ════ /LEFT ════ */}
 
             {/* ════ RIGHT — Status & tracking (sticky sidebar) ════ */}

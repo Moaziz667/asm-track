@@ -1380,6 +1380,8 @@ export const AR_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'السائق والرحلة',
     sectionFulfillment: 'الالتزام وسند التسليم',
+    sectionCustomFields: 'حقول إضافية (من النظام)',
+    customFieldsHint: 'قيم من نظام العميل بلا مقابل في ASM — للعرض فقط.',
     relatedShipmentsTitle: 'شحنات هذا الطلب',
     relatedShipmentCurrent: 'الحالية',
     scheduledLabel: 'التاريخ الموعود',

@@ -83,6 +83,13 @@ export interface Delivery {
   blNumber?: string;
   /** ERP source-warehouse code. */
   warehouseCode?: string;
+  /**
+   * ERP values the integrator mapped that ASM has no field of its own for.
+   *
+   * Display-only: whatever this customer keeps in their ERP, so nothing here can be sorted or
+   * filtered on. Keys are the labels the integrator chose on the mapping screen.
+   */
+  customFields?: Record<string, unknown> | null;
   /** Resolved source depot (where goods are loaded). */
   sourceDepotId?: string;
   sourceDepotName?: string;

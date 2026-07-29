@@ -920,6 +920,7 @@ public class DispatchService {
                 .zoneColor(zone != null ? zone.getColor() : null)
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .items(detailLines != null ? new ArrayList<>(detailLines) : null)
+                .customFields(order != null ? order.getCustomFields() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .routeDistanceKm(d.getRouteDistanceKm())

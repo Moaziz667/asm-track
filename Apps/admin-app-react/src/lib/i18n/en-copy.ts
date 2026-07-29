@@ -1321,6 +1321,8 @@ export const EN_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'Driver & Route',
     sectionFulfillment: 'Commitment & Delivery note',
+    sectionCustomFields: 'Extra fields (ERP)',
+    customFieldsHint: 'Values from the customer ERP with no ASM equivalent — display only.',
     relatedShipmentsTitle: 'Shipments of this sale order',
     relatedShipmentCurrent: 'Current',
     scheduledLabel: 'Promised date',

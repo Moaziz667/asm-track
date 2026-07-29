@@ -1408,6 +1408,8 @@ export const FR_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'Chauffeur & Tournée',
     sectionFulfillment: 'Engagement & BL',
+    sectionCustomFields: 'Champs supplémentaires (ERP)',
+    customFieldsHint: `Valeurs issues de l'ERP du client, sans équivalent ASM — affichage seul.`,
     relatedShipmentsTitle: 'Livraisons de cette commande',
     relatedShipmentCurrent: 'Actuelle',
     scheduledLabel: 'Date promise',

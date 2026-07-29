@@ -116,6 +116,16 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Order items snapshot")
     private List<OrderItem> items;
 
+    /**
+     * ERP values the integrator mapped that ASM has no field of its own for.
+     *
+     * <p>Display-only, and deliberately last: these are whatever this customer happened to keep in
+     * their ERP, so nothing here can be sorted, filtered or reasoned about. Carrying them at all is
+     * the point — the alternative is asking the integrator to map a field and then never showing it.
+     */
+    @Schema(description = "Mapped ERP values with no ASM equivalent — display only")
+    private java.util.Map<String, Object> customFields;
+
     @Schema(description = "Order total amount")
     private BigDecimal totalAmount;
 
