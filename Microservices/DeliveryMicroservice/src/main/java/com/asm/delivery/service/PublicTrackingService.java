@@ -105,6 +105,7 @@ public class PublicTrackingService {
                 .clientName(order != null ? order.getClientName() : null)
                 .clientPhone(order != null ? order.getClientPhone() : null)
                 .erpOrderId(order != null ? order.getErpOrderId() : null)
+                .customerRef(order != null ? order.getCustomerRef() : null)
                 .dropoffLat(order != null && order.getDropoffLat() != null ? order.getDropoffLat().doubleValue() : null)
                 .dropoffLng(order != null && order.getDropoffLng() != null ? order.getDropoffLng().doubleValue() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)

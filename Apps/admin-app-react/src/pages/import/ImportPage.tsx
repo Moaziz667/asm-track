@@ -498,9 +498,6 @@ function ImportErpPageContent() {
                                 {row.saleOrderRef && row.saleOrderRef !== (row.blNumber || row.erpOrderId) && (
                                   <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.saleOrderRef}</p>
                                 )}
-                                {row.customerRef && (
-                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">REF: {row.customerRef}</p>
-                                )}
                               </div>
                             </td>
                           );

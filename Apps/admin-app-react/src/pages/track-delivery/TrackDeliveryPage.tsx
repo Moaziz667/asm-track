@@ -14,7 +14,7 @@ const TrackingMap = dynamic(() => import('./TrackingMap'));
 
 interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
-  deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
+  deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string; customerRef?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
@@ -163,9 +163,11 @@ export default function TrackingPage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{data.companyName ?? t.trackingPage.appTitle}</div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t.trackingPage.pageTitle}</div>
         </div>
-        {data.erpOrderId && (
+        {/* The recipient's own reference when we have it: erpOrderId is the distributor's
+            delivery-note number and means nothing to the person waiting for the parcel. */}
+        {(data.customerRef ?? data.erpOrderId) && (
           <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', fontFamily: 'monospace', background: '#f8fafc', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-            {data.erpOrderId}
+            {data.customerRef ?? data.erpOrderId}
           </div>
         )}
       </div>
