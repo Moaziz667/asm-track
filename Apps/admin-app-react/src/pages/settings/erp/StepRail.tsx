@@ -1,7 +1,7 @@
 import { IconCheck, IconLock, IconAlertTriangle } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 
-export type StepId = 'connection' | 'compatibility' | 'mapping' | 'preview' | 'rehearsal' | 'activation';
+export type StepId = 'connection' | 'compatibility' | 'mapping' | 'preview' | 'activation';
 export type StepState = 'done' | 'current' | 'available' | 'locked' | 'attention';
 
 export interface StepDescriptor {

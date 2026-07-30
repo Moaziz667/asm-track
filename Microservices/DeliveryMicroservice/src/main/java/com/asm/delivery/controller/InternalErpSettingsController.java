@@ -64,11 +64,6 @@ public class InternalErpSettingsController {
             return ResponseEntity.badRequest().body(Map.of("error", "provider is required"));
         }
         settingsService.upsert("erp.provider", provider.toLowerCase());
-        // AppBackend pushes here on every settings save, so this doubles as "the connection changed".
-        // The integration rehearsal reads it to discard evidence gathered against a previous instance
-        // — a delivery that synced to production proves nothing about the staging copy now in use.
-        settingsService.upsert(com.asm.delivery.service.erp.ErpRehearsalService.CONNECTION_CHANGED_AT,
-                java.time.LocalDateTime.now().toString());
         log.info("ERP provider updated to {} for tenant", provider);
         return ResponseEntity.ok(Map.of("status", "OK", "provider", provider.toLowerCase()));
     }

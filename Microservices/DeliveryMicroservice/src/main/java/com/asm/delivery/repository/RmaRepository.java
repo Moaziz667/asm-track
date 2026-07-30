@@ -71,22 +71,4 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
             GROUP BY i.sku
             """)
     List<Object[]> sumReturnedQtyBySku(@Param("deliveryId") UUID deliveryId);
-
-    /**
-     * One return that made it back into stock, as evidence for the integration rehearsal.
-     *
-     * <p>RESTOCKED rather than RECEIVED: the ERP write happens when the goods go back on the shelf,
-     * so an RMA stopping short of that has exercised nothing.
-     *
-     * @param since only count returns created after this — see
-     *              {@link DeliveryRepository#findSyncedWithStatus}
-     */
-    @Query("""
-            SELECT r FROM Rma r
-            WHERE r.status = com.asm.delivery.entity.RmaStatus.RESTOCKED
-              AND r.createdAt > :since
-            ORDER BY r.createdAt DESC
-            """)
-    List<Rma> findRestocked(@Param("since") java.time.LocalDateTime since,
-                            org.springframework.data.domain.Pageable pageable);
 }

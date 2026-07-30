@@ -130,29 +130,6 @@ export const getCanonicalFields = () =>
  * Which documents each scope may be mapped from — served rather than hardcoded, so the picker and
  * the resolver cannot drift, and so a non-Odoo tenant is not offered Odoo's models.
  */
-/** One write scenario of the integration rehearsal, and the delivery that proves it happened. */
-export interface RehearsalStep {
-  scenario: 'PARTIAL' | 'FULL' | 'FAILED' | 'RETURN';
-  done: boolean;
-  /** Delivery or RMA id — absent until the scenario has been exercised. */
-  evidence?: string | null;
-}
-
-export interface Rehearsal {
-  /** When the ERP connection last changed; evidence older than this is not counted. */
-  since?: string | null;
-  steps: RehearsalStep[];
-  ready: boolean;
-}
-
-/**
- * What the write path has actually been through, as opposed to what someone says it has.
- *
- * Derived server-side from real deliveries: nothing here can be ticked by hand.
- */
-export const getRehearsal = () =>
-  api.get<Rehearsal>('/admin/erp/rehearsal').then((r) => r.data);
-
 export const getMappingScopes = () =>
   api.get<Partial<Record<FieldScope, { primary: string; addressable: string[] }>>>(
     '/settings/erp/field-mappings/scopes').then((r) => r.data);

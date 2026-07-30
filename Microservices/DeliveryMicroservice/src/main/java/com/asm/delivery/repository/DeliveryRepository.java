@@ -159,28 +159,4 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Delivery> findByActivityBetween(@Param("start") java.time.LocalDateTime start,
                                          @Param("end") java.time.LocalDateTime end);
-
-    /**
-     * One delivery that reached {@code status} and whose order synced back to the ERP.
-     *
-     * <p>Evidence for the integration rehearsal, so the screen can prove a write path was exercised
-     * rather than ask an integrator to promise it was. The sync status is the half that matters: a
-     * delivery marked delivered in ASM says nothing about whether the ERP accepted the write.
-     *
-     * @param since only count deliveries completed after this, so evidence gathered against a
-     *              previous ERP connection does not vouch for the current one. Callers with no
-     *              recorded change pass a floor date rather than null — Postgres cannot infer the
-     *              type of a bare parameter in {@code ? is null}, and a sentinel is plainer than a
-     *              cast.
-     */
-    @Query("""
-            SELECT d FROM Delivery d JOIN d.order o
-            WHERE d.status = :status AND o.erpSyncStatus = :syncStatus
-              AND COALESCE(d.completedAt, d.failedAt, d.createdAt) > :since
-            ORDER BY COALESCE(d.completedAt, d.failedAt, d.createdAt) DESC
-            """)
-    List<Delivery> findSyncedWithStatus(@Param("status") DeliveryStatus status,
-                                        @Param("syncStatus") String syncStatus,
-                                        @Param("since") java.time.LocalDateTime since,
-                                        org.springframework.data.domain.Pageable pageable);
 }
