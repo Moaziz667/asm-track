@@ -1,6 +1,7 @@
 package com.asm.delivery.messaging;
 
 import com.asm.delivery.config.RabbitMQConfig;
+import com.asm.delivery.entity.ErpSyncEvent;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.service.EventPublisher;
@@ -18,6 +19,10 @@ import java.util.UUID;
  * the order — SYNCED, or SYNC_FAILED (+ admin notification so nothing stays stuck on "Syncing…").
  * On a successful PARTIAL delivery that produced a backorder picking, it auto-creates the backorder
  * as a new shipment under the same order (no cloned order) and notifies admins. Idempotent.
+ *
+ * <p>Every outcome — order or return, success or failure — is also appended to the ERP sync journal
+ * ({@code erp_sync_event}), which is what lets the operator console show a history rather than only
+ * the current state.
  */
 @Component
 @RequiredArgsConstructor
@@ -27,6 +32,8 @@ public class ErpSyncResultConsumer {
     private final OrderRepository orderRepo;
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.repository.RmaRepository rmaRepo;
+    private final com.asm.delivery.repository.ErpSyncEventRepository syncEventRepo;
+    private final com.asm.delivery.service.SystemSettingsService settingsService;
 
     @RabbitListener(queues = RabbitMQConfig.ERP_SYNC_RESULT_QUEUE)
     @Transactional
@@ -55,10 +62,17 @@ public class ErpSyncResultConsumer {
             return;
         }
 
+        journal(op, ok, str(result.get("errorReason")), orderId, null,
+                order.getBlNumber() != null ? order.getBlNumber() : order.getErpExternalRef());
+
         if (ok) {
             order.setErpSyncStatus("SYNCED");
             order.setSyncRetryCount(0);
             order.setNextSyncRetryAt(null);
+            // A success closes the previous failure: leaving the old reason on the order made a
+            // healthy delivery still look broken to anything reading the column. The failed attempt
+            // is not lost — it is in the journal.
+            order.setLastSyncError(null);
             orderRepo.save(order);
             log.info("ERP sync SYNCED — orderId={} op={}", orderId, op);
             // Backorders are NOT auto-created as shipments. When a partial delivery syncs, Odoo creates
@@ -93,6 +107,9 @@ public class ErpSyncResultConsumer {
         }
         UUID rmaId = UUID.fromString(rmaIdStr);
         rmaRepo.findById(rmaId).ifPresentOrElse(rma -> {
+            journal("RETURN", ok, str(result.get("errorReason")), null, rmaId,
+                    rma.getRmaNumber() != null ? rma.getRmaNumber() : rma.getBlNumber());
+
             if (ok) {
                 rma.setErpSyncStatus("SYNCED");
                 rma.setErpSyncError(null);
@@ -104,6 +121,27 @@ public class ErpSyncResultConsumer {
             }
             rmaRepo.save(rma);
         }, () -> log.warn("ErpSyncResultConsumer: RETURN result for unknown rmaId={}, dropping", rmaId));
+    }
+
+    /**
+     * Appends the attempt to the ERP sync journal.
+     *
+     * <p>Deliberately placed here rather than in each adapter: this consumer is the one point every
+     * outcome passes through, whatever the ERP, so the journal covers Odoo, ERPNext and anything
+     * added later without touching a line of provider code. The provider is read from the tenant's
+     * own setting purely as a label — nothing branches on it.
+     */
+    private void journal(String op, boolean ok, String errorReason, UUID orderId, UUID rmaId, String reference) {
+        syncEventRepo.save(ErpSyncEvent.builder()
+                .occurredAt(java.time.LocalDateTime.now())
+                .provider(settingsService.get("erp.provider"))
+                .op(op)
+                .success(ok)
+                .errorReason(ok ? null : truncate(errorReason))
+                .orderId(orderId)
+                .rmaId(rmaId)
+                .reference(reference)
+                .build());
     }
 
     private static String str(Object v) {
