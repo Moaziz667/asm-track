@@ -45,6 +45,9 @@ public class ErpRehearsalService {
     /** A sync ASM considers successful. PENDING_SYNC and SYNC_FAILED are not evidence of anything. */
     private static final String SYNCED = "SYNCED";
 
+    /** Older than any delivery this system will ever hold — stands in for "no connection change yet". */
+    private static final LocalDateTime FLOOR = LocalDateTime.of(1970, 1, 1, 0, 0);
+
     /** One row is all the evidence needed; the queries order by most recent so it is the newest. */
     private static final org.springframework.data.domain.Pageable FIRST =
             org.springframework.data.domain.PageRequest.of(0, 1);
@@ -63,8 +66,9 @@ public class ErpRehearsalService {
     public record Step(String scenario, boolean done, String evidence) {}
 
     /**
-     * @param since   when the connection last changed; null when it never has, in which case every
-     *                delivery ever made counts — there is no earlier connection to confuse it with
+     * @param since   when the connection last changed, or null when it never has — in which case
+     *                every delivery ever made counts, there being no earlier connection to confuse
+     *                it with
      * @param steps   the four scenarios, in the order they are worth doing
      * @param ready   true when all four have happened
      */
@@ -80,7 +84,9 @@ public class ErpRehearsalService {
                 step("FAILED", DeliveryStatus.FAILED, since),
                 returnStep(since));
 
-        return new Rehearsal(since, steps, steps.stream().allMatch(Step::done));
+        // The sentinel is a query detail; the screen should show "never changed", not 1970.
+        return new Rehearsal(FLOOR.equals(since) ? null : since, steps,
+                steps.stream().allMatch(Step::done));
     }
 
     /**
@@ -109,15 +115,22 @@ public class ErpRehearsalService {
                 .orElseGet(() -> new Step("RETURN", false, null));
     }
 
+    /**
+     * When the connection last changed, or {@link #FLOOR} when it never has.
+     *
+     * <p>A floor date rather than null: the queries compare against it directly, and Postgres cannot
+     * infer the type of a bare parameter inside {@code ? is null}. A sentinel keeps both queries to
+     * one comparison instead of a branch and a cast.
+     */
     private LocalDateTime connectionChangedAt() {
         String raw = settings.get(CONNECTION_CHANGED_AT);
-        if (raw == null || raw.isBlank()) return null;
+        if (raw == null || raw.isBlank()) return FLOOR;
         try {
             return LocalDateTime.parse(raw);
         } catch (Exception e) {
             // A malformed stamp must not hide the rehearsal; counting everything is the safe error.
             log.warn("Unreadable {} = '{}' — counting all deliveries", CONNECTION_CHANGED_AT, raw);
-            return null;
+            return FLOOR;
         }
     }
 }

@@ -84,7 +84,7 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
     @Query("""
             SELECT r FROM Rma r
             WHERE r.status = com.asm.delivery.entity.RmaStatus.RESTOCKED
-              AND (:since IS NULL OR r.createdAt > :since)
+              AND r.createdAt > :since
             ORDER BY r.createdAt DESC
             """)
     List<Rma> findRestocked(@Param("since") java.time.LocalDateTime since,

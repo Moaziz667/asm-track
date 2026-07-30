@@ -168,12 +168,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
      * delivery marked delivered in ASM says nothing about whether the ERP accepted the write.
      *
      * @param since only count deliveries completed after this, so evidence gathered against a
-     *              previous ERP connection does not vouch for the current one. Null counts all.
+     *              previous ERP connection does not vouch for the current one. Callers with no
+     *              recorded change pass a floor date rather than null — Postgres cannot infer the
+     *              type of a bare parameter in {@code ? is null}, and a sentinel is plainer than a
+     *              cast.
      */
     @Query("""
             SELECT d FROM Delivery d JOIN d.order o
             WHERE d.status = :status AND o.erpSyncStatus = :syncStatus
-              AND (:since IS NULL OR COALESCE(d.completedAt, d.failedAt, d.createdAt) > :since)
+              AND COALESCE(d.completedAt, d.failedAt, d.createdAt) > :since
             ORDER BY COALESCE(d.completedAt, d.failedAt, d.createdAt) DESC
             """)
     List<Delivery> findSyncedWithStatus(@Param("status") DeliveryStatus status,
