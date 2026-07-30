@@ -52,11 +52,10 @@ public class ErpPendingOrderPreviewDTO {
     @Schema(description = "Currency code (3 chars)", example = "TND")
     private String currency;
 
-    @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH", "URGENT"})
+    // URGENT is not an ASM priority: OrderPriority has NORMAL and HIGH only, and a mapped "URGENT"
+    // collapses onto HIGH at import. Advertising it here promised a level nothing downstream knows.
+    @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH"})
     private String priority;
-
-    @Schema(description = "Odoo payment term name", example = "Immediate Payment")
-    private String paymentTermName;
 
     @Schema(description = "Date the order was confirmed in ERP", example = "2026-05-13T09:00:00")
     private LocalDateTime dateOrder;

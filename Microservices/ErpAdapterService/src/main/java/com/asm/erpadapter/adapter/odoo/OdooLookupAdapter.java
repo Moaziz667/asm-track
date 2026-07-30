@@ -45,7 +45,6 @@ public class OdooLookupAdapter implements ErpLookupPort {
             SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
             EXTERNAL_REF = com.asm.erpadapter.mapping.CanonicalField.EXTERNAL_REF,
             CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
-            PAYMENT_TERM_NAME = com.asm.erpadapter.mapping.CanonicalField.PAYMENT_TERM_NAME,
             PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
             ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
             BL_NUMBER = com.asm.erpadapter.mapping.CanonicalField.BL_NUMBER,
@@ -348,8 +347,6 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
                         () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
-                .paymentTermName(mappedString(PAYMENT_TERM_NAME, records,
-                        () -> saleRef != null ? asRelName(saleRef.get("payment_term_id")) : null))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 // Whatever the integrator mapped that ASM has no field for — carried through so the
                 // value is not silently read and dropped.

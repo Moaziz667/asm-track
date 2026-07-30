@@ -63,7 +63,6 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
             TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
             CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
-            PAYMENT_TERM_NAME = com.asm.erpadapter.mapping.CanonicalField.PAYMENT_TERM_NAME,
             DATE_ORDER = com.asm.erpadapter.mapping.CanonicalField.DATE_ORDER,
             SCHEDULED_AT = com.asm.erpadapter.mapping.CanonicalField.SCHEDULED_AT,
             PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
@@ -386,7 +385,6 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records, () -> asString(so.get("instructions"))))
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(so.get("grand_total"))))
                 .currency(mappedString(CURRENCY, records, () -> asString(so.get("currency"))))
-                .paymentTermName(mappedString(PAYMENT_TERM_NAME, records, () -> asString(so.get("payment_terms_template"))))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 .scheduledAt(mappedDateTime(SCHEDULED_AT, records, () -> parseDateTime(so.get("delivery_date"), null)))
                 .dateOrder(mappedDateTime(DATE_ORDER, records, () -> parseDateTime(so.get("transaction_date"), null)))

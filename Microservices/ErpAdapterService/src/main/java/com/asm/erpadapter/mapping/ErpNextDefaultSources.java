@@ -44,7 +44,6 @@ public final class ErpNextDefaultSources {
             // ── Commercial ────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.TOTAL_AMOUNT, "Sales Order.grand_total"),
             Map.entry(CanonicalField.CURRENCY, "Sales Order.currency"),
-            Map.entry(CanonicalField.PAYMENT_TERM_NAME, "Sales Order.payment_terms_template"),
 
             // ── Planning ──────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.DATE_ORDER, "Sales Order.transaction_date"),

@@ -182,7 +182,6 @@ export interface OrderPreview {
   deliveryInstructions?: string | null;
   totalAmount?: number | null;
   currency?: string | null;
-  paymentTermName?: string | null;
   priority?: string | null;
   scheduledAt?: string | null;
   dateOrder?: string | null;
@@ -217,7 +216,6 @@ export const PREVIEW_FIELD_MAP: Array<{ canonical: string; key: keyof OrderPrevi
   { canonical: 'EXTERNAL_REF', key: 'externalRef' },
   { canonical: 'TOTAL_AMOUNT', key: 'totalAmount' },
   { canonical: 'CURRENCY', key: 'currency' },
-  { canonical: 'PAYMENT_TERM_NAME', key: 'paymentTermName' },
   { canonical: 'PRIORITY', key: 'priority' },
   { canonical: 'SCHEDULED_AT', key: 'scheduledAt' },
   { canonical: 'DATE_ORDER', key: 'dateOrder' },

@@ -49,7 +49,6 @@ public final class OdooDefaultSources {
             // ── Commercial ────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.TOTAL_AMOUNT, "sale.order.amount_total"),
             Map.entry(CanonicalField.CURRENCY, DERIVED),
-            Map.entry(CanonicalField.PAYMENT_TERM_NAME, "sale.order.payment_term_id"),
 
             // ── Planning ──────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.DATE_ORDER, "sale.order.date_order"),

@@ -32,7 +32,6 @@ public class ErpPendingOrderPreviewDTO {
     private String deliveryInstructions;
     private BigDecimal totalAmount;
     private String currency;
-    private String paymentTermName; // raw Odoo payment_term_id name e.g. "Immediate Payment"
     private String priority;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;

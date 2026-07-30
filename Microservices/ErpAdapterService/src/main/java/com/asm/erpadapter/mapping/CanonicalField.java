@@ -39,7 +39,6 @@ public enum CanonicalField {
     // ── Commercial ────────────────────────────────────────────────────────────────────────────────
     TOTAL_AMOUNT(Scope.HEADER),
     CURRENCY(Scope.HEADER),
-    PAYMENT_TERM_NAME(Scope.HEADER),
 
     // ── Planning ──────────────────────────────────────────────────────────────────────────────────
     DATE_ORDER(Scope.HEADER),
