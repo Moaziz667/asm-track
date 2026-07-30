@@ -49,6 +49,7 @@ public class ErpResyncService {
     private final OutboxProcessor outboxProcessor;
     private final ObjectMapper objectMapper;
     private final com.asm.delivery.service.AuditLogService auditLogService;
+    private final com.asm.delivery.repository.ProofOfDeliveryRepository podRepo;
 
     /** Grace window before the reconciliation sweep re-drives a PENDING_SYNC order (B1). */
     @org.springframework.beans.factory.annotation.Value("${erp.reconcile.stuck-minutes:15}")
@@ -122,10 +123,31 @@ public class ErpResyncService {
         String type;
         Map<String, Object> payload = new HashMap<>();
         switch (op == null ? "" : op) {
-            case "STOCK_FULL" -> {
+            case "STOCK_FULL", "STOCK_PARTIAL" -> {
                 type = "ERP_SYNC_STOCK";
                 payload.put("deliveryId", delivery.getId().toString());
-                payload.put("isPartial", false);
+                payload.put("isPartial", "STOCK_PARTIAL".equals(op));
+            }
+            // The proof of delivery is not lost when the outbox event is: everything the driver
+            // captured at the doorstep was persisted before the ERP was ever called, so the payload
+            // is rebuilt from the stored proof rather than invented. It is in fact more faithful
+            // than the original — collectedAt is the real handover time, where the live path sent
+            // the moment the event happened to be enqueued.
+            case "POD" -> {
+                var pod = podRepo.findByDeliveryId(delivery.getId()).orElse(null);
+                if (pod == null) {
+                    return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false,
+                            "No proof of delivery stored for this shipment — cannot rebuild the POD");
+                }
+                type = "ERP_SYNC_POD";
+                payload.put("deliveryId", delivery.getId().toString());
+                payload.put("deliveredAt", pod.getCollectedAt().toString());
+                if (pod.getRecipientName() != null) payload.put("recipientName", pod.getRecipientName());
+                if (pod.getComment() != null) payload.put("comment", pod.getComment());
+                if (pod.getLat() != null) payload.put("lat", pod.getLat());
+                if (pod.getLng() != null) payload.put("lng", pod.getLng());
+                if (pod.getBonLivraisonPhotoUrl() != null) payload.put("bonLivraisonPhotoUrl", pod.getBonLivraisonPhotoUrl());
+                if (pod.getPhotoUrl() != null) payload.put("packagePhotoUrl", pod.getPhotoUrl());
             }
             case "CANCELLATION" -> {
                 type = "ERP_SYNC_CANCELLATION";
@@ -137,9 +159,12 @@ public class ErpResyncService {
                 payload.put("failureCode", delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null);
                 payload.put("comment", delivery.getFailReason());
             }
+            // What is left (notably RESCHEDULE) depends on state ASM no longer holds — the promised
+            // date lives on the plan, not the shipment — so rebuilding it would mean guessing a date
+            // and writing it into the customer's ERP. Better to say so than to invent one.
             default -> {
                 return new ResyncResult(orderId, blNumber, order.getErpSyncStatus(), false,
-                        "Cannot auto-resync operation '" + op + "' — needs manual review in Odoo");
+                        "Cannot auto-resync operation '" + op + "' — needs manual review in the ERP");
             }
         }
         markPending(order);
