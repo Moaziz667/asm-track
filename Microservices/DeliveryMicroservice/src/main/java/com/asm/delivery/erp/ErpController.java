@@ -44,6 +44,31 @@ import java.util.Map;
 public class ErpController {
 
     private final ErpLookupService erpLookupService;
+    private final com.asm.delivery.service.erp.ErpRehearsalService rehearsalService;
+
+    // ── Integration rehearsal ─────────────────────────────────────────────────
+
+    /**
+     * Which delivery outcomes have been exercised against the ERP currently configured.
+     *
+     * <p>The conformance probe certifies what can be certified without writing — models, fields,
+     * methods, access rights — and stops there, because proving a write works requires writing. This
+     * answers the remaining question by looking at real deliveries: did one reach each outcome, and
+     * did the ERP accept the write back.
+     *
+     * <p>Derived, never recorded. A checklist an integrator ticks himself gets ticked without
+     * testing, which manufactures confidence rather than establishing it. Evidence resets when the
+     * connection changes, so a rehearsal run on a staging copy does not vouch for production.
+     */
+    @GetMapping("/rehearsal")
+    @Operation(summary = "Integration rehearsal progress",
+            description = "The four write scenarios (PARTIAL, FULL, FAILED, RETURN), each marked done "
+                    + "only when a real delivery reached that outcome and synced back to the ERP. "
+                    + "Evidence is scoped to the current connection and resets when it changes.")
+    @ApiResponse(responseCode = "200", description = "Rehearsal progress with the evidence for each step")
+    public ResponseEntity<com.asm.delivery.service.erp.ErpRehearsalService.Rehearsal> rehearsal() {
+        return ResponseEntity.ok(rehearsalService.current());
+    }
 
     // ── Client Search ─────────────────────────────────────────────────────────
 

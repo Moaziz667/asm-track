@@ -9,11 +9,11 @@ import { cn } from '@/lib/utils';
 import { tw } from '@/lib/ui/typography';
 import {
   getErpSettings, saveErpSettings, testErpSettings, testStoredErpSettings,
-  getConformance, getFieldMappings, getCanonicalFields, getAvailableFields, getMappingScopes,
+  getConformance, getFieldMappings, getCanonicalFields, getAvailableFields, getMappingScopes, getRehearsal,
   upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks,
   type ErpSettings, type ErpConfig, type ErpProvider, type ConnStatus,
   type ConformanceReport, type FieldMapping, type CanonicalFieldInfo, type ErpField,
-  type UpsertMappingInput,
+  type UpsertMappingInput, type Rehearsal,
 } from '@/lib/api/erpIntegration';
 import { StepRail, type StepDescriptor, type StepId, type StepState } from './erp/StepRail';
 import type { MappingScopes } from './erp/mappingScope';
@@ -21,6 +21,7 @@ import { StepConnection, type EffStatus } from './erp/StepConnection';
 import { StepCompatibility } from './erp/StepCompatibility';
 import { StepMapping } from './erp/StepMapping';
 import { StepPreview } from './erp/StepPreview';
+import { StepRehearsal } from './erp/StepRehearsal';
 import { StepActivation } from './erp/StepActivation';
 
 const EMPTY_ODOO: ErpConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
@@ -50,6 +51,8 @@ export default function ErpIntegrationPage() {
   const [availableFields, setAvailableFields] = useState<Record<string, ErpField[]>>({});
   /** Which documents each scope may read from — from the backend, never assumed. */
   const [scopes, setScopes] = useState<MappingScopes>({});
+  const [rehearsal, setRehearsal] = useState<Rehearsal | null>(null);
+  const [loadingRehearsal, setLoadingRehearsal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -85,6 +88,13 @@ export default function ErpIntegrationPage() {
     try { setReport(await getConformance(forceRefresh)); }
     catch { setReport(null); }
     finally { setLoadingReport(false); }
+  }, []);
+
+  const loadRehearsal = useCallback(async () => {
+    setLoadingRehearsal(true);
+    try { setRehearsal(await getRehearsal()); }
+    catch { setRehearsal(null); }
+    finally { setLoadingRehearsal(false); }
   }, []);
 
   const loadMapping = useCallback(async () => {
@@ -124,7 +134,8 @@ export default function ErpIntegrationPage() {
       forceNextReport.current = false;
     }
     if ((step === 'mapping' || step === 'preview') && canonicalFields.length === 0 && !loadingMapping) loadMapping();
-  }, [step, connected, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
+    if (step === 'rehearsal' && !rehearsal && !loadingRehearsal) loadRehearsal();
+  }, [step, connected, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping, rehearsal, loadingRehearsal, loadRehearsal]);
 
 
   // ── Connection ─────────────────────────────────────────────────────────────────────────────────
@@ -259,6 +270,11 @@ export default function ErpIntegrationPage() {
           return report ? (blocking.length > 0 ? 'attention' : 'done') : 'available';
         case 'mapping':       return connected ? 'available' : 'locked';
         case 'preview':       return connected ? 'available' : 'locked';
+        // Derived from real deliveries, so it can only be 'done' once the write path has genuinely
+        // been through all four outcomes — never because someone said it had.
+        case 'rehearsal':
+          if (!connected) return 'locked';
+          return rehearsal?.ready ? 'done' : 'available';
         // "Not certified yet" is not the same as "something is wrong". Until the report is loaded we
         // know nothing, and an alarm on a healthy long-running integration is worse than silence.
         case 'activation':
@@ -272,10 +288,11 @@ export default function ErpIntegrationPage() {
       { id: 'compatibility', label: s.compatibility, hint: s.compatibilityHint, state: state('compatibility'), lockReason },
       { id: 'mapping',       label: s.mapping,       hint: s.mappingHint,       state: state('mapping'), lockReason },
       { id: 'preview',       label: s.preview,       hint: s.previewHint,       state: state('preview'), lockReason },
+      { id: 'rehearsal',     label: s.rehearsal,     hint: s.rehearsalHint,     state: state('rehearsal'), lockReason },
       { id: 'activation',    label: s.activation,    hint: s.activationHint,    state: state('activation'), lockReason },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, connected, report, blocking.length, t]);
+  }, [step, connected, report, blocking.length, rehearsal, t]);
 
   const activeStep = steps.find((s) => s.id === step);
 
@@ -358,6 +375,15 @@ export default function ErpIntegrationPage() {
                 )}
 
                 {step === 'preview' && <StepPreview mappings={mappings} copy={c('preview')} />}
+
+                {step === 'rehearsal' && (
+                  <StepRehearsal
+                    rehearsal={rehearsal}
+                    loading={loadingRehearsal}
+                    copy={c('rehearsal')}
+                    onRefresh={loadRehearsal}
+                  />
+                )}
 
                 {step === 'activation' && (
                   <StepActivation
