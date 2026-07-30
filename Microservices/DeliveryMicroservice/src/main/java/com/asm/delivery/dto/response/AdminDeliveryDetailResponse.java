@@ -113,6 +113,13 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Delivery instructions")
     private String deliveryInstructions;
 
+    @Schema(description = "The end customer's own order reference, mapped from their ERP",
+            example = "PO-2026-4471")
+    private String customerRef;
+
+    @Schema(description = "Order priority", allowableValues = {"NORMAL", "HIGH"}, example = "HIGH")
+    private String priority;
+
     @Schema(description = "Order items snapshot")
     private List<OrderItem> items;
 

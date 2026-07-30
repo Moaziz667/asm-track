@@ -21,7 +21,7 @@ public class ErpPendingOrderSummaryDTO {
     private String erpOrderId;
 
     @Schema(description = "Client's own purchase order reference, if provided", example = "PO-2026-001")
-    private String externalRef;
+    private String customerRef;
 
     @Schema(description = "End client full name", example = "Mohamed Ali Ben Salah")
     private String customerName;

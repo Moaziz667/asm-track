@@ -174,7 +174,7 @@ export interface OrderPreview {
   erpOrderId?: string | null;
   blNumber?: string | null;
   saleOrderRef?: string | null;
-  externalRef?: string | null;
+  customerRef?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   deliveryAddress?: string | null;
@@ -213,7 +213,7 @@ export const PREVIEW_FIELD_MAP: Array<{ canonical: string; key: keyof OrderPrevi
   { canonical: 'DELIVERY_CITY', key: 'deliveryCity' },
   { canonical: 'DELIVERY_INSTRUCTIONS', key: 'deliveryInstructions' },
   { canonical: 'SALE_ORDER_REF', key: 'saleOrderRef' },
-  { canonical: 'EXTERNAL_REF', key: 'externalRef' },
+  { canonical: 'CUSTOMER_REF', key: 'customerRef' },
   { canonical: 'TOTAL_AMOUNT', key: 'totalAmount' },
   { canonical: 'CURRENCY', key: 'currency' },
   { canonical: 'PRIORITY', key: 'priority' },

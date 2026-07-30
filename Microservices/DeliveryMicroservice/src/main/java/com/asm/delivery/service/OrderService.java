@@ -239,6 +239,7 @@ public class OrderService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customerRef(order.getCustomerRef())
                 .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())

@@ -48,10 +48,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
            "WHERE d.order.erpExternalRef IS NOT NULL AND d.status NOT IN :terminal")
     java.util.Set<String> findSaleRefsWithActiveDelivery(@Param("terminal") java.util.Collection<DeliveryStatus> terminal);
 
-    /** Returns all deliveries waiting for a driver, joining order for full info. */
-    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.status = :status ORDER BY d.order.priority DESC, d.createdAt ASC")
-    List<Delivery> findAllWaitingWithOrder(@Param("status") DeliveryStatus status);
-
     /** Active delivery for a given driver (ASSIGNED, PICKED_UP, IN_TRANSIT). */
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId = :driverId AND d.status IN :statuses")
     List<Delivery> findActiveForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { AppModal } from '@/components/overlays/AppModal';
 import {
   IconRefresh, IconPackage, IconUser, IconRoute,
-  IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
+  IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock, IconAlertTriangle,
   IconPhoto, IconWeight, IconCurrencyDollar,
   IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport, IconReceipt,
 } from '@tabler/icons-react';
@@ -331,6 +331,16 @@ export default function DeliveryDetailPage() {
               {items.length > 0 && (
                 <StatChip icon={<IconPackage size={11} />} label={`${items.length} article${items.length > 1 ? 's' : ''}`} />
               )}
+              {delivery.priority === 'HIGH' && (
+                // Coloured and first: unlike the chips beside it this is a call to act, and a
+                // dispatcher scanning the header should not have to read the row to find it.
+                <span
+                  className="flex items-center gap-[6px] shrink-0 px-2 py-1 rounded text-2xs font-semibold"
+                  style={{ color: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}
+                >
+                  <IconAlertTriangle size={11} /> {t.deliveryPage.priorityHigh}
+                </span>
+              )}
               {delivery.totalWeightKg && (
                 <StatChip icon={<IconWeight size={11} />} label={`${delivery.totalWeightKg} kg`} />
               )}
@@ -376,6 +386,8 @@ export default function DeliveryDetailPage() {
                   <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
                   <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />
+                  {/* The customer's own order number — what they quote when they call. */}
+                  <InfoRow label={t.deliveryPage.labelCustomerRef} value={delivery.customerRef} mono />
                 </div>
 
                 {/* Not an InfoRow: this is a sentence the driver will act on, and the row layout

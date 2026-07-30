@@ -27,7 +27,7 @@ public final class ErpNextDefaultSources {
             Map.entry(CanonicalField.SALE_ORDER_REF, "Sales Order.name"),
             // No delivery note exists until the order is delivered, so nothing is read for this.
             Map.entry(CanonicalField.BL_NUMBER, FieldMappingResolver.DERIVED),
-            Map.entry(CanonicalField.EXTERNAL_REF, "Sales Order.po_no"),
+            Map.entry(CanonicalField.CUSTOMER_REF, "Sales Order.po_no"),
 
             // ── Recipient ─────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.CUSTOMER_NAME, "Sales Order.customer_name"),

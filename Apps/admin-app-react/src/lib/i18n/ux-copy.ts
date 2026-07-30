@@ -1389,6 +1389,8 @@ export const FR_COPY = {
     returnButton: 'Retour',
     // Section: Client
     sectionClient: 'Client',
+    labelCustomerRef: 'Réf. client',
+    priorityHigh: 'Prioritaire',
     deliveryInstructions: 'Instructions de livraison',
     labelName: 'Nom',
     labelPhone: 'Téléphone',

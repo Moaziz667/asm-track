@@ -136,10 +136,14 @@ public class AdminDeliveryController {
 
             @Parameter(description = "Filter by leg kind: FORWARD (delivery) and/or RETURN_PICKUP (return collection)")
             @RequestParam(name = "kind", required = false) java.util.List<com.asm.delivery.entity.DeliveryKind> kind,
+            @io.swagger.v3.oas.annotations.Parameter(
+                    description = "Filter by order priority. Repeatable: priority=HIGH&priority=NORMAL")
+            @RequestParam(name = "priority", required = false)
+            java.util.List<com.asm.delivery.entity.OrderPriority> priority,
 
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, priority, pageable));
     }
 
     @GetMapping("/calendar")

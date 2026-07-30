@@ -21,7 +21,7 @@ public class ErpPendingOrderPreviewDTO {
     private String erpOrderId;
     /** Which ERP produced this preview ("ODOO" / "ERPNEXT") — the adapter is the authority. */
     private String source;
-    private String externalRef;
+    private String customerRef;
     /** ERP values the integrator mapped that have no canonical ASM field; display-only. */
     private java.util.Map<String, Object> customFields;
 

@@ -43,7 +43,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
             DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
             DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
             SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
-            EXTERNAL_REF = com.asm.erpadapter.mapping.CanonicalField.EXTERNAL_REF,
+            CUSTOMER_REF = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_REF,
             CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
             PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
             ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
@@ -330,7 +330,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .blNumber(mappedString(BL_NUMBER, records, () -> asString(picking.get("name"))))
                 .saleOrderRef(mappedString(SALE_ORDER_REF, records,
                         () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
-                .externalRef(mappedString(EXTERNAL_REF, records,
+                .customerRef(mappedString(CUSTOMER_REF, records,
                         () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
                 .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh != null ? wh.code() : null))
                 .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh != null ? wh.name() : null))
@@ -632,7 +632,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .blNumber(mappedString(BL_NUMBER, records, () -> bl))
                 .saleOrderRef(mappedString(SALE_ORDER_REF, records,
                         () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
-                .externalRef(mappedString(EXTERNAL_REF, records,
+                .customerRef(mappedString(CUSTOMER_REF, records,
                         () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
                 .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh != null ? wh.code() : null))
                 .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh != null ? wh.name() : null))

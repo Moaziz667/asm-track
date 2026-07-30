@@ -35,7 +35,7 @@ public final class OdooDefaultSources {
             Map.entry(CanonicalField.BL_NUMBER, "stock.picking.name"),
             // sale_id's label, falling back to the picking's origin text.
             Map.entry(CanonicalField.SALE_ORDER_REF, DERIVED),
-            Map.entry(CanonicalField.EXTERNAL_REF, "sale.order.client_order_ref"),
+            Map.entry(CanonicalField.CUSTOMER_REF, "sale.order.client_order_ref"),
 
             // ── Recipient ─────────────────────────────────────────────────────────────────────────
             // Tries the sale order's partner, then the picking's, then the picking label.

@@ -40,13 +40,6 @@ public class DriverDeliveryController {
     private final BonLivraisonPdfService bonLivraisonPdfService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
 
-    @GetMapping("/available")
-    @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
-    public ResponseEntity<List<DriverDeliveryResponse>> getAvailable(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.getAvailable(UUID.fromString(principal.getUserId())));
-    }
-
     @GetMapping("/active")
     @Operation(summary = "Get the driver's currently active delivery")
     public ResponseEntity<List<DriverDeliveryResponse>> getActive(

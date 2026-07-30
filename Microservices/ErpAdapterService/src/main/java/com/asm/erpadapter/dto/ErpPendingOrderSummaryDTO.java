@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ErpPendingOrderSummaryDTO {
     private String erpOrderId;
-    private String externalRef;
+    private String customerRef;
     private String customerName;
     private String customerPhone;
     private String deliveryAddress;

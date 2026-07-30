@@ -1302,6 +1302,8 @@ export const EN_COPY = {
     returnButton: 'Back',
     // Section: Client
     sectionClient: 'Client',
+    labelCustomerRef: 'Customer ref.',
+    priorityHigh: 'Priority',
     deliveryInstructions: 'Delivery instructions',
     labelName: 'Name',
     labelPhone: 'Phone',

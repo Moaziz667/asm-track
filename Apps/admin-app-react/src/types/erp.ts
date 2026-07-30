@@ -2,7 +2,7 @@ import { DeliveryItem } from "./index";
 
 export type ErpPendingOrderSummaryDTO = {
   erpOrderId: string
-  externalRef?: string
+  customerRef?: string
   customerName: string
   customerPhone?: string
   deliveryAddress?: string

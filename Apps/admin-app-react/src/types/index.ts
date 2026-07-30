@@ -65,6 +65,8 @@ export interface Delivery {
   dropoffPostalCode?: string;
   /** Free text the driver acts on at the door. Served by the API and shown in the driver app. */
   deliveryInstructions?: string | null;
+  /** The end customer's own order reference (their PO number), mapped from their ERP. */
+  customerRef?: string | null;
   dropoffCountryCode?: string;
   dropoffLat?: number;
   dropoffLng?: number;
@@ -120,6 +122,7 @@ export interface Delivery {
   source?: DeliverySource;
   erpId?: string;
   erpOrderId?: string;
+  /** NORMAL | HIGH — an indication for the dispatcher, not something ASM acts on by itself. */
   priority?: string;
   assignedAt?: string;
   completedAt?: string;

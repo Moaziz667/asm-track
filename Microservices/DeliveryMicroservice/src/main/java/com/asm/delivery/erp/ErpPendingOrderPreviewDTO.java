@@ -23,7 +23,7 @@ public class ErpPendingOrderPreviewDTO {
     private String erpOrderId;
 
     @Schema(description = "Client's own purchase order reference", example = "PO-2026-001")
-    private String externalRef;
+    private String customerRef;
 
     @Schema(description = "ERP source system", example = "ODOO")
     private String source;

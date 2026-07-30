@@ -55,7 +55,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
             BL_NUMBER = com.asm.erpadapter.mapping.CanonicalField.BL_NUMBER,
             SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
-            EXTERNAL_REF = com.asm.erpadapter.mapping.CanonicalField.EXTERNAL_REF,
+            CUSTOMER_REF = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_REF,
             CUSTOMER_NAME = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_NAME,
             CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
             DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
@@ -272,7 +272,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             result.add(ErpPendingOrderSummaryDTO.builder()
                     .erpOrderId(mappedString(ERP_ORDER_ID, records, () -> so))
                     .saleOrderRef(mappedString(SALE_ORDER_REF, records, () -> so))
-                    .externalRef(mappedString(EXTERNAL_REF, records, () -> asString(r.get("po_no"))))
+                    .customerRef(mappedString(CUSTOMER_REF, records, () -> asString(r.get("po_no"))))
                     .customerName(mappedString(CUSTOMER_NAME, records, () -> asString(r.get("customer_name"))))
                     .customerPhone(mappedString(CUSTOMER_PHONE, records, () -> asString(r.get("contact_mobile"))))
                     .deliveryAddress(mappedString(DELIVERY_ADDRESS, records,
@@ -377,7 +377,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 // No delivery note exists until the order is delivered, so there is no number to
                 // read; a tenant that has one elsewhere can map it.
                 .blNumber(mappedString(BL_NUMBER, records, () -> null))
-                .externalRef(mappedString(EXTERNAL_REF, records, () -> asString(so.get("po_no"))))
+                .customerRef(mappedString(CUSTOMER_REF, records, () -> asString(so.get("po_no"))))
                 .customerName(mappedString(CUSTOMER_NAME, records, () -> asString(so.get("customer_name"))))
                 .customerPhone(mappedString(CUSTOMER_PHONE, records, () -> asString(so.get("contact_mobile"))))
                 .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> builtAddress))

@@ -185,7 +185,7 @@ function ImportErpPageContent() {
         row.erpOrderId?.toLowerCase().includes(q)
         || row.customerName?.toLowerCase().includes(q)
         || (row.customerPhone ?? '').toLowerCase().includes(q)
-        || (row.externalRef ?? '').toLowerCase().includes(q)
+        || (row.customerRef ?? '').toLowerCase().includes(q)
         || (row.originBl ?? '').toLowerCase().includes(q)
       );
     }
@@ -493,8 +493,8 @@ function ImportErpPageContent() {
                                 {row.blNumber && row.erpOrderId && (
                                   <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
                                 )}
-                                {row.externalRef && (
-                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
+                                {row.customerRef && (
+                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">REF: {row.customerRef}</p>
                                 )}
                               </div>
                             </td>

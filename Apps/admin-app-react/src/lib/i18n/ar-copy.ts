@@ -1361,6 +1361,8 @@ export const AR_COPY = {
     returnButton: 'رجوع',
     // Section: Client
     sectionClient: 'العميل',
+    labelCustomerRef: 'مرجع العميل',
+    priorityHigh: 'ذات أولوية',
     deliveryInstructions: 'تعليمات التوصيل',
     labelName: 'الاسم',
     labelPhone: 'رقم الهاتف',

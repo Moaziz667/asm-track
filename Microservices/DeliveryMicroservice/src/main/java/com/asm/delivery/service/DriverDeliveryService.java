@@ -81,15 +81,6 @@ public class DriverDeliveryService {
             RouteStatus.IN_PROGRESS
     );
 
-    // ── Get available deliveries ──────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public List<DriverDeliveryResponse> getAvailable(UUID driverId) {
-        return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.UNSCHEDULED).stream()
-                .map(this::toDriverDeliveryResponse)
-                .toList();
-    }
-
     // ── Get active delivery for driver ────────────────────────────────────────
 
     @Transactional(readOnly = true)

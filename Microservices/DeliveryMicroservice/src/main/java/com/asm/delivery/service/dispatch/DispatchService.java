@@ -87,9 +87,10 @@ public class DispatchService {
             LocalDate dateFrom,
             LocalDate dateTo,
             List<DeliveryKind> kinds,
+            List<OrderPriority> priorities,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, pageable);
+        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
@@ -130,13 +131,13 @@ public class DispatchService {
     public Page<Delivery> doSearch(List<DeliveryStatus> statuses, List<UUID> driverIds, LocalDate date, List<OrderSource> sources,
                                   List<UUID> zoneIds, List<UUID> depotIds, Boolean unpinned, String q, Boolean assigned, String bucket,
                                   LocalDate dateFrom, LocalDate dateTo, List<DeliveryKind> kinds,
-                                  Pageable pageable) {
+                                  List<OrderPriority> priorities, Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
+        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -147,7 +148,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -491,10 +492,16 @@ public class DispatchService {
                                             String bucket,
                                             LocalDate dateFrom,
                                             LocalDate dateTo,
-                                            List<DeliveryKind> kinds) {
+                                            List<DeliveryKind> kinds,
+                                            List<OrderPriority> priorities) {
         List<Predicate> predicates = new ArrayList<>();
         if (has(statuses)) {
             predicates.add(root.get("status").in(statuses));
+        }
+        // An indication for the dispatcher, not something ASM acts on by itself — which is exactly why
+        // it has to be filterable: a priority nobody can single out is a priority nobody uses.
+        if (has(priorities)) {
+            predicates.add(root.get("order").get("priority").in(priorities));
         }
         if (has(kinds)) {
             predicates.add(root.get("kind").in(kinds));
@@ -610,7 +617,7 @@ public class DispatchService {
                 source != null ? List.of(source) : null,
                 zoneId != null ? List.of(zoneId) : null,
                 null,
-                unpinned, q, assigned, bucket, null, null, null);
+                unpinned, q, assigned, bucket, null, null, null, null);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }
@@ -921,6 +928,8 @@ public class DispatchService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .items(detailLines != null ? new ArrayList<>(detailLines) : null)
                 .customFields(order != null ? order.getCustomFields() : null)
+                .customerRef(order != null ? order.getCustomerRef() : null)
+                .priority(order != null && order.getPriority() != null ? order.getPriority().name() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .routeDistanceKm(d.getRouteDistanceKm())

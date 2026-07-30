@@ -236,6 +236,7 @@ public class ErpLookupService {
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
                 .scheduledAt(preview.getScheduledAt())
                 .priority(parsePriority(preview.getPriority()))
+                .customerRef(preview.getCustomerRef())
                 .items(new ArrayList<>())
                 // ERP values the integrator mapped that ASM has no field for; kept as-is for display.
                 .customFields(preview.getCustomFields())
@@ -374,6 +375,7 @@ public class ErpLookupService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customerRef(order.getCustomerRef())
                 .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())

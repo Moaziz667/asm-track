@@ -26,7 +26,7 @@ public enum CanonicalField {
     /** The originating sales order, for tracing back from a delivery. */
     SALE_ORDER_REF(Scope.HEADER),
     /** The customer's own reference for this order, printed on paperwork. */
-    EXTERNAL_REF(Scope.HEADER),
+    CUSTOMER_REF(Scope.HEADER),
 
     // ── Recipient ─────────────────────────────────────────────────────────────────────────────────
     CUSTOMER_NAME(Scope.HEADER),

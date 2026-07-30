@@ -52,6 +52,16 @@ public class Order {
     @Column(name = "erp_external_ref", length = 100)
     private String erpExternalRef;
 
+    /**
+     * The end customer's own reference — their purchase-order number.
+     *
+     * <p>Deliberately not {@link #erpExternalRef}, which carries the ERP's sale-order reference that
+     * sync-back, resync, invoicing and backorder grouping all resolve against. Display and search
+     * only; ASM never writes it back.
+     */
+    @Column(name = "customer_ref", length = 120)
+    private String customerRef;
+
     /** Official ERP delivery-note / picking number (bon de livraison) this order maps to. */
     @Column(name = "bl_number", length = 100)
     private String blNumber;
