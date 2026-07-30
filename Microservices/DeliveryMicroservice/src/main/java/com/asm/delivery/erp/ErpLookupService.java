@@ -127,6 +127,11 @@ public class ErpLookupService {
                             ? importedBls.contains(dto.getBlNumber())
                             : activeSaleRefs.contains(dto.getErpOrderId());
                     dto.setAlreadyImported(imported);
+                    // The adapter reports what the ERP says — "URGENT", "normale", whatever the
+                    // customer writes. ASM's own vocabulary starts here, so the screen compares
+                    // against the same two values it will see after the import rather than against
+                    // one customer's wording.
+                    dto.setPriority(OrderPriority.of(dto.getPriority()).name());
                     return dto;
                 })
                 .collect(Collectors.toList());
