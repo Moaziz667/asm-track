@@ -135,31 +135,6 @@ public class ErpLookupService {
         return dtos;
     }
 
-    /**
-     * The ASM priority a mapped ERP value means.
-     *
-     * <p>Until now this was hardcoded to NORMAL at import: PRIORITY was mappable, appeared in the
-     * preview, and was then discarded — so an integrator could map an urgency field, watch it resolve
-     * on screen, and get a NORMAL delivery anyway.
-     *
-     * <p>Deliberately generous about what counts as urgent, because a customer flags it however their
-     * ERP happens to: a checkbox, a French word, a status label. {@code URGENT} collapses onto HIGH
-     * rather than adding an enum value — ASM has two levels and inventing a third here would leave
-     * every screen and sort that reads it not knowing about it.
-     *
-     * <p>Anything unrecognised is NORMAL, not an error. A word nobody anticipated must not fail an
-     * import; the worst case is a delivery that is merely not prioritised.
-     */
-    static OrderPriority parsePriority(String mapped) {
-        if (!StringUtils.hasText(mapped)) return OrderPriority.NORMAL;
-        String v = mapped.trim().toLowerCase();
-        return switch (v) {
-            case "high", "urgent", "urgente", "prioritaire", "haute", "1", "true", "yes", "oui" ->
-                    OrderPriority.HIGH;
-            default -> OrderPriority.NORMAL;
-        };
-    }
-
     public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
         ErpPendingOrderPreviewDTO preview = erpPort.getPendingOrderPreview(erpOrderId);
         if (preview == null) {
@@ -235,7 +210,7 @@ public class ErpLookupService {
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
                 .scheduledAt(preview.getScheduledAt())
-                .priority(parsePriority(preview.getPriority()))
+                .priority(OrderPriority.of(preview.getPriority()))
                 .customerRef(preview.getCustomerRef())
                 .items(new ArrayList<>())
                 // ERP values the integrator mapped that ASM has no field for; kept as-is for display.

@@ -355,7 +355,7 @@ public class OrderService {
             order.setTotalAmount(fin != null && fin.getTotalAmount() != null ? fin.getTotalAmount() : BigDecimal.ZERO);
             order.setCurrency(fin != null && StringUtils.hasText(fin.getCurrency()) ? fin.getCurrency() : "TND");
 
-            order.setPriority(parsePriority(plan != null ? plan.getPriority() : null));
+            order.setPriority(OrderPriority.of(plan != null ? plan.getPriority() : null));
 
             order.setItems(items);
             order.setTotalQuantity(load != null && load.getTotalQuantity() != null ? load.getTotalQuantity() : 0);
@@ -368,12 +368,4 @@ public class OrderService {
             return refused;
             }
 
-    private OrderPriority parsePriority(String value) {
-        if (!StringUtils.hasText(value)) return OrderPriority.NORMAL;
-        try {
-            return OrderPriority.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            return OrderPriority.NORMAL;
-        }
-    }
 }
