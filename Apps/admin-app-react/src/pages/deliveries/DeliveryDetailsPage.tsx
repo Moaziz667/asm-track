@@ -386,8 +386,6 @@ export default function DeliveryDetailPage() {
                   <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
                   <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />
-                  {/* The customer's own order number — what they quote when they call. */}
-                  <InfoRow label={t.deliveryPage.labelCustomerRef} value={delivery.customerRef} mono />
                 </div>
 
                 {/* Not an InfoRow: this is a sentence the driver will act on, and the row layout
