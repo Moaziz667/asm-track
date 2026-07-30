@@ -71,6 +71,9 @@ public class ErpPendingOrderSummaryDTO {
     private Boolean ready;
 
     @Schema(description = "True when this picking is a backorder (reliquat of a prior partial delivery)", example = "true")
+    /** NORMAL | HIGH — so the list can flag an urgent order before anyone imports it. */
+    private String priority;
+
     private boolean backorder;
 
     @Schema(description = "BL number of the origin picking this is a backorder of", example = "WH/OUT/00012")

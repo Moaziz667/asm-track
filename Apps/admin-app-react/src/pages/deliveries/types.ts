@@ -2,6 +2,6 @@ import type { Delivery } from '@/types';
 
 export type QuickView =
   | 'all' | 'needsPinning' | 'unassigned' | 'inTransit'
-  | 'completed' | 'failed' | 'overdue' | 'today' | 'future' | 'returns';
+  | 'completed' | 'failed' | 'overdue' | 'today' | 'future' | 'returns' | 'priority';
 
 export type DeliveryRow = Delivery & { rowId: string };

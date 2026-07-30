@@ -111,6 +111,9 @@ function DeliveriesPageContent() {
     if (depot.length) params.depot = depot;
     if (quickView === 'needsPinning') params.unpinned = 'true';
     if (quickView === 'returns') params.kind = ['RETURN_PICKUP'];
+    // Sent to the server as well as filtered locally: a page-local filter would hide urgent
+    // deliveries sitting on page two, which is the opposite of what the filter is for.
+    if (quickView === 'priority') params.priority = ['HIGH'];
     return params;
   }, [page, size, status, dateFrom, dateTo, driverId, zoneId, depot, quickView]);
 
@@ -240,6 +243,7 @@ function DeliveriesPageContent() {
     { value: 'today',       label: t.deliveriesPage.quickViewToday,       count: quickCounts.today },
     { value: 'future',      label: t.deliveriesPage.quickViewFuture,      count: quickCounts.future },
     { value: 'needsPinning',label: t.deliveriesPage.quickViewNeedsPinning,count: quickCounts.needsPinning },
+    { value: 'priority',    label: t.deliveryPage.priorityHigh,             count: quickCounts.priority },
     { value: 'unassigned',  label: t.deliveriesPage.quickViewUnassigned,  count: quickCounts.unassigned },
     { value: 'inTransit',   label: t.deliveriesPage.quickViewInTransit,   count: quickCounts.inTransit },
     { value: 'completed',   label: t.deliveriesPage.quickViewCompleted,   count: quickCounts.completed },

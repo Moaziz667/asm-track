@@ -284,6 +284,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                     .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh))
                     .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh))
                     .ready(mappedBoolean(READY, records, () -> true))
+                    .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                     .backorder(isBackorder)   // reliquat badge; no originBl — the row already shows the SO (self-reference)
                     .scheduledAt(mappedDateTime(SCHEDULED_AT, records, () -> parseDateTime(r.get("delivery_date"), null)))
                     .dateOrder(mappedDateTime(DATE_ORDER, records, () -> parseDateTime(r.get("transaction_date"), null)))

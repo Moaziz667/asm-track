@@ -3,6 +3,7 @@ import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { STATUS_COLORS } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { PriorityDot } from '@/components/data-display/PriorityDot';
 import { IconMapPin, IconFileText, IconRoute, IconX, IconLink } from '@tabler/icons-react';
 import { cn, resolveOrderRef, shortId } from '@/lib/utils';
 import { getDayBucket } from '@/lib/sla';
@@ -330,7 +331,8 @@ export function DeliveryMobileCard({
 
       {/* Client & Address Info */}
       <div className="flex flex-col gap-1 ps-1">
-        <span className="text-xs font-bold text-[var(--text-primary)]">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
+          <PriorityDot priority={item.priority} label={t.deliveryPage.priorityHigh} />
           {item.clientName || t.deliveriesPage.unknownDriver}
         </span>
         <div className="flex items-center gap-1">

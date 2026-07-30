@@ -34,6 +34,8 @@ export function useDeliveries(params: {
   zoneId?: string | string[];
   depot?: string | string[];
   unpinned?: string;
+  /** NORMAL | HIGH — repeatable, matching the backend's `priority` request param. */
+  priority?: string[];
   kind?: string | string[];
 }) {
   return useQuery({

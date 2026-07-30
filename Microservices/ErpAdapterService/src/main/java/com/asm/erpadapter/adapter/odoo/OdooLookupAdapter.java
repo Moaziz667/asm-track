@@ -649,6 +649,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
+                .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 .backorder(asRelId(picking.get("backorder_id")) != null)
                 .originBl(asRelName(picking.get("backorder_id")))
                 .dateOrder(mappedDateTime(DATE_ORDER, records,

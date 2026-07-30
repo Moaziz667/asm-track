@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { AppModal } from '@/components/overlays/AppModal';
 import {
   IconRefresh, IconPackage, IconUser, IconRoute,
-  IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock, IconAlertTriangle,
+  IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
   IconPhoto, IconWeight, IconCurrencyDollar,
   IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport, IconReceipt,
 } from '@tabler/icons-react';
@@ -332,13 +332,15 @@ export default function DeliveryDetailPage() {
                 <StatChip icon={<IconPackage size={11} />} label={`${items.length} article${items.length > 1 ? 's' : ''}`} />
               )}
               {delivery.priority === 'HIGH' && (
-                // Coloured and first: unlike the chips beside it this is a call to act, and a
-                // dispatcher scanning the header should not have to read the row to find it.
+                // First in the row and coloured, but no heavier than the chips beside it: this is one
+                // delivery, so the word is worth its width — on a list it would not be, which is why
+                // the lists get the dot alone.
                 <span
-                  className="flex items-center gap-[6px] shrink-0 px-2 py-1 rounded text-2xs font-semibold"
-                  style={{ color: 'var(--danger)', background: 'color-mix(in srgb, var(--danger) 10%, transparent)' }}
+                  className="flex items-center gap-[6px] shrink-0 px-2 py-1 text-2xs font-medium"
+                  style={{ color: 'var(--danger)' }}
                 >
-                  <IconAlertTriangle size={11} /> {t.deliveryPage.priorityHigh}
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--danger)' }} />
+                  {t.deliveryPage.priorityHigh}
                 </span>
               )}
               {delivery.totalWeightKg && (

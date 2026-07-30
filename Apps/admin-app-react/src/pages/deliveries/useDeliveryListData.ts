@@ -28,6 +28,8 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
 
       if (quickView === 'returns') return (item as { kind?: string }).kind === 'RETURN_PICKUP';
       if (quickView === 'needsPinning') return !item.dropoffPinned;
+      // Urgency is only worth carrying if it can be singled out; this is that.
+      if (quickView === 'priority') return item.priority === 'HIGH';
       if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
       if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT' && item.status !== 'AWAITING_HANDOFF') return false;
       if (quickView === 'completed' && item.status !== 'DELIVERED') return false;
@@ -82,12 +84,13 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
   }, [query, quickView, rows, sortAsc, groupByClient, groupByZone, groupByStatus]);
 
   const quickCounts = useMemo(() => {
-    let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0;
+    let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0, priority = 0;
     let overdue = 0, today = 0, future = 0, returns = 0;
 
     rows.forEach((item: DeliveryRow) => {
       if ((item as { kind?: string }).kind === 'RETURN_PICKUP') returns++;
       if (!item.dropoffPinned) needsPinning++;
+      if (item.priority === 'HIGH') priority++;
       if (!item.driverId) unassigned++;
       if (item.status === 'IN_TRANSIT' || item.status === 'AWAITING_HANDOFF') inTransit++;
       if (item.status === 'DELIVERED') completed++;
@@ -101,7 +104,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
         else if (bucket === 'future') future++;
       }
     });
-    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future, returns };
+    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future, returns, priority };
   }, [rows]);
 
   return { filteredRows, quickCounts };

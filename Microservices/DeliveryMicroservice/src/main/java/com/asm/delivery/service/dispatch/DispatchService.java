@@ -753,6 +753,7 @@ public class DispatchService {
                 .warehouseCode(order != null ? order.getWarehouseCode() : null)
                 .sourceDepotId(d.getSourceDepotId() != null ? d.getSourceDepotId()
                         : (order != null ? order.getSourceDepotId() : null))
+                .priority(order != null && order.getPriority() != null ? order.getPriority().name() : null)
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .dropoffCity(order != null ? order.getDropoffCity() : null)

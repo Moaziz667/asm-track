@@ -25,6 +25,7 @@ import {
   IconCloudDownload,
 } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import { PriorityDot } from '@/components/data-display/PriorityDot';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatMoney } from '@/lib/utils';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
@@ -504,7 +505,10 @@ function ImportErpPageContent() {
                           if (col.id === 'customer') return (
                             <td key="customer" className={cn(CELL_PADDING[density])}>
                               <div>
-                                <p className="text-xs font-semibold text-[var(--text-primary)]">{row.customerName}</p>
+                                <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-primary)]">
+                                  <PriorityDot priority={row.priority} label={t.deliveryPage.priorityHigh} />
+                                  {row.customerName}
+                                </p>
                                 <div className="flex items-center gap-1">
                                   <IconPhone size={10} className="text-[var(--text-muted)]" />
                                   <p className="text-2xs font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
