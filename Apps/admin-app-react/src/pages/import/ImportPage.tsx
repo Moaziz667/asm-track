@@ -490,8 +490,13 @@ function ImportErpPageContent() {
                                     ) : badge;
                                   })()}
                                 </div>
-                                {row.blNumber && row.erpOrderId && (
-                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
+                                {/* The sale order, and only when it is not what the headline already
+                                    shows. It used to print erpOrderId under an "SO:" label — which on
+                                    Odoo is the picking, so the line both lied and repeated the row's
+                                    own reference. On ERPNext the two are genuinely the same document,
+                                    so the line simply does not appear there. */}
+                                {row.saleOrderRef && row.saleOrderRef !== (row.blNumber || row.erpOrderId) && (
+                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.saleOrderRef}</p>
                                 )}
                                 {row.customerRef && (
                                   <p className="text-2xs font-semibold text-[var(--text-muted)]">REF: {row.customerRef}</p>
