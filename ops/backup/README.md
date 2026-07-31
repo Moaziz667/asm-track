@@ -210,10 +210,25 @@ Suivre la reprise dans `docker logs postgres-delivery`, puis sortir du mode rest
 
 ## Planifier
 
-Voir [crontab.example](crontab.example). Une ligne, quotidienne à 02h30.
+```bash
+sudo ./install-cron.sh            # installe la tâche quotidienne (02h30)
+sudo ./install-cron.sh --show     # ce qui est installé
+sudo ./install-cron.sh --remove   # la retirer
+```
+
+Le script est idempotent : le relancer laisse **une** entrée, pas deux. Il ne modifie que la
+ligne qu'il a posée (repérée par une étiquette), le reste du crontab n'est pas touché. Il pose
+aussi la rotation du journal — sinon une année d'exécutions nocturnes remplit doucement le
+disque sur lequel on écrit les sauvegardes.
+
+Pour une pose à la main, la ligne est dans [crontab.example](crontab.example).
 
 Pas de conteneur de sauvegarde dans le `docker-compose` : il lui faudrait le socket Docker,
 c'est-à-dire un accès root déguisé sur toute la machine, pour économiser une ligne de crontab.
+
+> ⚠️ **Windows n'a pas de cron.** En local, la sauvegarde ne part que lancée à la main. C'est
+> voulu : des données de développement n'ont rien à protéger. La planification est une affaire
+> de serveur.
 
 ### Surveiller
 
@@ -235,6 +250,34 @@ Ce fichier est destiné à la page **System Health**, pour qu'une sauvegarde mue
 visible à l'écran.
 
 ---
+
+## Première installation sur un serveur
+
+Dans l'ordre, une seule fois :
+
+```bash
+# 1. Le dossier de destination doit exister AVANT que la stack démarre : Docker monte
+#    ../backups en lecture seule dans delivery-service et, s'il est absent, en crée un
+#    vide appartenant à root. Le service démarre alors sans jamais voir de sauvegarde.
+mkdir -p /opt/asm/backups
+
+# 2. Vérifier la place. Compter ~15 Mo par sauvegarde aujourd'hui, 14 conservées, et
+#    prévoir large : le volume grandit avec les photos de preuve de livraison.
+df -h /opt/asm
+
+# 3. Une sauvegarde manuelle d'abord — on n'automatise pas quelque chose qu'on n'a pas
+#    vu réussir.
+cd /opt/asm/ops/backup && ./backup.sh
+
+# 4. Puis seulement, la planification.
+sudo ./install-cron.sh
+```
+
+Le lendemain, deux vérifications qui prennent dix secondes : `tail /var/log/asm-backup.log`,
+et la ligne « Dernière sauvegarde » sur la page System Health.
+
+**Les sauvegardes du serveur et celles d'un poste de développement sont deux mondes séparés.**
+Le cron installé ici protège les données de ce serveur, rien d'autre.
 
 ## Engagements
 
