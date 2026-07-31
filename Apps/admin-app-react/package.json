@@ -10,6 +10,7 @@
     "build-keycloak-theme": "npm run build && keycloakify build",
     "start-keycloak": "keycloakify start-keycloak",
     "lint": "eslint .",
+    "lint:ci": "eslint . --max-warnings 179",
     "check:design": "node scripts/check-design-tokens.mjs --max 0",
     "preview": "vite preview",
     "test": "vitest run",

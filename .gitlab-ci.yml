@@ -1,9 +1,11 @@
 # ASM Track — CI pipeline (self-hosted GitLab, git.asmtechtn.com).
 #
-# Runs on the Docker-executor runner (tag: docker). Stages follow the test pyramid / fail-fast order:
-#   1. build            — compile backend + type-check frontend (catches breakage cheapest, first)
-#   2. unit-test        — fast, fully-mocked tests, no external services
-#   3. integration-test — slower; needs a real Postgres (attached as a `services:` side-car)
+# Runs on the Docker-executor runner (tag: docker). Stages follow the test pyramid / fail-fast
+# order, so the cheapest check that can fail runs first:
+#   1. build            — compile every service, type-check and lint the frontend
+#   2. unit-test        — fast, fully-mocked, no external services
+#   3. integration-test — slower; needs a real Postgres, and a real Odoo for the connector
+#   4. package          — build and push versioned images to the project registry
 #
 # Nothing in a later stage runs if an earlier stage fails.
 
@@ -11,6 +13,7 @@ stages:
   - build
   - unit-test
   - integration-test
+  - package
 
 variables:
   # No Gradle daemon in CI (one-shot JVM), and keep its home in the project dir so it can be cached.
@@ -18,27 +21,22 @@ variables:
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
 
 # ── reusable snippets ────────────────────────────────────────────────────────
-.gradle-delivery: &gradle-delivery
+# One template per toolchain, driven by $SERVICE. Five near-identical job definitions used to
+# mean three services were simply forgotten — a matrix cannot forget.
+.gradle-service: &gradle-service
   image: gradle:8.5-jdk17
   tags: [docker]
   cache:
-    key: gradle-delivery
+    key: "gradle-$SERVICE"
     paths:
       - .gradle/caches
       - .gradle/wrapper
   before_script:
-    - cd Microservices/DeliveryMicroservice
+    - cd "Microservices/$SERVICE"
 
-.gradle-erp-adapter: &gradle-erp-adapter
-  image: gradle:8.5-jdk17
-  tags: [docker]
-  cache:
-    key: gradle-erp-adapter
-    paths:
-      - .gradle/caches
-      - .gradle/wrapper
-  before_script:
-    - cd Microservices/ErpAdapterService
+.all-services: &all-services
+  matrix:
+    - SERVICE: [ApiGateway, AppBackend, DeliveryMicroservice, DriverService, ErpAdapterService]
 
 .npm-admin: &npm-admin
   image: node:20
@@ -54,15 +52,10 @@ variables:
     - npm ci --cache .npm --prefer-offline
 
 # ── 1. BUILD ─────────────────────────────────────────────────────────────────
-build-backend-delivery:
-  <<: *gradle-delivery
+build-backend:
+  <<: *gradle-service
   stage: build
-  script:
-    - gradle compileJava compileTestJava
-
-build-backend-erp-adapter:
-  <<: *gradle-erp-adapter
-  stage: build
+  parallel: *all-services
   script:
     - gradle compileJava compileTestJava
 
@@ -72,28 +65,27 @@ typecheck-admin:
   script:
     - npm run typecheck
 
+lint-admin:
+  <<: *npm-admin
+  stage: build
+  script:
+    # Errors fail the job. Warnings are known debt (see eslint.config.js) and the cap stops it
+    # growing: the count may fall, never rise.
+    - npm run lint:ci
+    - npm run check:design
+
 # ── 2. UNIT TEST ─────────────────────────────────────────────────────────────
 # `test` runs unit tests only (integration *IT excluded in build.gradle) — no DB needed.
-unit-test-backend-delivery:
-  <<: *gradle-delivery
+unit-test-backend:
+  <<: *gradle-service
   stage: unit-test
+  parallel: *all-services
   script:
     - gradle test
   artifacts:
     when: always
     reports:
-      junit: Microservices/DeliveryMicroservice/build/test-results/test/*.xml
-    expire_in: 1 week
-
-unit-test-backend-erp-adapter:
-  <<: *gradle-erp-adapter
-  stage: unit-test
-  script:
-    - gradle test
-  artifacts:
-    when: always
-    reports:
-      junit: Microservices/ErpAdapterService/build/test-results/test/*.xml
+      junit: "Microservices/$SERVICE/build/test-results/test/*.xml"
     expire_in: 1 week
 
 test-admin:
@@ -106,12 +98,13 @@ test-admin:
 # `integrationTest` runs the *IT suite against the side-car Postgres (via IT_DB_URL). No Docker-in-Docker:
 # the tests connect to the service over the job network, they don't spawn their own container.
 integration-test-backend-delivery:
-  <<: *gradle-delivery
+  <<: *gradle-service
   stage: integration-test
   services:
     - name: postgres:16
       alias: postgres
   variables:
+    SERVICE: DeliveryMicroservice
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     POSTGRES_DB: delivery_test
@@ -205,3 +198,65 @@ integration-test-erp-adapter-odoo:
     paths:
       - Microservices/ErpAdapterService/build/reports/tests/
     expire_in: 1 week
+
+# ── 4. PACKAGE ───────────────────────────────────────────────────────────────
+# Build once, deploy many: the artefact that ships is the image built here, never a rebuild
+# on the server. The runner is not privileged, so this uses rootless BuildKit rather than
+# Docker-in-Docker — and rather than Kaniko, whose upstream repository was archived in 2025.
+#
+# Tagging, in order of what you should actually deploy:
+#   <service>:<short-sha>     immutable, one commit, one image — this is what a deploy pins to
+#   <service>:<branch-slug>   moving pointer, convenient for "the current main"
+#   <service>:<git-tag>       only when the commit carries a tag, e.g. v1.2.0
+#
+# There is deliberately no `latest`. A tag that silently changes meaning is how two machines
+# end up "on the same version" while running different code.
+.buildkit: &buildkit
+  stage: package
+  tags: [docker]
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""]
+  variables:
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+  script:
+    - |
+      IMAGE="$CI_REGISTRY_IMAGE/$NAME"
+      NAMES="$IMAGE:$CI_COMMIT_SHORT_SHA,$IMAGE:$CI_COMMIT_REF_SLUG"
+      [ -n "$CI_COMMIT_TAG" ] && NAMES="$NAMES,$IMAGE:$CI_COMMIT_TAG"
+      echo "building $NAMES"
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context="$CONTEXT" \
+        --local dockerfile="$CONTEXT" \
+        --opt build-arg:CACHE_BUST="$CI_COMMIT_SHA" \
+        --import-cache type=registry,ref=$IMAGE:buildcache \
+        --export-cache type=registry,ref=$IMAGE:buildcache,mode=max \
+        --output type=image,\"name=$NAMES\",push=true
+  rules:
+    # The default branch and release tags are what anyone deploys, so those always produce an
+    # image. Feature branches can still ask for one by hand when a VPS needs to try something.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - when: manual
+      allow_failure: true
+
+package-images:
+  <<: *buildkit
+  parallel:
+    matrix:
+      - NAME: api-gateway
+        CONTEXT: Microservices/ApiGateway
+      - NAME: app-backend
+        CONTEXT: Microservices/AppBackend
+      - NAME: delivery-service
+        CONTEXT: Microservices/DeliveryMicroservice
+      - NAME: driver-service
+        CONTEXT: Microservices/DriverService
+      - NAME: erp-adapter
+        CONTEXT: Microservices/ErpAdapterService
+      - NAME: admin-app
+        CONTEXT: Apps/admin-app-react
