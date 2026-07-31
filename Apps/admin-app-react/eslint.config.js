@@ -18,5 +18,16 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // The codebase already writes `_color`, `_copy`, `_pod` for "required by the signature,
+      // deliberately unused". The rule just never knew about the convention, so it reported
+      // them — which teaches people to ignore the rule rather than to name things clearly.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+    },
   },
 ])

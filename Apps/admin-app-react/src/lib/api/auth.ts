@@ -35,7 +35,7 @@ export function getCurrentUser(): AdminUser | null {
   if (data) {
     try {
       return JSON.parse(data);
-    } catch (e) {}
+    } catch {}
   }
 
   // Try individual fields as fallback

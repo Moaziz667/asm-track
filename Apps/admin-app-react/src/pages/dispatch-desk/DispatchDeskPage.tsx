@@ -145,7 +145,6 @@ function DispatchDeskContentInner() {
     drivers,
     drawerTargets,
     setDrawerTargets,
-    selectedIds,
     setSelectedIds,
     fetchExceptions,
     fetchAllDeliveries,

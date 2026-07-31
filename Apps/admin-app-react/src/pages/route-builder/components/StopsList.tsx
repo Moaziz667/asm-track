@@ -44,7 +44,6 @@ export function StopsList({
   batchRemoving,
 }: StopsListProps) {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const selectableStops = stops.filter((s) => s.stopType !== 'PICKUP');
   const allSelected = selectableStops.length > 0 && selectedStopIds.length === selectableStops.length;
   const someSelected = selectedStopIds.length > 0;

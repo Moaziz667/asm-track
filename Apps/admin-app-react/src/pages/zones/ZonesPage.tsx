@@ -195,7 +195,7 @@ export default function ZonesPage() {
         await createZoneMutation.mutateAsync(payload);
       }
       setEditorOpen(false);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };
@@ -203,7 +203,7 @@ export default function ZonesPage() {
   const syncZones = async () => {
     try {
       await syncZonesMutation.mutateAsync();
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };
@@ -213,7 +213,7 @@ export default function ZonesPage() {
     try {
       await deleteZoneMutation.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };

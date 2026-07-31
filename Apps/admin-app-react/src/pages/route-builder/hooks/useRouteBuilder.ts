@@ -1106,7 +1106,7 @@ export function useRouteBuilder() {
       });
       showSuccessToast(t.routeBuilderPage.toastStopTransferred);
       await refreshAll(true);
-    } catch (err) {
+    } catch {
       setRoutes(snapshotRoutes);
       showErrorToast(null, t.routeBuilderPage.toastTransferFailed);
     }

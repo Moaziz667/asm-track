@@ -21,7 +21,6 @@ import { useT } from '@/lib/i18n/LocaleContext';
 
 export function StopsPanel() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     selectedRoute,

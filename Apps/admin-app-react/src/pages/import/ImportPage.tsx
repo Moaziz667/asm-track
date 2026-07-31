@@ -17,9 +17,7 @@ import {
   IconPhone,
   IconMapPin,
   IconCalendarClock,
-  IconCheck,
   IconAlertCircle,
-  IconClock,
   IconCloudDownload } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { PriorityDot } from '@/components/data-display/PriorityDot';

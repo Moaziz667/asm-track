@@ -11,7 +11,6 @@ import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function CreateRouteModal() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const rb = useRouteBuilderContext();
   const {
     createOpen,

@@ -141,7 +141,6 @@ function RouteCard({
 
 export function RouteSidebar() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const rb = useRouteBuilderContext();
   const {
     routes,

@@ -69,7 +69,6 @@ export function OptimizePreview({
   applying,
 }: OptimizePreviewProps) {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const hasGain = (distanceSavedMeters ?? 0) > 0 || (durationSavedSeconds ?? 0) > 0;
 
   return (

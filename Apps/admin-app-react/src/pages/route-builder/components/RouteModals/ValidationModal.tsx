@@ -10,7 +10,6 @@ import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function ValidationModal() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     confirmValidateRouteId,

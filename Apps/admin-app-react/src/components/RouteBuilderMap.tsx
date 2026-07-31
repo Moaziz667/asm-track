@@ -285,7 +285,6 @@ interface NominatimResult { place_id: number; display_name: string; lat: string;
 
 function MapSearch() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const map = useMap();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);

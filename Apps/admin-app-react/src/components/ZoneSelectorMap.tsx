@@ -108,7 +108,7 @@ async function detectCodes(
         }
         codes = Array.from(seen.values());
       }
-    } catch (err) {
+    } catch {
       // Silently catch the error so we can gracefully fall back to Nominatim
       // The browser will inherently log network failures (like 504), but we don't need to throw our own warning.
     }

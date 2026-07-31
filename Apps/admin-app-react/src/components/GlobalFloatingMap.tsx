@@ -16,9 +16,6 @@ import {
   IconSearch,
   IconGripVertical,
   IconMinus,
-  IconChevronLeft,
-  IconSquare,
-  IconList,
   IconLayoutSidebar,
   IconAlertTriangle } from '@tabler/icons-react';
 

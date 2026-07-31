@@ -9,7 +9,6 @@ import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function DeleteModal() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const rb = useRouteBuilderContext();
   const {
     confirmDeleteRouteId,

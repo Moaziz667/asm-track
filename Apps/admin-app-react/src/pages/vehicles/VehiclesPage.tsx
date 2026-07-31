@@ -286,7 +286,6 @@ function VehiclesPageContent() {
     CAR:   t.vehiclesPage.vehicleTypeCar,
     MOTO:  t.vehiclesPage.vehicleTypeMoto,
   };
-  const locale = useLocaleStore(state => state.locale);
   // Managing vehicles (create/edit/status/assign/delete) needs perm:driver:manage — same as the backend.
   // Viewers see the fleet read-only; no action buttons that would just 403.
   const { has } = usePermissions();
@@ -445,7 +444,7 @@ function VehiclesPageContent() {
       await deleteVehicleMutation.mutateAsync(pendingDelete.id);
       setConfirmOpen(false);
       setPendingDelete(null);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };
@@ -453,7 +452,7 @@ function VehiclesPageContent() {
   const reactivateVehicle = async (v: VehicleItem) => {
     try {
       await reactivateVehicleMutation.mutateAsync(v.id);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };

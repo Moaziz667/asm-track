@@ -6,8 +6,6 @@ import "./theme.css";
 
 export default function Template({
   kcContext,
-  i18n,
-  doUseDefaultCss,
   children,
   displayMessage = true,
   headerNode,

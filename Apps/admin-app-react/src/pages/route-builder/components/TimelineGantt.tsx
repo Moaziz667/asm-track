@@ -28,7 +28,6 @@ const minutesToLabel = (mins: number) => {
 
 export function TimelineGantt() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     routes,
