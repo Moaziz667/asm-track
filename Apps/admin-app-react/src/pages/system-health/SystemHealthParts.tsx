@@ -1,5 +1,8 @@
 import { useT } from '@/lib/i18n/LocaleContext';
-import { ageParts, type AgeParts } from '@/lib/health/system-health';
+import {
+  ageParts, backupState,
+  type AgeParts, type BackupState, type BackupStatus,
+} from '@/lib/health/system-health';
 
 // ── Tone → design tokens ──────────────────────────────────────────────────────
 // The page reads as prose, so a tone is only ever a small dot next to a word. There is no tinted
@@ -21,36 +24,20 @@ export interface CircuitBreaker {
   failureRate: number; bufferedCalls: number; failedCalls: number; notPermittedCalls: number;
 }
 
-/** Past this, a daily backup has plainly missed its slot — one skipped night is already a miss. */
-const BACKUP_STALE_AFTER_MS = 36 * 60 * 60 * 1000;
+const BACKUP_TONE: Record<BackupState, Tone> = {
+  unknown: 'idle', failed: 'down', stale: 'warn', fresh: 'ok',
+};
 
-export interface BackupStatus {
-  status?: string; finishedAt?: string; detail?: string; offsite?: boolean;
-}
-
-/**
- * Turns the backup state file into a tone and a word.
- *
- * The failure worth catching is the quiet one: a job that stopped running weeks ago leaves a
- * state file still saying "ok". So freshness is judged here rather than trusted from the file —
- * an old success is reported as stale, never as green.
- */
+/** Dresses {@link backupState} — which holds the judgement — in a tone and a translated word. */
 export function describeBackup(b: BackupStatus | undefined, now: number, t: ReturnType<typeof useT>) {
   const dd = t.systemHealthPage;
-  const offsite = b?.offsite === true;
-  const age = b?.finishedAt ? formatAge(b.finishedAt, t) : '—';
-
-  if (!b?.status || b.status === 'unknown') {
-    return { tone: 'idle' as Tone, label: dd.backupUnknown, age: '—', offsite };
-  }
-  if (b.status !== 'ok') {
-    return { tone: 'down' as Tone, label: dd.backupFailed, age, offsite };
-  }
-  const stale = b.finishedAt == null || now - Date.parse(b.finishedAt) > BACKUP_STALE_AFTER_MS;
+  const state = backupState(b, now);
+  const label = { unknown: dd.backupUnknown, failed: dd.backupFailed, stale: dd.backupStale, fresh: dd.backupOk }[state];
   return {
-    tone: stale ? ('warn' as Tone) : ('ok' as Tone),
-    label: stale ? dd.backupStale : dd.backupOk,
-    age, offsite,
+    tone: BACKUP_TONE[state],
+    label,
+    age: state === 'unknown' ? '—' : formatAge(b?.finishedAt ?? null, t),
+    offsite: b?.offsite === true,
   };
 }
 

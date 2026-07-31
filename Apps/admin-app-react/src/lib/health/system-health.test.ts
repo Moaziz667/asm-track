@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveHealthSummary, computeStale, ageParts, isDown, isRecovering, groupServices, describeKey, STALE_AFTER_MS } from './system-health';
+import { deriveHealthSummary, computeStale, ageParts, backupState, isDown, isRecovering, groupServices, describeKey, STALE_AFTER_MS } from './system-health';
 
 describe('isDown / isRecovering', () => {
   it('treats a failed reachability probe as down even when the breaker is CLOSED', () => {
@@ -160,5 +160,36 @@ describe('ageParts', () => {
   });
   it('buckets days with remaining hours', () => {
     expect(ageParts('2026-06-05T06:00:00Z', now)).toEqual({ kind: 'days', d: 3, h: 6 });
+  });
+});
+
+describe('backupState', () => {
+  const now = Date.parse('2026-07-31T12:00:00Z');
+  const hoursAgo = (h: number) => new Date(now - h * 3600_000).toISOString();
+
+  it('reports unknown when the state file is missing — not healthy', () => {
+    // What an operator sees before the schedule has ever been installed. Rendering this as
+    // "ok" would hide exactly the situation the line exists to reveal.
+    expect(backupState(undefined, now)).toBe('unknown');
+    expect(backupState({ status: 'unknown' }, now)).toBe('unknown');
+  });
+
+  it('reports a failed run', () => {
+    expect(backupState({ status: 'failed', finishedAt: hoursAgo(1) }, now)).toBe('failed');
+  });
+
+  it('accepts a recent success', () => {
+    expect(backupState({ status: 'ok', finishedAt: hoursAgo(10) }, now)).toBe('fresh');
+    expect(backupState({ status: 'ok', finishedAt: hoursAgo(35) }, now)).toBe('fresh');
+  });
+
+  it('calls an old success stale — the cron that stopped weeks ago still says ok', () => {
+    expect(backupState({ status: 'ok', finishedAt: hoursAgo(37) }, now)).toBe('stale');
+    expect(backupState({ status: 'ok', finishedAt: hoursAgo(24 * 30) }, now)).toBe('stale');
+  });
+
+  it('does not trust a success with no or unreadable date', () => {
+    expect(backupState({ status: 'ok' }, now)).toBe('stale');
+    expect(backupState({ status: 'ok', finishedAt: 'not a date' }, now)).toBe('stale');
   });
 });
