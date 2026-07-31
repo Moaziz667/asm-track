@@ -36,7 +36,8 @@ export function describeBackup(b: BackupStatus | undefined, now: number, t: Retu
   return {
     tone: BACKUP_TONE[state],
     label,
-    age: state === 'unknown' ? '—' : formatAge(b?.finishedAt ?? null, t),
+    // "43 min" alone reads as a duration the backup took; the age is what the operator needs.
+    age: state === 'unknown' ? '—' : dd.backupAgo.replace('{age}', formatAge(b?.finishedAt ?? null, t)),
     offsite: b?.offsite === true,
   };
 }

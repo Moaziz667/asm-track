@@ -3876,6 +3876,7 @@ export const FR_COPY = {
     // Sauvegarde — voir ops/backup/
     backupTitle: 'Sauvegarde des données',
     backupLast: 'Dernière sauvegarde',
+    backupAgo: 'il y a {age}',
     backupOk: 'À jour',
     backupStale: 'Ancienne',
     backupFailed: 'Échec',

@@ -3823,6 +3823,7 @@ export const EN_COPY = {
     // Backups — see ops/backup/
     backupTitle: 'Data backup',
     backupLast: 'Last backup',
+    backupAgo: '{age} ago',
     backupOk: 'Up to date',
     backupStale: 'Out of date',
     backupFailed: 'Failed',

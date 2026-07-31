@@ -3829,6 +3829,7 @@ export const AR_COPY = {
     // النسخ الاحتياطي — راجع ops/backup/
     backupTitle: 'النسخ الاحتياطي للبيانات',
     backupLast: 'آخر نسخة احتياطية',
+    backupAgo: 'منذ {age}',
     backupOk: 'محدَّثة',
     backupStale: 'قديمة',
     backupFailed: 'فشلت',
