@@ -22,12 +22,6 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { Button } from '@/components/ui/button';
 
-const ZONE_TABLE_COLUMNS_BASE: ColumnDef[] = [
-  { id: 'designation', label: '', pinned: true },
-  { id: 'coverage',    label: '' },
-  { id: 'density',     label: '' },
-  { id: 'status',      label: '' },
-];
 import {
   useZones,
   useCreateZone,

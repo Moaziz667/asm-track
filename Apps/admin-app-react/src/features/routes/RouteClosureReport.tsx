@@ -19,7 +19,6 @@ import { AppModal } from '@/components/overlays/AppModal';
 // ── formatters ─────────────────────────────────────────────────────────────────
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-FR') : '—');
 const fmtTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—');
-const fmtDT = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
 // Compact audit timestamp: day/month + time, no year — keeps the Heure column narrow so it never
 // bleeds into the Réf column (e.g. "05/07 02:12" instead of "05/07/2026 02:12").
 const fmtAuditAt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');

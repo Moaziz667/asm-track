@@ -1,7 +1,7 @@
 
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -390,7 +390,6 @@ function FeedItem({
 export default function AuditLogsPage() {
   const t = useT();
   const locale = useLocaleStore(state => state.locale);
-  const navigate = useNavigate();
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalElements, setTotalElements] = useState(0);

@@ -709,14 +709,7 @@ function RoutesTablePageContent() {
     return [...map.entries()];
   }, [filteredRoutes]);
 
-  const stats = useMemo(() => {
-    const total     = routes.length;
-    const active    = routes.filter(r => r.status === 'IN_PROGRESS').length;
-    const validated = routes.filter(r => r.status === 'VALIDATED').length;
-    return { total, active, validated };
-  }, [routes]);
 
-  const hasAdvancedFilters = dateFilter !== 'ALL' || driverFilters.length || vehicleFilters.length || depotFilters.length || zoneFilters.length || clientFilter;
 
   // Zone options come from the active-zones master list (same source as Deliveries/Dispatch), not from the
   // current page's routes — deriving from loaded rows left the dropdown empty whenever those rows had a null

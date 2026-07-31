@@ -34,14 +34,6 @@ import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 
-const IMPORT_COLUMNS_BASE: ColumnDef[] = [
-  { id: 'ref',      label: '', pinned: true },
-  { id: 'customer', label: '', pinned: true },
-  { id: 'dest',     label: '' },
-  { id: 'amount',   label: '' },
-  { id: 'date',     label: '' },
-  { id: 'status',   label: '' },
-];
 
 const CELL_PADDING: Record<'compact' | 'comfortable' | 'spacious', string> = {
   compact: 'px-3 py-1.5',

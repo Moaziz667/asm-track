@@ -31,10 +31,6 @@ const TONE_C: Record<string, string> = {
   info: 'var(--info)', brand: 'var(--brand)', default: 'var(--text-muted)',
 };
 
-const TONE_LABEL: Record<string, string> = {
-  success: 'Nominal', warning: 'Attention', danger: 'Critique',
-  info: 'Info', brand: 'Opérationnel', default: '—',
-};
 
 function Spark({ data, color, area }: { data: number[]; color: string; area?: boolean }) {
   if (!data || data.length < 2) return null;

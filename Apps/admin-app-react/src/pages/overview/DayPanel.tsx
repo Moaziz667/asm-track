@@ -29,15 +29,6 @@ const DFNS_LOCALE: Record<string, Locale> = { fr, en: enUS, ar: arEG };
 const dateLocale = (locale: string) => DFNS_LOCALE[locale] ?? fr;
 
 /** Compact KPI tile sized for the side panel — no card chrome, typography only. */
-function StatTile({ label, value, sub, tone = 'default' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {
-  return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-3xs font-medium text-[var(--text-muted)] truncate">{label}</span>
-      <span className="text-sm font-semibold tabular-nums leading-tight truncate" style={{ color: TONE_VAR[tone] }} title={String(value)}>{value}</span>
-      {sub && <span className="text-3xs text-[var(--text-soft)] truncate">{sub}</span>}
-    </div>
-  );
-}
 
 /** Vertical metric row: full label on the left, value + sub on the right — no truncation battles. */
 function MetricRow({ label, value, sub, tone = 'default' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {

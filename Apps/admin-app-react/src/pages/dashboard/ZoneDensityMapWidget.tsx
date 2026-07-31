@@ -144,7 +144,6 @@ export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
     });
   }, [points, bounds, maxOrders]);
 
-  const textColor = isDark ? '#E9EBED' : '#0F141A';
   const mutedColor = isDark ? '#8D99A8' : '#5F6B7A';
 
   function zoneFill(color: string, count: number): string {

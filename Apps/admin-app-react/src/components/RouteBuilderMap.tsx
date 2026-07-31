@@ -45,13 +45,6 @@ type BuilderRouteStop = {
   dropoffLng?: number;
 };
 
-type BuilderRoute = {
-  id: string;
-  name: string;
-  status: string;
-  routeGeometry?: string;
-  stops: BuilderRouteStop[];
-};
 
 type Props = {
   onPinDragStart?: (orderId: string, orderIds: string[], clientName: string, e: MouseEvent) => void;

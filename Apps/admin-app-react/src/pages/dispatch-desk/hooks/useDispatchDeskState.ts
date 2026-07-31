@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Driver, Delivery, Zone } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
@@ -185,7 +185,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   // ── Misc ──────────────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<{ name?: string } | null>(null);
-  const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);
   const lastAppliedSearch = useRef<string | null>(null);

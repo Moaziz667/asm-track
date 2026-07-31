@@ -1,6 +1,5 @@
 'use client';
 
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { IconCheck, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { AppModal } from '@/components/overlays/AppModal';

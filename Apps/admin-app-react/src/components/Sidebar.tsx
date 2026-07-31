@@ -139,12 +139,6 @@ export function AppSidebar() {
     settings: true,
   });
 
-  const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupKey]: !prev[groupKey]
-    }));
-  };
 
   useEffect(() => {
     setIsClient(true);
@@ -490,9 +484,6 @@ export function AppSidebar() {
             if (visibleItems.length === 0) return null;
 
             const isGroupExpanded = activeGroup === group.labelKey;
-            const hasActiveChild = visibleItems.some(item => 
-              pathname === item.href || pathname.startsWith(`${item.href}/`)
-            );
 
             return (
               <div key={group.labelKey} className={s.navPanel__group}>
@@ -521,7 +512,6 @@ export function AppSidebar() {
                   {visibleItems.map((item, index) => {
                     const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                     const badge = getBadgeFor(item.labelKey);
-                    const isLast = index === visibleItems.length - 1;
 
                     return (
                       <Link

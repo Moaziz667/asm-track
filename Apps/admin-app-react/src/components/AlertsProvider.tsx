@@ -42,14 +42,6 @@ export interface Notification {
   eventParams?: Record<string, string>;
 }
 
-interface NotificationsContextType {
-  notifications: Notification[];
-  unreadCount: number;
-  markRead: (id: string) => void;
-  markAllRead: () => void;
-  clearAll: () => void;
-  acknowledge: (id: string) => void;
-}
 
 // ── Event config ──────────────────────────────────────────────────────────────
 

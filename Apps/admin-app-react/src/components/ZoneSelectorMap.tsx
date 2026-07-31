@@ -236,7 +236,6 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
 function SearchControl() {
   const map = useMap();
   const t = useT();
-  const isDark = useIsDark();
   const [query,   setQuery]   = useState('');
   const [loading, setLoading] = useState(false);
 

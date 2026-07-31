@@ -16,7 +16,6 @@ import { StopWindowDraft } from '../types';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 
 export function StopsPanel() {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
@@ -88,7 +88,6 @@ const addMinutesToTime = (timeStr: string, minutes: number) => {
 
 export function useRouteBuilder() {
   const t = useT();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchParam = searchParams?.get('search') ?? '';
   const isMounted = useRef(false);

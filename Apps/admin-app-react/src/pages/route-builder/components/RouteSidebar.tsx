@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconPlus,
