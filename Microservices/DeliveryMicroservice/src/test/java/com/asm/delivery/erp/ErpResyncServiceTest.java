@@ -32,6 +32,8 @@ class ErpResyncServiceTest {
     @Mock OutboxRepository outboxRepo;
     @Mock OutboxProcessor outboxProcessor;
     @Mock com.asm.delivery.service.AuditLogService auditLogService;
+    // A POD resync rebuilds its payload from the stored proof instead of refusing outright.
+    @Mock com.asm.delivery.repository.ProofOfDeliveryRepository podRepo;
     // Real mapper so payload-matching actually parses JSON.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -43,7 +45,8 @@ class ErpResyncServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ErpResyncService(orderRepo, deliveryRepo, outboxRepo, outboxProcessor, objectMapper, auditLogService);
+        service = new ErpResyncService(orderRepo, deliveryRepo, outboxRepo, outboxProcessor, objectMapper,
+                auditLogService, podRepo);
         orderId = UUID.randomUUID();
         order = Order.builder()
                 .id(orderId)
@@ -109,7 +112,9 @@ class ErpResyncServiceTest {
 
     @Test
     void refusesUnreconstructableOpWithoutAFailedEvent() {
-        order.setLastSyncOp("POD"); // POD/RETURN/PARTIAL can't be rebuilt from delivery state
+        // A reschedule carries a promised date that lives on the plan, not on the shipment, so
+        // rebuilding it would mean inventing a date and writing it into the customer's ERP.
+        order.setLastSyncOp("RESCHEDULE");
         when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
         when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
         when(outboxRepo.findByStatusOrderByCreatedAtAsc("FAILED")).thenReturn(List.of());
@@ -118,6 +123,51 @@ class ErpResyncServiceTest {
 
         assertThat(result.queued()).isFalse();
         assertThat(result.reason()).contains("manual review");
+        verifyNoInteractions(outboxProcessor);
+    }
+
+    @Test
+    void rebuildsAProofOfDeliveryFromWhatTheDriverCaptured() {
+        // Everything the ERP needs was stored before the ERP was ever called, so a failed POD can
+        // be rebuilt faithfully — more faithfully than the live path, in fact, which stamped the
+        // moment of sending rather than the moment of handover.
+        order.setLastSyncOp("POD");
+        var collectedAt = java.time.LocalDateTime.of(2026, 7, 30, 14, 5);
+        var pod = com.asm.delivery.entity.ProofOfDelivery.builder()
+                .collectedAt(collectedAt)
+                .recipientName("Ali Ben Salah")
+                .build();
+        when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
+        when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
+        when(outboxRepo.findByStatusOrderByCreatedAtAsc("FAILED")).thenReturn(List.of());
+        when(podRepo.findByDeliveryId(delivery.getId())).thenReturn(Optional.of(pod));
+
+        var result = service.resync(orderId);
+
+        assertThat(result.queued()).isTrue();
+        @SuppressWarnings("unchecked")
+        var payload = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(outboxProcessor).enqueue(eq("ERP_SYNC_POD"), payload.capture());
+        // The handover time, not the moment of re-sending: that is the point of rebuilding from
+        // the stored proof rather than stamping now().
+        assertThat(payload.getValue()).containsEntry("deliveredAt", collectedAt.toString());
+        assertThat(payload.getValue()).containsEntry("recipientName", "Ali Ben Salah");
+    }
+
+    @Test
+    void refusesAProofOfDeliveryItCannotRebuild() {
+        // No stored proof means there is nothing truthful to send. Sending a made-up timestamp
+        // into a customer's ERP would be worse than leaving the failure visible.
+        order.setLastSyncOp("POD");
+        when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
+        when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
+        when(outboxRepo.findByStatusOrderByCreatedAtAsc("FAILED")).thenReturn(List.of());
+        when(podRepo.findByDeliveryId(delivery.getId())).thenReturn(Optional.empty());
+
+        var result = service.resync(orderId);
+
+        assertThat(result.queued()).isFalse();
+        assertThat(result.reason()).contains("No proof of delivery");
         verifyNoInteractions(outboxProcessor);
     }
 

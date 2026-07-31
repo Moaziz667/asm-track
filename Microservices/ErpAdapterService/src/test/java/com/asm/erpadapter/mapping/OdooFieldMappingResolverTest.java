@@ -147,9 +147,9 @@ class OdooFieldMappingResolverTest {
     @Test
     void odooFalseBecomesNull() {
         Map<String, Map<String, Object>> withFalse = Map.of("stock.picking", Map.of("x_vide", false));
-        mapped(CanonicalField.EXTERNAL_REF, "x_vide", "AUTO");
+        mapped(CanonicalField.CUSTOMER_REF, "x_vide", "AUTO");
 
-        assertThat(resolver.resolveOrDefault(CanonicalField.EXTERNAL_REF, withFalse, () -> "défaut"))
+        assertThat(resolver.resolveOrDefault(CanonicalField.CUSTOMER_REF, withFalse, () -> "défaut"))
                 .isNull();
     }
 
@@ -255,9 +255,9 @@ class OdooFieldMappingResolverTest {
     /** The same bare path on a header field still means the picking — the two scopes must not swap. */
     @Test
     void aBareHeaderPathStillReadsFromTheDeliveryNote() {
-        mapped(CanonicalField.EXTERNAL_REF, "x_ref", "AUTO");
+        mapped(CanonicalField.CUSTOMER_REF, "x_ref", "AUTO");
 
-        assertThat(resolver.resolveOrDefault(CanonicalField.EXTERNAL_REF, lineRecords, () -> "défaut"))
+        assertThat(resolver.resolveOrDefault(CanonicalField.CUSTOMER_REF, lineRecords, () -> "défaut"))
                 .isEqualTo("SUR-LE-BL");
     }
 
