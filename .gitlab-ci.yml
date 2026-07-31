@@ -201,26 +201,34 @@ integration-test-erp-adapter-odoo:
       # database-manager screen, long before `-i base,sale,stock` has produced anything usable, so
       # the port is a proxy that reports ready while every test is still doomed to fail.
       # `authenticate` returns a numeric uid once the database exists and its modules are loaded.
+      rpc() {  # rpc <host> <service> <method> <args-json>
+        wget -qO- --timeout=10 --header='Content-Type: application/json' \
+          --post-data="{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"$2\",\"method\":\"$3\",\"args\":$4}}" \
+          "http://$1:8069/jsonrpc" 2>/dev/null | tr -d ' '
+      }
       for host in odoo16 odoo19; do
         echo "waiting for $host"
         ready=""
-        for i in $(seq 1 90); do
-          body=$(wget -qO- --timeout=5 --header='Content-Type: application/json' \
-            --post-data="{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"common\",\"method\":\"authenticate\",\"args\":[\"$host\",\"admin\",\"admin\",{}]}}" \
-            "http://$host:8069/jsonrpc" 2>/dev/null || true)
-          # Whitespace removed before matching: Odoo answers `"result": 2`, and a pattern written
-          # against `"result":2` rejects the very response it is waiting for.
-          case "$(printf '%s' "$body" | tr -d ' ')" in
-            *'"result":'[0-9]*) ready="yes"; echo "  $host authenticated after $((i * 5))s"; break ;;
-          esac
+        for i in $(seq 1 120); do
+          # Authentication alone is not enough, and that mistake cost two runs: Odoo accepts a
+          # login as soon as `base` is in place, while `sale` and `stock` are still installing.
+          # The tests need those two modules — the first thing they touch is stock.move.line — so
+          # readiness is "both modules report installed", nothing weaker.
+          auth=$(rpc "$host" common authenticate "[\"$host\",\"admin\",\"admin\",{}]")
+          uid=$(printf '%s' "$auth" | sed -n 's/.*"result":\([0-9][0-9]*\).*/\1/p')
+          if [ -n "$uid" ]; then
+            mods=$(rpc "$host" object execute_kw \
+              "[\"$host\",$uid,\"admin\",\"ir.module.module\",\"search_count\",[[[\"name\",\"in\",[\"sale\",\"stock\"]],[\"state\",\"=\",\"installed\"]]]]")
+            case "$mods" in
+              *'"result":2'*) ready="yes"; echo "  $host ready after $((i * 5))s (sale + stock installed)"; break ;;
+            esac
+          fi
           if [ $((i % 12)) = 0 ]; then
-            getent hosts "$host" > /dev/null 2>&1 \
-              && echo "  $((i * 5))s — $host resolves; database not ready yet: ${body:-no response}" \
-              || echo "  $((i * 5))s — $host does not resolve; the service container is not running"
+            echo "  $((i * 5))s — $host: auth=${auth:-none} modules=${mods:-none}"
           fi
           sleep 5
         done
-        [ -n "$ready" ] || { echo "$host never became usable — last response: ${body:-none}"; exit 1; }
+        [ -n "$ready" ] || { echo "$host never finished installing — auth=${auth:-none} modules=${mods:-none}"; exit 1; }
       done
   script:
     - gradle integrationTest --no-daemon
