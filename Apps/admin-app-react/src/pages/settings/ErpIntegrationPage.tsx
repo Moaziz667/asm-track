@@ -171,7 +171,8 @@ export default function ErpIntegrationPage() {
     setTesting(true);
     try {
       const ok = await runTest(false);
-      ok ? showSuccessToast(c('connection').testSuccess) : showErrorToast(new Error(c('connection').testFailed));
+      if (ok) showSuccessToast(c('connection').testSuccess);
+      else showErrorToast(new Error(c('connection').testFailed));
       await afterConnectionChange();
     } finally { setTesting(false); }
   };
@@ -188,8 +189,8 @@ export default function ErpIntegrationPage() {
       }
       setTesting(true);
       const ok = await runTest(true);
-      ok ? showSuccessToast(c('connection').savedAndTested)
-         : showErrorToast(new Error(c('connection').savedTestFailed));
+      if (ok) showSuccessToast(c('connection').savedAndTested);
+      else showErrorToast(new Error(c('connection').savedTestFailed));
       await afterConnectionChange();
     } catch {
       showErrorToast(new Error(c('connection').saveFailed));

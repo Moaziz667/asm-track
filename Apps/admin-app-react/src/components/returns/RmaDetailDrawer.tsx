@@ -93,7 +93,7 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   ];
 }
 
-export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, onSaveShipping, t }: Props) {
+export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, t }: Props) {
   const ref = rma?.rmaNumber || rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
   const returnValue = rma
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)

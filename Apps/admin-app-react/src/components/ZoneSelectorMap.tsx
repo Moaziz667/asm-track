@@ -21,7 +21,7 @@ if (typeof window !== 'undefined') {
   // Fix for leaflet-draw ReferenceError: type is not defined in strict mode
   (window as unknown as { type: string }).type = '';
 
-  // @ts-ignore
+  // @ts-expect-error — see the note above
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',

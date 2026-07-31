@@ -6,7 +6,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // `public/keycloakify-dev-resources` is vendored by keycloakify, not ours to lint or fix.
+  globalIgnores(['dist', 'public/keycloakify-dev-resources']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

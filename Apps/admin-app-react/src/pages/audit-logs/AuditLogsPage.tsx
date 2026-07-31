@@ -35,7 +35,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Clean the actor for display: a raw UUID becomes the system label, an email keeps its local part,
  *  otherwise the name as-is. So the actor column never shows machine garbage. */
-function displayActor(name: string | undefined, role: string, t: TranslationSchema): string {
+function displayActor(name: string | undefined, role: string, _t: TranslationSchema): string {
   const n = (name ?? '').trim();
   const systemLabel = 'System';
   const roleLabel = role ? `${role.charAt(0)}${role.slice(1).toLowerCase()}` : systemLabel;

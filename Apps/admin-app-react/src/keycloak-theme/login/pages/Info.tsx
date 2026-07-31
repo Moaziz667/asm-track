@@ -9,7 +9,7 @@ type AnyMsg = (key: string, ...args: string[]) => React.ReactNode;
 export default function Info({ kcContext, i18n, Template, doUseDefaultCss }: Props) {
   const { messageHeader, message, requiredActions, skipLink, pageRedirectUri,
           actionUri, client } = kcContext;
-  const { msg, msgStr } = i18n;
+  const { msg } = i18n;
   const msgAny = msg as AnyMsg;
 
   return (

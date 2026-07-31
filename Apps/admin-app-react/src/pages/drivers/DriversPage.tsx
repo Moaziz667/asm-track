@@ -188,20 +188,16 @@ function DriversPageContent() {
   const openCreate = () => { setEditingDriver(null); setCrudOpen(true); };
   const openEdit = (drv: Driver) => { setEditingDriver(drv); setCrudOpen(true); };
 
+  // Failures deliberately propagate: the modal surfaces field-level errors (email or phone
+  // already taken) under the field itself, and the mutation hook already raises the generic
+  // toast — catching here would only add a second, redundant message.
   const saveDriver = async (data: DriverCrud) => {
-    try {
-      if (editingDriver) {
-        await updateDriverMutation.mutateAsync({ id: editingDriver.id, payload: { name: data.name, phone: data.phone, email: data.email } });
-      } else {
-        await createDriverMutation.mutateAsync({ name: data.name, phone: data.phone, email: data.email });
-      }
-      setCrudOpen(false);
-    } catch (err) {
-      // Propagate so the modal can surface field-level errors (e.g. email/phone taken) under the
-      // field. The generic toast is already handled in the mutation hook (and suppressed for
-      // field-mapped codes), so no double feedback.
-      throw err;
+    if (editingDriver) {
+      await updateDriverMutation.mutateAsync({ id: editingDriver.id, payload: { name: data.name, phone: data.phone, email: data.email } });
+    } else {
+      await createDriverMutation.mutateAsync({ name: data.name, phone: data.phone, email: data.email });
     }
+    setCrudOpen(false);
   };
 
   const toggleActive = async (drv: Driver) => {

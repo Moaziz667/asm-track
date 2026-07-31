@@ -18,7 +18,9 @@ export function getLocaleFromCookie(): Locale {
       const value = localeCookie.split('=')[1];
       if (['fr', 'en', 'ar'].includes(value)) return value as Locale;
     }
-  } catch {}
+  } catch {
+    // Cookies can be unreadable (private mode, sandboxed iframe) — fall back to the default.
+  }
   return 'fr';
 }
 

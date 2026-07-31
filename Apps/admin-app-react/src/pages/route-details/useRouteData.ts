@@ -165,7 +165,9 @@ export function useRouteData(routeId: string | undefined) {
               } : prev);
               setDriverLastSeen(data.timestamp ?? new Date().toISOString());
             }
-          } catch { }
+          } catch {
+      // Best-effort enrichment: the page still renders without it.
+    }
         });
       },
       onStompError: () => {},
@@ -195,7 +197,7 @@ export function useRouteData(routeId: string | undefined) {
     [orderedStops, deliveryMap],
   );
 
-  const toggleStop = (id: string) => setExpandedStops((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleStop = (id: string) => setExpandedStops((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const scrollToStop = (id: string) => {
     stopRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setExpandedStops((prev) => { const n = new Set(prev); n.add(id); return n; });

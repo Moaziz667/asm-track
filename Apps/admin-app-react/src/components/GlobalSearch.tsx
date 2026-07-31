@@ -521,7 +521,7 @@ export default function GlobalSearch() {
                 </div>
               )}
 
-              {groups.map(([groupName, items], gi) => {
+              {groups.map(([groupName, items]) => {
                 const groupStart = idx
                 idx += items.length
                 return (

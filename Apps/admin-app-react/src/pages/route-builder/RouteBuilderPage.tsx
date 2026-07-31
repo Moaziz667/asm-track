@@ -11,7 +11,6 @@ import {
   IconChevronDown as ChevronDown,
   IconArrowsMove as Move,
   IconList,
-  IconRoute2 as IconRouteIcon2,
   IconCalendarStats,
   IconMapPlus } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';

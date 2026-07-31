@@ -42,8 +42,8 @@ export default function DashboardPage() {
 
   const {
     refreshing, isLoading, refetch, stats, today, slaPercent,
-    trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev, deliveredSub,
-    activeRoutesCount, drivers, driverGroups,
+    trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev,
+    driverGroups,
     laneMap, needsAttention, activeRoutes, focusedRouteId, setFocusedRouteId,
     driverName, getStatusConfig, kpi, ops, returns, counts,
   } = useDashboardData(range, customFrom, customTo, scope);

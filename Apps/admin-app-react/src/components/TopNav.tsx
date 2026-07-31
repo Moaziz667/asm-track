@@ -201,7 +201,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const { data: user } = useCurrentUser();
   const [isClient, setIsClient] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const { locale: activeLocale, setLocale } = useLocaleStore();
+  const { locale: activeLocale } = useLocaleStore();
 
   const { mapMode, setMapMode } = useGlobalMapStore();
   const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');

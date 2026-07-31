@@ -1285,7 +1285,7 @@ export function useRouteBuilder() {
     const stopById = new Map(selectedRouteStops.map((stop) => [stop.id, stop]));
 
     const routeStart = optimizationStartTime || '08:00';
-    let [h, m] = routeStart.split(':').map(Number);
+    const [h, m] = routeStart.split(':').map(Number);
     const currentTime = new Date();
     currentTime.setHours(h, m, 0, 0);
 

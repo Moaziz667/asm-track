@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { IconMapPinFilled } from '@tabler/icons-react';
@@ -177,14 +177,13 @@ function TopDemandPanel({ zones, total }: { zones: ZoneAgg[]; total: number }) {
 
 /* ── Main component ─────────────────────────────────────────────────── */
 
-export default function ZoneDemandMap({ kpi, heatmap }: Props) {
+export default function ZoneDemandMap({ heatmap }: Props) {
   const t = useT();
   const { data: zones = [] } = useZones();
   const isDark = useIsDark();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const [, forceUpdate] = useState(0);
-
+  
   const rawPoints = heatmap?.points;
   const isMock = !rawPoints || rawPoints.length === 0;
   const points = isMock ? MOCK_POINTS : rawPoints;

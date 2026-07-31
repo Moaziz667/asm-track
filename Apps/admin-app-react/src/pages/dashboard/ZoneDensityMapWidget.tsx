@@ -59,7 +59,7 @@ function centroid(pts: [number, number][]): [number, number] {
   return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
 }
 
-export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
+export default function ZoneDensityMapWidget({ heatmap }: Props) {
   const t = useT();
   const { data: zones = [] } = useZones();
   const isDark = useIsDark();

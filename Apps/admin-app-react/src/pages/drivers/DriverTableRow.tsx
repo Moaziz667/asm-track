@@ -69,7 +69,7 @@ function DriverActivity({
 
 export function DriverTableRow({
   drv, gridCols, rowHeight, orderedColumns, visibleIds, t, readOnly, resendCooldown,
-  isDriverEnLivraison, routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
+  routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Props) {
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',
@@ -187,7 +187,7 @@ export function DriverTableRow({
 
 export function DriverMobileCard({
   drv, t, readOnly, resendCooldown,
-  isDriverEnLivraison, routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
+  routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Omit<Props, 'gridCols' | 'rowHeight' | 'orderedColumns' | 'visibleIds'>) {
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',

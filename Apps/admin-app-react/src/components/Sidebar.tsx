@@ -19,7 +19,6 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useAlerts } from '@/components/AlertsProvider';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { useAuth } from 'react-oidc-context';
 import { safeStorage } from '@/lib/storage';
@@ -121,7 +120,6 @@ export function AppSidebar() {
   const { mapMode, setMapMode } = useGlobalMapStore();
   const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');
   const { locale: activeLocale } = useLocaleStore();
-  const { unreadCount } = useAlerts();
 
   // Auto-close drawer on mobile when routing changes
   useEffect(() => {
@@ -130,14 +128,6 @@ export function AppSidebar() {
     }
   }, [pathname, isMobile]);
 
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    operations: true,
-    deliveries: true,
-    planning: true,
-    fleet: true,
-    analytics: false,
-    settings: true,
-  });
 
 
   useEffect(() => {
@@ -509,7 +499,7 @@ export function AppSidebar() {
 
                 {/* Group Items */}
                 <div className={cn(s['navPanel__items'], !isGroupExpanded && s['navPanel__items--collapsed'])}>
-                  {visibleItems.map((item, index) => {
+                  {visibleItems.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                     const badge = getBadgeFor(item.labelKey);
 

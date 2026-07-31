@@ -4193,7 +4193,7 @@ type LocaleObj = Record<string | symbol, unknown>;
 const createLocaleProxy = (frObj: LocaleObj, enObj: LocaleObj, arObj: LocaleObj): unknown => {
   return new Proxy(frObj, {
     get(target, prop) {
-      let locale = 'fr';
+      let locale: string;
 
       if (typeof window !== 'undefined') {
         // Client: try to get from store, fall back to cookie
