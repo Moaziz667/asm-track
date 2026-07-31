@@ -8,13 +8,13 @@ import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { applyFieldError } from '@/lib/utils/form-errors';
 import {
-  IconRefresh, IconPlus, IconSearch,
-  IconTruck, IconCar, IconUserCheck,
+  IconRefresh, IconPlus,
+  IconTruck, IconCar,
   IconWeight, IconCalendar, IconPencil, IconTrash,
-  IconGauge, IconX,
+  IconGauge,
   IconPoint, IconPackage
 } from '@tabler/icons-react';
-import type { Driver } from '@/types';
+import type {} from '@/types';
 import { usePermissions } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

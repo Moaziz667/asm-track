@@ -6,7 +6,7 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import type { useT } from '@/lib/i18n/LocaleContext';
 import type { RouteItem } from '@/hooks/useRoutes';
-import { CalDelivery, isoDay, STATUS_TONE_MAP, TONE_VAR } from './shared';
+import { CalDelivery, isoDay, STATUS_TONE_MAP } from './shared';
 import { DayPanel } from './DayPanel';
 
 interface Props {

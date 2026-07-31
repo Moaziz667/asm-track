@@ -1,9 +1,9 @@
 
 
-import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { useMemo, useState, Suspense } from 'react';
 import { lazy as dynamic } from 'react';
 import { z } from 'zod';
-import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { showErrorToast } from '@/lib/ui/toast-service';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT, getCopy } from '@/lib/i18n/LocaleContext';
 import { AddButton } from '@/components/ui/AddButton';
@@ -12,11 +12,8 @@ import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
-import {
-  IconAlertTriangle, IconMapPin, IconPencil, IconPlus,
-  IconRefresh, IconScan, IconTrash, IconX, IconWorld,
-  IconLayoutDashboard, IconPoint
-} from '@tabler/icons-react';
+import { IconPencil, IconPlus,
+  IconRefresh, IconScan, IconTrash, IconX, IconWorld } from '@tabler/icons-react';
 import { usePermissions } from '@/lib/api/auth';
 import type { Zone } from '@/types';
 import { cn } from '@/lib/utils';

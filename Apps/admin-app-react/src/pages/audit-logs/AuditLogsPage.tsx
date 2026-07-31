@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { showErrorToast } from '@/lib/ui/toast-service';
 import { isAbortError } from '@/lib/utils/errors';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';

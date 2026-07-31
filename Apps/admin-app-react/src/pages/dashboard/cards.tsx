@@ -1,7 +1,6 @@
 import React from 'react';
 import {
-  IconPackage, IconUser, IconRoute, IconMapPin, IconCalendar, IconClock,
-} from '@tabler/icons-react';
+  IconPackage, IconUser, IconRoute, IconMapPin, IconCalendar } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { getDayBucket } from '@/lib/sla';
 import { StatusBadge } from '@/components/data-display/StatusBadge';

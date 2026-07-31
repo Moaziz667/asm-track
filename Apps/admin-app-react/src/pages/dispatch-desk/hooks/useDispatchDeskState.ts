@@ -12,7 +12,7 @@ import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction, QueueRow } from '../types';
 import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
-import { formatMotif, formatComment } from '../formatters';
+import { formatMotif } from '../formatters';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {

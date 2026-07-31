@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { cn, formatMoney } from '@/lib/utils';
+import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useIsMobile } from '@/hooks/use-mobile';

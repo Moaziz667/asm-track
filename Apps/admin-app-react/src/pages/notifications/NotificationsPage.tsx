@@ -15,7 +15,6 @@ import {
 import {
   getLocalizedNotif,
   useNotifications,
-  type Notification,
 } from '@/components/AlertsProvider';
 import { SeverityIcon } from '@/components/AlertBell';
 

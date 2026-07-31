@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import type { Delivery, DeliveryStatus, Zone } from '@/types';
+import type { DeliveryStatus, Zone } from '@/types';
 
 export const DELIVERIES_QUERY_KEY = ['deliveries'] as const;
 export const ACTIVE_ZONES_QUERY_KEY = ['active_zones'] as const;

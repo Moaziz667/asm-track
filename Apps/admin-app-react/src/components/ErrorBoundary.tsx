@@ -1,6 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { IconShieldCheck, IconX } from '@tabler/icons-react';
+import { IconX } from '@tabler/icons-react';
 import { getCopy } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 

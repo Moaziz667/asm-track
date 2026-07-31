@@ -2,10 +2,8 @@ import { useMemo } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import {
-  IconChartAreaFilled, IconTruckFilled, IconAlertTriangleFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
-  IconChevronRight, IconLayoutKanban, IconCircleCheckFilled, IconArrowBackUp, IconInbox,
-} from '@tabler/icons-react';
+import { IconTruckFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
+  IconChevronRight, IconLayoutKanban } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';

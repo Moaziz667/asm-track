@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils';
 
 interface AppLoaderProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';

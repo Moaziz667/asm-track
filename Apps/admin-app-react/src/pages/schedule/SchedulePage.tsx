@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 import {
   IconChevronLeft, IconChevronRight,

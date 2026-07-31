@@ -9,7 +9,6 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { IconReassign, IconReplan } from '@/components/icons/DispatchIcons';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { ReassignDrawer } from '@/components/overlays/reassign';
-import { cn } from '@/lib/utils';
 
 import { STATUS_DOT, getDriverStatusTip, REPLANNABLE_STATUSES, REASSIGNABLE_STATUSES } from './constants';
 import type { OpsException } from './types';

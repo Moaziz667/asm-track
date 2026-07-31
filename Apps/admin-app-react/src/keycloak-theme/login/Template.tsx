@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 import type { TemplateProps } from "keycloakify/login/TemplateProps";
 import type { KcContext } from "./KcContext";
 import type { I18n } from "./i18n";

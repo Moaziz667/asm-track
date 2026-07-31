@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { StopsList } from './StopsList';
 import { OptimizePreview } from './OptimizePreview';
-import { RouteItem, RouteStop, DeliveryOption, StopWindowDraft } from '../types';
+import { StopWindowDraft } from '../types';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
