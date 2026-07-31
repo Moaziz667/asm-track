@@ -27,8 +27,8 @@ Et un risque qui n'est pas dans le cahier mais qui est bien réel : les **preuve
 
 | | Valeur | D'où ça vient |
 |---|---|---|
-| **RPO** | ~5 min sur `delivery_db`, 24 h sur le reste | archivage WAL toutes les 5 min / dump quotidien |
-| **RTO** | à mesurer pendant le test (estimé ~30 min) | chronométré réellement, pas estimé au doigt |
+| **RPO** | ~5 min sur `delivery_db`, 24 h sur le reste | archivage WAL toutes les 5 min / dump quotidien — **éprouvé le 31/07** |
+| **RTO** | 2 s pour un client, < 2 min pour une reprise dans le temps | chronométré réellement, pas estimé au doigt |
 | **Rétention** | 14 jours en local | 14 dumps ≈ 40 Mo aujourd'hui |
 
 Pourquoi pas un RPO de 0 : il faudrait une réplication synchrone, donc un second serveur, une latence ajoutée sur chaque écriture, et un couplage où l'arrêt du réplica arrête la production. À notre volume, 5 minutes représentent moins d'une livraison. Le jour où la plateforme atteint les 5 000 livraisons/jour du cahier (§6.1), 5 minutes deviennent ~50 livraisons : la marche suivante est alors un **réplica asynchrone** (RPO de quelques secondes, et RTO amélioré au passage), pas le synchrone.
@@ -73,7 +73,7 @@ L'archive MinIO est à 0 octet : l'exécution a été interrompue à cette étap
 
 **Reste à faire :** la poussée hors-machine (voir A5) et le fichier d'état (A4).
 
-### A2. Archivage WAL sur `delivery_db` *(fait — pas encore éprouvé)*
+### A2. Archivage WAL sur `delivery_db` *(fait, éprouvé)*
 
 C'est le *« + journaux »* du cahier, et c'est ce qui fait passer le RPO de 24 h à 5 min.
 
@@ -84,9 +84,10 @@ C'est le *« + journaux »* du cahier, et c'est ce qui fait passer le RPO de 24 
 > sauvegarde. Sans cette correction, l'archivage WAL aurait tourné pour rien et le RPO annoncé
 > aurait été faux.
 
-État réel : archivage actif et vérifié (`pg_stat_archiver` : 1 archivé, 0 échec), base physique
-et journaux capturés à chaque sauvegarde. **La procédure de reprise dans le temps n'a pas encore
-été jouée** : tant qu'elle ne l'est pas, le RPO tenable reste 24 h.
+État réel : archivage actif (`pg_stat_archiver` : 0 échec), base physique et journaux capturés à
+chaque sauvegarde, et **procédure de reprise jouée le 31/07** — deux repères écrits à trente
+secondes d'intervalle, cible de restauration placée entre les deux, le premier revient et le
+second non. Le RPO de 5 min est donc mesuré, pas annoncé. Détail dans [README.md](README.md).
 
 L'idée en une phrase : PostgreSQL écrit chaque modification dans un journal avant de l'appliquer ; en gardant ces journaux, on peut rejouer la base **jusqu'à un instant précis** au lieu de revenir au dernier dump.
 

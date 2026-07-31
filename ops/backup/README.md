@@ -196,10 +196,27 @@ docker start postgres-delivery      # rejoue les journaux jusqu'à l'heure deman
 Suivre la reprise dans `docker logs postgres-delivery`, puis sortir du mode restauration avec
 `SELECT pg_wal_replay_resume()` une fois l'état vérifié.
 
-> **Non encore éprouvé.** Le mécanisme est en place et l'archivage tourne
-> (`pg_stat_archiver` : 0 échec), mais cette procédure n'a pas encore été jouée de bout en
-> bout. Tant que ce n'est pas fait, l'engagement tenable reste **RPO 24 h**, pas 5 minutes.
-> C'est l'exercice décrit dans [PLAN.md](PLAN.md), partie B.
+**Éprouvé le 31 juillet 2026.** Deux repères ont été écrits dans la base à trente secondes
+d'intervalle (A à 13:39:23, B à 13:39:53), puis la sauvegarde physique de 13:06 et les journaux
+ont été rejoués dans un conteneur séparé avec pour cible 13:39:40 — entre les deux.
+
+```
+LOG:  starting point-in-time recovery to 2026-07-31 13:39:40+00
+LOG:  recovery stopping before commit of transaction 7121, time 13:39:53
+LOG:  archive recovery complete
+```
+
+Résultat : **A présent, B absent**, et les données métier intactes (76 commandes, 77 livraisons,
+29 preuves de livraison). Le rejeu lui-même a pris 0,3 s ; l'ensemble de la procédure moins de
+deux minutes à cette taille de base — l'essentiel du temps est la copie des fichiers, donc ce
+chiffre grandira avec la base.
+
+Ce que cela démontre : on ne restaure pas « la dernière sauvegarde », on restaure **une minute
+choisie**. C'est ce qui autorise à écrire RPO ≈ 5 min plutôt que 24 h.
+
+> La répétition s'est faite dans un conteneur jetable, sans toucher à la base en service —
+> c'est aussi la bonne façon de procéder lors d'un vrai incident : on vérifie l'état obtenu
+> avant de basculer dessus.
 
 > Rien ne s'exécute sans `--yes`. Une restauration écrase des données vivantes.
 
@@ -283,8 +300,8 @@ Le cron installé ici protège les données de ce serveur, rien d'autre.
 
 | | Valeur | État |
 |---|---|---|
-| **RPO** — données perdues au pire | 24 h aujourd'hui ; ~5 min sur `delivery_db` une fois la reprise dans le temps éprouvée | mécanisme en place, exercice à jouer |
-| **RTO** — temps de remise en service | restauration d'un client mesurée à **2 s** (76 commandes, 77 livraisons) | mesuré |
+| **RPO** — données perdues au pire | **~5 min** sur `delivery_db` (journaux), 24 h sur les autres bases | éprouvé le 31/07 |
+| **RTO** — temps de remise en service | restauration d'un client : **2 s** · reprise dans le temps : **< 2 min** | mesuré |
 | **Rétention** | 14 jours en local | en place |
 | **Copie hors-machine** | `BACKUP_REMOTE` non renseignée | à activer |
 
