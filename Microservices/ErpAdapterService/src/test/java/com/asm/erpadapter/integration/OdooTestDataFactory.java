@@ -55,8 +55,28 @@ public class OdooTestDataFactory {
             vals.put("is_storable", true);
         }
         Integer id = create("product.product", vals);
+        stockUp(id, 1000);
         System.out.println("[TestDataFactory] Created product: " + name + " (id=" + id + ")");
         return id;
+    }
+
+    /**
+     * Put inventory on hand for a product, in the first internal location.
+     *
+     * <p>Without it a confirmed sale order produces a delivery order with no move lines at all —
+     * nothing is reserved, so there is nothing to set a delivered quantity on, and validation is
+     * refused for "a zero quantity transfer". The tests then look like the workflow is broken when
+     * the warehouse is simply empty.
+     */
+    public void stockUp(int productId, double quantity) {
+        List<Map<String, Object>> locations = searchRead("stock.location",
+                List.of(List.of("usage", "=", "internal")), List.of("id"), 1);
+        if (locations.isEmpty()) return;
+        int locationId = ((Number) locations.get(0).get("id")).intValue();
+        create("stock.quant", Map.of(
+                "product_id", productId,
+                "location_id", locationId,
+                "quantity", quantity));
     }
 
     // ── Sale Order ───────────────────────────────────────────────────────────
