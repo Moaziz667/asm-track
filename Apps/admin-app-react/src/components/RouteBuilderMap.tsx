@@ -37,13 +37,6 @@ type BuilderOrder = {
   itemsSummary?: string;
 };
 
-type BuilderRouteStop = {
-  id: string;
-  deliveryId: string;
-  stopOrder: number;
-  dropoffLat?: number;
-  dropoffLng?: number;
-};
 
 
 type Props = {

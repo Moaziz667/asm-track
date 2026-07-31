@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
-import { IconX, IconCheck,
-  IconAlertTriangle, IconPackageExport, IconArrowNarrowRight } from '@tabler/icons-react';
+import { IconPackageExport } from '@tabler/icons-react';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { AppLoader } from '@/components/AppLoader';
-import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { HandoffOpenTable } from './HandoffOpenTable';
 import type { StatusValue } from '@/components/data-display/StatusBadge';
 import { isHandoffOverdue } from '../hooks/useHandoffs';
@@ -65,24 +63,9 @@ export function cardView(h: HandoffItem, t: TranslationSchema): CardView {
   }
 }
 
-function fmtTs(iso?: string): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
 
-function fmtMinutes(mins: number): string {
-  if (mins < 60) return `${mins} min`;
-  return `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}`;
-}
 
 /** "Bouclé en X" for a confirmed transfer (confirmedAt − requestedAt). */
-function durationLabel(h: HandoffItem, t: TranslationSchema): string | null {
-  if (h.state !== 'CONFIRMED' || !h.requestedAt || !h.confirmedAt) return null;
-  const mins = Math.max(0, Math.round((new Date(h.confirmedAt).getTime() - new Date(h.requestedAt).getTime()) / 60000));
-  return (t.dispatchDeskPage.handoffDuration ?? 'Completed in {d}').replace('{d}', fmtMinutes(mins));
-}
 
 /**
  * The custody connector — the signature element of a handoff card. It reads left→right
@@ -93,171 +76,16 @@ function durationLabel(h: HandoffItem, t: TranslationSchema): string | null {
  */
 
 /** Stable checkpoint icon — extracted to avoid remount on every render. */
-function CheckpointIcon({ phase, accent }: { phase: Phase; accent: string }) {
-  if (phase === 'active') return <span className="is-live inline-block rounded-full" style={{ width: 7, height: 7, background: accent }} />;
-  let icon: React.ReactNode;
-  if (phase === 'confirmed') icon = <IconCheck size={11} stroke={3} />;
-  else if (phase === 'overdue' || phase === 'expired') icon = <IconAlertTriangle size={10} stroke={2.5} />;
-  else if (phase === 'cancelled') icon = <IconX size={11} stroke={3} />;
-  else icon = <IconArrowNarrowRight size={12} stroke={2.5} />;
-  return <span style={{ color: accent, display: 'flex' }}>{icon}</span>;
-}
 
-function CustodyTrail({ h, view }: { h: HandoffItem; view: CardView }) {
-  const { accent, phase } = view;
-  const solid = phase === 'confirmed' || phase === 'overdue';
-  const animated = phase === 'active';
-  const broken = phase === 'expired' || phase === 'cancelled';
 
-  return (
-    <div className="flex items-center gap-2">
-      <DriverNode driverId={h.fromDriverId} name={h.fromDriverName} role="from" />
-      <div className="relative flex-1 flex items-center justify-center" style={{ minWidth: 40 }}>
-        <span
-          className={`ho-conn${animated ? ' ho-conn--march' : ''}${solid ? ' ho-conn--solid' : ''}${broken ? ' ho-conn--broken' : ''}`}
-          style={{ '--ho-c': accent } as React.CSSProperties}
-          aria-hidden
-        />
-        <span
-          className="relative flex items-center justify-center rounded-full shrink-0"
-          style={{ width: 18, height: 18, background: 'var(--surface)', border: `1.5px solid ${accent}` }}
-        >
-          <CheckpointIcon phase={phase} accent={accent} />
-        </span>
-      </div>
-      <DriverNode driverId={h.toDriverId} name={h.toDriverName} role="to" />
-    </div>
-  );
-}
-
-function DriverNode({ driverId, name, role }: { driverId?: string; name?: string; role: 'from' | 'to' }) {
-  const isTo = role === 'to';
-  return (
-    <div
-      className="flex items-center gap-1.5 min-w-0"
-      style={{ flex: '1 1 0', justifyContent: isTo ? 'flex-end' : 'flex-start' }}
-    >
-      {!isTo && <DriverAvatarById driverId={driverId} name={name} size={26} />}
-      <span
-        className="text-xs truncate"
-        style={{
-          maxWidth: 88,
-          color: isTo ? 'var(--text-primary)' : 'var(--text-secondary)',
-          fontWeight: isTo ? 700 : 500,
-        }}
-      >
-        {name ?? '—'}
-      </span>
-      {isTo && <DriverAvatarById driverId={driverId} name={name} size={26} />}
-    </div>
-  );
-}
 
 /** Live countdown to the one-time code expiry (only while IN_PROGRESS). */
-function Countdown({ to, t }: { to: string; t: TranslationSchema }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const remMs = new Date(to).getTime() - now;
-  if (remMs <= 0) {
-    return <span style={{ color: 'var(--danger)' }}>{t.dispatchDeskPage.handoffCodeExpired ?? 'code expired'}</span>;
-  }
-  const totalSec = Math.floor(remMs / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  const txt = h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
-  return <span>{(t.dispatchDeskPage.handoffExpiresIn ?? 'expires in {t}').replace('{t}', txt)}</span>;
-}
 
-type Step = { label: string; at?: string; by?: string; status: StatusValue };
 
 /** The full lifecycle trail: Requested → Code ready → Accepted / Expired / Cancelled. */
-function lifecycle(h: HandoffItem, t: TranslationSchema): Step[] {
-  const c = t.dispatchDeskPage;
-  const steps: Step[] = [
-    { label: c.handoffStepRequested, at: h.requestedAt, by: h.requestedBy, status: 'REQUESTED' as StatusValue },
-  ];
-  if (h.inProgressAt) {
-    steps.push({ label: c.handoffStepCodeReady, at: h.inProgressAt, status: 'IN_PROGRESS' });
-  }
-  if (h.state === 'CONFIRMED') {
-    steps.push({ label: c.handoffStepConfirmed, at: h.confirmedAt, by: h.toDriverName, status: 'COMPLETED' });
-  } else if (h.state === 'EXPIRED') {
-    steps.push({ label: c.handoffStepExpired, at: h.expiredAt, status: 'SLA_BREACH' });
-  } else if (h.state === 'CANCELLED') {
-    steps.push({ label: c.handoffStepCancelled, at: h.cancelledAt, by: h.cancelledBy, status: 'CANCELLED' });
-  } else {
-    steps.push({ label: c.handoffStepPending, status: 'PENDING' as StatusValue });
-  }
-  return steps;
-}
 
 /** Vertical dot+line lifecycle trail — each step is a filled/hollow dot with a connecting
  *  rail, label, actor, and timestamp. No StatusBadge — the dot colour + text weight carry meaning. */
-function LifecycleTrail({ h, t }: { h: HandoffItem; t: TranslationSchema }) {
-  const steps = lifecycle(h, t);
-  const by = t.dispatchDeskPage.handoffByLabel ?? 'by';
-
-  function dotColor(s: Step): string {
-    switch (s.status) {
-      case 'COMPLETED': return 'var(--success)';
-      case 'IN_PROGRESS': return 'var(--brand)';
-      case 'REQUESTED': return 'var(--info)';
-      case 'SLA_BREACH': return 'var(--danger)';
-      case 'CANCELLED': return 'var(--text-soft)';
-      default: return 'var(--border-strong)';
-    }
-  }
-
-  return (
-    <div className="px-3 pb-2.5 pt-2 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
-      {steps.map((s, i) => {
-        const reached = s.status !== ('PENDING' as StatusValue);
-        return (
-          <div key={i} className="flex items-start gap-2.5">
-            <div className="flex flex-col items-center self-stretch">
-              <span
-                className="rounded-full shrink-0"
-                style={{
-                  width: 8, height: 8, marginTop: 4,
-                  background: 'var(--surface)',
-                  border: `1.5px solid ${reached ? dotColor(s) : 'var(--border-strong)'}`,
-                }}
-              />
-              {i < steps.length - 1 && (
-                <span className="flex-1 w-px my-0.5" style={{ background: 'var(--border)', minHeight: 12 }} />
-              )}
-            </div>
-            <div className="flex flex-col pb-2.5 min-w-0">
-              <span
-                className="text-xs font-[600]"
-                style={{ color: reached ? 'var(--text-primary)' : 'var(--text-soft)' }}
-              >
-                {s.label}
-              </span>
-              <span className="flex items-center gap-1.5 text-2xs" style={{ color: 'var(--text-muted)' }}>
-                {s.by && <span>{by} {s.by}</span>}
-                {s.by && s.at && <span>·</span>}
-                {s.at && <span className="font-mono">{fmtTs(s.at)}</span>}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-      {h.reason && (
-        <div className="mt-0.5 flex gap-1.5 text-2xs pl-[18px]" style={{ color: 'var(--text-secondary)' }}>
-          <span className="font-[700] shrink-0" style={{ color: 'var(--text-muted)' }}>
-            {t.dispatchDeskPage.handoffReasonLabel ?? 'Reason'} ·
-          </span>
-          <span className="min-w-0">{h.reason}</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** Scoped styles for the custody connector. Animation conveys live state (parcel in
  *  motion); honors prefers-reduced-motion by freezing the dashes. */

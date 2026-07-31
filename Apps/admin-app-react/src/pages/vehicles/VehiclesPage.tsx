@@ -60,16 +60,6 @@ function Spinner({ size = 24, className }: { size?: number; className?: string }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
-function ProgressBar({ value, color = 'var(--brand)' }: { value: number; color?: string }) {
-  return (
-    <div className="h-[2px] rounded-full bg-[var(--border)]">
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: color }}
-      />
-    </div>
-  );
-}
 
 // ─── Vehicle Card ─────────────────────────────────────────────────────────────
 
