@@ -3825,6 +3825,17 @@ export const AR_COPY = {
     overviewConnection: 'الاتصال',
     overviewSyncs: 'المزامنات (24 ساعة)',
     overviewPending: 'في انتظار الإرسال',
+
+    // النسخ الاحتياطي — راجع ops/backup/
+    backupTitle: 'النسخ الاحتياطي للبيانات',
+    backupLast: 'آخر نسخة احتياطية',
+    backupOk: 'محدَّثة',
+    backupStale: 'قديمة',
+    backupFailed: 'فشلت',
+    backupUnknown: 'غير معروفة',
+    backupOffsiteOn: 'توجد نسخة خارج هذا الجهاز',
+    backupOffsiteOff: 'نسخة محلية فقط',
+
     connectionActive: 'نشط',
     connectionInterrupted: 'منقطع',
     noProvider: 'لم يتم إعداد أي نظام ERP',

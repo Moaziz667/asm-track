@@ -3872,6 +3872,17 @@ export const FR_COPY = {
     overviewConnection: 'Connexion',
     overviewSyncs: 'Synchronisations (24 h)',
     overviewPending: "En attente d'envoi",
+
+    // Sauvegarde — voir ops/backup/
+    backupTitle: 'Sauvegarde des données',
+    backupLast: 'Dernière sauvegarde',
+    backupOk: 'À jour',
+    backupStale: 'Ancienne',
+    backupFailed: 'Échec',
+    backupUnknown: 'Inconnue',
+    backupOffsiteOn: 'Copie conservée hors de la machine',
+    backupOffsiteOff: 'Copie locale uniquement',
+
     connectionActive: 'Active',
     connectionInterrupted: 'Interrompue',
     noProvider: 'Aucun ERP configuré',

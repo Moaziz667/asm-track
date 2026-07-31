@@ -186,8 +186,24 @@ services:
       POSTGRES_USER: delivery
       POSTGRES_PASSWORD: ${DELIVERY_DB_PASS}
       POSTGRES_DB: delivery_db
+    # Continuous WAL archiving — the business database, and the only one that gets it.
+    # A nightly dump alone means an incident at 15:00 costs everything since 02:30; with the
+    # journals the loss is bounded by archive_timeout instead. Keycloak and driver data barely
+    # move, so they stay on the daily dump and skip the extra machinery.
+    #
+    # The `install` step is there because a fresh named volume is created root-owned while the
+    # server writes as postgres: without it archive_command fails quietly, forever. Started as
+    # root on purpose — the official entrypoint drops to postgres itself.
+    command: >
+      sh -c "install -d -o postgres -g postgres /wal-archive &&
+      exec docker-entrypoint.sh postgres
+      -c wal_level=replica
+      -c archive_mode=on
+      -c archive_command='test ! -f /wal-archive/%f && cp %p /wal-archive/%f'
+      -c archive_timeout=300"
     volumes:
       - delivery-pgdata:/var/lib/postgresql/data
+      - delivery-wal-archive:/wal-archive
     restart: unless-stopped
     networks:
       - asm-network
@@ -348,6 +364,10 @@ services:
       FCM_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
     volumes:
       - ./DeliveryMicroservice/firebase-service-account.json:/app/firebase-service-account.json:ro
+      # Read-only, and only the state file matters: the System Health page reports when the last
+      # backup ran, so a cron that stopped weeks ago is visible instead of merely silent. The
+      # service must never be able to write here — it is not the thing being trusted with backups.
+      - ../backups:/backups:ro
     deploy:
       resources:
         limits:
@@ -509,6 +529,7 @@ volumes:
   rabbitmq-data:
   app-pgdata:
   delivery-pgdata:
+  delivery-wal-archive:   # continuous WAL journals — see ops/backup/README.md
   driver-pgdata:
   keycloak-pgdata:
   minio_data:

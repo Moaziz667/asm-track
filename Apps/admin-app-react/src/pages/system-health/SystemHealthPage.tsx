@@ -15,7 +15,7 @@ import {
 } from '@/lib/health/system-health';
 import {
   type Tone, type CircuitBreaker,
-  TONE_VAR, groupTone, formatAge,
+  TONE_VAR, groupTone, formatAge, describeBackup,
 } from './SystemHealthParts';
 
 // ── Backend payload contract ──────────────────────────────────────────────────
@@ -35,6 +35,8 @@ interface HealthPayload {
   db?: { reachable: boolean };
   erpSync?: ErpSyncInfo;
   erp: { reachable: boolean; pendingSyncFailures: number };
+  /** Written by the nightly job — see {@code ops/backup/backup.sh}. */
+  backup?: { status?: string; finishedAt?: string; directory?: string; detail?: string; offsite?: boolean };
 }
 /** One recorded exchange with the ERP — see {@code erp_sync_event} on the backend. */
 interface SyncEvent {
@@ -269,6 +271,7 @@ export default function SystemHealthPage() {
 
   const erpReachable = data?.erp?.reachable ?? true;
   const providerLabel = journal?.provider ? (PROVIDER_LABELS[journal.provider] ?? journal.provider) : null;
+  const backup = describeBackup(data?.backup, now, t);
 
   const overall: Tone = summary.downCount > 0 || !dbReachable ? 'down'
     : actionCount > 0 || summary.recoveringCount > 0 ? 'warn'
@@ -335,6 +338,15 @@ export default function SystemHealthPage() {
           <Line label={dd.overviewPending} value={String(erpSync?.inProgress ?? 0)} />
         </Section>
 
+        {/* ── Backups: the failure to catch is a job that stopped running, not one that errored ── */}
+        <Section title={dd.backupTitle} sub={backup.offsite ? dd.backupOffsiteOn : dd.backupOffsiteOff}>
+          <Line
+            label={dd.backupLast}
+            value={backup.age}
+            status={<Status tone={backup.tone} label={backup.label} />}
+          />
+        </Section>
+
         {/* ── Only shown when someone has to do something ── */}
         {actionCount > 0 && (
           <Section
@@ -386,10 +398,10 @@ export default function SystemHealthPage() {
           title={dd.journalTitle}
           sub={dd.journalSubtitle}
           aside={
-            <SegmentedControl<boolean>
-              value={onlyFailed}
-              onChange={setOnlyFailed}
-              options={[{ value: false, label: dd.journalAll }, { value: true, label: dd.journalOnlyFailed }]}
+            <SegmentedControl<'all' | 'failed'>
+              value={onlyFailed ? 'failed' : 'all'}
+              onChange={(v) => setOnlyFailed(v === 'failed')}
+              options={[{ value: 'all', label: dd.journalAll }, { value: 'failed', label: dd.journalOnlyFailed }]}
             />
           }
         >

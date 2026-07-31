@@ -3819,6 +3819,17 @@ export const EN_COPY = {
     overviewConnection: 'Connection',
     overviewSyncs: 'Syncs (24h)',
     overviewPending: 'Waiting to be sent',
+
+    // Backups — see ops/backup/
+    backupTitle: 'Data backup',
+    backupLast: 'Last backup',
+    backupOk: 'Up to date',
+    backupStale: 'Out of date',
+    backupFailed: 'Failed',
+    backupUnknown: 'Unknown',
+    backupOffsiteOn: 'A copy is kept off this machine',
+    backupOffsiteOff: 'Local copy only',
+
     connectionActive: 'Active',
     connectionInterrupted: 'Interrupted',
     noProvider: 'No ERP configured',

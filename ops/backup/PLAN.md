@@ -73,9 +73,20 @@ L'archive MinIO est à 0 octet : l'exécution a été interrompue à cette étap
 
 **Reste à faire :** la poussée hors-machine (voir A5) et le fichier d'état (A4).
 
-### A2. Archivage WAL sur `delivery_db`
+### A2. Archivage WAL sur `delivery_db` *(fait — pas encore éprouvé)*
 
 C'est le *« + journaux »* du cahier, et c'est ce qui fait passer le RPO de 24 h à 5 min.
+
+> **Ce que j'avais mal compris en écrivant ce plan.** Les journaux ne se rejouent **pas**
+> par-dessus un `pg_dump` : le dump contient du SQL, les journaux décrivent des pages
+> physiques. La reprise dans le temps exige une copie **physique** de départ. `backup.sh` prend
+> donc aussi un `pg_basebackup` de `delivery_db` — d'où sa présence deux fois dans une
+> sauvegarde. Sans cette correction, l'archivage WAL aurait tourné pour rien et le RPO annoncé
+> aurait été faux.
+
+État réel : archivage actif et vérifié (`pg_stat_archiver` : 1 archivé, 0 échec), base physique
+et journaux capturés à chaque sauvegarde. **La procédure de reprise dans le temps n'a pas encore
+été jouée** : tant qu'elle ne l'est pas, le RPO tenable reste 24 h.
 
 L'idée en une phrase : PostgreSQL écrit chaque modification dans un journal avant de l'appliquer ; en gardant ces journaux, on peut rejouer la base **jusqu'à un instant précis** au lieu de revenir au dernier dump.
 
@@ -89,33 +100,36 @@ Dump à 02h30 ────────── incident à 15h00
 - Configuration : `wal_level = replica`, `archive_mode = on`, `archive_command` copiant vers un volume dédié, `archive_timeout = 300`.
 - Les journaux se purgent avec les dumps qu'ils accompagnent (14 jours) : un journal sans son dump de base ne sert à rien.
 
-### A3. `scripts/backup/restore.sh`
+### A3. `restore.sh` *(fait, éprouvé)*
 
 Trois modes, du plus courant au plus rare :
 
 ```bash
 # 1. Un seul client — le cas réel le plus probable
-./restore.sh backups/20260730-023000 delivery --tenant company_54ed4906... --yes
+./restore.sh backups/20260730-023000 tenant company_54ed4906... --yes
 
 # 2. Une base entière — disque mort, migration ratée
-./restore.sh backups/20260730-023000 delivery --full --yes
+./restore.sh backups/20260730-023000 database delivery --yes
 
 # 3. Les fichiers POD
-./restore.sh backups/20260730-023000 minio --yes
+./restore.sh backups/20260730-023000 volume minio --yes
 ```
 
 Le **mode 1 est le cœur du sujet** : l'architecture est un schéma par client. Quand un client casse ses données, les six autres ne doivent pas être touchés — et surtout pas arrêtés. C'est exactement ce que `pg_restore -n <schéma>` permet, et c'est pour ça que les dumps sont en format *custom*.
 
 Garde-fous :
 - rien ne s'exécute sans `--yes` explicite (une restauration écrase des données vivantes) ;
-- le script refuse de tourner si les services applicatifs sont encore debout sur la base ciblée en mode `--full` ;
-- il affiche un décompte avant/après.
+- `--into` restaure dans une base jetable, pour répéter sans toucher à la production ;
+- `--exit-on-error` : une restauration à moitié réussie est un échec, pas un avertissement.
 
-### A4. Planification + alerte
+Éprouvé le 31/07 sur le tenant `alpha` : 76 commandes, 77 livraisons, 29 preuves de livraison,
+29 tournées, 5 retours, 23 événements ERP — **tous les comptes identiques**, en 2 secondes.
 
-**Cron sur le VPS**, quotidien :
+### A4. Planification + alerte *(fait)*
+
+**Cron sur le VPS**, quotidien — voir [crontab.example](crontab.example) :
 ```cron
-30 2 * * *  /opt/asm/scripts/backup/backup.sh >> /var/log/asm-backup.log 2>&1
+30 2 * * *  /opt/asm/ops/backup/backup.sh >> /var/log/asm-backup.log 2>&1
 ```
 
 Pas de conteneur de sauvegarde dans le `docker-compose` : il lui faudrait le socket Docker, c'est-à-dire un accès root déguisé sur toute la machine, pour économiser une ligne de crontab. Mauvais échange.
@@ -131,26 +145,34 @@ Une sauvegarde posée sur le disque qu'elle protège défend contre un `DROP TAB
 
 Implémentation : si la variable `BACKUP_REMOTE` est définie, le script pousse via `rclone` après vérification. Elle reste vide aujourd'hui — le jour où un bucket existe (Backblaze B2, OVH, S3 : quelques euros par mois), il suffit de la renseigner. **Aucun identifiant ne passe par le code** : `rclone config` reste à la main de l'administrateur.
 
-### A6. Documentation
+### A6. Documentation *(fait)*
 
-- `MDS/docs/13-backup-restore.md` — runbook opérationnel : ce qu'on sauvegarde, comment restaurer dans les trois cas, où sont les journaux, quoi faire quand l'alerte se déclenche.
-- Ajout au `nav` de [mkdocs.yml](../../mkdocs.yml).
-- **Correction d'un bug existant** : `mkdocs.yml` déclare `docs_dir: docs` alors que la documentation est dans `MDS/docs/`. En l'état, `mkdocs build` échoue. À corriger en même temps.
+Le runbook est [README.md](README.md), à côté des scripts : un opérateur ouvre un dossier et a
+tout. Rien n'a été ajouté dans `MDS/`, qui est ignoré par git — un document non versionné ne
+survit pas à un changement de machine.
+
+**`mkdocs.yml` supprimé.** Il annonçait un site de documentation qui ne pouvait pas se
+construire : `docs_dir: docs` pointait vers un dossier inexistant, et les fichiers qu'il
+listait sont dans `MDS/`, exclu du dépôt. Aucun job ne le construisait, rien n'était publié.
+Un fichier de configuration qui ne peut pas fonctionner coûte plus qu'il ne rapporte : il
+laisse croire qu'il y a une documentation en ligne.
 
 ### Ordre d'exécution
 
-| # | Étape | Dépend de |
+| # | Étape | État |
 |---|---|---|
-| 1 | A0 — dé-ignorer `scripts/backup/` | — |
-| 2 | A1 — finir `backup.sh` (MinIO + `last-backup.json`) | 1 |
-| 3 | A3 — `restore.sh` | 2 |
-| 4 | **Test réel** (partie B1) | 3 |
-| 5 | A2 — archivage WAL | 4 |
-| 6 | A4 — cron + alerte sur System Health | 2 |
-| 7 | A5 — `BACKUP_REMOTE` | 2 |
-| 8 | A6 — runbook + correctif mkdocs | tout |
+| 1 | A0 — module `ops/backup/` | ✅ |
+| 2 | A1 — `backup.sh` complet | ✅ exécuté, 15 Mo, tout vérifié |
+| 3 | A3 — `restore.sh` | ✅ éprouvé, comptes identiques |
+| 4 | **Test réel** (partie B1) | ✅ pour le mode client ; reprise dans le temps à jouer |
+| 5 | A2 — archivage WAL | ✅ actif, 0 échec ; procédure non éprouvée |
+| 6 | A4 — cron + ligne sur System Health | ✅ |
+| 7 | A5 — `BACKUP_REMOTE` | ✅ prêt, en attente d'un stockage distant |
+| 8 | A6 — runbook, suppression de `mkdocs.yml` | ✅ |
 
-La restauration est testée **avant** le WAL : inutile d'ajouter un mécanisme fin tant que le mécanisme grossier n'est pas prouvé.
+La restauration a été testée **avant** le WAL : inutile d'ajouter un mécanisme fin tant que le
+mécanisme grossier n'est pas prouvé. C'est ce test qui a révélé que `pg_restore` sortait en
+code 0 après avoir échoué sur 200 objets.
 
 ---
 

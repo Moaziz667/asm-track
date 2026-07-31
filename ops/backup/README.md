@@ -39,12 +39,31 @@ ops/backup/
 | `keycloak_db` | identités, rôles, realms | `pg_dump -Fc` |
 | volume MinIO | **photos et signatures de preuve de livraison** | `tar.gz` |
 | volume `erp-adapter` | mappings de champs ERP, cache d'idempotence | `tar.gz` |
+| `delivery_base` | copie physique de `delivery_db`, pour la reprise à la minute | `pg_basebackup` |
+| `wal-archive` | les journaux de transactions de `delivery_db` | `tar.gz` |
 
 **Volontairement exclus :** RabbitMQ (transitoire — l'outbox en base est la source de vérité,
 les messages en vol se reconstruisent après restauration) et OSRM (re-téléchargeable).
 
 Le format *custom* (`-Fc`) n'est pas un détail : c'est lui qui permet de restaurer **un seul
 schéma client**. Un dump SQL classique ne saurait faire que du tout-ou-rien.
+
+### Pourquoi `delivery_db` est sauvegardée deux fois
+
+Ce n'est pas une redondance, ce sont deux mécanismes qui ne se mélangent pas :
+
+- `pg_dump` produit des **instructions SQL**. Lisible, filtrable par schéma, donc c'est lui qui
+  permet de restaurer un seul client. Mais il fige un instant : la nuit précédente.
+- Les **journaux de transactions** décrivent des modifications de pages **physiques**. On ne peut
+  pas les rejouer par-dessus un `pg_dump` — les deux ne parlent pas de la même chose. Ils
+  exigent une copie physique de départ, c'est le rôle de `pg_basebackup`.
+
+D'où le choix au moment de l'incident :
+
+| Situation | Quoi utiliser | Perte |
+|---|---|---|
+| Un client a cassé ses données | `delivery_db.dump`, mode `tenant` | jusqu'à 24 h |
+| Le serveur est mort, il faut tout et le plus récent possible | `delivery_base` + journaux | ~5 min |
 
 ### Pourquoi MinIO compte autant que les bases
 
@@ -144,6 +163,44 @@ succès sans en être un.
 Restaure le schéma dans une base jetable. La production n'est pas touchée. C'est la forme à
 utiliser pour l'exercice de reprise et pour la démonstration.
 
+### 5. Revenir à une minute précise (reprise dans le temps)
+
+Pour l'incident large — serveur perdu, corruption datée — où l'on veut le plus récent état
+possible plutôt que la nuit précédente. Procédure manuelle, volontairement : elle remplace le
+répertoire de données de PostgreSQL, ce n'est pas une opération à déclencher d'une commande.
+
+```bash
+docker compose stop delivery-service
+docker stop postgres-delivery
+
+# 1. Repartir de la copie physique
+docker run --rm --volumes-from postgres-delivery -i alpine:3 \
+  sh -c 'rm -rf /var/lib/postgresql/data/* && tar xzf - -C /var/lib/postgresql/data' \
+  < backups/<date>/delivery_base.tar.gz
+
+# 2. Remettre les journaux en place
+docker run --rm --volumes-from postgres-delivery -i alpine:3 \
+  sh -c 'tar xzf - -C /wal-archive' < backups/<date>/wal-archive.tar.gz
+
+# 3. Dire à PostgreSQL jusqu'où rejouer, puis le laisser travailler
+docker run --rm --volumes-from postgres-delivery alpine:3 sh -c '
+  printf "restore_command = '"'"'cp /wal-archive/%%f \"%%p\"'"'"'\n" \
+    >> /var/lib/postgresql/data/postgresql.auto.conf
+  printf "recovery_target_time = '"'"'2026-07-31 14:55:00+01'"'"'\n" \
+    >> /var/lib/postgresql/data/postgresql.auto.conf
+  touch /var/lib/postgresql/data/recovery.signal'
+
+docker start postgres-delivery      # rejoue les journaux jusqu'à l'heure demandée
+```
+
+Suivre la reprise dans `docker logs postgres-delivery`, puis sortir du mode restauration avec
+`SELECT pg_wal_replay_resume()` une fois l'état vérifié.
+
+> **Non encore éprouvé.** Le mécanisme est en place et l'archivage tourne
+> (`pg_stat_archiver` : 0 échec), mais cette procédure n'a pas encore été jouée de bout en
+> bout. Tant que ce n'est pas fait, l'engagement tenable reste **RPO 24 h**, pas 5 minutes.
+> C'est l'exercice décrit dans [PLAN.md](PLAN.md), partie B.
+
 > Rien ne s'exécute sans `--yes`. Une restauration écrase des données vivantes.
 
 **Après une restauration, comptez les lignes avant d'annoncer que ça a marché.** Un
@@ -181,10 +238,11 @@ visible à l'écran.
 
 ## Engagements
 
-| | Valeur |
-|---|---|
-| **RPO** — données perdues au pire | ~5 min sur `delivery_db` (journaux WAL), 24 h ailleurs |
-| **RTO** — temps de remise en service | mesuré lors de l'exercice de reprise |
-| **Rétention** | 14 jours en local |
+| | Valeur | État |
+|---|---|---|
+| **RPO** — données perdues au pire | 24 h aujourd'hui ; ~5 min sur `delivery_db` une fois la reprise dans le temps éprouvée | mécanisme en place, exercice à jouer |
+| **RTO** — temps de remise en service | restauration d'un client mesurée à **2 s** (76 commandes, 77 livraisons) | mesuré |
+| **Rétention** | 14 jours en local | en place |
+| **Copie hors-machine** | `BACKUP_REMOTE` non renseignée | à activer |
 
 Détail du raisonnement et étapes restantes : [PLAN.md](PLAN.md).

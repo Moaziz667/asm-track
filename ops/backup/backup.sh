@@ -114,6 +114,49 @@ for entry in "${VOLUMES[@]}"; do
   echo "$name.tar.gz  $(wc -c < "$out") bytes  verified" >> "$DEST/MANIFEST"
 done
 
+# ── base backup + WAL journals (delivery only) ───────────────────────────────
+# The logical dumps above cannot be combined with the WAL journals: pg_dump produces SQL
+# statements, the journals describe physical page changes, and one cannot be replayed on top
+# of the other. Point-in-time recovery therefore needs its own *physical* base backup — that
+# is what this step takes, and why delivery_db is covered twice.
+#
+# Which one to use on the day:
+#   delivery_db.dump      one tenant, or a readable schema-level restore   → RPO 24 h
+#   delivery_base.tar.gz  the whole cluster replayed to a chosen minute    → RPO ~5 min
+if docker exec postgres-delivery psql -U delivery -d delivery_db -tAc "SHOW archive_mode" \
+     2>/dev/null | grep -q on; then
+
+  log "base backup of delivery (physical)"
+  # -X fetch collects the WAL generated during the copy, so the archive stands on its own even
+  # if the journals around it were pruned. --checkpoint=fast avoids waiting for the next
+  # scheduled checkpoint, which can be minutes away on an idle server.
+  docker exec postgres-delivery pg_basebackup -U delivery -D - -Ft -z -X fetch \
+    --checkpoint=fast > "$DEST/delivery_base.tar.gz" || fail "pg_basebackup of delivery"
+  gzip -t "$DEST/delivery_base.tar.gz" || fail "base backup taken but the tarball is corrupt"
+  echo "delivery_base.tar.gz  $(wc -c < "$DEST/delivery_base.tar.gz") bytes  verified" >> "$DEST/MANIFEST"
+
+  log "archiving WAL journals"
+  docker run --rm --volumes-from postgres-delivery alpine:3 \
+    tar czf - -C /wal-archive . > "$DEST/wal-archive.tar.gz" || fail "archive of the WAL journals"
+  gzip -t "$DEST/wal-archive.tar.gz" || fail "WAL journals archived but the tarball is corrupt"
+  echo "wal-archive.tar.gz  $(wc -c < "$DEST/wal-archive.tar.gz") bytes  verified" >> "$DEST/MANIFEST"
+
+  # The journals accumulate forever otherwise. Anything older than the oldest base backup we
+  # still keep can never be replayed onto anything, so it is dead weight.
+  docker exec postgres-delivery find /wal-archive -type f -mtime "+$KEEP" -delete \
+    || log "warning: could not prune old WAL journals"
+
+  archiver=$(docker exec postgres-delivery psql -U delivery -d delivery_db -tAc \
+    "SELECT failed_count FROM pg_stat_archiver" | tr -d '[:space:]')
+  # A non-zero failure count means journals are being written but not archived: the RPO is
+  # silently back to 24 h. Worth saying out loud rather than discovering it during a recovery.
+  [ "$archiver" = "0" ] || log "warning: pg_stat_archiver reports $archiver failed archive attempts"
+  echo "wal_archiver_failures: ${archiver:-unknown}" >> "$DEST/MANIFEST"
+else
+  log "archive_mode is off — skipping the physical base backup (RPO stays at 24 h)"
+  echo "wal_archiving: off" >> "$DEST/MANIFEST"
+fi
+
 # ── off-site copy ────────────────────────────────────────────────────────────
 # A backup sitting on the disk it protects survives a bad DELETE, not a dead disk and not
 # ransomware — which encrypts the backups along with everything else. Configure the remote

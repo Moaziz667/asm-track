@@ -56,6 +56,8 @@ public class SystemHealthSnapshotService {
     private String authServerUrl;
     @Value("${app.osrm.base-url:http://localhost:5000}")
     private String osrmUrl;
+    @Value("${backup.status-file:/backups/last-backup.json}")
+    private String backupStatusFile;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(800))
@@ -270,7 +272,35 @@ public class SystemHealthSnapshotService {
         erp.put("pendingSyncFailures", 0L);
         out.put("erp", erp);
 
+        // 6. Backup freshness — see ops/backup/.
+        out.put("backup", readBackupStatus());
+
         return out;
+    }
+
+    /**
+     * Reads the state file the nightly backup writes (see {@code ops/backup/backup.sh}).
+     *
+     * <p>The failure worth catching is not "the backup errored" — that one is loud — but "the backup
+     * stopped running weeks ago and nobody noticed". So the answer is always a status the page can
+     * render: a missing file means <em>unknown</em>, not an empty section that reads like health.
+     */
+    private Map<String, Object> readBackupStatus() {
+        Map<String, Object> backup = new LinkedHashMap<>();
+        try {
+            java.nio.file.Path path = java.nio.file.Path.of(backupStatusFile);
+            if (!java.nio.file.Files.isReadable(path)) {
+                backup.put("status", "unknown");
+                return backup;
+            }
+            Map<?, ?> parsed = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(java.nio.file.Files.readString(path), Map.class);
+            parsed.forEach((k, v) -> backup.put(String.valueOf(k), v));
+        } catch (Exception e) {
+            log.warn("Could not read the backup state file {}: {}", backupStatusFile, e.getMessage());
+            backup.put("status", "unknown");
+        }
+        return backup;
     }
 
     private Map<String, Object> buildErpSync() {
