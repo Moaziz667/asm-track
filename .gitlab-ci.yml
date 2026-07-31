@@ -173,6 +173,11 @@ integration-test-erp-adapter-odoo:
         PASSWORD: odoo
       command: ["odoo", "-d", "odoo19", "-i", "base,sale,stock", "--without-demo=all"]
   variables:
+    # Without this the runner uses legacy container links, which connect each service to the job
+    # and to nothing else. Odoo then cannot reach the database at all: it retries forever, never
+    # opens its HTTP port, and the only visible symptom is a name that resolves and never answers.
+    # A build-scoped network puts the services on one network so they can talk to each other.
+    FF_NETWORK_PER_BUILD: "true"
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     POSTGRES_USER: odoo
