@@ -196,24 +196,29 @@ integration-test-erp-adapter-odoo:
     # Postgres that is not listening yet. Waiting on the HTTP endpoint covers both: it only
     # answers once Odoo has finished creating its database.
     - |
-      # Both instances boot in parallel, so wait on them together rather than one after the other.
-      # The distinction that matters when this fails is name-resolution versus "still starting":
-      # the first means the service never came up at all, the second only means it is slow.
+      # Wait for what the tests actually need — an authenticated session on the target database —
+      # rather than for the HTTP port. Odoo answers /web/login within seconds by serving the
+      # database-manager screen, long before `-i base,sale,stock` has produced anything usable, so
+      # the port is a proxy that reports ready while every test is still doomed to fail.
+      # `authenticate` returns a numeric uid once the database exists and its modules are loaded.
       for host in odoo16 odoo19; do
         echo "waiting for $host"
         ready=""
         for i in $(seq 1 90); do
-          if wget -q --spider "http://$host:8069/web/login" 2>/dev/null; then
-            ready="yes"; echo "  $host ready after $((i * 5))s"; break
-          fi
+          body=$(wget -qO- --timeout=5 --header='Content-Type: application/json' \
+            --post-data="{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"common\",\"method\":\"authenticate\",\"args\":[\"$host\",\"admin\",\"admin\",{}]}}" \
+            "http://$host:8069/jsonrpc" 2>/dev/null || true)
+          case "$body" in
+            *'"result":'[0-9]*) ready="yes"; echo "  $host authenticated after $((i * 5))s"; break ;;
+          esac
           if [ $((i % 12)) = 0 ]; then
-            getent hosts "$host" > /dev/null \
-              && echo "  $((i * 5))s — $host resolves, not answering yet (initialising sale+stock)" \
+            getent hosts "$host" > /dev/null 2>&1 \
+              && echo "  $((i * 5))s — $host resolves; database not ready yet: ${body:-no response}" \
               || echo "  $((i * 5))s — $host does not resolve; the service container is not running"
           fi
           sleep 5
         done
-        [ -n "$ready" ] || { echo "$host never came up — see the service container logs above"; exit 1; }
+        [ -n "$ready" ] || { echo "$host never became usable — last response: ${body:-none}"; exit 1; }
       done
   script:
     - gradle integrationTest --no-daemon
