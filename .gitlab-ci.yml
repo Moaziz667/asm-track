@@ -134,44 +134,64 @@ integration-test-backend-delivery:
       - Microservices/DeliveryMicroservice/build/reports/tests/
     expire_in: 1 week
 
-# ── 3b. ERP ADAPTER — Odoo integration tests ─────────────────────────────────
-# Requires a runner with Docker-in-Docker (--privileged) support.
-# Marked manual — does not block the pipeline. Trigger when dind is available.
+# ── 3b. ERP ADAPTER — Odoo integration tests, two versions ───────────────────
+# The suite already targets both ends of the supported range (V16 and V19): if the connector
+# holds on the oldest and the newest, the versions between are covered by construction. What
+# it never had was a place to run — the job used to be `when: manual` with `allow_failure`,
+# which is a test nobody runs and a failure nobody sees.
+#
+# Side-cars instead of Docker-in-Docker: the runner is not privileged, and `services:` needs
+# no special rights. Two Odoo instances share one Postgres, each with its own database.
+#
+# Scheduled only. Odoo initialises `sale` + `stock` on first boot, which costs minutes — too
+# slow to sit in front of every push, and the connector does not change on every push either.
+# Set it up under CI/CD → Schedules (nightly is enough).
 integration-test-erp-adapter-odoo:
   stage: integration-test
   tags: [docker]
   image: gradle:8.5-jdk17
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"      # still runnable on demand from the UI
   services:
-    - docker:24-dind
+    - name: postgres:16
+      alias: odoo-db
+    # `command` makes each instance create and populate its own database before serving. Without
+    # it Odoo comes up on the database manager screen and every test fails on authentication.
+    - name: odoo:16
+      alias: odoo16
+      command: ["odoo", "-d", "odoo16", "-i", "base,sale,stock", "--without-demo=all",
+                "--db_host=odoo-db", "--db_user=odoo", "--db_password=odoo"]
+    - name: odoo:19
+      alias: odoo19
+      command: ["odoo", "-d", "odoo19", "-i", "base,sale,stock", "--without-demo=all",
+                "--db_host=odoo-db", "--db_user=odoo", "--db_password=odoo"]
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
-  when: manual
-  allow_failure: true
+    POSTGRES_USER: odoo
+    POSTGRES_PASSWORD: odoo
+    POSTGRES_HOST_AUTH_METHOD: trust
+    # The tests default to localhost:8069 / :8070 to match the local docker-compose. In CI the
+    # side-cars answer to their alias, so both are redirected here — no test code knows it is
+    # running in CI.
+    ODOO_V16_URL: "http://odoo16:8069/jsonrpc"
+    ODOO_V16_DB: odoo16
+    ODOO_V19_URL: "http://odoo19:8069/jsonrpc"
+    ODOO_V19_DB: odoo19
   before_script:
-    - apt-get update -qq && apt-get install -y -qq docker.io > /dev/null 2>&1
     - cd Microservices/ErpAdapterService
-    # Start PostgreSQL + Odoo 16
-    - docker run -d --name postgres-odoo --network host
-        -e POSTGRES_DB=odoo -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo
-        postgres:15
+    # Services all start at once, with no ordering and no health gate, so Odoo may well reach a
+    # Postgres that is not listening yet. Waiting on the HTTP endpoint covers both: it only
+    # answers once Odoo has finished creating its database.
     - |
-      echo "Waiting for PostgreSQL..."
-      for i in $(seq 1 30); do
-        docker exec postgres-odoo pg_isready -U odoo 2>/dev/null && break
-        sleep 2
-      done
-    - docker run -d --name odoo-v16 --network host
-        -e HOST=localhost -e USER=odoo -e PASSWORD=odoo -e ODOO_DB=odoo
-        odoo:16
-    - |
-      echo "Waiting for Odoo HTTP..."
-      for i in $(seq 1 60); do
-        wget -q --spider http://localhost:8069/web/login 2>/dev/null && echo "Odoo ready!" && break
-        echo "Waiting... ($i/60)"
-        sleep 5
+      for host in odoo16 odoo19; do
+        echo "waiting for $host"
+        for i in $(seq 1 120); do
+          wget -q --spider "http://$host:8069/web/login" 2>/dev/null && { echo "$host ready"; break; }
+          [ "$i" = 120 ] && { echo "$host never came up"; exit 1; }
+          sleep 5
+        done
       done
   script:
     - gradle integrationTest --no-daemon
