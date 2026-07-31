@@ -132,7 +132,9 @@ export default function Login({ kcContext, i18n, Template, doUseDefaultCss }: Pr
 
       {realm.registrationAllowed && !kcContext.registrationDisabled && (
         <p className="asm-card-footer" style={{ marginTop: 16 }}>
-          {msg("noAccount")}{" "}
+          {/* A non-breaking space, because the plain JSX one collapses away between the
+              translated sentence and the link — the two ran together as "utilisateur ?Enregistrement". */}
+          {msg("noAccount")}{" "}
           <a href={url.registrationUrl} className="asm-link">
             {msg("doRegister")}
           </a>
