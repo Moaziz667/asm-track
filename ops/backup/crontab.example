@@ -1,0 +1,23 @@
+# ASM Track — planification de la sauvegarde
+#
+#   sudo crontab -e        (root : le script parle au démon Docker)
+#
+# 02h30 : après la coupure de minuit, avant la tournée du matin. La sauvegarde prend moins
+# d'une minute aujourd'hui, mais l'heure creuse évite de disputer les entrées/sorties au
+# service pendant que les chauffeurs travaillent.
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Décommenter le jour où un stockage distant existe (voir README.md).
+# BACKUP_REMOTE=b2:asm-backups
+
+30 2 * * *  /opt/asm/ops/backup/backup.sh >> /var/log/asm-backup.log 2>&1
+
+# Le script sort en code non-zéro s'il échoue : cron enverra un courriel à root si le serveur
+# est configuré pour. Ne comptez pas là-dessus — la surveillance qui compte est le fichier
+# backups/last-backup.json lu par la page System Health, parce qu'elle, on la regarde.
+
+# Rotation du journal, pour qu'il ne grossisse pas indéfiniment :
+#   /var/log/asm-backup.log { weekly rotate 8 compress missingok notifempty }
+# à déposer dans /etc/logrotate.d/asm-backup
