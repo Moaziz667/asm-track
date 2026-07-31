@@ -39,12 +39,21 @@ public class OdooTestDataFactory {
             return ((Number) existing.get(0).get("id")).intValue();
         }
 
-        Map<String, Object> vals = Map.of(
+        // How a product is declared stockable changed after Odoo 16: `type` lost the "product"
+        // value and the meaning moved to `is_storable`, with type staying "consu". Sending the old
+        // value to a recent Odoo is rejected outright, so the fixture has to know which it is
+        // talking to — the very version difference these tests exist to cover.
+        Map<String, Object> vals = new java.util.HashMap<>(Map.of(
                 "name", name,
                 "barcode", barcode,
-                "list_price", listPrice,
-                "type", "product"
-        );
+                "list_price", listPrice
+        ));
+        if (odoo.getVersion() == OdooVersion.V16) {
+            vals.put("type", "product");
+        } else {
+            vals.put("type", "consu");
+            vals.put("is_storable", true);
+        }
         Integer id = create("product.product", vals);
         System.out.println("[TestDataFactory] Created product: " + name + " (id=" + id + ")");
         return id;
@@ -84,14 +93,30 @@ public class OdooTestDataFactory {
      * Find the picking associated with a sale order.
      */
     public Map<String, Object> findPickingBySaleOrder(int saleOrderId) {
-        List<Map<String, Object>> moves = searchRead("stock.move",
-                List.of(List.of("sale_id", "=", saleOrderId)),
-                List.of("picking_id"), 100);
+        // Via sale.order.picking_ids, not a domain on stock.move.sale_id — that field does not
+        // exist on stock.move, and searchRead answers an invalid domain with an empty list, so the
+        // lookup reported "no delivery" instead of "I asked the wrong question".
+        List<Map<String, Object>> orders = searchRead("sale.order",
+                List.of(List.of("id", "=", saleOrderId)), List.of("picking_ids"), 1);
+        List<Map<String, Object>> moves = List.of();
+        if (!orders.isEmpty() && orders.get(0).get("picking_ids") instanceof List<?> ids && !ids.isEmpty()) {
+            moves = List.of(Map.of("picking_id", ids.get(0)));
+        }
         if (moves.isEmpty()) return null;
 
+        // Odoo returns a many2one as the pair [id, display_name], not an object. Testing for a Map
+        // meant this returned null every single time, and every workflow test read that as "the sale
+        // order produced no delivery" — a failure that looks like broken business logic and is not.
         Object pickingRef = moves.get(0).get("picking_id");
-        if (pickingRef instanceof Map<?, ?> rel) {
-            Integer pickingId = ((Number) rel.get("id")).intValue();
+        Integer pickingId = null;
+        if (pickingRef instanceof Number n) {          // one2many: a bare id
+            pickingId = n.intValue();
+        } else if (pickingRef instanceof List<?> pair && !pair.isEmpty() && pair.get(0) instanceof Number n) {
+            pickingId = n.intValue();
+        } else if (pickingRef instanceof Map<?, ?> rel && rel.get("id") instanceof Number n) {
+            pickingId = n.intValue();
+        }
+        if (pickingId != null) {
             List<Map<String, Object>> picks = searchRead("stock.picking",
                     List.of(List.of("id", "=", pickingId)),
                     List.of("id", "state", "name"), 1);
