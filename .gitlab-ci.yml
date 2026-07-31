@@ -208,7 +208,9 @@ integration-test-erp-adapter-odoo:
           body=$(wget -qO- --timeout=5 --header='Content-Type: application/json' \
             --post-data="{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"common\",\"method\":\"authenticate\",\"args\":[\"$host\",\"admin\",\"admin\",{}]}}" \
             "http://$host:8069/jsonrpc" 2>/dev/null || true)
-          case "$body" in
+          # Whitespace removed before matching: Odoo answers `"result": 2`, and a pattern written
+          # against `"result":2` rejects the very response it is waiting for.
+          case "$(printf '%s' "$body" | tr -d ' ')" in
             *'"result":'[0-9]*) ready="yes"; echo "  $host authenticated after $((i * 5))s"; break ;;
           esac
           if [ $((i % 12)) = 0 ]; then
