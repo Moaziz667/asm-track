@@ -143,15 +143,18 @@ integration-test-backend-delivery:
 # Side-cars instead of Docker-in-Docker: the runner is not privileged, and `services:` needs
 # no special rights. Two Odoo instances share one Postgres, each with its own database.
 #
-# Scheduled only. Odoo initialises `sale` + `stock` on first boot, which costs minutes — too
-# slow to sit in front of every push, and the connector does not change on every push either.
-# Set it up under CI/CD → Schedules (nightly is enough).
+# Runs when the connector changes, and only then. Odoo initialises `sale` + `stock` on first
+# boot, which costs minutes — too slow to sit in front of every commit. But tying it to the
+# adapter's own files means it fires exactly when it can catch something, instead of on a clock
+# that has no relationship to the risk.
 integration-test-erp-adapter-odoo:
   stage: integration-test
   tags: [docker]
   image: gradle:8.5-jdk17
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - changes:
+        - Microservices/ErpAdapterService/**/*
+        - .gitlab-ci.yml
     - if: $CI_PIPELINE_SOURCE == "web"      # still runnable on demand from the UI
   services:
     - name: postgres:16
