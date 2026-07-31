@@ -2,7 +2,7 @@
 #
 # ASM Track — restore from a backup directory produced by backup.sh.
 #
-#   ./restore.sh <backup-dir> tenant <schema> [--into <scratch-db>] --yes
+#   ./restore.sh <backup-dir> tenant <schema> [--with-media] [--into <scratch-db>] --yes
 #   ./restore.sh <backup-dir> database <delivery|app|driver|keycloak> --yes
 #   ./restore.sh <backup-dir> volume <minio|erp-adapter> --yes
 #
@@ -51,10 +51,12 @@ BACKUP_DIR="$1"; MODE="$2"; TARGET="$3"; shift 3
 
 CONFIRMED=false
 SCRATCH=""
+WITH_MEDIA=false
 while [ $# -gt 0 ]; do
   case "$1" in
-    --yes)   CONFIRMED=true; shift ;;
-    --into)  SCRATCH="${2:-}"; [ -n "$SCRATCH" ] || die "--into needs a database name"; shift 2 ;;
+    --yes)        CONFIRMED=true; shift ;;
+    --into)       SCRATCH="${2:-}"; [ -n "$SCRATCH" ] || die "--into needs a database name"; shift 2 ;;
+    --with-media) WITH_MEDIA=true; shift ;;
     *) die "unknown option '$1'" ;;
   esac
 done
@@ -105,6 +107,30 @@ EOF
     log "restoring $TARGET into $db"
     docker exec -i "$container" pg_restore -U "$user" -d "$db" \
       -n "$TARGET" --clean --if-exists --no-owner < "$dump"
+
+    # The database is per-tenant; the object store is not. POD photos live in one shared bucket
+    # under a {companyId}/ prefix, so restoring the whole volume to repair one customer would
+    # roll back everyone else's proofs of delivery. Only that customer's prefix is replaced here.
+    if $WITH_MEDIA; then
+      archive="$BACKUP_DIR/minio_data.tar.gz"
+      [ -f "$archive" ] || die "no minio_data.tar.gz in $BACKUP_DIR"
+      # company_<32 hex> in Postgres, dashed UUID in the object key — same tenant, two spellings.
+      hex="${TARGET#company_}"
+      uuid="${hex:0:8}-${hex:8:4}-${hex:12:4}-${hex:16:4}-${hex:20:12}"
+      prefix="pod-files/$uuid"
+
+      log "restoring proofs of delivery for $uuid"
+      was_running=false; running minio && was_running=true
+      $was_running && docker stop minio > /dev/null
+
+      docker run --rm --volumes-from minio -i alpine:3 \
+        sh -c "rm -rf '/data/$prefix'; tar xzf - -C /data './$prefix' 2>/dev/null || true" < "$archive"
+
+      $was_running && docker start minio > /dev/null
+      count=$(tar tzf "$archive" | grep -c "^\./$prefix/.*xl\.meta$" || true)
+      log "restored $count stored objects for this tenant"
+    fi
+
     log "restored — verify the row counts before telling anyone it worked"
     ;;
 

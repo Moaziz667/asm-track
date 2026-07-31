@@ -128,10 +128,35 @@ croire que la sauvegarde est à l'abri.
 
 ```bash
 ./restore.sh <dossier> tenant company_54ed4906... --yes
+./restore.sh <dossier> tenant company_54ed4906... --with-media --yes   # + ses preuves de livraison
 ```
 
 L'architecture est *un schéma par client*. Quand un client casse ses données, les autres ne
 sont ni touchés ni arrêtés. **Aucun service n'a besoin d'être stoppé.**
+
+#### Le stockage des photos, lui, n'est pas cloisonné
+
+La base est séparée par client ; MinIO ne l'est pas. Tout vit dans un seul bucket `pod-files`,
+la séparation se faisant par préfixe de clé :
+
+```
+pod-files/54ed4906-…/pod/{livraison}/bon-livraison.png
+pod-files/3b2ae6fe-…/…
+```
+
+Conséquence à connaître : restaurer **tout** le volume pour réparer un client remettrait aussi
+les photos de tous les autres à l'état de la sauvegarde. On répare un client en abîmant les
+autres — exactement ce que le schéma-par-tenant cherche à éviter. C'est pourquoi `--with-media`
+ne remplace **que le préfixe du client concerné**.
+
+Éprouvé le 31/07 : le préfixe du plus petit client (4 objets) a été supprimé puis restauré. Ses
+4 objets sont revenus **avec des empreintes identiques à l'archive**, et les deux autres clients
+sont restés à 9 et 60 objets, intacts.
+
+> ⚠️ **Angle mort.** 26 objets à la racine du bucket (`pod/`, `rma/`, `logos/`) datent d'avant
+> que les clés soient préfixées par client. Ils n'appartiennent à personne, donc une
+> restauration par client ne les ramènera jamais — seule une restauration complète du volume
+> les couvre.
 
 ### 2. Une base entière — disque mort, migration ratée
 
