@@ -200,7 +200,9 @@ html, body {
 
 .asm-field-error { font-size: 12px; color: var(--danger); }
 
-.asm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* The options row is not another field, so it gets its own breathing space rather than relying on
+   the form's gap alone — "Se souvenir de moi" sitting flush under the input read as part of it. */
+.asm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .asm-checkbox-label {
   display: flex;
   align-items: center;
