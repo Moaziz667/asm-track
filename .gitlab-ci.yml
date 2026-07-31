@@ -152,16 +152,26 @@ integration-test-erp-adapter-odoo:
   services:
     - name: postgres:16
       alias: odoo-db
-    # `command` makes each instance create and populate its own database before serving. Without
-    # it Odoo comes up on the database manager screen and every test fails on authentication.
+    # The database host goes through HOST/USER/PASSWORD, not --db_host: Odoo's entrypoint builds
+    # its own connection arguments from those variables and appends them *after* the command, so
+    # command-line values are silently overridden by the defaults (host "db", which resolves to
+    # nothing here). `command` is left to do only what the entrypoint will not — create and
+    # populate the database. Without that, Odoo serves the database-manager screen and every test
+    # fails on authentication instead of on anything meaningful.
     - name: odoo:16
       alias: odoo16
-      command: ["odoo", "-d", "odoo16", "-i", "base,sale,stock", "--without-demo=all",
-                "--db_host=odoo-db", "--db_user=odoo", "--db_password=odoo"]
+      variables:
+        HOST: odoo-db
+        USER: odoo
+        PASSWORD: odoo
+      command: ["odoo", "-d", "odoo16", "-i", "base,sale,stock", "--without-demo=all"]
     - name: odoo:19
       alias: odoo19
-      command: ["odoo", "-d", "odoo19", "-i", "base,sale,stock", "--without-demo=all",
-                "--db_host=odoo-db", "--db_user=odoo", "--db_password=odoo"]
+      variables:
+        HOST: odoo-db
+        USER: odoo
+        PASSWORD: odoo
+      command: ["odoo", "-d", "odoo19", "-i", "base,sale,stock", "--without-demo=all"]
   variables:
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
@@ -181,13 +191,24 @@ integration-test-erp-adapter-odoo:
     # Postgres that is not listening yet. Waiting on the HTTP endpoint covers both: it only
     # answers once Odoo has finished creating its database.
     - |
+      # Both instances boot in parallel, so wait on them together rather than one after the other.
+      # The distinction that matters when this fails is name-resolution versus "still starting":
+      # the first means the service never came up at all, the second only means it is slow.
       for host in odoo16 odoo19; do
         echo "waiting for $host"
-        for i in $(seq 1 120); do
-          wget -q --spider "http://$host:8069/web/login" 2>/dev/null && { echo "$host ready"; break; }
-          [ "$i" = 120 ] && { echo "$host never came up"; exit 1; }
+        ready=""
+        for i in $(seq 1 90); do
+          if wget -q --spider "http://$host:8069/web/login" 2>/dev/null; then
+            ready="yes"; echo "  $host ready after $((i * 5))s"; break
+          fi
+          if [ $((i % 12)) = 0 ]; then
+            getent hosts "$host" > /dev/null \
+              && echo "  $((i * 5))s — $host resolves, not answering yet (initialising sale+stock)" \
+              || echo "  $((i * 5))s — $host does not resolve; the service container is not running"
+          fi
           sleep 5
         done
+        [ -n "$ready" ] || { echo "$host never came up — see the service container logs above"; exit 1; }
       done
   script:
     - gradle integrationTest --no-daemon
