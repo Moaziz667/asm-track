@@ -1,0 +1,4 @@
+# Shell scripts are authored on Windows and run on the Linux VPS. Left to git's autocrlf they
+# get checked out with CRLF, and the kernel then reads the shebang as `/usr/bin/env bash\r` —
+# "bad interpreter", on the machine where the script actually has to work.
+*.sh text eol=lf
