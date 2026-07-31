@@ -88,8 +88,13 @@ class OdooInfrastructureIT extends AbstractOdooIntegrationTest {
             data.callMethod("sale.order", "action_unlock", List.of(999999));
             fail("Expected an exception for non-existent record");
         } catch (Exception e) {
-            assertFalse(e.getMessage().contains("does not exist"),
-                    "action_unlock should exist on sale.order in Odoo 16");
+            // Odoo reports both "no such method" and "no such record" as a 200 carrying an error,
+            // so the distinction is the exception type, not the wording: MissingError means the
+            // method was found and resolved against an id that is not there — which is what this
+            // asserts. Matching on "does not exist" cannot work: that is MissingError's own phrase
+            // for the record, so a perfectly present method reads as absent.
+            assertTrue(e.getMessage().contains("MissingError"),
+                    "action_unlock should exist on sale.order in Odoo 16 — got: " + e.getMessage());
         }
     }
 
@@ -100,8 +105,13 @@ class OdooInfrastructureIT extends AbstractOdooIntegrationTest {
             data.callMethod("stock.return.picking", "create_returns", List.of(999999));
             fail("Expected an exception for non-existent record");
         } catch (Exception e) {
-            assertFalse(e.getMessage().contains("does not exist"),
-                    "create_returns should exist on stock.return.picking in Odoo 16");
+            // Odoo reports both "no such method" and "no such record" as a 200 carrying an error,
+            // so the distinction is the exception type, not the wording: MissingError means the
+            // method was found and resolved against an id that is not there — which is what this
+            // asserts. Matching on "does not exist" cannot work: that is MissingError's own phrase
+            // for the record, so a perfectly present method reads as absent.
+            assertTrue(e.getMessage().contains("MissingError"),
+                    "create_returns should exist on stock.return.picking in Odoo 16 — got: " + e.getMessage());
         }
     }
 
@@ -112,8 +122,13 @@ class OdooInfrastructureIT extends AbstractOdooIntegrationTest {
             data.callMethod("stock.return.picking", "action_create_returns", List.of(999999));
             fail("Expected an exception for non-existent record");
         } catch (Exception e) {
-            assertFalse(e.getMessage().contains("does not exist"),
-                    "action_create_returns should exist on stock.return.picking in Odoo 19");
+            // Odoo reports both "no such method" and "no such record" as a 200 carrying an error,
+            // so the distinction is the exception type, not the wording: MissingError means the
+            // method was found and resolved against an id that is not there — which is what this
+            // asserts. Matching on "does not exist" cannot work: that is MissingError's own phrase
+            // for the record, so a perfectly present method reads as absent.
+            assertTrue(e.getMessage().contains("MissingError"),
+                    "action_create_returns should exist on stock.return.picking in Odoo 19 — got: " + e.getMessage());
         }
     }
 
@@ -124,8 +139,13 @@ class OdooInfrastructureIT extends AbstractOdooIntegrationTest {
             data.callMethod("sale.order", "action_unlock", List.of(999999));
             fail("Expected an exception for non-existent record");
         } catch (Exception e) {
-            assertFalse(e.getMessage().contains("does not exist"),
-                    "action_unlock should exist on sale.order in Odoo 19");
+            // Odoo reports both "no such method" and "no such record" as a 200 carrying an error,
+            // so the distinction is the exception type, not the wording: MissingError means the
+            // method was found and resolved against an id that is not there — which is what this
+            // asserts. Matching on "does not exist" cannot work: that is MissingError's own phrase
+            // for the record, so a perfectly present method reads as absent.
+            assertTrue(e.getMessage().contains("MissingError"),
+                    "action_unlock should exist on sale.order in Odoo 19 — got: " + e.getMessage());
         }
     }
 

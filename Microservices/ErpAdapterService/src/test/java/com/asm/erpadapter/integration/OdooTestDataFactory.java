@@ -149,7 +149,7 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "create", List.of(vals))
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "create", List.of(vals))
         );
         Map<String, Object> resp = jsonRpc(params);
         Object result = resp.get("result");
@@ -165,7 +165,7 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "write",
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "write",
                         List.of(List.of(id), vals))
         );
         jsonRpc(params);
@@ -182,7 +182,7 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "search_read",
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "search_read",
                         List.of(domain), kwargs)
         );
         Map<String, Object> resp = jsonRpc(params);
@@ -202,9 +202,16 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, method, List.of(args))
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, method, List.of(args))
         );
         Map<String, Object> resp = jsonRpc(params);
+        // JSON-RPC reports failure in the body, not the transport, so a refused call arrives as a
+        // 200 carrying an `error` object. Returning it as a null result made every failure look
+        // like a method that quietly did nothing — which is how a missing method on a newer Odoo
+        // would have passed unnoticed, the exact thing these tests exist to catch.
+        if (resp.get("error") != null) {
+            throw new RuntimeException("Odoo refused " + model + "." + method + ": " + resp.get("error"));
+        }
         return resp.get("result");
     }
 
@@ -217,8 +224,11 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "read",
-                        List.of(List.of(id), List.of("fields", fields)))
+                // `fields` belongs in the keyword arguments, the way searchRead already passes it.
+                // Positionally it becomes a list of field names one of which is literally "fields",
+                // and Odoo answers with a record carrying none of what was asked for.
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "read",
+                        List.of(List.of(id)), Map.of("fields", fields))
         );
         Map<String, Object> resp = jsonRpc(params);
         Object result = resp.get("result");
@@ -236,7 +246,7 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "fields_get",
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "fields_get",
                         List.of(List.of(fieldName)))
         );
         Map<String, Object> resp = jsonRpc(params);
@@ -256,7 +266,7 @@ public class OdooTestDataFactory {
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(uid, odoo.getPassword(), model, "fields_get",
+                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "fields_get",
                         List.of())
         );
         Map<String, Object> resp = jsonRpc(params);
