@@ -3478,6 +3478,8 @@ export const EN_COPY = {
 
   // ── Failure Reasons Settings ──────────────────────────────────────────────
   failureReasonsSettings: {
+    reorderError: 'The order could not be saved',
+    reorderHint: 'Sort by order and clear the filters to rearrange',
     title: 'Failure Reasons',
     subtitle: 'Configure failure reasons used during delivery tracking.',
     addButton: 'Add a reason',

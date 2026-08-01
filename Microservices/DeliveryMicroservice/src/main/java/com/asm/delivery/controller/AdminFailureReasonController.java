@@ -61,6 +61,23 @@ public class AdminFailureReasonController {
         return ResponseEntity.ok(updated);
     }
 
+    @PutMapping("/reorder")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Set the display order of failure reasons",
+            description = """
+                Takes the ids in the order they should appear and rewrites their positions. This is
+                the order the driver app shows the reasons in, so the everyday ones can be put
+                within reach. Ids left out keep their current position.
+                """)
+    public ResponseEntity<Void> reorder(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody List<UUID> orderedIds) {
+        service.reorder(orderedIds);
+        auditLogService.logAction(principal, "REORDER_FAILURE_REASONS", "FAILURE_REASON", "-",
+                Map.of("count", orderedIds.size()));
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Deactivate a failure reason", description = "Soft-delete: keeps historical deliveries intact.")

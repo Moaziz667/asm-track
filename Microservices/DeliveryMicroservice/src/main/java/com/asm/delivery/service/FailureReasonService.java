@@ -81,6 +81,32 @@ public class FailureReasonService {
     }
 
     /** Soft-delete: deactivate so historical deliveries keep their reason intact. */
+    /**
+     * Rewrites the display order from a list of ids.
+     *
+     * <p>This order is not cosmetic: it is the order a driver sees the reasons in, standing at a
+     * door with a failed delivery. Putting the two everyday reasons at the top saves a scroll on
+     * every incident, which is why it is worth being able to set by dragging rather than by
+     * typing numbers into a field.
+     *
+     * <p>Positions are spaced by ten. Consecutive integers would leave no room to slip a reason
+     * between two others without rewriting the whole list, and the gaps cost nothing.
+     *
+     * <p>Ids the caller does not mention keep their current position — a filtered view sends only
+     * what it shows, and must not silently renumber what it hid.
+     */
+    @Transactional
+    public void reorder(List<UUID> orderedIds) {
+        int position = 0;
+        for (UUID id : orderedIds) {
+            FailureReason reason = repository.findById(id)
+                    .orElseThrow(() -> AppException.notFound("Failure reason not found: " + id));
+            reason.setSortOrder(position);
+            repository.save(reason);
+            position += 10;
+        }
+    }
+
     @Transactional
     public void deactivate(UUID id) {
         FailureReason reason = getOrThrow(id);
