@@ -42,7 +42,7 @@ export default function ActivityTicker() {
   const viewAllLabel = locale === 'ar' ? 'عرض الكل' : locale === 'en' ? 'View all' : 'Voir tout';
 
   return (
-    <div className="border border-[var(--border)] rounded-lg h-full overflow-hidden flex flex-col">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] h-full overflow-hidden flex flex-col">
       <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{titleLabel}</span>
         <span

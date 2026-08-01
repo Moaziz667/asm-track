@@ -296,7 +296,7 @@ export default function DashboardPage() {
 /** Legacy KPI card kept for PerformancePage (imports { KpiCard } from './DashboardPage'). */
 export function KpiCard({ title, value, subtitle, Icon, color: _color, trend }: { title: string; value: string | number; subtitle: string; Icon: React.ElementType; color?: string; trend?: string }) {
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] p-4">
       <div className="flex items-start justify-between mb-3">
         <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
         <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />

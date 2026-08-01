@@ -165,7 +165,7 @@ export default function ZoneDensityMapWidget({ heatmap }: Props) {
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full relative">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden flex flex-col h-full relative">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <IconMapPinFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">

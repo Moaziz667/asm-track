@@ -33,6 +33,7 @@ import { useFleetDrivers } from '@/hooks/useVehicles';
 import { DELIVERY_COLUMNS, DELIVERY_STATUSES } from './constants';
 import { getRowId } from './helpers';
 import { useDepots } from '@/hooks/useDepots';
+import { QUICK_VIEWS } from './types';
 import type { DeliveryRow, QuickView } from './types';
 import { useDeliveryListData } from './useDeliveryListData';
 import { DeliveryTableRow, DeliveryMobileCard } from './DeliveryTableRow';
@@ -64,6 +65,18 @@ function DeliveriesPageContent() {
   const [zoneId, setZoneId] = useState<string[]>([]);
   const [depot, setDepot] = useState<string[]>([]);
   const [quickView, setQuickView] = useState<QuickView>('all');
+
+  // ?view= opens the table on a quick view. The dashboard's backlog tiles have been linking here
+  // with it since they were written — the page just never read the parameter, so every one of
+  // them landed on "toutes les livraisons" and the operator had to re-pick the filter they had
+  // just clicked. Validated against the union: an unknown value falls back rather than putting
+  // the table in a state no chip can represent.
+  const viewParam = searchParams?.get('view');
+  useEffect(() => {
+    if (viewParam && (QUICK_VIEWS as readonly string[]).includes(viewParam)) {
+      setQuickView(viewParam as QuickView);
+    }
+  }, [viewParam]);
   const [sortAsc, setSortAsc] = useState(false);
   const [groupByClient, setGroupByClient] = useState(false);
   const [groupByZone, setGroupByZone] = useState(false);
