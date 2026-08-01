@@ -648,6 +648,10 @@ export const EN_COPY = {
 
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
+    viewOffice: 'Overview',
+    viewKanban: 'Dispatch',
+    filtersLabel: 'Filters',
+    periodAria: 'Period under review',
     title: 'Dashboard',
     subtitle: 'Operations overview and live statistics',
     syncError: 'Sync failed',

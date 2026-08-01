@@ -731,6 +731,10 @@ export const FR_COPY = {
 
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
+    viewOffice: 'Synthèse',
+    viewKanban: 'Dispatch',
+    filtersLabel: 'Filtres',
+    periodAria: 'Période analysée',
     title: 'Tableau de bord',
     subtitle: 'Supervision administrative et indicateurs opérationnels',
     syncError: 'Échec de synchronisation',

@@ -4,10 +4,11 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { cn } from '@/lib/utils';
 
 import {
-  IconTable, IconLayoutKanban, IconDots, IconInbox,
+  IconDots, IconInbox,
   IconArrowRight, IconFilter,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import ActivityTicker from '@/components/ActivityTicker';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AnalyticsScope } from '@/types';
@@ -72,6 +73,18 @@ export default function DashboardPage() {
   const pctFmt = (n: number) => `${Math.round(n)}%`;
   const absFmt = (n: number) => `${Math.round(n)}`;
 
+  // The window every figure on this page is scoped to, said out loud in the toolbar.
+  const periodLabel = useMemo(() => {
+    const d = t.dashboardPage;
+    switch (range) {
+      case 'today': return d.periodToday;
+      case 'yesterday': return d.periodYesterday;
+      case 'last7d': return d.period7d;
+      case 'custom': return customFrom && customTo ? `${customFrom} → ${customTo}` : d.periodCustom;
+      default: return d.period30d;
+    }
+  }, [range, customFrom, customTo, t]);
+
   useEffect(() => {
     const cachedMode = localStorage.getItem('asm_dashboard_view');
     if (cachedMode === 'office' || cachedMode === 'kanban') setViewMode(cachedMode);
@@ -91,30 +104,6 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] animate-fadeIn relative">
-      {/* ── FLOATING ACTION BAR ── */}
-      <div className="fixed top-2.5 right-4 z-50 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
-        <button
-          type="button"
-          onClick={() => handleViewChange(viewMode === 'office' ? 'kanban' : 'office')}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-          title={viewMode === 'office' ? 'Kanban' : 'Table'}
-        >
-          {viewMode === 'office' ? <IconLayoutKanban size={14} /> : <IconTable size={14} />}
-        </button>
-        <RefreshButton refreshing={refreshing} onClick={() => refetch()} />
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className="relative w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-        >
-          <IconFilter size={14} />
-          {activeFilterCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--brand)] text-white text-2xs font-bold flex items-center justify-center">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-      </div>
       <GlobalFilterDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
@@ -137,12 +126,64 @@ export default function DashboardPage() {
         onCustomToChange={setCustomTo}
       />
 
+      {/* ── Page toolbar ──────────────────────────────────────────────────────
+          This replaces a `position: fixed` pill that floated over the app shell's own
+          header, overlapping the search and the notification bell. Two chromes competing
+          for the same corner is what made it feel bolted on — it was.
+
+          The period now reads on the page instead of hiding inside the filter drawer:
+          every number below is scoped to it, so a dashboard that does not say which
+          window it is describing is a dashboard you cannot trust at a glance. */}
+      <div className={s.toolbar}>
+        <div className={s.toolbarLead}>
+          <h1 className={s.pageTitle}>{t.dashboardPage.title}</h1>
+          <span className={s.periodChip} aria-label={t.dashboardPage.periodAria}>{periodLabel}</span>
+        </div>
+        <div className={s.toolbarActions}>
+          <SegmentedControl<'office' | 'kanban'>
+            value={viewMode}
+            onChange={handleViewChange}
+            options={[
+              { value: 'office', label: t.dashboardPage.viewOffice },
+              { value: 'kanban', label: t.dashboardPage.viewKanban },
+            ]}
+          />
+          <RefreshButton refreshing={refreshing} onClick={() => refetch()} />
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className={s.filterBtn}
+            aria-label={t.dashboardPage.filtersLabel}
+          >
+            <IconFilter size={14} />
+            <span>{t.dashboardPage.filtersLabel}</span>
+            {activeFilterCount > 0 && <span className={s.filterCount}>{activeFilterCount}</span>}
+          </button>
+        </div>
+      </div>
+
       {/* ── MAIN VIEW CONTENT SWITCHER ── */}
       {isLoading ? (
-        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-hidden">
-          <div className="grid grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`k${i}`} className="h-[110px] rounded-xl" />)}
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`w${i}`} className="h-[260px] rounded-xl" />)}
+        /* The skeleton mirrors the real grid — four KPI tiles, then bands beside the rail.
+           A four-column block of equal boxes described a page that does not exist, so the
+           layout jumped the moment data arrived: the placeholder was its own small lie. */
+        <div className={cn('flex-1 min-h-0 overflow-hidden animate-fadeIn', s.page)}>
+          <div className={s.kpiStrip}>
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`k${i}`} className="h-[92px] rounded-xl" />)}
+          </div>
+          <div className={s.body}>
+            <div className={s.main}>
+              <div className={cn(s.band, s.bandQuad)}>
+                {Array.from({ length: 3 }).map((_, i) => <Skeleton key={`q${i}`} className="h-full rounded-xl" />)}
+              </div>
+              <div className={cn(s.band, s.bandTrend)}>
+                {Array.from({ length: 2 }).map((_, i) => <Skeleton key={`t${i}`} className="h-full rounded-xl" />)}
+              </div>
+            </div>
+            <div className={s.rail}>
+              <div className={s.railFeed}><Skeleton className="h-full rounded-xl" /></div>
+              <div className={s.railAttn}><Skeleton className="h-full rounded-xl" /></div>
+            </div>
           </div>
         </div>
       ) : viewMode === 'office' ? (
