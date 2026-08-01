@@ -64,19 +64,16 @@ function DeliveriesPageContent() {
   const [driverId, setDriverId] = useState<string[]>(globalFilters.driver ? [globalFilters.driver] : []);
   const [zoneId, setZoneId] = useState<string[]>([]);
   const [depot, setDepot] = useState<string[]>([]);
-  const [quickView, setQuickView] = useState<QuickView>('all');
-
   // ?view= opens the table on a quick view. The dashboard's backlog tiles have been linking here
   // with it since they were written — the page just never read the parameter, so every one of
   // them landed on "toutes les livraisons" and the operator had to re-pick the filter they had
-  // just clicked. Validated against the union: an unknown value falls back rather than putting
-  // the table in a state no chip can represent.
-  const viewParam = searchParams?.get('view');
-  useEffect(() => {
-    if (viewParam && (QUICK_VIEWS as readonly string[]).includes(viewParam)) {
-      setQuickView(viewParam as QuickView);
-    }
-  }, [viewParam]);
+  // just clicked. Read once at mount rather than synced in an effect: the chips own this state
+  // afterwards, and an effect writing it back would fight them. Validated against the list, so
+  // an unknown value falls back instead of leaving the table in a state no chip represents.
+  const [quickView, setQuickView] = useState<QuickView>(() => {
+    const v = searchParams?.get('view');
+    return v && (QUICK_VIEWS as readonly string[]).includes(v) ? (v as QuickView) : 'all';
+  });
   const [sortAsc, setSortAsc] = useState(false);
   const [groupByClient, setGroupByClient] = useState(false);
   const [groupByZone, setGroupByZone] = useState(false);
