@@ -42,6 +42,7 @@
   /* Light: a breath of the accent, well under the threshold where it becomes a colour. */
   --wash-a: rgba(9, 114, 211, 0.07);
   --wash-b: rgba(9, 114, 211, 0.05);
+  --veil:   rgba(9, 114, 211, 0.10);
 
   color-scheme: light;
 }
@@ -73,6 +74,7 @@
   /* Dark: the same idea, lifting the corners off the navy so the card has something to sit on. */
   --wash-a: rgba(83, 159, 229, 0.10);
   --wash-b: rgba(83, 159, 229, 0.06);
+  --veil:   rgba(83, 159, 229, 0.13);
 
   color-scheme: dark;
 }
@@ -101,6 +103,32 @@ body::before {
   background:
     radial-gradient(60rem 40rem at 12% -10%, var(--wash-a), transparent 60%),
     radial-gradient(50rem 36rem at 105% 108%, var(--wash-b), transparent 62%);
+}
+
+/* One soft mass hugging the lower corner, blurred until it has no edge of its own. The washes
+   above give the page depth; this gives it a shape — the difference between a tinted rectangle
+   and a surface with something behind it.
+   Uneven radii on both axes so the silhouette is not a circle: a circle reads as a shape placed
+   on the page, this reads as light falling across it. Fixed and behind everything, so it cannot
+   push the layout or catch a click. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  inset-inline-start: -14rem;
+  bottom: -18rem;
+  width: 52rem;
+  height: 38rem;
+  border-radius: 52% 48% 42% 58% / 62% 44% 56% 38%;
+  background: var(--veil);
+  filter: blur(72px);
+}
+
+@media (max-width: 960px) {
+  /* Scaled down rather than dropped: on a phone the form sits on this, and a bare flat fill is
+     what the page looked like before. */
+  body::after { width: 30rem; height: 24rem; inset-inline-start: -10rem; bottom: -12rem; }
 }
 
 /* ── Layout — context panel beside the form ──────────────────────────────── */
