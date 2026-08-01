@@ -602,11 +602,24 @@ public class DispatchService {
         m.put("overdue",      countTally(null, driverId, date, source, zoneId, q, null, "OVERDUE", null));
         m.put("today",        countTally(null, driverId, date, source, zoneId, q, null, "TODAY", null));
         m.put("future",       countTally(null, driverId, date, source, zoneId, q, null, "FUTURE", null));
+        // The two the table also offers as quick views. Without them the chip row mixed real
+        // totals with page-local tallies, which is worse than either alone: the same row of
+        // numbers would have meant two different things.
+        m.put("priority",     countTally(null, driverId, date, source, zoneId, q, null, null, null,
+                                         null, List.of(OrderPriority.HIGH)));
+        m.put("returns",      countTally(null, driverId, date, source, zoneId, q, null, null, null,
+                                         List.of(DeliveryKind.RETURN_PICKUP), null));
         return m;
     }
 
     private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
                             UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned) {
+        return countTally(status, driverId, date, source, zoneId, q, assigned, bucket, unpinned, null, null);
+    }
+
+    private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
+                            UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned,
+                            List<DeliveryKind> kinds, List<OrderPriority> priorities) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<Delivery> root = cq.from(Delivery.class);
@@ -617,7 +630,7 @@ public class DispatchService {
                 source != null ? List.of(source) : null,
                 zoneId != null ? List.of(zoneId) : null,
                 null,
-                unpinned, q, assigned, bucket, null, null, null, null);
+                unpinned, q, assigned, bucket, null, null, kinds, priorities);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }

@@ -48,6 +48,32 @@ export function useDeliveries(params: {
   });
 }
 
+/** Quick-view tallies for the deliveries table.
+ *
+ *  Deliberately a separate call from the page of rows: the table is paginated server-side, so
+ *  counting the loaded rows answers "how many on this page", which is never the question the
+ *  chips are asking. The endpoint tallies across the whole matching dataset.
+ *
+ *  Takes the same base filters as the list — driver, date, zone, search — but not the quick view
+ *  itself, since a chip that only counted its own selection would always read like the row count.
+ */
+export function useDeliveryCounts(params: {
+  driverId?: string;
+  date?: string;
+  zoneId?: string;
+  q?: string;
+}) {
+  return useQuery<Record<string, number>>({
+    queryKey: ['delivery-counts', params],
+    queryFn: async () => {
+      const res = await api.get('/admin/deliveries/counts', { params });
+      return (res.data ?? {}) as Record<string, number>;
+    },
+    retry: 1,
+    staleTime: 30000,
+  });
+}
+
 export function useActiveZones() {
   return useQuery<Zone[]>({
     queryKey: ACTIVE_ZONES_QUERY_KEY,

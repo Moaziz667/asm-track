@@ -24,6 +24,7 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import {
   useDeliveries,
+  useDeliveryCounts,
   useActiveZones,
   useCancelDelivery,
 } from '@/hooks/useDeliveries';
@@ -189,7 +190,24 @@ function DeliveriesPageContent() {
     }
   }, [query, dateFrom, dateTo, applyFilters]);
 
-  const { filteredRows, quickCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
+  const { filteredRows, quickCounts: pageCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
+
+  // Real tallies, across every matching delivery rather than the twenty-five on screen. The
+  // endpoint was written for exactly this and the page had been counting its own rows instead,
+  // so "Toutes les livraisons 25" was reporting the page size and calling it a total.
+  // Single-valued filters only: the endpoint takes one driver and one zone, so a multi-select
+  // is left out rather than silently narrowed to its first entry.
+  const { data: serverCounts } = useDeliveryCounts({
+    driverId: driverId.length === 1 ? driverId[0] : undefined,
+    zoneId: zoneId.length === 1 ? zoneId[0] : undefined,
+    date: dateFrom && dateFrom === dateTo ? dateFrom : undefined,
+    q: query || undefined,
+  });
+  // Page-local counts stand in until the tallies land, so the chips never flash empty.
+  const quickCounts = useMemo(
+    () => ({ ...pageCounts, ...(serverCounts ?? {}) }) as typeof pageCounts,
+    [pageCounts, serverCounts],
+  );
 
   const openRoute = (item: DeliveryRow) => {
     if (item.routeId) { router(`/routes/${item.routeId}?deliveryId=${item.rowId}`); return; }
