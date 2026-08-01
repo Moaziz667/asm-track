@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -69,8 +68,28 @@ export default function ReturnsPage() {
   const isMobile = useIsMobile();
   const statusLabel = (s: RmaStatus) => (t.statusLabels as Record<string, string>)[s] ?? s;
 
+  /**
+   * What the button does, not the state it leads to.
+   *
+   * The row actions were labelled "Approved / Rejected / Cancelled" — the names of statuses,
+   * in the past tense, on controls that had not been pressed yet. Read literally they claimed
+   * the return was already approved. Button labels take the imperative: the verb tells the
+   * operator what will happen when they press it, and the badge in the Status column is where
+   * a past-tense state belongs.
+   */
+  const actionLabel = (target: RmaStatus): string => {
+    const c = t.returnsPage;
+    switch (target) {
+      case 'APPROVED':  return c.actionApprove;
+      case 'REJECTED':  return c.actionReject;
+      case 'CANCELLED': return c.actionCancel;
+      case 'RECEIVED':  return c.actionReceive;
+      case 'RESTOCKED': return c.actionRestock;
+      default:          return statusLabel(target);
+    }
+  };
+
   const [rmas, setRmas] = useState<Rma[]>([]);
-  const [kpi, setKpi] = useState<{ total: number; open: number; restocked: number; totalValue?: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<RmaStatus | 'ALL'>('ALL');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -95,16 +114,14 @@ export default function ReturnsPage() {
       if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
-      const [listRes, kpiRes] = await Promise.all([
-        api.get('/admin/returns', { params }),
-        api.get('/admin/returns/kpi').catch(() => ({ data: null })),
-      ]);
+      // The KPI call went with the summary strip it fed: one fewer request per load, per filter
+      // change and per page turn, for numbers nobody was acting on.
+      const listRes = await api.get('/admin/returns', { params });
       // Endpoint is paginated → response is a Spring Page { content, totalPages, totalElements }.
       const data = listRes.data ?? {};
       setRmas(Array.isArray(data.content) ? data.content : (Array.isArray(data) ? data : []));
       setTotalPages(Math.max(1, Number(data.totalPages ?? 1)));
       setTotalElements(Number(data.totalElements ?? (Array.isArray(data.content) ? data.content.length : 0)));
-      if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked, totalValue: Number(kpiRes.data.totalValue) || 0 });
     } catch {
       showErrorToast(null, t.returnsPage?.loadError ?? 'Échec du chargement des retours');
     } finally {
@@ -264,20 +281,6 @@ export default function ReturnsPage() {
               {totalElements} {t.returnsPage?.countSuffix ?? 'retour(s)'}
             </span>
           </div>
-          <div className="flex items-center gap-5 text-xs font-[500]">
-            <span className="text-[var(--text-muted)]">{t.returnsPage?.kpiTotal ?? 'Total'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.total ?? 0}</b></span>
-            <span className="text-[var(--text-muted)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--warning)' }} />
-              {t.returnsPage?.kpiOpen ?? 'En cours'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.open ?? 0}</b>
-            </span>
-            <span className="text-[var(--text-muted)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--success)' }} />
-              {t.returnsPage?.kpiRestocked ?? 'Restockés'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.restocked ?? 0}</b>
-            </span>
-            <span className="text-[var(--text-muted)]">
-              {t.returnsPage?.kpiValue ?? 'Valeur'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{formatMoney(kpi?.totalValue ?? 0)}</b>
-            </span>
-          </div>
         </div>
 
         {/* Mobile: tap-to-open cards (the drawer holds all transitions). Desktop: table. */}
@@ -431,7 +434,7 @@ export default function ReturnsPage() {
                                 className="h-7 gap-1 px-2 text-xs font-semibold"
                                 style={{ color: tk.text }}
                               >
-                                <Icon size={12} /> {statusLabel(target)}
+                                <Icon size={12} /> {actionLabel(target)}
                               </Button>
                             );
                           })

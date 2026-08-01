@@ -2409,6 +2409,11 @@ export const FR_COPY = {
 
   // ── Returns (RMA) Page ────────────────────────────────────────────────
   returnsPage: {
+    actionApprove: 'Approuver',
+    actionReject: 'Rejeter',
+    actionCancel: 'Annuler',
+    actionReceive: 'Réceptionner',
+    actionRestock: 'Réintégrer au stock',
     title: 'Retours',
     searchPlaceholder: 'Rechercher un retour (client, BL, réf ERP)…',
     newReturn: 'Nouveau retour',

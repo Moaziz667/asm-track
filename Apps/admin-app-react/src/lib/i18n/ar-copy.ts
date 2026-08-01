@@ -2374,6 +2374,11 @@ export const AR_COPY = {
 
   // ── صفحة المرتجعات (RMA) ──────────────────────────────────────────────
   returnsPage: {
+    actionApprove: 'الموافقة',
+    actionReject: 'الرفض',
+    actionCancel: 'الإلغاء',
+    actionReceive: 'تسجيل الاستلام',
+    actionRestock: 'إعادة إلى المخزون',
     title: 'المرتجعات',
     searchPlaceholder: 'ابحث عن مرتجع (العميل، BL، مرجع ERP)…',
     newReturn: 'مرتجع جديد',
