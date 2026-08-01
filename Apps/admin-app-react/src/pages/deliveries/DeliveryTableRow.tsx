@@ -12,6 +12,7 @@ import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DELIVERY_ROW_H } from './constants';
 import { Spinner } from './helpers';
+import { formatAddress } from './format';
 import type { DeliveryRow } from './types';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
@@ -95,11 +96,13 @@ export function DeliveryTableRow({
                     last one winning. And the missing-address case borrowed the "geocoding in
                     progress" string, so a delivery with no address announced work that was not
                     happening. The title carries the full line, which the cell cannot show. */}
+                {/* Displayed cleaned, kept whole in the title: the stored value is what was
+                    geocoded, and someone chasing a bad pin needs to see exactly that. */}
                 <span
                   className="text-2xs font-[500] text-[var(--text-soft)] truncate"
                   title={item.dropoffAddress || undefined}
                 >
-                  {item.dropoffAddress || t.deliveriesPage.missingAddress}
+                  {formatAddress(item.dropoffAddress) || t.deliveriesPage.missingAddress}
                 </span>
               </div>
             </div>
@@ -363,8 +366,10 @@ export function DeliveryMobileCard({
         </span>
         <div className="flex items-center gap-1">
           <IconMapPin size={11} className="text-[var(--text-muted)] shrink-0" />
-          <span className="text-2xs text-[var(--text-soft)] truncate">
-            {item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}
+          {/* The mobile card carried the same two faults as the table row: the geocoding-in-progress
+              string standing in for a missing address, and the raw geocoded path printed whole. */}
+          <span className="text-2xs text-[var(--text-soft)] truncate" title={item.dropoffAddress || undefined}>
+            {formatAddress(item.dropoffAddress) || t.deliveriesPage.missingAddress}
           </span>
         </div>
       </div>

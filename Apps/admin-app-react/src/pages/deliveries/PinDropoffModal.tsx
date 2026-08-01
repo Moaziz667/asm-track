@@ -8,7 +8,8 @@ import { FieldInput } from '@/components/ui/field';
 import { IconSearch, IconAlertCircle } from '@tabler/icons-react';
 import type { GeocodeSuggestion } from '@/types';
 import { usePinDropoff } from '@/hooks/useDeliveries';
-import { Spinner, cleanTunisianAdminName } from './helpers';
+import { Spinner } from './helpers';
+import { cleanTunisianAdminName } from './format';
 import type { DeliveryRow } from './types';
 
 const RouteTrackingMap = dynamic(() => import('@/components/RouteTrackingMap'));

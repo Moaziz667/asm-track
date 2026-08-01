@@ -31,7 +31,7 @@ import {
 import { useFleetDrivers } from '@/hooks/useVehicles';
 
 import { DELIVERY_COLUMNS, DELIVERY_STATUSES } from './constants';
-import { getRowId } from './helpers';
+import { getRowId } from './format';
 import { useDepots } from '@/hooks/useDepots';
 import { QUICK_VIEWS } from './types';
 import type { DeliveryRow, QuickView } from './types';
