@@ -18,6 +18,7 @@ import { DispatchDeskProvider, useDispatchDeskContext } from './hooks/useDispatc
 import { PageFilterBar, type ActiveFilterValue } from '@/components/layout/PageFilterBar';
 import { useDepots } from '@/hooks/useDepots';
 import { DispatchTabs } from './components/DispatchTabs';
+import { formatAddress } from '@/lib/utils/address';
 
 // ── PageFilterBar bridge — reads from dispatch context ───────────────────────
 
@@ -269,7 +270,7 @@ function DispatchDeskContentInner() {
                   <p className="text-sm font-[500] mt-0.5" style={{ color: 'var(--text-primary)' }}>{r.clientName ?? '—'}</p>
                   {r.clientPhone && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.clientPhone}</p>}
                   {(r.dropoffAddress || r.dropoffCity) && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.dropoffAddress ?? r.dropoffCity}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }} title={r.dropoffAddress ?? undefined}>{formatAddress(r.dropoffAddress) || r.dropoffCity}</p>
                   )}
                 </div>
 

@@ -12,7 +12,7 @@ import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DELIVERY_ROW_H } from './constants';
 import { Spinner } from './helpers';
-import { formatAddress } from './format';
+import { formatAddress } from '@/lib/utils/address';
 import type { DeliveryRow } from './types';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatAddress, cleanTunisianAdminName } from './format';
+import { formatAddress, cleanTunisianAdminName } from '@/lib/utils/address';
 
 describe('cleanTunisianAdminName', () => {
   it('drops the administrative prefixes a dispatcher does not read', () => {

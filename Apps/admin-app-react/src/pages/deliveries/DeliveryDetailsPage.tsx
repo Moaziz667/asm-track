@@ -24,6 +24,7 @@ import { DriverNote } from '@/components/data-display/DriverNote';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CreateReturnModal } from '@/components/returns/CreateReturnModal';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
+import { formatAddress } from '@/lib/utils/address';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -383,7 +384,7 @@ export default function DeliveryDetailPage() {
                 <div className="flex flex-col">
                   <InfoRow label={t.deliveryPage.labelName}      value={delivery.clientName} />
                   <InfoRow label={t.deliveryPage.labelPhone}    value={delivery.clientPhone} />
-                  <InfoRow label={t.deliveryPage.labelAddress}  value={delivery.dropoffAddress} />
+                  <InfoRow label={t.deliveryPage.labelAddress}  value={formatAddress(delivery.dropoffAddress)} />
                   <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
                   <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />

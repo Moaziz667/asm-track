@@ -9,7 +9,7 @@ import { IconSearch, IconAlertCircle } from '@tabler/icons-react';
 import type { GeocodeSuggestion } from '@/types';
 import { usePinDropoff } from '@/hooks/useDeliveries';
 import { Spinner } from './helpers';
-import { cleanTunisianAdminName } from './format';
+import { cleanTunisianAdminName } from '@/lib/utils/address';
 import type { DeliveryRow } from './types';
 
 const RouteTrackingMap = dynamic(() => import('@/components/RouteTrackingMap'));

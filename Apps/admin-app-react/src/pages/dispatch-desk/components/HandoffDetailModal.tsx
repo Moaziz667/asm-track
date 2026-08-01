@@ -9,6 +9,7 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import type { HandoffItem } from '../types';
 import type { Phase } from './HandoffCards';
+import { formatAddress } from '@/lib/utils/address';
 
 interface Props {
   h: HandoffItem | null;
@@ -158,7 +159,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
         {h.dropoffAddress && (
           <div className="flex items-center gap-1.5 px-1 pb-3" style={{ color: 'var(--text-muted)' }}>
             <IconMapPin size={12} stroke={2} className="shrink-0" />
-            <span className="text-xs">{h.dropoffAddress}</span>
+            <span className="text-xs" title={h.dropoffAddress}>{formatAddress(h.dropoffAddress)}</span>
           </div>
         )}
 
