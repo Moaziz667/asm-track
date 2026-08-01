@@ -732,7 +732,7 @@ export const FR_COPY = {
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
     viewOffice: 'Synthèse',
-    viewKanban: 'Dispatch',
+    viewKanban: 'Kanban',
     filtersLabel: 'Filtres',
     periodAria: 'Période analysée',
     title: 'Tableau de bord',
@@ -756,7 +756,7 @@ export const FR_COPY = {
     chartLegendTotal: 'Total',
     chartLegendDelivered: 'Livrées',
     serviceQualityTitle: 'qualité de service',
-    slaRateLabel: 'taux SLA',
+    slaRateLabel: 'Taux SLA',
     pulseNominal: 'Opérations nominales',
     pulseToProcess: 'À traiter',
     pulseServices: 'Services',

@@ -22,7 +22,18 @@ export function SectionCard({
   contentClassName,
 }: SectionCardProps) {
   return (
-    <div className={cn('border border-[var(--border)] rounded-lg', className)}>
+    /* A hairline on the app background is not a surface — it reads as an absence, which is why a
+       page of these felt inert. DESIGN.md already specifies "container = 1px border + faint
+       shadow"; the card had simply never applied it. The hover step is feedback rather than
+       decoration: most places these appear, the card leads somewhere. */
+    <div
+      className={cn(
+        'border border-[var(--border)] rounded-lg bg-[var(--surface)]',
+        'shadow-[var(--shadow-card)] transition-shadow duration-200',
+        'hover:shadow-[var(--shadow-card-hover)]',
+        className,
+      )}
+    >
       {(title || actions) && (
         <div className="flex items-start justify-between gap-3 pl-10 pr-4 py-3 border-b border-[var(--border)]">
           <div>

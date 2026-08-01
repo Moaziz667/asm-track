@@ -709,7 +709,7 @@ export const AR_COPY = {
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
     viewOffice: 'نظرة عامة',
-    viewKanban: 'التوزيع',
+    viewKanban: 'Kanban',
     filtersLabel: 'عوامل التصفية',
     periodAria: 'الفترة قيد المراجعة',
     title: 'لوحة القيادة',

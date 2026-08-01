@@ -649,7 +649,7 @@ export const EN_COPY = {
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
     viewOffice: 'Overview',
-    viewKanban: 'Dispatch',
+    viewKanban: 'Kanban',
     filtersLabel: 'Filters',
     periodAria: 'Period under review',
     title: 'Dashboard',

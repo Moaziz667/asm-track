@@ -83,7 +83,7 @@ function KpiTile({ label, value, sub, tone = 'default', delta, deltaCaption, del
   return (
     <div
       className={cn(
-        'relative border border-[var(--border)] rounded-lg @container h-full flex flex-col justify-between gap-2 px-3.5 py-2.5 shadow-[var(--shadow-card)] overflow-hidden',
+        'relative border border-[var(--border)] rounded-lg @container h-full flex flex-col justify-between gap-2 px-3.5 py-2.5 bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden',
         onClick && 'cursor-pointer hover:shadow-[var(--shadow-md)] transition-all duration-200',
       )}
       style={{
@@ -133,7 +133,7 @@ export function StatKpiCard(p: KpiCommon) {
 export function TrendChartWidget({ trend }: { trend: Array<{ count: number; delivered: number; failed: number }> }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
@@ -173,11 +173,16 @@ export function TrendChartWidget({ trend }: { trend: Array<{ count: number; deli
   );
 }
 
+/** Past this the rail stops being a shortlist to act on and becomes a backlog to scroll. The
+ *  header count still reports the true total, and "voir tout" owns everything beyond it. */
+const ATTENTION_LIMIT = 10;
+
 export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem[]; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
+  const shown = items.slice(0, ATTENTION_LIMIT);
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
@@ -189,7 +194,7 @@ export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem
       </div>
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         <div className="divide-y divide-[var(--border)]">
-          {items.map((exc, idx) => {
+          {shown.map((exc, idx) => {
             const timeRef = exc.scheduledAt || exc.createdAt;
             const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
             return (
@@ -225,7 +230,7 @@ export function TopItemsWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
@@ -279,7 +284,7 @@ export function CycleTimeWidget({ stats }: { stats: DashboardStats | null }) {
     { label: t.performancePage.effectiveTransit, sub: t.performancePage.transitToCompletion, m: c, color: 'var(--text-muted)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.temporalFragmentation}</span>
       </div>
@@ -311,7 +316,7 @@ export function ZoneDensityWidget({ kpi }: { kpi: { ordersByZone?: Record<string
   );
   const max = Math.max(...entries.map(e => e[1]), 1);
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.densityByZone}</span>
       </div>
@@ -351,7 +356,7 @@ export function StatusBreakdownWidget({ ops }: { ops: { lanes?: Array<{ status: 
   ];
   const total = rows.reduce((s, r) => s + r.v, 0) || 1;
   return (
-    <div className="relative border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="relative border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.statusBreakdown ?? 'Répartition par statut'}</span>
       </div>
@@ -392,7 +397,7 @@ export function OpsCountersWidget({ ops }: { ops: { reassignedToday?: number; re
     { label: t.dashboardPage.opsBreached ?? 'En dépassement', v: ops?.sla?.slaBreached ?? 0, tone: 'var(--danger)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.opsCounters ?? 'Turbulence dispatch'}</span>
       </div>
@@ -412,7 +417,7 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
@@ -444,7 +449,7 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
 export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: DriverLite[]; onBreak: DriverLite[]; offline: DriverLite[] } }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
       <div className="flex flex-col gap-2 overflow-y-auto">
         {[
@@ -527,7 +532,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
 export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         {[
@@ -563,7 +568,7 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
     { label: t.dashboardPage.returnsValue || 'Valeur', v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.returnsTitle || 'Retours (RMA)'}</span>
@@ -594,7 +599,7 @@ export function BacklogWidget({ counts, navigate }: { counts: Record<string, num
     { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.backlogTitle || 'Backlog livraisons'}</span>
       </div>
