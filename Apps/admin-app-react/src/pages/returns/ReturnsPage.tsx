@@ -421,18 +421,22 @@ export default function ReturnsPage() {
                         {NEXT[r.status].length === 0 ? (
                           <span className="text-xs text-[var(--text-soft)]">—</span>
                         ) : (
-                          NEXT[r.status].map((target) => {
+                          NEXT[r.status].map((target, i) => {
                             const Icon = TRANSITION_ICON[target] ?? IconArrowRight;
                             const tk = STATUS_TOKENS[target];
+                            // One move advances the return, the others end it. Three outlines in
+                            // three colours made them look like equals; filling the first says
+                            // which one the row is waiting for.
+                            const forward = i === 0;
                             return (
                               <Button
                                 key={target}
-                                variant="outline"
+                                variant={forward ? 'default' : 'outline'}
                                 size="sm"
                                 disabled={busyId === r.id}
                                 onClick={() => transition(r, target)}
                                 className="h-7 gap-1 px-2 text-xs font-semibold"
-                                style={{ color: tk.text }}
+                                style={forward ? undefined : { color: tk.text }}
                               >
                                 <Icon size={12} /> {actionLabel(target)}
                               </Button>
@@ -493,6 +497,7 @@ export default function ReturnsPage() {
         open={selected !== null}
         onClose={() => setSelected(null)}
         statusLabel={statusLabel}
+        actionLabel={actionLabel}
         busyId={busyId}
         onTransition={transition}
         onResync={(r) => void resync(r)}
