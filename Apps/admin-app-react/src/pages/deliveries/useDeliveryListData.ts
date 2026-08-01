@@ -17,27 +17,16 @@ interface ListOpts {
  * DeliveriesPage verbatim so the page is an orchestrator.
  */
 export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
-  const { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus } = opts;
+  const { query, sortAsc, groupByClient, groupByZone, groupByStatus } = opts;
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
 
+    // The quick view is applied by the server, on the whole dataset. It used to be re-applied
+    // here as well, to the rows of one page — and a filter that only sees a page cannot agree
+    // with a count that sees everything. One place decides now; this one narrows on search text
+    // and nothing else.
     const result = rows.filter((item: DeliveryRow) => {
-      const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-      const bucket = getDayBucket(item.scheduledAt);
-
-      if (quickView === 'returns') return (item as { kind?: string }).kind === 'RETURN_PICKUP';
-      if (quickView === 'needsPinning') return !item.dropoffPinned;
-      // Urgency is only worth carrying if it can be singled out; this is that.
-      if (quickView === 'priority') return item.priority === 'HIGH';
-      if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
-      if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT' && item.status !== 'AWAITING_HANDOFF') return false;
-      if (quickView === 'completed' && item.status !== 'DELIVERED') return false;
-      if (quickView === 'failed' && !['FAILED', 'CANCELLED'].includes(item.status)) return false;
-      if (quickView === 'overdue') return isPending && bucket === 'overdue';
-      if (quickView === 'today') return isPending && bucket === 'today';
-      if (quickView === 'future') return isPending && bucket === 'future';
-
       if (!q) return true;
       return [item.rowId, item.orderId, item.erpOrderId, item.orderRef, item.erpId, item.clientName, item.dropoffCity, item.driverName, item.routeName, item.status]
         .some(v => String(v ?? '').toLowerCase().includes(q));
@@ -81,7 +70,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
     });
 
     return result;
-  }, [query, quickView, rows, sortAsc, groupByClient, groupByZone, groupByStatus]);
+  }, [query, rows, sortAsc, groupByClient, groupByZone, groupByStatus]);
 
   const quickCounts = useMemo(() => {
     let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0, priority = 0;

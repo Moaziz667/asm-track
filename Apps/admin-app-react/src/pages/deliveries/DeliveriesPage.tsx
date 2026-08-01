@@ -120,11 +120,31 @@ function DeliveriesPageContent() {
     if (driverId.length) params.driverId = driverId;
     if (zoneId.length) params.zoneId = zoneId;
     if (depot.length) params.depot = depot;
+    // Every quick view goes to the server. Three of them already did; the other eight were
+    // applied to the twenty-five rows already loaded, so "Livrées" meant "the delivered ones on
+    // this page" — the chip said 9, the table showed 3, and paging on kept cutting the same
+    // unfiltered 77 into slices. The predicates exist: countTally computes the chip totals from
+    // these very parameters, so the server could always answer; the list was not asking.
     if (quickView === 'needsPinning') params.unpinned = 'true';
     if (quickView === 'returns') params.kind = ['RETURN_PICKUP'];
-    // Sent to the server as well as filtered locally: a page-local filter would hide urgent
-    // deliveries sitting on page two, which is the opposite of what the filter is for.
     if (quickView === 'priority') params.priority = ['HIGH'];
+    if (quickView === 'unassigned') params.assigned = 'false';
+    if (quickView === 'overdue') params.bucket = 'OVERDUE';
+    if (quickView === 'today') params.bucket = 'TODAY';
+    if (quickView === 'future') params.bucket = 'FUTURE';
+
+    // A view that is really a set of statuses. When the operator has also picked statuses by
+    // hand, both constraints hold — the narrower answer is the honest one, and silently dropping
+    // either would show rows the screen claims to have excluded.
+    const viewStatuses: Record<string, string[]> = {
+      inTransit: ['IN_TRANSIT', 'AWAITING_HANDOFF'],
+      completed: ['DELIVERED'],
+      failed: ['FAILED', 'CANCELLED'],
+    };
+    const fromView = viewStatuses[quickView];
+    if (fromView) {
+      params.status = status.length ? status.filter(x => fromView.includes(x)) : fromView;
+    }
     return params;
   }, [page, size, status, dateFrom, dateTo, driverId, zoneId, depot, quickView]);
 
@@ -473,8 +493,15 @@ function DeliveriesPageContent() {
             {/* Pagination footer */}
             {(rows.length >= size || page > 0 || totalPages > 1) && (
               <div className="flex items-center justify-between px-6 py-2.5 border-t border-[var(--border)] bg-[var(--app-bg)] shrink-0">
+                {/* What is on screen out of what matched, then the page. "Page 1 · 77 résultats"
+                    gave a position and a total and never said how many of them you were looking
+                    at — the one number the reader is checking. */}
                 <span className="text-xs text-[var(--text-muted)]">
-                  {t.deliveriesPage.pageLabel} {page + 1}{totalElements > rows.length ? ` · ${totalElements} ${t.deliveriesPage.resultsLabel}` : ''}
+                  <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+                    {rows.length}/{totalElements}
+                  </span>
+                  {' '}{t.deliveriesPage.resultsLabel}
+                  {totalPages > 1 && ` · ${t.deliveriesPage.pageLabel} ${page + 1}/${totalPages}`}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-7 px-3 text-xs font-[700]">

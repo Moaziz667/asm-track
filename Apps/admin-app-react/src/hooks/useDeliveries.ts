@@ -36,6 +36,10 @@ export function useDeliveries(params: {
   /** NORMAL | HIGH — repeatable, matching the backend's `priority` request param. */
   priority?: string[];
   kind?: string | string[];
+  /** "false" narrows to deliveries with no driver — the quick view, answered by the server. */
+  assigned?: string;
+  /** OVERDUE | TODAY | FUTURE — scheduled-date bucket, pending deliveries only. */
+  bucket?: string;
 }) {
   return useQuery({
     queryKey: ['deliveries', params],
