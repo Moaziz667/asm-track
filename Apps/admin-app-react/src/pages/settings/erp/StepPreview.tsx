@@ -68,7 +68,7 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 flex-1 min-w-[220px]">
-          <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+          <span className="text-xs font-medium text-[var(--text-muted)]">
             {copy.pickOrder}
           </span>
           <select
@@ -109,10 +109,10 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
         <>
           <section className="rounded-lg border border-[var(--border)] overflow-hidden">
             <header className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
-              <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <span className="text-xs font-medium text-[var(--text-muted)]">
                 {copy.colSource}
               </span>
-              <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              <span className="text-xs font-medium text-[var(--text-muted)]">
                 {copy.colResult}
               </span>
             </header>
@@ -149,7 +149,7 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
           {preview.customFields && Object.keys(preview.customFields).length > 0 && (
             <section className="rounded-lg border border-[var(--border)] overflow-hidden">
               <header className="px-4 py-2 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
-                <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                <span className="text-xs font-medium text-[var(--text-muted)]">
                   {copy.extrasPreview}
                 </span>
               </header>
@@ -167,7 +167,7 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
           {preview.items && preview.items.length > 0 && (
             <section className="rounded-lg border border-[var(--border)] overflow-hidden">
               <header className="px-4 py-2 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
-                <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                <span className="text-xs font-medium text-[var(--text-muted)]">
                   {copy.linesPreview}
                 </span>
               </header>

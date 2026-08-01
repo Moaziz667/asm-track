@@ -56,15 +56,18 @@ export function StepRail({
               >
                 <StepMarker index={i + 1} state={step.state} />
                 <span className="flex flex-col min-w-0 pt-px">
+                  {/* 14px over 12px. It was 16 over 10 — a jump of 1.6 between a nav label and its
+                      own hint, where the app's scale steps by about 1.17, and 10px is below what
+                      anyone reads comfortably in a sidebar they are navigating by. */}
                   <span
                     className={cn(
-                      'text-base leading-snug truncate',
+                      'text-sm leading-snug truncate',
                       current ? 'font-semibold text-[var(--brand)]' : 'font-medium text-[var(--text-primary)]',
                     )}
                   >
                     {step.label}
                   </span>
-                  <span className="text-2xs leading-snug text-[var(--text-muted)] truncate">
+                  <span className="text-xs leading-snug text-[var(--text-muted)] truncate">
                     {locked ? step.lockReason ?? step.hint : step.hint}
                   </span>
                 </span>

@@ -300,7 +300,7 @@ function ExtraFields({
             onChange={(e) => setLabel(e.target.value)}
           />
           <div className="flex flex-col gap-1">
-            <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-xs font-medium text-[var(--text-muted)]">
               {copy.extraSource}
             </span>
             {/* Header-scoped: the resolver reads every extra against the picking. */}
