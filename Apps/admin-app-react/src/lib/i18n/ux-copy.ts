@@ -473,7 +473,7 @@ export const FR_COPY = {
   failureScopes: {
     DELIVERY: 'Livraison',
     ITEM:     'Article',
-    BOTH:     'Les deux',
+    BOTH:     'Livraison et article',
   } as Record<string, string>,
 
   // ── Source de la commande ─────────────────────────────────────────────

@@ -451,7 +451,7 @@ export const AR_COPY = {
   failureScopes: {
     DELIVERY: 'التوصيل',
     ITEM:     'صنف',
-    BOTH:     'كلاهما',
+    BOTH:     'التوصيل والصنف',
   } as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────

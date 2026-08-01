@@ -443,7 +443,7 @@ export const EN_COPY = {
   failureScopes: {
     DELIVERY: 'Delivery',
     ITEM:     'Item',
-    BOTH:     'Both',
+    BOTH:     'Delivery and item',
   } as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────
