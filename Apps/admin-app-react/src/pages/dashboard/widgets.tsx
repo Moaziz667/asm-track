@@ -3,7 +3,9 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { IconTruckFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
-  IconChevronRight, IconLayoutKanban } from '@tabler/icons-react';
+  IconChevronRight, IconLayoutKanban,
+  IconMapPinOff, IconUserQuestion, IconClockExclamation, IconCalendarClock,
+  IconInbox, IconPackageImport, IconArrowBackUp, IconCoin } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
@@ -365,12 +367,12 @@ export function StatusBreakdownWidget({ ops }: { ops: { lanes?: Array<{ status: 
       </div>
       <div className="p-4 flex items-center gap-3 flex-1">
         <div className="relative shrink-0">
-          <svg width="140" height="140" viewBox="0 0 42 42" aria-hidden="true">
-            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="3.5" />
-            {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="3.5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />; }); })()}
+          <svg width="168" height="168" viewBox="0 0 42 42" aria-hidden="true">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="4.5" />
+            {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="4.5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />; }); })()}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-mono text-xl font-bold tabular-nums text-[var(--text-primary)]">{rows.reduce((s, r) => s + r.v, 0)}</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-[var(--text-primary)]">{rows.reduce((s, r) => s + r.v, 0)}</span>
             <span className="text-3xs text-[var(--text-muted)]">total</span>
           </div>
         </div>
@@ -571,8 +573,9 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
  * Where a tile leads somewhere, an arrow fades in on hover: the whole quadrant was already
  * clickable, it simply never said so.
  */
-function CountTile({ n, display, label, tone, index, onClick }: {
+function CountTile({ n, display, label, tone, index, onClick, Icon }: {
   n: number; display?: string; label: string; tone: string; index: number; onClick?: () => void;
+  Icon?: React.ComponentType<{ size?: number; className?: string }>;
 }) {
   const quiet = !n;
   const edges = {
@@ -587,8 +590,9 @@ function CountTile({ n, display, label, tone, index, onClick }: {
       >
         {display ?? n}
       </span>
-      <span className="text-2xs text-[var(--text-muted)] mt-1.5 flex items-center gap-1">
-        {label}
+      <span className="text-2xs text-[var(--text-muted)] mt-1.5 flex items-center gap-1.5">
+        {Icon && <Icon size={12} className="shrink-0 text-[var(--text-soft)]" />}
+        <span className="truncate">{label}</span>
         {onClick && (
           <IconArrowUpRight
             size={11}
@@ -620,10 +624,10 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
   const { locale } = useLocaleStore();
   const money = (n: number) => new Intl.NumberFormat(locale === 'ar' ? 'ar-TN' : 'fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(n || 0);
   const cells = [
-    { label: t.dashboardPage.returnsOpen || 'À traiter', n: returns?.open ?? 0, v: String(returns?.open ?? 0), tone: 'var(--warning)' },
-    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', n: returns?.restocked ?? 0, v: String(returns?.restocked ?? 0), tone: 'var(--success)' },
-    { label: t.dashboardPage.returnsTotal || 'Total', n: returns?.total ?? 0, v: String(returns?.total ?? 0), tone: 'var(--text-primary)' },
-    { label: t.dashboardPage.returnsValue || 'Valeur', n: returns?.totalValue ?? 0, v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.returnsOpen || 'À traiter', n: returns?.open ?? 0, v: String(returns?.open ?? 0), tone: 'var(--warning)', Icon: IconInbox },
+    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', n: returns?.restocked ?? 0, v: String(returns?.restocked ?? 0), tone: 'var(--success)', Icon: IconPackageImport },
+    { label: t.dashboardPage.returnsTotal || 'Total', n: returns?.total ?? 0, v: String(returns?.total ?? 0), tone: 'var(--text-primary)', Icon: IconArrowBackUp },
+    { label: t.dashboardPage.returnsValue || 'Valeur', n: returns?.totalValue ?? 0, v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)', Icon: IconCoin },
   ];
   return (
     <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
@@ -637,7 +641,7 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
       </div>
       <div className="grid grid-cols-2 flex-1">
         {cells.map((c, i) => (
-          <CountTile key={c.label} display={c.v} n={c.n} label={c.label} tone={c.tone} index={i} />
+          <CountTile key={c.label} display={c.v} n={c.n} label={c.label} tone={c.tone} index={i} Icon={c.Icon} />
         ))}
       </div>
     </div>
@@ -648,10 +652,10 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
 export function BacklogWidget({ counts, navigate }: { counts: Record<string, number> | null; navigate: (p: string) => void }) {
   const t = useT();
   const tiles = [
-    { key: 'needsPinning', label: t.dashboardPage.backlogNeedsPinning || 'À géolocaliser', tone: 'var(--warning)', href: '/deliveries?view=needsPinning' },
-    { key: 'unassigned', label: t.dashboardPage.backlogUnassigned || 'Non assignées', tone: 'var(--info)', href: '/deliveries?view=unassigned' },
-    { key: 'overdue', label: t.dashboardPage.backlogOverdue || 'En retard', tone: 'var(--danger)', href: '/deliveries?view=overdue' },
-    { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future' },
+    { key: 'needsPinning', label: t.dashboardPage.backlogNeedsPinning || 'À géolocaliser', tone: 'var(--warning)', href: '/deliveries?view=needsPinning', Icon: IconMapPinOff },
+    { key: 'unassigned', label: t.dashboardPage.backlogUnassigned || 'Non assignées', tone: 'var(--info)', href: '/deliveries?view=unassigned', Icon: IconUserQuestion },
+    { key: 'overdue', label: t.dashboardPage.backlogOverdue || 'En retard', tone: 'var(--danger)', href: '/deliveries?view=overdue', Icon: IconClockExclamation },
+    { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future', Icon: IconCalendarClock },
   ];
   return (
     <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
@@ -666,6 +670,7 @@ export function BacklogWidget({ counts, navigate }: { counts: Record<string, num
             label={tile.label}
             tone={tile.tone}
             index={i}
+            Icon={tile.Icon}
             onClick={() => navigate(tile.href)}
           />
         ))}

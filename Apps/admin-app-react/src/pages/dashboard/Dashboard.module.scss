@@ -170,9 +170,13 @@ $band-zone: 300px;   // failure causes · driver status
   }
 }
 
-// Row 2 — volume trend (wide) · zone overview
+// Row 2 — status breakdown · zone overview.
+// Was 2fr 1fr, which left the donut card padded with empty space while the zone table
+// squeezed four columns into a third of the row: "Zone …" truncated, "À l'heure" wrapping
+// onto two lines, a count sitting above a stray dash. Even columns give the table the room
+// its content actually needs, and the donut grows to fill what it keeps.
 .bandTrend {
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr 1fr;
   min-height: $band-trend;
   @include stack-on-narrow(260px);
 }
