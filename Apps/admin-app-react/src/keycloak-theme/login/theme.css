@@ -9,7 +9,7 @@
   --ring:         rgba(9, 114, 211, 0.25);
 
   /* Surfaces — light */
-  --app-bg:    #F2F3F3;
+  --app-bg:    #F7F9FC;
   --surface:   #FFFFFF;
   --elevated:  #FFFFFF;
   --hover-bg:  #F4F4F4;
@@ -39,6 +39,10 @@
   --font-sans: 'Open Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* Light: a breath of the accent, well under the threshold where it becomes a colour. */
+  --wash-a: rgba(9, 114, 211, 0.07);
+  --wash-b: rgba(9, 114, 211, 0.05);
+
   color-scheme: light;
 }
 
@@ -66,6 +70,10 @@
   --warning:    #E0CA57;  --warning-bg: rgba(224, 202, 87, 0.12);
   --info:       #539FE5;  --info-bg:    rgba(83, 159, 229, 0.12);
 
+  /* Dark: the same idea, lifting the corners off the navy so the card has something to sit on. */
+  --wash-a: rgba(83, 159, 229, 0.10);
+  --wash-b: rgba(83, 159, 229, 0.06);
+
   color-scheme: dark;
 }
 
@@ -79,6 +87,20 @@ html, body {
   background: var(--app-bg);
   color: var(--text-secondary);
   min-height: 100dvh;
+}
+
+/* A flat fill made the page read as an empty document rather than a surface. Two very faint
+   pools of the brand's own hue give it depth without becoming decoration: single hue, no
+   second accent, nothing the eye stops on. They sit behind everything and never move. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, var(--wash-a), transparent 60%),
+    radial-gradient(50rem 36rem at 105% 108%, var(--wash-b), transparent 62%);
 }
 
 /* ── Layout — context panel beside the form ──────────────────────────────── */
@@ -135,13 +157,33 @@ html, body {
   border-inline-start: 1px solid var(--border);
   padding-inline-start: 18px;
 }
-.asm-context-list li { display: flex; flex-direction: column; gap: 3px; }
+.asm-context-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+}
+.asm-context-icon {
+  grid-row: 1 / span 2;
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 1px;
+  border-radius: var(--radius-md);
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+}
 .asm-context-point {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-primary);
 }
 .asm-context-sub {
+  grid-column: 2;
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-muted);

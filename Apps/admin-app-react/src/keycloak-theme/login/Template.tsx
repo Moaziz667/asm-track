@@ -74,14 +74,17 @@ export default function Template({
 
         <ul className="asm-context-list">
           <li>
+            <span className="asm-context-icon"><RouteIcon /></span>
             <span className="asm-context-point">{msgStr("asmPointPlan")}</span>
             <span className="asm-context-sub">{msgStr("asmPointPlanSub")}</span>
           </li>
           <li>
+            <span className="asm-context-icon"><PulseIcon /></span>
             <span className="asm-context-point">{msgStr("asmPointTrack")}</span>
             <span className="asm-context-sub">{msgStr("asmPointTrackSub")}</span>
           </li>
           <li>
+            <span className="asm-context-icon"><ProofIcon /></span>
             <span className="asm-context-point">{msgStr("asmPointProof")}</span>
             <span className="asm-context-sub">{msgStr("asmPointProofSub")}</span>
           </li>
@@ -127,6 +130,41 @@ export default function Template({
         </div>
       </main>
     </div>
+  );
+}
+
+/* Inline rather than an icon package: the theme ships as a JAR Keycloak serves, and three
+   glyphs are not worth pulling a dependency into it. Each one names its own point — a route
+   with stops, a live signal, a signed document — so none of them is interchangeable filler. */
+const svg = {
+  width: 16, height: 16, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+};
+
+function RouteIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <circle cx="6" cy="19" r="2" /><circle cx="18" cy="5" r="2" />
+      <path d="M8 19h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5" />
+    </svg>
+  );
+}
+
+function PulseIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M3 12h4l2.5-7 4 14L16 12h5" />
+    </svg>
+  );
+}
+
+function ProofIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" /><path d="M9 15c1.5-2 2.5 1 4-1" />
+    </svg>
   );
 }
 
