@@ -140,6 +140,16 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
         return erp.downloadPdf("Sales Invoice", invoiceRef);
     }
 
+    /**
+     * The delivery note as ERPNext prints it. {@code pickingRef} is the Delivery Note name (this adapter
+     * stores the submitted DN name as the picking reference), so it addresses the document directly.
+     */
+    @Override
+    public byte[] getDeliveryNotePdf(String pickingRef) {
+        if (pickingRef == null || pickingRef.isBlank()) return null;
+        return erp.downloadPdf("Delivery Note", pickingRef);
+    }
+
     // ── Failure = a chatter note on the Sales Order ──────────────────────────────
 
     @Override

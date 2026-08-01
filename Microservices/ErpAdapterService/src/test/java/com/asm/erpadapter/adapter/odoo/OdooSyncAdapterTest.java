@@ -38,6 +38,8 @@ class OdooSyncAdapterTest {
     private OdooPodService podService;
     @Mock
     private ReturnHandler returnHandler;
+    @Mock
+    private OdooReportService reportService;
 
     private OdooSyncAdapter adapter;
 
@@ -45,7 +47,8 @@ class OdooSyncAdapterTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         adapter = new OdooSyncAdapter(rpc, idempotency,
-                pickingService, validationService, saleOrderService, productService, podService, returnHandler);
+                pickingService, validationService, saleOrderService, productService, podService, returnHandler,
+                reportService);
 
         // Default: idempotency.execute runs the supplier directly
         lenient().when(idempotency.execute(anyString(), anyString(), any(Class.class), any(Supplier.class)))

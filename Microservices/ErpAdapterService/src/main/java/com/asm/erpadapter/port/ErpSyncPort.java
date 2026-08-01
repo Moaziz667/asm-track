@@ -95,4 +95,20 @@ public interface ErpSyncPort {
     default byte[] getInvoicePdf(String invoiceRef) {
         return null;
     }
+
+    /**
+     * Fetch the delivery note (bon de livraison) <b>as the ERP renders it</b>, by picking / delivery-note
+     * reference (e.g. {@code "WH/OUT/00326"}).
+     *
+     * <p>The delivery note is a fiscal document: it carries the issuer's tax identity, the uninterrupted
+     * numbering series, lot/serial traceability and whatever legal mentions the tenant's accountant added
+     * to their own report. ASM re-rendering it from synced data reproduced none of that, so the document
+     * is taken from the system that owns it — the same rule already applied to invoices by
+     * {@link #createInvoice} and {@link #getInvoicePdf}.
+     *
+     * @return raw PDF bytes, or {@code null} on failure/unsupported.
+     */
+    default byte[] getDeliveryNotePdf(String pickingRef) {
+        return null;
+    }
 }

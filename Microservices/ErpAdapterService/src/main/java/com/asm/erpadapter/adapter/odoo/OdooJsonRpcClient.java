@@ -103,6 +103,33 @@ public class OdooJsonRpcClient {
         return !apiKey.isBlank() ? apiKey : getSettingStr("password");
     }
 
+    // ── Settings exposed for the HTTP (non-RPC) call paths ──────────────────────
+    // Odoo renders reports over a *web session*, not over JSON-RPC (see OdooReportService), so that
+    // path needs the raw connection settings. They are exposed read-only here rather than duplicating
+    // SettingsClient lookups, and every derived URL must still pass through {@link #assertUrlAllowed}.
+
+    /** The configured JSON-RPC endpoint, e.g. {@code https://erp.example.com/jsonrpc}. */
+    public String rpcUrl() { return getSettingStr("url"); }
+
+    public String db()    { return getSettingStr("db"); }
+    public String login() { return getSettingStr("login"); }
+
+    /**
+     * The literal {@code password} setting — <b>not</b> {@link #getSecret()}.
+     *
+     * <p>Odoo accepts an API key wherever RPC expects a password, but {@code /web/session/authenticate}
+     * is the browser login path and (documented) does not take API keys. Callers on the session path
+     * must therefore be able to ask for the password specifically, and decide for themselves whether to
+     * fall back to the key.
+     */
+    public String password() { return getSettingStr("password"); }
+
+    /** The literal {@code apiKey} setting, or blank. */
+    public String apiKey() { return getSettingStr("apiKey"); }
+
+    /** Apply the SSRF allow-list to a URL derived from {@link #rpcUrl()}. Throws on a disallowed host. */
+    public void assertUrlAllowed(String url) { validateUrl(url); }
+
     // ── uid resolution (login + API key → uid via common.authenticate) ──────────
     // The admin configures login + apiKey, not the internal numeric uid. We resolve it once via Odoo's
     // common.authenticate and cache it PER CREDENTIAL SET (db|login|secret). This client is a singleton

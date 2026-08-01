@@ -112,6 +112,9 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
                             : "No-op on Odoo ≤18 (orders are not auto-locked).");
 
+        // ── The delivery note now comes from Odoo, so its report must exist here ──────────────────
+        checkDeliverySlipReport(checks);
+
         ConformanceReport.Verdict verdict = ConformanceReport.deriveVerdict(checks);
         log.info("provider=odoo operation=conformanceProbe version={} verdict={} checks={}",
                 version, verdict, checks.size());
@@ -181,6 +184,42 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         }
         checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.MISSING,
                 "No candidate exists on this instance: " + candidates + ". " + note));
+    }
+
+    /**
+     * Verify the instance can produce a delivery-note PDF.
+     *
+     * <p>ASM stopped drawing its own bon de livraison and now serves Odoo's, so a tenant whose instance
+     * defines no {@code qweb-pdf} report for {@code stock.picking} has no delivery note at all. That must
+     * surface at certification, not the morning a driver is waiting at the depot for a document.
+     *
+     * <p>RECOMMENDED rather than REQUIRED: the sync itself works fine without it — only the printed
+     * document is lost — and a NO_GO would block deliveries over a paperwork gap.
+     */
+    @SuppressWarnings("unchecked")
+    private void checkDeliverySlipReport(List<CapabilityCheck> checks) {
+        String name = "ir.actions.report[stock.picking]";
+        String note = "Delivery note PDF is fetched from Odoo; without a qweb-pdf report on stock.picking "
+                + "no bon de livraison can be printed.";
+        try {
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("ir.actions.report", "search_count",
+                    List.of(List.of(
+                            List.of("model", "=", "stock.picking"),
+                            List.of("report_type", "=", "qweb-pdf")))));
+            if (resp == null || resp.containsKey("error")) {
+                checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
+                        "Could not be probed (transport or access failure). " + note));
+                return;
+            }
+            Integer count = com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.asInt(resp.get("result"));
+            boolean present = count != null && count > 0;
+            checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED,
+                    present ? Status.OK : Status.MISSING,
+                    present ? note : "No qweb-pdf report defined for stock.picking on this instance. " + note));
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
+                    "Probe failed: " + e.getMessage() + ". " + note));
+        }
     }
 
     private void checkModel(List<CapabilityCheck> checks, String model, Severity sev, String note) {

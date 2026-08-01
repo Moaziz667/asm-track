@@ -11,7 +11,7 @@ import com.asm.delivery.dto.response.MessageResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.BonLivraisonPdfService;
+import com.asm.delivery.erp.ErpInvoiceService;
 import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.DriverDeliveryService;
 import org.springframework.http.HttpHeaders;
@@ -37,7 +37,7 @@ import java.util.UUID;
 public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
-    private final BonLivraisonPdfService bonLivraisonPdfService;
+    private final ErpInvoiceService erpInvoiceService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
 
     @GetMapping("/active")
@@ -185,9 +185,12 @@ public class DriverDeliveryController {
     }
 
     @GetMapping("/{id}/bon-livraison")
-    @Operation(summary = "Download bon de livraison PDF for a delivery")
+    @Operation(summary = "Download the delivery note PDF for a delivery",
+            description = "Served from the ERP's own report (Odoo delivery slip / ERPNext Delivery Note). "
+                    + "400 when the delivery carries no ERP picking reference or the ERP copy is unreachable — "
+                    + "there is no locally drawn substitute, by design.")
     public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
-        byte[] pdf = bonLivraisonPdfService.generate(id);
+        byte[] pdf = erpInvoiceService.getDeliveryNotePdf(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)

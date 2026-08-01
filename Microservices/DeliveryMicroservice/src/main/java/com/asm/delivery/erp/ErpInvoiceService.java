@@ -61,6 +61,40 @@ public class ErpInvoiceService {
         return s == DeliveryStatus.DELIVERED || s == DeliveryStatus.PARTIALLY_DELIVERED;
     }
 
+    /**
+     * The delivery note (bon de livraison) <b>as the ERP renders it</b>.
+     *
+     * <p>ASM used to draw this document itself. That was the only fiscal document it produced, and it
+     * reproduced none of what makes one valid: the issuer was picked with an unordered
+     * {@code findFirst()}, the issue date was {@code LocalDate.now()} (so a reprint changed the date
+     * under a fixed number), the font encoding was WinAnsi (so Arabic names silently vanished), and
+     * lot/serial traceability had no field to live in. All of that is correct in the ERP's own report.
+     *
+     * <p>There is deliberately <b>no fallback to a locally drawn document</b>. Serving one when the ERP
+     * copy cannot be fetched would hand the driver a non-compliant sheet that looks exactly like the
+     * compliant one — the precise failure this change exists to remove. A clear error is safer.
+     */
+    @Transactional(readOnly = true)
+    public byte[] getDeliveryNotePdf(UUID deliveryId) {
+        Delivery delivery = deliveryRepository.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found: " + deliveryId));
+        Order order = delivery.getOrder();
+        String pickingRef = delivery.getBlNumber() != null ? delivery.getBlNumber()
+                : (order != null ? order.getBlNumber() : null);
+        if (pickingRef == null || pickingRef.isBlank()) {
+            throw AppException.badRequest(
+                    "Cette livraison n'a pas de référence de bon de livraison dans l'ERP.");
+        }
+        try {
+            byte[] pdf = feign.getDeliveryNotePdf(pickingRef);
+            if (pdf != null && pdf.length > 0) return pdf;
+        } catch (Exception e) {
+            log.warn("getDeliveryNotePdf delivery={} pickingRef={} failed: {}", deliveryId, pickingRef, e.getMessage());
+        }
+        throw AppException.badRequest(
+                "Bon de livraison indisponible — ouvrez-le dans l'ERP (réf. " + pickingRef + ").");
+    }
+
     /** Fetch the rendered PDF of an ERP invoice for this delivery's provider. Null/empty on failure. */
     @Transactional(readOnly = true)
     public byte[] getInvoicePdf(UUID deliveryId, String invoiceRef) {

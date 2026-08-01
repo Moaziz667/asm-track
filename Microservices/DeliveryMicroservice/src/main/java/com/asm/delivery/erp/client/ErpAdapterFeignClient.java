@@ -38,6 +38,9 @@ public interface ErpAdapterFeignClient {
     @GetMapping("/api/erp/sync/invoice-pdf")
     byte[] getInvoicePdf(@RequestParam("invoiceRef") String invoiceRef);
 
+    @GetMapping("/api/erp/sync/delivery-note-pdf")
+    byte[] getDeliveryNotePdf(@RequestParam("pickingRef") String pickingRef);
+
     @PostMapping("/api/erp/sync/full-delivery")
     Map<String, Object> syncFullDelivery(@RequestBody Map<String, Object> body);
 

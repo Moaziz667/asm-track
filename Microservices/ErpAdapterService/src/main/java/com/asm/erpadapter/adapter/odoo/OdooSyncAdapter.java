@@ -47,6 +47,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private final OdooProductService productService;
     private final OdooPodService podService;
     private final ReturnHandler returnHandler;
+    private final OdooReportService reportService;
 
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
@@ -184,6 +185,55 @@ public class OdooSyncAdapter implements ErpSyncPort {
             return name;
         } catch (Exception e) {
             log.warn("provider=odoo operation=createInvoice erpOrderId={} failed: {}", erpOrderId, e.getMessage());
+            return null;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Rendered documents — fetched from Odoo, never re-drawn here
+    // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * The invoice PDF as Odoo renders it. This was previously unimplemented on the Odoo side, so the
+     * port's {@code null} default applied and every Odoo tenant got "Invoice PDF unavailable" — the
+     * feature only ever worked on ERPNext.
+     */
+    @Override
+    public byte[] getInvoicePdf(String invoiceRef) {
+        if (invoiceRef == null || invoiceRef.isBlank()) return null;
+        try {
+            List<Map<String, Object>> rows = rpc.searchRead("account.move",
+                    List.of(List.of("name", "=", invoiceRef)), List.of("id"), 1, null);
+            if (rows.isEmpty()) {
+                log.warn("provider=odoo operation=getInvoicePdf ref={} reason=invoice_not_found", invoiceRef);
+                return null;
+            }
+            return reportService.renderPdf("account.move", asInt(rows.get(0).get("id")), "invoice");
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=getInvoicePdf ref={} failed: {}", invoiceRef, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * The delivery note as Odoo prints it, addressed by picking name (e.g. {@code "WH/OUT/00326"}).
+     *
+     * <p>The hint {@code "deliveryslip"} only breaks ties: {@link OdooReportService} asks the instance
+     * which QWeb reports exist for {@code stock.picking}, so a tenant who replaced the stock template
+     * with one carrying their legal mentions keeps their own.
+     */
+    @Override
+    public byte[] getDeliveryNotePdf(String pickingRef) {
+        if (pickingRef == null || pickingRef.isBlank()) return null;
+        try {
+            Map<String, Object> picking = pickingService.findPickingByName(pickingRef);
+            if (picking == null) {
+                log.warn("provider=odoo operation=getDeliveryNotePdf ref={} reason=picking_not_found", pickingRef);
+                return null;
+            }
+            return reportService.renderPdf("stock.picking", asInt(picking.get("id")), "deliveryslip");
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=getDeliveryNotePdf ref={} failed: {}", pickingRef, e.getMessage());
             return null;
         }
     }
