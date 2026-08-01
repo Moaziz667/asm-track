@@ -173,14 +173,14 @@ export function TrendChartWidget({ trend }: { trend: Array<{ count: number; deli
   );
 }
 
-/** Past this the rail stops being a shortlist to act on and becomes a backlog to scroll. The
- *  header count still reports the true total, and "voir tout" owns everything beyond it. */
-const ATTENTION_LIMIT = 10;
+/** The list keeps every row — hiding thirty of them would make the header count a lie you have
+ *  to leave the page to check. What is capped is the height: about ten rows, then it scrolls. */
+const ATTENTION_ROW_H = 62;
+const ATTENTION_VISIBLE_ROWS = 10;
 
 export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem[]; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
-  const shown = items.slice(0, ATTENTION_LIMIT);
   return (
     <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
@@ -192,9 +192,12 @@ export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem
           {t.dashboardPage.needsAttentionViewAll || 'View all'} <IconArrowUpRight size={11} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{ scrollbarWidth: 'thin', maxHeight: ATTENTION_ROW_H * ATTENTION_VISIBLE_ROWS }}
+      >
         <div className="divide-y divide-[var(--border)]">
-          {shown.map((exc, idx) => {
+          {items.map((exc, idx) => {
             const timeRef = exc.scheduledAt || exc.createdAt;
             const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
             return (
@@ -557,15 +560,70 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
 }
 
 // ── Returns KPI (RMA) ─────────────────────────────────────────────────────────
+/**
+ * One counted figure in a quadrant.
+ *
+ * The number carries its tone only when there is something to report. A zero painted in danger
+ * red says "nothing is overdue" in the visual language of "everything is on fire" — the one
+ * case where colour actively misleads, and part of why these panels read as loud and inert at
+ * once. At zero the figure recedes to the muted ink and the tile looks settled.
+ *
+ * Where a tile leads somewhere, an arrow fades in on hover: the whole quadrant was already
+ * clickable, it simply never said so.
+ */
+function CountTile({ n, display, label, tone, index, onClick }: {
+  n: number; display?: string; label: string; tone: string; index: number; onClick?: () => void;
+}) {
+  const quiet = !n;
+  const edges = {
+    borderTop: index >= 2 ? '0.5px solid var(--border)' : undefined,
+    borderInlineStart: index % 2 === 1 ? '0.5px solid var(--border)' : undefined,
+  };
+  const body = (
+    <>
+      <span
+        className="font-mono text-2xl font-semibold tabular-nums truncate leading-none transition-colors"
+        style={{ color: quiet ? 'var(--text-soft)' : tone }}
+      >
+        {display ?? n}
+      </span>
+      <span className="text-2xs text-[var(--text-muted)] mt-1.5 flex items-center gap-1">
+        {label}
+        {onClick && (
+          <IconArrowUpRight
+            size={11}
+            className="opacity-0 -translate-x-0.5 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0"
+            style={{ color: 'var(--brand)' }}
+            aria-hidden
+          />
+        )}
+      </span>
+    </>
+  );
+  if (!onClick) {
+    return <div className="flex flex-col justify-center p-4 min-w-0" style={edges}>{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col justify-center p-4 min-w-0 text-left hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+      style={edges}
+    >
+      {body}
+    </button>
+  );
+}
+
 export function ReturnsWidget({ returns, navigate }: { returns: { total?: number; open?: number; restocked?: number; totalValue?: number } | null; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
   const money = (n: number) => new Intl.NumberFormat(locale === 'ar' ? 'ar-TN' : 'fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(n || 0);
   const cells = [
-    { label: t.dashboardPage.returnsOpen || 'À traiter', v: String(returns?.open ?? 0), tone: 'var(--warning)' },
-    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', v: String(returns?.restocked ?? 0), tone: 'var(--success)' },
-    { label: t.dashboardPage.returnsTotal || 'Total', v: String(returns?.total ?? 0), tone: 'var(--text-primary)' },
-    { label: t.dashboardPage.returnsValue || 'Valeur', v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.returnsOpen || 'À traiter', n: returns?.open ?? 0, v: String(returns?.open ?? 0), tone: 'var(--warning)' },
+    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', n: returns?.restocked ?? 0, v: String(returns?.restocked ?? 0), tone: 'var(--success)' },
+    { label: t.dashboardPage.returnsTotal || 'Total', n: returns?.total ?? 0, v: String(returns?.total ?? 0), tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.returnsValue || 'Valeur', n: returns?.totalValue ?? 0, v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
   ];
   return (
     <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
@@ -579,10 +637,7 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
       </div>
       <div className="grid grid-cols-2 flex-1">
         {cells.map((c, i) => (
-          <div key={c.label} className="flex flex-col justify-center gap-0.5 p-4" style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}>
-            <span className="font-mono text-xl font-semibold tabular-nums truncate" style={{ color: c.tone }}>{c.v}</span>
-            <span className="text-2xs text-[var(--text-muted)]">{c.label}</span>
-          </div>
+          <CountTile key={c.label} display={c.v} n={c.n} label={c.label} tone={c.tone} index={i} />
         ))}
       </div>
     </div>
@@ -605,16 +660,14 @@ export function BacklogWidget({ counts, navigate }: { counts: Record<string, num
       </div>
       <div className="grid grid-cols-2 flex-1">
         {tiles.map((tile, i) => (
-          <button
+          <CountTile
             key={tile.key}
-            type="button"
+            n={counts?.[tile.key] ?? 0}
+            label={tile.label}
+            tone={tile.tone}
+            index={i}
             onClick={() => navigate(tile.href)}
-            className="flex flex-col justify-center gap-0.5 p-4 text-left hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-            style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}
-          >
-            <span className="font-mono text-2xl font-semibold tabular-nums" style={{ color: tile.tone }}>{counts?.[tile.key] ?? 0}</span>
-            <span className="text-2xs text-[var(--text-muted)]">{tile.label}</span>
-          </button>
+          />
         ))}
       </div>
     </div>
