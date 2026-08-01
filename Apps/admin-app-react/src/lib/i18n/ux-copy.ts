@@ -2409,6 +2409,12 @@ export const FR_COPY = {
 
   // ── Returns (RMA) Page ────────────────────────────────────────────────
   returnsPage: {
+    confirmTitleCancel: 'Annuler ce retour',
+    confirmTitleReject: 'Rejeter ce retour',
+    confirmTitleReceive: 'Enregistrer la réception',
+    confirmActionCancel: "Confirmer l'annulation",
+    confirmActionReject: 'Confirmer le rejet',
+    confirmActionReceive: 'Confirmer la réception',
     actionApprove: 'Approuver',
     actionReject: 'Rejeter',
     actionCancel: 'Annuler',

@@ -2374,6 +2374,12 @@ export const AR_COPY = {
 
   // ── صفحة المرتجعات (RMA) ──────────────────────────────────────────────
   returnsPage: {
+    confirmTitleCancel: 'إلغاء هذا الإرجاع',
+    confirmTitleReject: 'رفض هذا الإرجاع',
+    confirmTitleReceive: 'تسجيل الاستلام',
+    confirmActionCancel: 'تأكيد الإلغاء',
+    confirmActionReject: 'تأكيد الرفض',
+    confirmActionReceive: 'تأكيد الاستلام',
     actionApprove: 'الموافقة',
     actionReject: 'الرفض',
     actionCancel: 'الإلغاء',

@@ -2315,6 +2315,12 @@ export const EN_COPY = {
 
   // ── Returns (RMA) Page ────────────────────────────────────────────────
   returnsPage: {
+    confirmTitleCancel: 'Cancel this return',
+    confirmTitleReject: 'Reject this return',
+    confirmTitleReceive: 'Record the collection',
+    confirmActionCancel: 'Confirm cancellation',
+    confirmActionReject: 'Confirm rejection',
+    confirmActionReceive: 'Confirm receipt',
     actionApprove: 'Approve',
     actionReject: 'Reject',
     actionCancel: 'Cancel',

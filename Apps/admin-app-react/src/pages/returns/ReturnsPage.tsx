@@ -77,6 +77,27 @@ export default function ReturnsPage() {
    * operator what will happen when they press it, and the badge in the Status column is where
    * a past-tense state belongs.
    */
+  /**
+   * Wording for the confirmation dialog.
+   *
+   * Both its title and its confirm button used the status name, so cancelling a return opened a
+   * dialog titled "Annulé" whose confirm button read "Annulé" — a past participle on a thing
+   * that had not happened — directly beside a dismiss button reading "Annuler". One letter
+   * between "go back" and "destroy this", on the most consequential dialog in the flow.
+   *
+   * The title states the act, the confirm button names what it confirms, and neither can be
+   * mistaken for the dismiss beside it.
+   */
+  const confirmCopy = (target: RmaStatus): { title: string; confirm: string } => {
+    const c = t.returnsPage;
+    switch (target) {
+      case 'CANCELLED': return { title: c.confirmTitleCancel, confirm: c.confirmActionCancel };
+      case 'REJECTED':  return { title: c.confirmTitleReject, confirm: c.confirmActionReject };
+      case 'RECEIVED':  return { title: c.confirmTitleReceive, confirm: c.confirmActionReceive };
+      default:          return { title: actionLabel(target), confirm: actionLabel(target) };
+    }
+  };
+
   const actionLabel = (target: RmaStatus): string => {
     const c = t.returnsPage;
     switch (target) {
@@ -476,7 +497,7 @@ export default function ReturnsPage() {
       {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
       <ConfirmModal
         open={reasonModal !== null}
-        title={reasonModal ? `${statusLabel(reasonModal.target)} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
+        title={reasonModal ? `${confirmCopy(reasonModal.target).title} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
         description={t.returnsPage?.reasonRequiredDesc ?? 'A reason is required for this action.'}
         variant="danger"
         reasonLabel={t.returnsPage?.reasonLabel ?? 'Reason'}
@@ -484,7 +505,7 @@ export default function ReturnsPage() {
         reason={reasonText}
         onReasonChange={setReasonText}
         reasonRequired
-        confirmLabel={reasonModal ? statusLabel(reasonModal.target) : ''}
+        confirmLabel={reasonModal ? confirmCopy(reasonModal.target).confirm : ''}
         cancelLabel={t.actions?.cancel ?? 'Cancel'}
         loading={busyId === reasonModal?.rma.id}
         onConfirm={() => void confirmReason()}
