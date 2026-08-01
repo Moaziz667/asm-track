@@ -3434,6 +3434,16 @@ export const EN_COPY = {
     sectionAddress: 'Delivery address',
     sectionSlot: 'Delivery slot',
     liveTracking: 'Live tracking · ',
+    labelEta: 'Estimated arrival',
+    etaToday: 'Today',
+    etaTomorrow: 'Tomorrow',
+    badgeReturnPickup: 'Return pickup',
+    stepperLabel: 'Delivery progress',
+    stepStateDone: 'done',
+    stepStateCurrent: 'in progress',
+    stepStateUpcoming: 'upcoming',
+    copyRef: 'Copy reference',
+    copied: 'Reference copied',
   },
 
   // ── Command Surface (palette) ─────────────────────────────────────────────

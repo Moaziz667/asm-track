@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { RmaDetailDrawer } from '@/components/returns/RmaDetailDrawer';
+import { TablePagination } from '@/components/data-display/TablePagination';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import {
   IconRotateClockwise, IconPackageExport,
@@ -59,8 +60,6 @@ export const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> 
 };
 
 const FILTERS: (RmaStatus | 'ALL')[] = ['ALL', 'REQUESTED', 'APPROVED', 'RECEIVED', 'RESTOCKED', 'REJECTED'];
-
-const PAGE_SIZE = 25;
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
@@ -119,6 +118,7 @@ export default function ReturnsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   // Reason modal for reject/cancel transitions (replaces window.prompt).
@@ -130,7 +130,7 @@ export default function ReturnsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, size: PAGE_SIZE };
+      const params: Record<string, string | number> = { page, size: pageSize };
       if (filter !== 'ALL') params.status = filter;
       if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
       if (dateFrom) params.dateFrom = dateFrom;
@@ -148,7 +148,7 @@ export default function ReturnsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, debouncedQuery, dateFrom, dateTo, page, t]);
+  }, [filter, debouncedQuery, dateFrom, dateTo, page, pageSize, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
@@ -476,22 +476,24 @@ export default function ReturnsPage() {
         </div>
         )}
 
-        {/* Pagination footer — server-side paged (mirrors the Deliveries pager). */}
-        {(totalPages > 1 || page > 0) && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
-            <span className="text-xs text-[var(--text-muted)]">
-              {(t.deliveriesPage?.pageLabel ?? 'Page')} {page + 1} / {totalPages}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="h-7 px-3 text-xs font-[700]">
-                {t.deliveriesPage?.prevButton ?? 'Précédent'}
-              </Button>
-              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-7 px-3 text-xs font-[700]">
-                {t.deliveriesPage?.nextButton ?? 'Suivant'}
-              </Button>
-            </div>
-          </div>
-        )}
+        {/*
+          Server-side pager, shared primitive.
+
+          What stood here was a bespoke prev/next pair behind `totalPages > 1 || page > 0`, so on a
+          tenant with fewer than 26 returns the page had no visible pager and no way to say how many
+          rows it was showing — the list looked complete whether or not it was. The shared component
+          renders whenever a size selector is offered, which also gives the operator numbered pages,
+          the total, and control over the page size, exactly as on Drivers and Failure reasons.
+        */}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          size={pageSize}
+          onPageChange={setPage}
+          onSizeChange={(s) => { setPageSize(s); setPage(0); }}
+          labels={{ results: t.returnsPage?.countSuffix ?? 'retour(s)' }}
+        />
       </div>
 
       {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
