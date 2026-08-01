@@ -100,16 +100,46 @@ function Line({ label, value, status }: { label: string; value?: string; status?
   );
 }
 
-/** A text button. Deliberately not a filled call-to-action: these are rare, corrective actions. */
-function QuietButton({ onClick, disabled, label }: { onClick: () => void; disabled?: boolean; label: string }) {
+/**
+ * The page's action button.
+ *
+ * <p>It used to be a text button on the reasoning that a resync is rare, so it should stay
+ * quiet. That was the wrong read: rare is not the same as minor. Every row this appears on is a
+ * delivery the ERP never received, and the button is the whole reason the operator opened the
+ * page — hiding the only thing to do here behind a hairline made the section look like a report
+ * to read rather than a queue to clear.
+ *
+ * <p>`primary` is the bulk action at the top of a section; rows get the secondary weight so a
+ * list of twenty does not turn into twenty blue rectangles competing with the one above them.
+ */
+function ActionButton({ onClick, disabled, label, busy, variant = 'secondary' }: {
+  onClick: () => void; disabled?: boolean; label: string; busy?: boolean;
+  variant?: 'primary' | 'secondary';
+}) {
+  const primary = variant === 'primary';
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="text-xs px-2.5 h-7 rounded-[var(--radius)] border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-40 shrink-0"
-      style={{ color: 'var(--text-secondary)' }}
+      aria-busy={busy || undefined}
+      className={[
+        'inline-flex items-center justify-center gap-1.5 shrink-0',
+        'text-xs font-[600] h-8 px-3 rounded-[var(--radius)]',
+        'transition-colors duration-150',
+        'disabled:opacity-45 disabled:cursor-not-allowed',
+        primary
+          ? 'text-white bg-[var(--brand)] hover:bg-[var(--brand-hover)] border border-transparent'
+          : 'border border-[var(--border-strong)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand)]',
+      ].join(' ')}
+      style={primary ? undefined : { color: 'var(--brand)' }}
     >
+      {busy && (
+        <span
+          className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"
+          aria-hidden
+        />
+      )}
       {label}
     </button>
   );
@@ -292,7 +322,7 @@ export default function SystemHealthPage() {
   return (
     <div className="min-h-full" style={{ background: 'var(--app-bg)' }}>
       <header className="border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-[5]">
-        <div className="px-6 py-3 flex items-center gap-3 max-w-[900px] mx-auto">
+        <div className="px-6 py-3 flex items-center gap-3 max-w-[1180px] mx-auto">
           <IconActivityHeartbeat size={17} style={{ color: 'var(--text-soft)' }} />
           <h1 className="text-sm font-[600]" style={{ color: 'var(--text-primary)' }}>{dd.title}</h1>
           <div className="ms-auto flex items-center gap-3">
@@ -306,7 +336,7 @@ export default function SystemHealthPage() {
         </div>
       </header>
 
-      <div className="max-w-[900px] mx-auto px-6 py-6 flex flex-col gap-7">
+      <div className="max-w-[1180px] mx-auto px-6 py-6 flex flex-col gap-7">
 
         {/* ── One sentence: is anything wrong, and does it need me? ── */}
         <div className="flex items-start gap-2.5">
@@ -320,6 +350,11 @@ export default function SystemHealthPage() {
             </p>
           </div>
         </div>
+
+        {/* Two summaries, side by side on a wide screen. Simply widening the column would have
+            pulled "Connexion ......... Active" a metre apart — a label and its value that far
+            from each other are harder to pair than a page with margins. */}
+        <div className="grid gap-7 lg:grid-cols-2 items-start">
 
         {/* ── The integration, in three plain lines ── */}
         <Section title={dd.overviewTitle} sub={providerLabel ?? dd.noProvider}>
@@ -347,13 +382,16 @@ export default function SystemHealthPage() {
           />
         </Section>
 
+        </div>
+
         {/* ── Only shown when someone has to do something ── */}
         {actionCount > 0 && (
           <Section
             title={dd.actionRequiredTitle}
             sub={dd.failuresSubNeedsAttention}
             aside={failures.length > 1
-              ? <QuietButton onClick={resyncAll} disabled={resyncing != null} label={dd.resync.resyncAllButton} />
+              ? <ActionButton variant="primary" onClick={resyncAll} disabled={resyncing != null}
+                              busy={resyncing === 'ALL'} label={dd.resync.resyncAllButton} />
               : undefined}
           >
             {failures.map(f => (
@@ -370,9 +408,10 @@ export default function SystemHealthPage() {
                     <p className="text-xs mt-1 break-words line-clamp-2" style={{ color: 'var(--text-soft)' }}>{f.lastSyncError}</p>
                   )}
                 </div>
-                <QuietButton
+                <ActionButton
                   onClick={() => resync(f.orderId, f.blNumber)}
                   disabled={resyncing != null}
+                  busy={resyncing === f.orderId}
                   label={resyncing === f.orderId ? dd.resync.resyncingButton : dd.resync.resyncButton}
                 />
               </div>
@@ -383,9 +422,10 @@ export default function SystemHealthPage() {
                   <p className="text-sm font-[500] truncate" style={{ color: 'var(--text-primary)' }}>{getFriendlyQueue(queue)}</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{dd.replaysAwaiting.replace('{count}', String(depth))}</p>
                 </div>
-                <QuietButton
+                <ActionButton
                   onClick={() => replay(queue)}
                   disabled={replaying === queue}
+                  busy={replaying === queue}
                   label={replaying === queue ? dd.replayingButton : dd.replayButton}
                 />
               </div>
