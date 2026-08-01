@@ -401,7 +401,11 @@ function DeliveriesPageContent() {
                   value={String(size)}
                   onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
                   options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
-                  className="h-7 text-xs font-medium w-[100px]"
+                  /* py-0 because the shared input padding (py-2) plus a line box is about 36px of
+                     content, and h-7 is 28px: the label was being clipped top and bottom by a box
+                     too small to hold it. The extra width is for "100 / page" to clear the chevron,
+                     which reserves 32px on the inline end. */
+                  className="h-7 py-0 text-xs font-medium w-[120px]"
                 />
                 <DisplaySettingsDropdown
                   columns={translatedColumns}
