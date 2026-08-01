@@ -112,10 +112,25 @@ function Line({ label, value, status }: { label: string; value?: string; status?
  * <p>`primary` is the bulk action at the top of a section; rows get the secondary weight so a
  * list of twenty does not turn into twenty blue rectangles competing with the one above them.
  */
+function ResyncIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
 function ActionButton({ onClick, disabled, label, busy, variant = 'secondary' }: {
   onClick: () => void; disabled?: boolean; label: string; busy?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'recover';
 }) {
+  // `recover` carries the danger hue on its border and label but leaves the fill empty.
+  // A filled red block is the established signal for a destructive, irreversible action, and a
+  // resync is the opposite of that — it repairs. Outlined, the colour says "this belongs to the
+  // failure you are looking at" without promising to delete anything, and it stays distinct from
+  // a real delete button sitting next to it.
+  const tone = variant === 'recover' ? 'var(--danger)' : 'var(--brand)';
   const primary = variant === 'primary';
   return (
     <button
@@ -124,21 +139,23 @@ function ActionButton({ onClick, disabled, label, busy, variant = 'secondary' }:
       disabled={disabled}
       aria-busy={busy || undefined}
       className={[
-        'inline-flex items-center justify-center gap-1.5 shrink-0',
+        'group inline-flex items-center justify-center gap-1.5 shrink-0',
         'text-xs font-[600] h-8 px-3 rounded-[var(--radius)]',
         'transition-colors duration-150',
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
         'disabled:opacity-45 disabled:cursor-not-allowed',
         primary
           ? 'text-white bg-[var(--brand)] hover:bg-[var(--brand-hover)] border border-transparent'
-          : 'border border-[var(--border-strong)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand)]',
+          : 'bg-[var(--surface)] border hover:bg-[var(--hover-bg)]',
       ].join(' ')}
-      style={primary ? undefined : { color: 'var(--brand)' }}
+      style={primary ? undefined : { color: tone, borderColor: tone, outlineColor: tone }}
     >
-      {busy && (
-        <span
-          className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"
-          aria-hidden
-        />
+      {busy ? (
+        // The spinner replaces the icon rather than joining it, so the button keeps its width and
+        // the row does not shift while a request is in flight.
+        <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden />
+      ) : (
+        <ResyncIcon />
       )}
       {label}
     </button>
@@ -409,6 +426,7 @@ export default function SystemHealthPage() {
                   )}
                 </div>
                 <ActionButton
+                  variant="recover"
                   onClick={() => resync(f.orderId, f.blNumber)}
                   disabled={resyncing != null}
                   busy={resyncing === f.orderId}
