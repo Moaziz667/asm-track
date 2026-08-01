@@ -81,13 +81,71 @@ html, body {
   min-height: 100dvh;
 }
 
-/* ── Layout — centered card ──────────────────────────────────────────────── */
+/* ── Layout — context panel beside the form ──────────────────────────────── */
+/* Two columns on a desk, one on a phone. The panel is the part that can go: on a narrow
+   screen the form is the only thing the visitor came for, and a stack of product copy above
+   it is something to scroll past before they can type. */
 .asm-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
   align-items: center;
-  justify-content: center;
+  justify-items: center;
+  gap: 64px;
   min-height: 100dvh;
-  padding: 32px 24px;
+  padding: 40px 32px;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+@media (max-width: 960px) {
+  .asm-layout { grid-template-columns: minmax(0, 400px); gap: 0; padding: 32px 24px; }
+  .asm-context { display: none; }
+}
+
+.asm-context {
+  max-width: 420px;
+  justify-self: end;
+}
+
+.asm-context-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-wrap: balance;
+  margin-bottom: 12px;
+}
+
+.asm-context-intro {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 52ch;
+  margin-bottom: 32px;
+}
+
+/* A list of what the product does, not a grid of feature cards. The rule on the inline edge
+   groups the items without drawing a box around each one. */
+.asm-context-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 18px;
+}
+.asm-context-list li { display: flex; flex-direction: column; gap: 3px; }
+.asm-context-point {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.asm-context-sub {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 46ch;
 }
 
 .asm-form-panel {
@@ -96,6 +154,11 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-self: start;
+}
+
+@media (max-width: 960px) {
+  .asm-form-panel { justify-self: center; }
 }
 
 /* ── Brand — logo + name above card ──────────────────────────────────────── */
@@ -104,6 +167,10 @@ html, body {
   align-items: center;
   gap: 10px;
   margin-bottom: 32px;
+}
+/* Beside the form the wordmark would repeat the panel's; it only appears once the panel is gone. */
+@media (min-width: 961px) {
+  .asm-brand-compact { display: none; }
 }
 .asm-brand-logo { width: 36px; height: 36px; border-radius: 8px; }
 .asm-brand-name { font-weight: 700; font-size: 16px; color: var(--text-primary); letter-spacing: -0.2px; }
@@ -332,9 +399,14 @@ html, body {
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
+.asm-footer-secure { display: inline-flex; align-items: center; gap: 5px; }
 .asm-footer {
   margin-top: 24px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 11.5px;
   color: var(--text-soft);
 }
