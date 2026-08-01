@@ -2738,6 +2738,8 @@ export const AR_COPY = {
 
   // ── صفحة التسليمات ────────────────────────────────────────────────────
   deliveriesPage: {
+    unknownClientName: 'عميل بدون اسم',
+    missingAddress: 'لا يوجد عنوان',
     // Page structure
     pageSubtitle: 'شبكة اللوجستيات',
     pageTitle: 'تتبع',

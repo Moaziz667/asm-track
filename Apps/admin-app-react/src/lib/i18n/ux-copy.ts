@@ -298,7 +298,7 @@ export const FR_COPY = {
       pinModalTitle: 'Validation Géo-fixation',
       pinModalSearch: 'Rechercher une adresse...',
       pinModalConfirm: 'Position confirmée',
-      pinReverseGeocoding: 'Non géocoulissé...',
+      pinReverseGeocoding: 'Localisation en cours…',
       cancelModalTitle: 'Annuler la livraison',
       cancelModalLabel: 'Raison (optionnel)',
       cancelModalPlaceholder: 'Expliquez pourquoi cette livraison est annulée...',
@@ -2777,6 +2777,8 @@ export const FR_COPY = {
 
   // ── Deliveries Page ────────────────────────────────────────────────────
   deliveriesPage: {
+    unknownClientName: 'Client sans nom',
+    missingAddress: 'Adresse manquante',
     // Page structure
     pageSubtitle: 'Réseau logistique',
     pageTitle: 'Suivi des',

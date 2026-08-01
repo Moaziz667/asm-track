@@ -14,7 +14,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { Button } from '@/components/ui/button';
 import { FieldSelect } from '@/components/ui/field';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { IconScan, IconX } from '@tabler/icons-react';
+import { IconScan, IconX, IconLayoutList } from '@tabler/icons-react';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useGlobalFilters } from '@/lib/state/global-filters';
 import { resolveOrderRef } from '@/lib/utils';
@@ -299,6 +299,28 @@ function DeliveriesPageContent() {
     { value: 'returns',     label: t.deliveriesPage.quickViewReturns,     count: quickCounts.returns },
   ];
 
+  /**
+   * The column names, translated.
+   *
+   * DELIVERY_COLUMNS carries French literals — fine as identifiers, wrong on screen. The table
+   * headers already went through a translation map; the show/hide menu printed the raw label, so
+   * an English or Arabic session got "Référence" and "Client / Adresse" in its column picker.
+   * One map now feeds both, and a column added without a translation shows its id rather than
+   * silently shipping French.
+   */
+  const columnLabels: Record<string, string> = useMemo(() => ({
+    ref: t.deliveriesPage.refHeader,
+    client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
+    scheduled: t.deliveriesPage.scheduledHeader,
+    status: t.deliveriesPage.statusHeader,
+    driver: t.deliveriesPage.driverHeader,
+    zone: t.deliveriesPage.zoneHeader,
+  }), [t]);
+  const translatedColumns = useMemo(
+    () => orderedColumns.map(c => ({ ...c, label: columnLabels[c.id] ?? c.id })),
+    [orderedColumns, columnLabels],
+  );
+
   const headerSort = (key: 'ref' | 'client' | 'status' | 'zone') => {
     if (key === 'ref') setSortAsc(v => !v);
     if (key === 'client') setGroupByClient(v => !v);
@@ -382,7 +404,7 @@ function DeliveriesPageContent() {
                   className="h-7 text-xs font-medium w-[100px]"
                 />
                 <DisplaySettingsDropdown
-                  columns={orderedColumns}
+                  columns={translatedColumns}
                   visibleIds={visibleIds}
                   onToggle={toggleColumn}
                   onReorder={moveColumn}
@@ -428,14 +450,7 @@ function DeliveriesPageContent() {
                         <th className="w-2 px-0"></th>
                         {orderedColumns.map(col => {
                           if (!visibleIds.has(col.id)) return null;
-                          const labelMap: Record<string, string> = {
-                            ref: t.deliveriesPage.refHeader,
-                            client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
-                            scheduled: t.deliveriesPage.scheduledHeader,
-                            status: t.deliveriesPage.statusHeader,
-                            driver: t.deliveriesPage.driverHeader,
-                            zone: t.deliveriesPage.zoneHeader,
-                          };
+                          const labelMap = columnLabels;
                           const sortable = col.id === 'ref' || col.id === 'client' || col.id === 'status' || col.id === 'zone';
                           const align = col.id === 'driver' || col.id === 'zone' ? 'text-center' : 'text-left';
                           return (
@@ -443,7 +458,22 @@ function DeliveriesPageContent() {
                               {sortable ? (
                                 <button onClick={() => headerSort(col.id as 'ref' | 'client' | 'status' | 'zone')} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                                   {labelMap[col.id]}
-                                  <span className="text-2xs">{col.id === 'ref' ? (sortAsc ? '▲' : '▼') : (groupActive[col.id] ? (sortAsc ? '▲' : '▼') : '⇅')}</span>
+                                  {/* Only Référence sorts. Client, Statut and Zone toggle a
+                                      grouping, and they were drawing a sort arrow whose direction
+                                      came from sortAsc — the reference column's state — so
+                                      grouping by client moved an arrow describing another column.
+                                      A grouping is on or off; it has no direction to show. */}
+                                  {col.id === 'ref' ? (
+                                    <span className="text-2xs">{sortAsc ? '▲' : '▼'}</span>
+                                  ) : (
+                                    <IconLayoutList
+                                      size={12}
+                                      style={{
+                                        color: groupActive[col.id] ? 'var(--brand)' : 'var(--text-soft)',
+                                        opacity: groupActive[col.id] ? 1 : 0.5,
+                                      }}
+                                    />
+                                  )}
                                 </button>
                               ) : labelMap[col.id]}
                             </th>

@@ -2679,6 +2679,8 @@ export const EN_COPY = {
 
   // ── Deliveries Page ────────────────────────────────────────────────────
   deliveriesPage: {
+    unknownClientName: 'Unnamed client',
+    missingAddress: 'No address',
     // Page structure
     pageSubtitle: 'Logistics Network',
     pageTitle: 'Delivery',
