@@ -8,58 +8,12 @@ import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { IconPencil, IconBan, IconCheck, IconChevronUp, IconChevronDown, IconSelector, IconGripVertical } from '@tabler/icons-react';
-import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
-  sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { IconPencil, IconBan, IconCheck, IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
 import { useColumnSettings, ColumnDef } from '@/hooks/useColumnSettings';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { AddButton } from '@/components/ui/AddButton';
 import { TablePagination } from '@/components/data-display/TablePagination';
-
-/**
- * A table row that can be dragged by its handle.
- *
- * The handle is the only drag surface: the row itself stays clickable, and a stray press while
- * reading does not start moving things. It appears on hover so an unfiltered list does not grow a
- * column of grips, and it is hidden entirely when reordering is not available — a control that
- * cannot do anything is worse than no control.
- */
-function SortableRow({ id, disabled, children }: {
-  id: string; disabled: boolean; children: React.ReactNode;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled });
-  return (
-    <tr
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.55 : 1 }}
-      className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors group relative"
-    >
-      {children}
-      <td className="w-8 pe-2 align-middle">
-        {!disabled && (
-          <button
-            type="button"
-            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-[var(--text-soft)] hover:text-[var(--text-secondary)]"
-            {...attributes}
-            {...listeners}
-            aria-label="Réordonner"
-          >
-            <IconGripVertical size={15} />
-          </button>
-        )}
-      </td>
-    </tr>
-  );
-}
 
 // Analytics categories (mirror backend FailureCode enum). Labels come from i18n (t.failureCodes).
 const CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'MISSING', 'OTHER'] as const;
@@ -279,44 +233,6 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     [visible, safePage, pageSize],
   );
 
-  /**
-   * Dragging is only offered when the row's position actually means something.
-   *
-   * The order shown has to be the order stored, or a drop would move a row to a place the list is
-   * not describing. And the visible set has to be the whole set: positions are rewritten from the
-   * ids sent, so reordering a filtered subset would pull everything visible in front of everything
-   * hidden — a silent renumbering of rows the operator never saw.
-   */
-  const listIsFiltered = search.trim() !== '' || categoryFilters.length > 0
-    || scopeFilters.length > 0 || statusFilters.length > 0;
-  const canReorder = sort.key === 'order' && sort.dir === 'asc' && !listIsFiltered;
-
-  const sensors = useSensors(
-    // A small distance so a click on the row still reads as a click, not the start of a drag.
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  const onDragEnd = async (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const from = visible.findIndex(r => r.id === active.id);
-    const to = visible.findIndex(r => r.id === over.id);
-    if (from < 0 || to < 0) return;
-
-    // Move optimistically — the list must follow the cursor, not the round trip — then persist the
-    // whole order so the stored positions match what is on screen exactly.
-    const next = arrayMove(visible, from, to);
-    const previous = reasons;
-    setReasons(next);
-    try {
-      await api.put('/admin/failure-reasons/reorder', next.map(r => r.id));
-    } catch (err) {
-      setReasons(previous);
-      showErrorToast(err, tlabel(s, 'reorderError') ?? "L'ordre n'a pas pu être enregistré");
-    }
-  };
-
   const toggleSort = (key: SortKey) => setSort(st => st.key === key ? { key, dir: st.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
   const sortIcon = (key: SortKey) => sort.key !== key
     ? <IconSelector size={12} className="opacity-40" />
@@ -391,18 +307,15 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
                       );
                     })}
                     <th className="h-10 px-6 text-end text-xs font-[450] text-[var(--text-muted)]" />
-                    <th className="w-8" />
                   </tr>
                 </thead>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                <SortableContext items={pageRows.map(r => r.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={visibleIds.size + 3} className="px-6 py-8 text-center text-[var(--text-muted)]">{s.loading}</td></tr>
+                    <tr><td colSpan={visibleIds.size + 2} className="px-6 py-8 text-center text-[var(--text-muted)]">{s.loading}</td></tr>
                   ) : visible.length === 0 ? (
-                    <tr><td colSpan={visibleIds.size + 3} className="px-6 py-8 text-center text-[var(--text-muted)]">{s.empty}</td></tr>
+                    <tr><td colSpan={visibleIds.size + 2} className="px-6 py-8 text-center text-[var(--text-muted)]">{s.empty}</td></tr>
                   ) : pageRows.map(r => (
-                    <SortableRow key={r.id} id={r.id} disabled={!canReorder}>
+                    <tr key={r.id} className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors group">
                       <td className="p-0">
                         <div className="w-[3px] h-10 rounded-r-[2px]" style={{ backgroundColor: r.active ? 'var(--success)' : 'var(--text-soft)' }} />
                       </td>
@@ -474,11 +387,9 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
                           </div>
                         )}
                       </td>
-                    </SortableRow>
+                    </tr>
                   ))}
                 </tbody>
-                </SortableContext>
-                </DndContext>
               </table>
             </div>
           </div>

@@ -3099,8 +3099,6 @@ export const AR_COPY = {
 
   // ── failureReasonsSettings ──────────────────────────────────────────────
   failureReasonsSettings: {
-    reorderError: 'تعذّر حفظ الترتيب',
-    reorderHint: 'رتّب حسب الترتيب وأزل عوامل التصفية لإعادة الترتيب',
     title: 'أسباب الفشل',
     subtitle: 'المراجع القابلة للتكوين المعروضة للسائقين عند فشل التوصيل.',
     addButton: 'إضافة سبب',

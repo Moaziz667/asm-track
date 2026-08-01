@@ -3146,8 +3146,6 @@ export const FR_COPY = {
 
   // ── failureReasonsSettings ──────────────────────────────────────────────
   failureReasonsSettings: {
-    reorderError: "L'ordre n'a pas pu être enregistré",
-    reorderHint: "Triez par ordre et retirez les filtres pour réorganiser",
     title: 'Motifs d\'échec',
     subtitle: 'Référentiel configurable présenté aux livreurs lors d\'un échec de livraison.',
     addButton: 'Ajouter un motif',
