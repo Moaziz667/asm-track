@@ -56,6 +56,7 @@ public class DriverDeliveryService {
     private final HandoffService                  handoffService;
     private final com.asm.delivery.repository.HandoffRepository handoffRepository;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
+    private final CashCollectionService           cashCollectionService;
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
@@ -578,7 +579,7 @@ public class DriverDeliveryService {
                 .execute(status -> persistAndCompletePod(
                         deliveryId, driverId, req.getComment(), req.getLat(), req.getLng(),
                         req.getRecipientName(), req.isPartial(), req.getItemsDone(), hasBl, principal,
-                        bonLivraisonPhotoPath, packagePhotoPath));
+                        bonLivraisonPhotoPath, packagePhotoPath, req.getCash()));
     }
 
     /** Stores one POD photo, turning a storage failure into a retryable 503 for the driver. */
@@ -600,7 +601,8 @@ public class DriverDeliveryService {
             String recipientName,
             boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
             boolean hasBonLivraison,
-            UserPrincipal principal, String bonLivraisonPhotoPath, String packagePhotoPath) {
+            UserPrincipal principal, String bonLivraisonPhotoPath, String packagePhotoPath,
+            com.asm.delivery.dto.request.ProofOfDeliveryRequest.CashCollectionEntry cash) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         // Idempotency FIRST: if a POD already exists, this submit is a duplicate/replay (double-tap,
@@ -658,6 +660,11 @@ public class DriverDeliveryService {
             Delivery latest = loadAndAuthorize(deliveryId, driverId);
             return toDriverDeliveryResponse(latest);
         }
+
+        // The money is recorded in the same transaction as the proof, because it changed hands in the
+        // same moment. Never a gate: whatever is wrong or missing about the collection is written
+        // down and surfaced at the depot, not used to refuse a delivery that physically happened.
+        cashCollectionService.recordAtPod(delivery.getOrder(), deliveryId, driverId, cash);
 
         // C1 — Order matters in Odoo: the stock move (picking validation) must reach the ERP
         // BEFORE the proof of delivery, otherwise the POD attaches to a picking that is not yet
