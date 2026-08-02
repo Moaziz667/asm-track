@@ -76,10 +76,8 @@ step "1. Force a COD instruction on the order"
 # Find the schema that actually holds this delivery. Taking the first tenant schema works on a
 # single-tenant box and silently targets a stranger's data on this one.
 SCHEMA=""
-for sch in $(psql "SELECT nspname FROM pg_namespace WHERE nspname LIKE 'company_%'" | tr -d '
-'); do
-  n=$(psql "SELECT count(*) FROM ${sch}.deliveries WHERE id = '$DELIVERY_ID'" 2>/dev/null | tr -d '
- ')
+for sch in $(psql "SELECT nspname FROM pg_namespace WHERE nspname LIKE 'company_%'"); do
+  n=$(psql "SELECT count(*) FROM ${sch}.deliveries WHERE id = '$DELIVERY_ID'" 2>/dev/null | tr -dc '0-9')
   if [ "$n" = "1" ]; then SCHEMA="$sch"; break; fi
 done
 [ -n "$SCHEMA" ] || die "delivery $DELIVERY_ID not found in any tenant schema of $PGD"
@@ -94,6 +92,13 @@ print(json.loads(base64.urlsafe_b64decode(p)).get('app_user_id', ''))" "$DRIVER_
 [ -n "$DRIVER_UUID" ] || die "could not read app_user_id from the driver token"
 psql "UPDATE $SCHEMA.deliveries SET driver_id = '$DRIVER_UUID' WHERE id = '$DELIVERY_ID'" >/dev/null
 ok "delivery reassigned to $DRIVER_USER"
+
+# Bring the delivery to a state where a proof can be submitted, and clear any proof already on it.
+# A scenario that can only run once against one hand-picked row is a demo, not a test.
+psql "DELETE FROM $SCHEMA.cash_collections WHERE delivery_id = '$DELIVERY_ID'" >/dev/null
+psql "DELETE FROM $SCHEMA.proof_of_delivery WHERE delivery_id = '$DELIVERY_ID'" >/dev/null
+psql "UPDATE $SCHEMA.deliveries SET status = 'IN_TRANSIT' WHERE id = '$DELIVERY_ID'" >/dev/null
+ok "delivery reset to IN_TRANSIT"
 
 psql "UPDATE $SCHEMA.orders o SET cod_required = TRUE, cod_amount = $COD_AMOUNT, currency = 'TND'
       FROM $SCHEMA.deliveries d WHERE d.order_id = o.id AND d.id = '$DELIVERY_ID'" >/dev/null
@@ -173,7 +178,7 @@ if [ -n "$RID" ]; then
   RST=$(echo "$RECV" | jqv "['status']")
   DISC=$(echo "$RECV" | jqv "['discrepancy']")
   [ "$RST" = "DISPUTED" ] && ok "status DISPUTED" || ko "status is '$RST' — expected DISPUTED"
-  echo "  écart: $DISC"
+  echo "  ecart: $DISC"
   # Measured against what he took, not against what he declared.
   python -c "import sys;sys.exit(0 if abs(float('${DISC:-0}') + 50) < 0.001 else 1)" \
     && ok "discrepancy is −50 (counted − collected)" \
@@ -190,7 +195,7 @@ if [ -n "$RID" ]; then
 
   FIN=$(curl -s "${A[@]}" -H 'Content-Type: application/json' \
         -X POST "$GW/api/v1/admin/cash/remittances/$RID/reconcile" \
-        -d '{"note": "erreur de rendu de monnaie — e2e"}')
+        -d '{"note": "e2e: erreur de rendu de monnaie"}')
   FST=$(echo "$FIN" | jqv "['status']")
   [ "$FST" = "RECONCILED" ] && ok "status RECONCILED" || ko "status is '$FST'"
 fi
