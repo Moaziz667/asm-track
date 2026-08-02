@@ -147,6 +147,56 @@ note
 
 ---
 
+## Rôles et séparation des pouvoirs
+
+Rôles existants : `ADMIN`, `MANAGER`, `DISPATCHER`, `DRIVER`.
+
+| Acteur | Rôle dans le COD |
+|---|---|
+| ERP | dit **combien** encaisser |
+| `DRIVER` | encaisse et **déclare** |
+| `DISPATCHER` | **compte** l'argent au retour au dépôt |
+| `MANAGER` / `ADMIN` | tranche les écarts |
+| Comptable | enregistre le paiement **dans l'ERP**, hors ASM |
+
+### Permissions à créer
+
+```
+perm:cash:collect     → DRIVER
+perm:cash:receive     → DISPATCHER, ADMIN
+perm:cash:reconcile   → MANAGER, ADMIN
+```
+
+> **Règle non négociable :** `collect` et `receive` ne coexistent jamais sur la même personne.
+> Un livreur qui valide sa propre remise annule tout l'intérêt du module.
+
+### Décision — pas de rôle « caissier »
+
+C'est le `DISPATCHER` qui reçoit la caisse, pas un rôle dédié. Cela mélange deux métiers
+(organiser les tournées / détenir de l'argent), mais correspond à la réalité d'un dépôt de PME
+tunisienne, où c'est la même personne.
+
+La permission `cash:receive` est néanmoins **séparée** du reste des droits dispatcher : le jour où
+un tenant veut un vrai caissier, il ne reste qu'un mapping de rôle à changer, pas du code.
+
+### Le point de contrôle
+
+```
+LIVREUR                        DISPATCHER
+   │                                │
+   ├─ declaredTotal = 3 400         │
+   │                    compte ─────┤
+   │                    receivedTotal = 3 350
+   │                                │
+   └────────► écart = −50 ◄─────────┘
+                calculé, jamais saisi
+```
+
+Deux personnes, deux chiffres, l'écart tombe tout seul. Toute décision sur un écart est
+horodatée, nominative et non modifiable.
+
+---
+
 ## Phase 3 — Le pilotage
 
 - **Bureau COD** — encaissements du jour, remises en attente, écarts à traiter.
