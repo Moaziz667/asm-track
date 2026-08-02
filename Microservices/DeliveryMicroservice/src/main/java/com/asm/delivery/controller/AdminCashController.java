@@ -69,6 +69,25 @@ public class AdminCashController {
         return ResponseEntity.ok(remittanceService.reconcile(id, req.getNote(), principal));
     }
 
+    @GetMapping("/remittances")
+    @Operation(summary = "Handovers needing attention",
+            description = "Defaults to DECLARED and DISPUTED — the ones waiting on a human. Pass a status "
+                    + "to widen. A desk opening on every handover ever made buries today's two under a "
+                    + "year of settled ones.")
+    public ResponseEntity<org.springframework.data.domain.Page<CashRemittance>> remittances(
+            @RequestParam(required = false) com.asm.delivery.entity.CashRemittanceStatus status,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 25, sort = "declaredAt")
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(remittanceService.list(status, pageable));
+    }
+
+    @GetMapping("/outstanding-by-driver")
+    @Operation(summary = "Who is holding how much, right now")
+    public ResponseEntity<?> outstandingByDriver() {
+        return ResponseEntity.ok(remittanceService.outstandingByDriver());
+    }
+
     @GetMapping("/circulation")
     @Operation(summary = "Cash currently held by drivers",
             description = "Everything collected and not yet handed over. No ERP can produce this figure: "

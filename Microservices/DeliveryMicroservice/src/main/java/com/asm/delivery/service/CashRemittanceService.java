@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -211,6 +212,33 @@ public class CashRemittanceService {
     @Transactional(readOnly = true)
     public List<CashCollection> collectionsOf(UUID remittanceId) {
         return collectionRepo.findByRemittanceId(remittanceId);
+    }
+
+    /**
+     * Handovers for the depot's desk.
+     *
+     * <p>Defaults to the ones still needing a human — declared but uncounted, or counted and
+     * disputed. A desk that opens on every handover ever made buries the two that need acting on
+     * today under a year of settled ones.
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<CashRemittance> list(
+            CashRemittanceStatus status, org.springframework.data.domain.Pageable pageable) {
+        List<CashRemittanceStatus> wanted = status != null
+                ? List.of(status)
+                : List.of(CashRemittanceStatus.DECLARED, CashRemittanceStatus.DISPUTED);
+        return remittanceRepo.findByStatusIn(wanted, pageable);
+    }
+
+    /** Per-driver outstanding cash, for the desk's "who is holding what" panel. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> outstandingByDriver() {
+        return collectionRepo.outstandingByDriver().stream()
+                .map(row -> Map.<String, Object>of(
+                        "driverId", row[0],
+                        "amount", row[1],
+                        "collections", row[2]))
+                .toList();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
