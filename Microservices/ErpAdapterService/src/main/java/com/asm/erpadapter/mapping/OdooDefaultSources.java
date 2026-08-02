@@ -49,6 +49,10 @@ public final class OdooDefaultSources {
             // ── Commercial ────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.TOTAL_AMOUNT, "sale.order.amount_total"),
             Map.entry(CanonicalField.CURRENCY, DERIVED),
+            // Hardcoded to false — nothing in Odoo drives it until someone maps it. Payment terms would
+            // be the obvious guess and are exactly what we refuse to guess with money.
+            Map.entry(CanonicalField.COD_REQUIRED, DERIVED),
+            Map.entry(CanonicalField.COD_AMOUNT, "sale.order.amount_total"),
 
             // ── Planning ──────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.DATE_ORDER, "sale.order.date_order"),

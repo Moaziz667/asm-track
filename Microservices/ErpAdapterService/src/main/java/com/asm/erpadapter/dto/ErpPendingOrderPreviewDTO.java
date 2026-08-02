@@ -32,6 +32,10 @@ public class ErpPendingOrderPreviewDTO {
     private String deliveryInstructions;
     private BigDecimal totalAmount;
     private String currency;
+    /** Whether the driver must collect payment on arrival (cash on delivery). */
+    private Boolean codRequired;
+    /** How much to collect when {@link #codRequired}; ignored otherwise. */
+    private BigDecimal codAmount;
     private String priority;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;

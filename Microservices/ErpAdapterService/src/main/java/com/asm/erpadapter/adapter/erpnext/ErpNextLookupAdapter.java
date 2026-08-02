@@ -63,6 +63,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
             TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
             CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
+            COD_REQUIRED = com.asm.erpadapter.mapping.CanonicalField.COD_REQUIRED,
+            COD_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.COD_AMOUNT,
             DATE_ORDER = com.asm.erpadapter.mapping.CanonicalField.DATE_ORDER,
             SCHEDULED_AT = com.asm.erpadapter.mapping.CanonicalField.SCHEDULED_AT,
             PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
@@ -281,6 +283,9 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                             () -> addr != null ? asString(addr.get("city")) : null))
                     .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(r.get("grand_total"))))
                     .currency(mappedString(CURRENCY, records, () -> asString(r.get("currency"))))
+                    // Default false: see CanonicalField.COD_REQUIRED.
+                    .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                    .codAmount(mappedDecimal(COD_AMOUNT, records, () -> asBigDecimal(r.get("grand_total"))))
                     .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh))
                     .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh))
                     .ready(mappedBoolean(READY, records, () -> true))
@@ -386,6 +391,9 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records, () -> asString(so.get("instructions"))))
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(so.get("grand_total"))))
                 .currency(mappedString(CURRENCY, records, () -> asString(so.get("currency"))))
+                // Default false: see CanonicalField.COD_REQUIRED.
+                .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                .codAmount(mappedDecimal(COD_AMOUNT, records, () -> asBigDecimal(so.get("grand_total"))))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 .scheduledAt(mappedDateTime(SCHEDULED_AT, records, () -> parseDateTime(so.get("delivery_date"), null)))
                 .dateOrder(mappedDateTime(DATE_ORDER, records, () -> parseDateTime(so.get("transaction_date"), null)))

@@ -25,6 +25,9 @@ public class ErpPendingOrderSummaryDTO {
     private String deliveryCity;
     private BigDecimal totalAmount;
     private String currency;
+    /** Carried on the list too, so the operator sees which orders come with a collection before importing. */
+    private Boolean codRequired;
+    private BigDecimal codAmount;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;
 

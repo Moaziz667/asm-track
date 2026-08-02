@@ -52,6 +52,12 @@ public class ErpPendingOrderPreviewDTO {
     @Schema(description = "Currency code (3 chars)", example = "TND")
     private String currency;
 
+    @Schema(description = "Whether the driver must collect payment on arrival", example = "false")
+    private Boolean codRequired;
+
+    @Schema(description = "Amount to collect when codRequired", example = "150.500")
+    private BigDecimal codAmount;
+
     // URGENT is not an ASM priority: OrderPriority has NORMAL and HIGH only, and a mapped "URGENT"
     // collapses onto HIGH at import. Advertising it here promised a level nothing downstream knows.
     @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH"})

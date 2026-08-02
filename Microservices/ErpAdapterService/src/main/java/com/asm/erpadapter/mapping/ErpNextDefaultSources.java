@@ -44,6 +44,9 @@ public final class ErpNextDefaultSources {
             // ── Commercial ────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.TOTAL_AMOUNT, "Sales Order.grand_total"),
             Map.entry(CanonicalField.CURRENCY, "Sales Order.currency"),
+            // Hardcoded to false — nothing in ERPNext drives it until someone maps it. See COD_REQUIRED.
+            Map.entry(CanonicalField.COD_REQUIRED, FieldMappingResolver.DERIVED),
+            Map.entry(CanonicalField.COD_AMOUNT, "Sales Order.grand_total"),
 
             // ── Planning ──────────────────────────────────────────────────────────────────────────
             Map.entry(CanonicalField.DATE_ORDER, "Sales Order.transaction_date"),

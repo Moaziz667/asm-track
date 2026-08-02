@@ -201,6 +201,8 @@ public class ErpLookupService {
         // is passed separately as pickingRef to the adapter.
         String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : null;
 
+        boolean collectOnDelivery = resolveCodRequired(preview, blNumber);
+
         Order order = Order.builder()
                 .source(OrderSource.fromProvider(preview.getSource()))   // ERPNEXT / ODOO — the adapter tags it
                 .clientId(null)
@@ -214,6 +216,8 @@ public class ErpLookupService {
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
+                .codRequired(collectOnDelivery)
+                .codAmount(collectOnDelivery ? preview.getCodAmount() : null)
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.of(preview.getPriority()))
                 .customerRef(preview.getCustomerRef())
@@ -336,6 +340,40 @@ public class ErpLookupService {
     private static boolean isTerminalDelivery(DeliveryStatus s) {
         return s == DeliveryStatus.DELIVERED || s == DeliveryStatus.PARTIALLY_DELIVERED
                 || s == DeliveryStatus.FAILED || s == DeliveryStatus.CANCELLED;
+    }
+
+    /** The only currency a driver can be asked to collect. */
+    private static final String COLLECTABLE_CURRENCY = "TND";
+
+    /**
+     * Decide whether this import carries a cash-collection instruction.
+     *
+     * <p>Refuses the instruction — while still importing the delivery — when the ERP names a currency
+     * the driver cannot physically collect. This is not hypothetical: the platform already imports
+     * orders reading {@code 6000.000 USD}, because the amount and currency are copied from the ERP
+     * with no check. On a printed document that is untidy; on a sum a driver must count into his hand
+     * and hand over at the depot, it is an unrecoverable cash discrepancy.
+     *
+     * <p>Failing closed (deliver, collect nothing) is the safe half of an asymmetric choice: an
+     * uncollected payment is an invoice to chase, whereas a wrongly collected one is money in the
+     * wrong hands and an argument with the customer.
+     */
+    static boolean resolveCodRequired(ErpPendingOrderPreviewDTO preview, String blNumber) {
+        if (!Boolean.TRUE.equals(preview.getCodRequired())) return false;
+
+        String currency = StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : COLLECTABLE_CURRENCY;
+        if (!COLLECTABLE_CURRENCY.equalsIgnoreCase(currency)) {
+            log.warn("Import bl={} : ERP asks to collect {} — only {} can be collected on delivery. "
+                            + "Importing without a collection instruction.",
+                    blNumber, currency, COLLECTABLE_CURRENCY);
+            return false;
+        }
+        if (preview.getCodAmount() == null || preview.getCodAmount().signum() <= 0) {
+            log.warn("Import bl={} : ERP asks to collect but sent no positive amount — "
+                    + "importing without a collection instruction.", blNumber);
+            return false;
+        }
+        return true;
     }
 
     private static OrderResponse toOrderResponse(Order order, Delivery delivery) {

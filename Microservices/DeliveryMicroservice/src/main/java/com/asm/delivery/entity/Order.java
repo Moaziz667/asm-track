@@ -130,6 +130,26 @@ public class Order {
     @Builder.Default
     private String currency = "TND";
 
+    /**
+     * Whether the driver must collect payment on arrival.
+     *
+     * <p>Read-only mirror of the ERP: ASM never decides that money is owed, it only carries the
+     * instruction to the driver. False unless the tenant mapped {@code COD_REQUIRED} — the safe
+     * default, since a driver demanding money he should not is worse than one collecting nothing.
+     */
+    @Column(name = "cod_required", nullable = false)
+    @Builder.Default
+    private Boolean codRequired = false;
+
+    /**
+     * Amount the driver must collect. Only meaningful when {@link #codRequired}.
+     *
+     * <p>Frozen at import: the collection is later compared against this figure, and an expected
+     * amount that moved after the fact would make every reconciliation meaningless.
+     */
+    @Column(name = "cod_amount", precision = 19, scale = 3)
+    private BigDecimal codAmount;
+
     // ── Planning ──────────────────────────────────────────────────────────────
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;

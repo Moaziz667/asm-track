@@ -49,6 +49,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
             ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
             BL_NUMBER = com.asm.erpadapter.mapping.CanonicalField.BL_NUMBER,
             TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
+            COD_REQUIRED = com.asm.erpadapter.mapping.CanonicalField.COD_REQUIRED,
+            COD_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.COD_AMOUNT,
             DATE_ORDER = com.asm.erpadapter.mapping.CanonicalField.DATE_ORDER,
             SCHEDULED_AT = com.asm.erpadapter.mapping.CanonicalField.SCHEDULED_AT,
             WAREHOUSE_CODE = com.asm.erpadapter.mapping.CanonicalField.WAREHOUSE_CODE,
@@ -347,6 +349,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
                         () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
+                // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
+                // "collect nothing", and switching it on is a human decision.
+                .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                .codAmount(mappedDecimal(COD_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 // Whatever the integrator mapped that ASM has no field for — carried through so the
                 // value is not silently read and dropped.
@@ -647,6 +654,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
                         () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
+                // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
+                // "collect nothing", and switching it on is a human decision.
+                .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                .codAmount(mappedDecimal(COD_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))

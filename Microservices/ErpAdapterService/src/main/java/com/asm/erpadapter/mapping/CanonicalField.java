@@ -40,6 +40,20 @@ public enum CanonicalField {
     TOTAL_AMOUNT(Scope.HEADER),
     CURRENCY(Scope.HEADER),
 
+    /**
+     * Whether the driver must collect payment on arrival.
+     *
+     * <p>Deliberately <b>not</b> inferred from payment terms. An empty {@code payment_term_id} means
+     * "immediate" in Odoo, but tenants leave it empty by accident all the time, and the two failure
+     * modes are not symmetric: a driver who collects nothing when he should creates an invoice to
+     * chase, while a driver who demands money he should not creates an incident with the customer and
+     * a sum nobody can account for. So the default is "do not collect", and collecting is something a
+     * human has to switch on by mapping this field.
+     */
+    COD_REQUIRED(Scope.HEADER),
+    /** How much to collect when {@link #COD_REQUIRED} is true. */
+    COD_AMOUNT(Scope.HEADER),
+
     // ── Planning ──────────────────────────────────────────────────────────────────────────────────
     DATE_ORDER(Scope.HEADER),
     /** The promised delivery date; drives SLA and route planning. */

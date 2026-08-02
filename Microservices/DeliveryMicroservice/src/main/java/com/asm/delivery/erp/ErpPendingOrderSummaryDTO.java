@@ -41,6 +41,12 @@ public class ErpPendingOrderSummaryDTO {
     @Schema(description = "Currency code", example = "TND")
     private String currency;
 
+    @Schema(description = "Whether the driver must collect payment on arrival", example = "false")
+    private Boolean codRequired;
+
+    @Schema(description = "Amount to collect when codRequired", example = "150.500")
+    private BigDecimal codAmount;
+
     @Schema(description = "Date the order was confirmed in the ERP", example = "2026-05-13T09:00:00")
     private LocalDateTime dateOrder;
 
