@@ -95,6 +95,11 @@ ok "delivery reassigned to $DRIVER_USER"
 
 # Bring the delivery to a state where a proof can be submitted, and clear any proof already on it.
 # A scenario that can only run once against one hand-picked row is a demo, not a test.
+# Drop any handover this driver still has in flight first. Deleting a collection on its own would
+# leave the handover that contained it alive with a total nobody can reconstruct — the FK is
+# ON DELETE SET NULL, so the row silently loses its lines instead of complaining.
+psql "DELETE FROM $SCHEMA.cash_remittances
+      WHERE driver_id = '$DRIVER_UUID' AND status IN ('OPEN','DECLARED')" >/dev/null
 psql "DELETE FROM $SCHEMA.cash_collections WHERE delivery_id = '$DELIVERY_ID'" >/dev/null
 psql "DELETE FROM $SCHEMA.proof_of_delivery WHERE delivery_id = '$DELIVERY_ID'" >/dev/null
 psql "UPDATE $SCHEMA.deliveries SET status = 'IN_TRANSIT' WHERE id = '$DELIVERY_ID'" >/dev/null
