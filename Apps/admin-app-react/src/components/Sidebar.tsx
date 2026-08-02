@@ -8,7 +8,7 @@ import {
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2,
   IconChartLine, IconFileText, IconSettings, IconDatabase,
   IconChevronsLeft, IconChevronsRight,
-  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan,
+  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan, IconCashBanknote,
   IconSun, IconMoon, IconMap2 as IconMap, IconUserCircle, IconLogout
 } from '@tabler/icons-react';
 import {
@@ -70,6 +70,7 @@ export const GROUP_DEFS: NavGroupDef[] = [
     items: [
       { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          perm: 'perm:delivery:view' },
       { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    perm: 'perm:dispatch:operate' },
+      { labelKey: 'cash',       href: '/cash',          Icon: IconCashBanknote,     perm: 'perm:dispatch:operate' },
       { labelKey: 'import',     href: '/import',        Icon: IconUpload,           perm: 'perm:erp:sync' },
       { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        perm: 'perm:settings:manage' },
     ],
