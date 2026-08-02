@@ -38,6 +38,7 @@ public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
     private final ErpInvoiceService erpInvoiceService;
+    private final com.asm.delivery.service.CashRemittanceService cashRemittanceService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
 
     @GetMapping("/active")
@@ -182,6 +183,35 @@ public class DriverDeliveryController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()),
                 req.getToken(), req.getLat(), req.getLng(), req.getNotes(), principal));
+    }
+
+    @GetMapping("/cash/outstanding")
+    @Operation(summary = "How much cash the driver is currently holding",
+            description = "Everything he collected and has not handed over yet.")
+    public ResponseEntity<java.util.Map<String, Object>> cashOutstanding(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID driverId = UUID.fromString(principal.getUserId());
+        return ResponseEntity.ok(java.util.Map.of(
+                "amount", cashRemittanceService.outstandingForDriver(driverId),
+                "currency", "TND"));
+    }
+
+    @PostMapping("/cash/declare")
+    @Operation(summary = "Declare the cash being handed over at the depot",
+            description = "Attaches every collection the driver still holds to one handover and records "
+                    + "what he says he is giving. Somebody else counts it — this call cannot close it.")
+    public ResponseEntity<com.asm.delivery.entity.CashRemittance> declareCash(
+            @RequestBody DeclareCashRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID driverId = UUID.fromString(principal.getUserId());
+        return ResponseEntity.ok(cashRemittanceService.declare(
+                driverId, principal.getDisplayName(), req.getDeclaredTotal(), principal));
+    }
+
+    /** What the driver says he has in hand at the depot. */
+    @lombok.Data
+    public static class DeclareCashRequest {
+        private java.math.BigDecimal declaredTotal;
     }
 
     @GetMapping("/{id}/bon-livraison")
