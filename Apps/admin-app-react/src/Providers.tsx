@@ -1,6 +1,6 @@
 
 
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
 import { showErrorToast } from '@/lib/ui/toast-service';
 import { Toaster } from '@/components/feedback/Toast';
@@ -26,20 +26,34 @@ function AuthSync() {
     }
   }, [auth.isAuthenticated, auth.user]);
 
-  // Let the axios layer drive a silent renew on 401 (single-flight) and retry,
-  // instead of hard-redirecting on the first expired token.
+  /*
+    Register the refresher ONCE, and let it read the live auth through a ref.
+
+    Keyed on [auth], this effect re-ran on every auth state change — and its cleanup sets the
+    refresher to null before the next one registers. A 401 landing in that window found no
+    refresher, `runRefresh()` returned false, and the axios layer concluded the token was dead and
+    hard-logged the user out. The window opens precisely when auth state is churning, which is
+    exactly when tokens are being renewed: the moments the retry exists for are the moments it was
+    unavailable.
+
+    `useAuth()` returns a fresh object whenever anything in the session changes, so [auth] was never
+    a meaningful dependency — only a guarantee of churn.
+  */
+  const authRef = useRef(auth);
+  authRef.current = auth;
+
   useEffect(() => {
     registerTokenRefresher(async () => {
-      const user = await auth.signinSilent();
+      const user = await authRef.current.signinSilent();
       syncSession(user);
       return user;
     });
-    registerLogoutHandler(() => { void auth.removeUser(); });
+    registerLogoutHandler(() => { void authRef.current.removeUser(); });
     return () => {
       registerTokenRefresher(null);
       registerLogoutHandler(null);
     };
-  }, [auth]);
+  }, []);
 
   return null;
 }
