@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { Perm, usePermissions } from '@/lib/api/auth';
 import { Forbidden } from '@/pages/auth/Forbidden';
+import { protectedGate, publicGate } from './authGate';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -23,15 +24,16 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const auth = useAuth();
   const location = useLocation();
 
-  // Wait for the OIDC session to restore before deciding — prevents a redirect
-  // race that bounces authenticated users back to /login on refresh.
-  if (auth.isLoading) return <AuthLoading />;
-
-  if (!auth.isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  // The rule lives in authGate.ts, where it is unit-tested — notably the case that broke this page:
+  // a silent renew leaves isLoading true on a session that is perfectly valid.
+  switch (protectedGate(auth.isLoading, auth.isAuthenticated)) {
+    case 'wait':
+      return <AuthLoading />;
+    case 'redirect':
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    default:
+      return <>{children}</>;
   }
-
-  return <>{children}</>;
 };
 
 /**
@@ -48,11 +50,12 @@ export const PermRoute = ({ perm, children }: { perm: Perm | null; children: Rea
 export const PublicRoute = ({ children }: ProtectedRouteProps) => {
   const auth = useAuth();
 
-  if (auth.isLoading) return <AuthLoading />;
-
-  if (auth.isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+  switch (publicGate(auth.isLoading, auth.isAuthenticated)) {
+    case 'wait':
+      return <AuthLoading />;
+    case 'redirect':
+      return <Navigate to="/dashboard" replace />;
+    default:
+      return <>{children}</>;
   }
-
-  return <>{children}</>;
 };

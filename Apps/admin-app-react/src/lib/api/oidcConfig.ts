@@ -1,5 +1,5 @@
 import { AuthProviderProps } from 'react-oidc-context';
-import { WebStorageStateStore, User } from 'oidc-client-ts';
+import { WebStorageStateStore, User, UserManager, UserManagerSettings } from 'oidc-client-ts';
 import { safeStorage } from '@/lib/storage';
 import { jwtDecode } from 'jwt-decode';
 
@@ -82,10 +82,7 @@ function clearSession(): void {
   safeStorage.removeItem('perms');
 }
 
-// `useRefreshToken` is a valid oidc-client-ts UserManagerSettings option (refresh-token
-// grant for silent renew) but isn't surfaced on this version's AuthProviderProps typing —
-// widen the annotation rather than drop the runtime setting.
-export const oidcConfig: AuthProviderProps & { useRefreshToken?: boolean } = {
+const settings: UserManagerSettings & { useRefreshToken?: boolean } = {
   authority: AUTHORITY,
   client_id: CLIENT_ID,
   redirect_uri: REDIRECT_URI,
@@ -112,6 +109,22 @@ export const oidcConfig: AuthProviderProps & { useRefreshToken?: boolean } = {
   // http://localhost (third-party cookie / X-Frame issues); disable to avoid
   // spurious logouts in dev.
   monitorSession: false,
+};
+
+/**
+ * The one UserManager, owned here rather than built inside AuthProvider.
+ *
+ * <p>Owning it is what lets a token refresh happen without touching React state. The
+ * {@code signinSilent} handed out by {@code useAuth()} is a wrapper: it dispatches NAVIGATOR_INIT
+ * first, which sets {@code isLoading: true} on a session that is perfectly valid and merely being
+ * renewed. Any guard reading {@code isLoading} then unmounts the page mid-session — see
+ * ProtectedRoute, which did exactly that. Calling this instance directly renews the token and
+ * announces it through the userLoaded event, which is all anyone actually needs.
+ */
+export const userManager = new UserManager(settings);
+
+export const oidcConfig: AuthProviderProps = {
+  userManager,
 
   onSigninCallback: (user) => {
     syncSession(user);
