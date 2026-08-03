@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect } from "react";
 import type { TemplateProps } from "keycloakify/login/TemplateProps";
 import type { KcContext } from "./KcContext";
 import type { I18n } from "./i18n";
@@ -7,13 +7,13 @@ import "./theme.css";
 export default function Template({
   kcContext,
   i18n,
-  doUseDefaultCss,
   children,
   displayMessage = true,
   headerNode,
   infoNode,
 }: TemplateProps<KcContext, I18n>) {
   const { message, isAppInitiatedAction, url } = kcContext;
+  const { msgStr } = i18n;
   const logoSrc = `${url.resourcesPath}/dist/icon.png`;
 
   // Apply dark/light mode: ?dark= param > asm-theme cookie > OS preference > dark (default)
@@ -53,9 +53,47 @@ export default function Template({
 
   return (
     <div className="asm-layout">
-      <main className="asm-form-panel">
-        {/* Brand */}
+      {/* ── Context panel ────────────────────────────────────────────────────────
+          Sign-in pages are reached from an email link as often as from a bookmark, so the
+          first job of this screen is to say which system is asking for a password. The panel
+          answers that with what the product does, in the operator's own vocabulary — routes,
+          drivers, proof of delivery — rather than the "Secure & Reliable / Collaboration"
+          filler that fits any product and therefore identifies none.
+
+          No icon tile above each heading: PRODUCT.md names that as an anti-reference, and it
+          would turn an operations console into a marketing page. The panel is hidden below
+          960px, where the form is the only thing that matters. */}
+      <aside className="asm-context" aria-hidden="true">
         <div className="asm-brand">
+          <img src={logoSrc} alt="" className="asm-brand-logo" />
+          <span className="asm-brand-name">ASM Track</span>
+        </div>
+
+        <h2 className="asm-context-title">{msgStr("asmTagline")}</h2>
+        <p className="asm-context-intro">{msgStr("asmIntro")}</p>
+
+        <ul className="asm-context-list">
+          <li>
+            <span className="asm-context-icon"><RouteIcon /></span>
+            <span className="asm-context-point">{msgStr("asmPointPlan")}</span>
+            <span className="asm-context-sub">{msgStr("asmPointPlanSub")}</span>
+          </li>
+          <li>
+            <span className="asm-context-icon"><PulseIcon /></span>
+            <span className="asm-context-point">{msgStr("asmPointTrack")}</span>
+            <span className="asm-context-sub">{msgStr("asmPointTrackSub")}</span>
+          </li>
+          <li>
+            <span className="asm-context-icon"><ProofIcon /></span>
+            <span className="asm-context-point">{msgStr("asmPointProof")}</span>
+            <span className="asm-context-sub">{msgStr("asmPointProofSub")}</span>
+          </li>
+        </ul>
+      </aside>
+
+      <main className="asm-form-panel">
+        {/* Brand — carried here too, for the narrow layout where the panel is gone. */}
+        <div className="asm-brand asm-brand-compact">
           <img src={logoSrc} alt="ASM Track" className="asm-brand-logo" />
           <span className="asm-brand-name">ASM Track</span>
         </div>
@@ -81,10 +119,52 @@ export default function Template({
 
         {/* Footer */}
         <div className="asm-footer">
-          &copy; {new Date().getFullYear()} ASM Track
+          <span className="asm-footer-secure">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            {msgStr("asmSecure")}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>&copy; {new Date().getFullYear()} ASM Track</span>
         </div>
       </main>
     </div>
+  );
+}
+
+/* Inline rather than an icon package: the theme ships as a JAR Keycloak serves, and three
+   glyphs are not worth pulling a dependency into it. Each one names its own point — a route
+   with stops, a live signal, a signed document — so none of them is interchangeable filler. */
+const svg = {
+  width: 16, height: 16, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+};
+
+function RouteIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <circle cx="6" cy="19" r="2" /><circle cx="18" cy="5" r="2" />
+      <path d="M8 19h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5" />
+    </svg>
+  );
+}
+
+function PulseIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M3 12h4l2.5-7 4 14L16 12h5" />
+    </svg>
+  );
+}
+
+function ProofIcon() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" /><path d="M9 15c1.5-2 2.5 1 4-1" />
+    </svg>
   );
 }
 

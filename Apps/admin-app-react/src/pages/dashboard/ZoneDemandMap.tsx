@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { IconMapPinFilled } from '@tabler/icons-react';
@@ -29,13 +29,6 @@ type Props = {
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
 
-function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
 
 function parseGeometry(geo?: string): GeoJSON.Feature | null {
   if (!geo) return null;
@@ -184,14 +177,13 @@ function TopDemandPanel({ zones, total }: { zones: ZoneAgg[]; total: number }) {
 
 /* ── Main component ─────────────────────────────────────────────────── */
 
-export default function ZoneDemandMap({ kpi, heatmap }: Props) {
+export default function ZoneDemandMap({ heatmap }: Props) {
   const t = useT();
   const { data: zones = [] } = useZones();
   const isDark = useIsDark();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const [, forceUpdate] = useState(0);
-
+  
   const rawPoints = heatmap?.points;
   const isMock = !rawPoints || rawPoints.length === 0;
   const points = isMock ? MOCK_POINTS : rawPoints;
@@ -407,7 +399,7 @@ export default function ZoneDemandMap({ kpi, heatmap }: Props) {
   }, [isDark, handleMapLoad]);
 
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col" style={{ height: '100%' }}>
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden flex flex-col" style={{ height: '100%' }}>
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <IconMapPinFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">

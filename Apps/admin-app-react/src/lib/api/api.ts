@@ -60,7 +60,20 @@ async function runRefresh(): Promise<boolean> {
   return refreshInFlight;
 }
 
+/*
+  Latch, so a dead session is closed once and not once per in-flight request.
+
+  A page load fires a dozen requests. When the session dies they all 401 together, each one ran the
+  refresh, each one called hardLogout, and each one assigned window.location — a burst of identical
+  work and a burst of redirects for a single event. Worse, hardLogout clears the OIDC store while
+  the others are still deciding what to do, so the later ones see a half-cleared session and can
+  restart a sign-in that the first one was already unwinding.
+*/
+let loggingOut = false;
+
 function hardLogout() {
+  if (loggingOut) return;
+  loggingOut = true;
   safeStorage.removeItem('access_token');
   safeStorage.removeItem('admin_role');
   safeStorage.removeItem('role');
@@ -132,7 +145,7 @@ api.interceptors.response.use(
         if (token) original.headers.Authorization = `Bearer ${token}`;
         return api(original);
       }
-      // Refresh failed / unavailable — token is truly dead.
+      // Refresh genuinely failed — the session is over.
       hardLogout();
     }
 

@@ -52,6 +52,16 @@ public class Order {
     @Column(name = "erp_external_ref", length = 100)
     private String erpExternalRef;
 
+    /**
+     * The end customer's own reference — their purchase-order number.
+     *
+     * <p>Deliberately not {@link #erpExternalRef}, which carries the ERP's sale-order reference that
+     * sync-back, resync, invoicing and backorder grouping all resolve against. Display and search
+     * only; ASM never writes it back.
+     */
+    @Column(name = "customer_ref", length = 120)
+    private String customerRef;
+
     /** Official ERP delivery-note / picking number (bon de livraison) this order maps to. */
     @Column(name = "bl_number", length = 100)
     private String blNumber;
@@ -113,12 +123,32 @@ public class Order {
     private String deliveryInstructions;
 
     // ── Financial ─────────────────────────────────────────────────────────────
-    @Column(name = "total_amount", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 3)
     private BigDecimal totalAmount;
 
     @Column(name = "currency", nullable = false, length = 3)
     @Builder.Default
     private String currency = "TND";
+
+    /**
+     * Whether the driver must collect payment on arrival.
+     *
+     * <p>Read-only mirror of the ERP: ASM never decides that money is owed, it only carries the
+     * instruction to the driver. False unless the tenant mapped {@code COD_REQUIRED} — the safe
+     * default, since a driver demanding money he should not is worse than one collecting nothing.
+     */
+    @Column(name = "cod_required", nullable = false)
+    @Builder.Default
+    private Boolean codRequired = false;
+
+    /**
+     * Amount the driver must collect. Only meaningful when {@link #codRequired}.
+     *
+     * <p>Frozen at import: the collection is later compared against this figure, and an expected
+     * amount that moved after the fact would make every reconciliation meaningless.
+     */
+    @Column(name = "cod_amount", precision = 19, scale = 3)
+    private BigDecimal codAmount;
 
     // ── Planning ──────────────────────────────────────────────────────────────
     @Column(name = "scheduled_at")
@@ -151,11 +181,25 @@ public class Order {
     @Column(name = "items", columnDefinition = "jsonb", nullable = false)
     private List<OrderItem> items;
 
+    /**
+     * ERP values the integrator mapped that have no field of their own here, keyed by the label they
+     * chose ({@code {"Référence interne": "REF-4471"}}).
+     *
+     * <p>Every customer keeps something in their ERP that ASM has no concept of. Without somewhere for
+     * it to land, mapping such a field means the value is read and then dropped — so the integrator
+     * either gets nothing, or we grow a column per customer. This is display-only on purpose: ASM
+     * cannot sort, filter or reason about what it does not understand, and a field that needs to drive
+     * behaviour deserves promoting to a real column rather than hiding in here.
+     */
+    @Type(JsonType.class)
+    @Column(name = "custom_fields", columnDefinition = "jsonb")
+    private java.util.Map<String, Object> customFields;
+
     @Column(name = "total_quantity", nullable = false)
     @Builder.Default
     private Integer totalQuantity = 0;
 
-    @Column(name = "total_weight_kg", nullable = false, precision = 10, scale = 3)
+    @Column(name = "total_weight_kg", nullable = false, precision = 19, scale = 3)
     @Builder.Default
     private BigDecimal totalWeightKg = BigDecimal.ZERO;
 

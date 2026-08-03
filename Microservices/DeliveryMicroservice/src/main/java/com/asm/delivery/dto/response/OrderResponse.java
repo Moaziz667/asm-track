@@ -31,6 +31,12 @@ public class OrderResponse {
     private String        priority;
     private LocalDateTime scheduledAt;
     private List<OrderItem> items;
+
+    /** ERP values the integrator mapped that have no field of their own; shown as an "Infos ERP" block. */
+    /** The end customer's own order reference, mapped from their ERP. Display and search only. */
+    private String customerRef;
+
+    private java.util.Map<String, Object> customFields;
     private Integer       totalQuantity;
     private BigDecimal    totalWeightKg;
     private String        status;           // order status

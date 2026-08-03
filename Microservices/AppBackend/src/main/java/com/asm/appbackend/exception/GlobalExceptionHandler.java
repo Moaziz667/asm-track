@@ -39,6 +39,29 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), "Access denied"));
     }
 
+    /**
+     * A body Spring could not parse, or a required parameter the caller omitted, is a malformed
+     * <em>request</em> — not a server fault. Without these they fell through to
+     * {@link #handleGeneric} and answered {@code 500}, which misreports a client mistake as an
+     * outage: it inflates the 5xx rate, fires availability alerts, and buries real failures among
+     * caller errors. Logged at WARN for the same reason.
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.badRequest().body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(),
+                "Corps de requête illisible ou JSON invalide.", "MALFORMED_REQUEST_BODY"));
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(
+            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        log.warn("Missing request parameter '{}'", ex.getParameterName());
+        return ResponseEntity.badRequest().body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(),
+                "Paramètre requis manquant : '" + ex.getParameterName() + "'.", "MISSING_REQUEST_PARAMETER"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);

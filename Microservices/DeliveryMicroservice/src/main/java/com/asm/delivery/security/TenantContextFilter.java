@@ -48,13 +48,45 @@ public class TenantContextFilter implements Filter {
             }
         }
 
+        // Fail-closed at the DB boundary too: an authenticated business route without a tenant would
+        // otherwise silently read/write the (empty) `public` schema — bugs become invisible empty
+        // results instead of loud failures. Only explicitly tenant-less prefixes may pass without a
+        // header (public tracking resolves its tenant downstream in PublicTrackingTenantFilter).
+        if (companyId == null && requiresTenant(httpReq.getRequestURI())) {
+            log.warn("Missing X-Company-Id on tenant-scoped path {} — rejecting (fail-closed)", httpReq.getRequestURI());
+            httpResp.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            httpResp.setContentType("application/json");
+            httpResp.getWriter().write("{\"status\":403,\"message\":\"No tenant context\"}");
+            return;
+        }
+
         if (companyId != null) {
             TenantContext.set(companyId);
         }
+        // MDC: every log line of this request is attributable to a tenant/user/request without
+        // touching individual log statements — the missing piece that made the multi-tenant
+        // regressions so hard to localize.
+        org.slf4j.MDC.put("companyId", companyId != null ? companyId.toString() : "-");
+        String userId = httpReq.getHeader("X-User-Id");
+        if (userId != null && !userId.isBlank()) org.slf4j.MDC.put("userId", userId);
+        String requestId = httpReq.getHeader("X-Request-Id");
+        org.slf4j.MDC.put("requestId",
+                requestId != null && !requestId.isBlank() ? requestId : UUID.randomUUID().toString());
         try {
             chain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            org.slf4j.MDC.remove("companyId");
+            org.slf4j.MDC.remove("userId");
+            org.slf4j.MDC.remove("requestId");
         }
+    }
+
+    /** Business API paths need a tenant; public/auth/dev prefixes (see SecurityConfig) do not. */
+    private static boolean requiresTenant(String path) {
+        if (path == null || !path.startsWith("/api/")) return false; // actuator, /ws, /internal, swagger
+        return !path.startsWith("/api/v1/public/")
+                && !path.startsWith("/api/v1/auth/")
+                && !path.startsWith("/api/v1/dev/");
     }
 }

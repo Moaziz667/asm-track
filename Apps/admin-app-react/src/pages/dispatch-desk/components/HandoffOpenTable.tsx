@@ -201,7 +201,6 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
 
           {/* Rows */}
           {items.map((h, idx) => {
-            const view = cardView(h, t);
             return (
               <div key={h.id || idx} className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
                 <div

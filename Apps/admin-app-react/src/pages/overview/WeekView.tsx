@@ -6,7 +6,7 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import type { useT } from '@/lib/i18n/LocaleContext';
 import type { RouteItem } from '@/hooks/useRoutes';
-import { CalDelivery, isoDay, STATUS_TONE_MAP, TONE_VAR } from './shared';
+import { CalDelivery, isoDay } from './shared';
 import { DayPanel } from './DayPanel';
 
 interface Props {
@@ -111,7 +111,6 @@ export function WeekView({ cursor, selected, setSelected, deliveriesByDay, route
                     const route = rts.find(r => r.driverId === row.id);
                     const dels = (deliveriesByDay.get(key) ?? []).filter(d => d.driverId === row.id);
                     const isSelected = key === selected;
-                    const tone = route ? STATUS_TONE_MAP[route.status] ?? 'muted' : dels.length > 0 ? 'warning' : 'muted';
                     return (
                       <button
                         key={key}

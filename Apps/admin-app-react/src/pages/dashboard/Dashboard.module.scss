@@ -5,13 +5,14 @@
 // columns are `fr` — widgets (all `h-full`) fill the band and stay aligned, no per-widget
 // coordinate math. Inverted pyramid: live/urgent on top, analytics/secondary at the bottom.
 
-$gap: 12px;
+// Two spacing steps rather than one. A single 12px everywhere made the page read as one
+// undifferentiated field of boxes: widgets inside a band are one thought, the next band is
+// another. The larger step between bands is what turns eleven equal cards into four groups.
+$gap: 12px;        // within a band
+$band-gap: 20px;   // between bands
 $rail-w: 340px;
-$band-core: 320px;   // status breakdown · needs attention  (live core)
-$band-trend: 300px;  // volume trend · backlog
-$band-zone: 300px;   // zone overview · failure causes
-$band-fleet: 260px;  // driver status · active routes
-$band-footer: 180px; // cycle time · returns · quick actions (secondary)
+$band-trend: 300px;  // volume trend · zone overview
+$band-zone: 300px;   // failure causes · driver status
 
 .page {
   width: 100%;
@@ -20,7 +21,84 @@ $band-footer: 180px; // cycle time · returns · quick actions (secondary)
   padding: 14px 16px 24px;
   display: flex;
   flex-direction: column;
-  gap: $gap;
+  gap: $band-gap;
+}
+
+// ── Page toolbar ─────────────────────────────────────────────────────────────
+// Sticky rather than fixed: it scrolls with the page's own coordinate space instead of
+// floating over the app shell, so it can never collide with the search or the bell again.
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbarLead { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+
+.pageTitle {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+// The period is a statement of scope, not a control — quiet, but never absent.
+.periodChip {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.toolbarActions { display: flex; align-items: center; gap: 8px; }
+
+.filterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+
+  &:hover { background: var(--hover-bg); border-color: var(--border-strong); }
+}
+
+.filterCount {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--surface);
+  background: var(--brand);
+  border-radius: 999px;
+}
+
+@media (max-width: 560px) {
+  .toolbar { padding: 10px 12px; }
+  .toolbarActions { width: 100%; justify-content: flex-end; }
 }
 
 // ── KPI strip ────────────────────────────────────────────────────────────────
@@ -57,7 +135,7 @@ $band-footer: 180px; // cycle time · returns · quick actions (secondary)
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: $gap;
+  gap: $band-gap;
 }
 
 .band {
@@ -72,7 +150,7 @@ $band-footer: 180px; // cycle time · returns · quick actions (secondary)
 @mixin stack-on-narrow($minH) {
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
-    height: auto;
+    min-height: 0;
     > * { min-height: $minH; }
   }
 }
@@ -80,11 +158,11 @@ $band-footer: 180px; // cycle time · returns · quick actions (secondary)
 // Row 1 — quick read: backlog · returns · cycle time
 .bandQuad {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  height: 288px;
+  min-height: 288px;
 
   @media (max-width: 1100px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    height: auto;
+    min-height: 0;
     > * { min-height: 200px; }
   }
   @media (max-width: 560px) {
@@ -92,17 +170,21 @@ $band-footer: 180px; // cycle time · returns · quick actions (secondary)
   }
 }
 
-// Row 2 — volume trend (wide) · zone overview
+// Row 2 — status breakdown · zone overview.
+// Was 2fr 1fr, which left the donut card padded with empty space while the zone table
+// squeezed four columns into a third of the row: "Zone …" truncated, "À l'heure" wrapping
+// onto two lines, a count sitting above a stray dash. Even columns give the table the room
+// its content actually needs, and the donut grows to fill what it keeps.
 .bandTrend {
-  grid-template-columns: 2fr 1fr;
-  height: $band-trend;
+  grid-template-columns: 1fr 1fr;
+  min-height: $band-trend;
   @include stack-on-narrow(260px);
 }
 
 // Rows 3-4 — two-up pairs (failure · driver) then (routes · quick actions)
 .bandPair {
   grid-template-columns: 1fr 1fr;
-  height: $band-zone;
+  min-height: $band-zone;
   @include stack-on-narrow(240px);
 }
 

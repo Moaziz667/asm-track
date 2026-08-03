@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   DndContext,
@@ -133,6 +134,37 @@ export function DisplaySettingsDropdown({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  /*
+    The panel is rendered into document.body, not beside its trigger.
+
+    Every table that hosts this control wraps itself in `overflow-hidden` so the rounded corners
+    clip the rows — and that same clip cut the panel in half on the handoff history table, which is
+    shorter than the menu it opens. An absolutely-positioned popover is always at the mercy of an
+    ancestor's overflow, and the ancestor here has a good reason for it. Portalling to the body
+    takes the panel out of that box entirely, so the fix holds wherever the control is dropped next.
+  */
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+
+  /** Measured at the click, not in an effect: the trigger is on screen exactly then. */
+  const openAt = useCallback(() => {
+    const r = ref.current?.getBoundingClientRect();
+    setAnchor(r ? { top: r.bottom + 4, right: window.innerWidth - r.right } : null);
+    setOpen(true);
+  }, []);
+
+  // Scrolling the table under an open panel would leave it floating where the button no longer is.
+  // Closing is simpler than re-measuring against a sticky header, and is what the gesture means.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -148,7 +180,7 @@ export function DisplaySettingsDropdown({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(v => !v)}
+        onClick={() => (open ? setOpen(false) : openAt())}
         className={cn(
           'h-7 w-7 flex items-center justify-center rounded border transition-colors',
           open
@@ -161,11 +193,13 @@ export function DisplaySettingsDropdown({
         <IconAdjustmentsHorizontal size={14} />
       </button>
 
-      {/* Panel */}
-      {open && (
+      {/* Panel — portalled, so no ancestor's overflow can clip it. */}
+      {open && anchor && createPortal(
         <div
-          className="absolute right-0 top-[calc(100%+4px)] z-[200] w-[185px] rounded-lg border py-1.5"
+          className="fixed z-[400] w-[185px] rounded-lg border py-1.5"
           style={{
+            top: anchor.top,
+            right: anchor.right,
             background: 'var(--surface)',
             borderColor: 'var(--border)',
             boxShadow: 'var(--shadow-dropdown)',
@@ -242,7 +276,8 @@ export function DisplaySettingsDropdown({
               </div>
             </SortableContext>
           </DndContext>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

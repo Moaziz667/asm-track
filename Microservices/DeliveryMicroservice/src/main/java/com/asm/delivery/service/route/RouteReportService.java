@@ -46,6 +46,7 @@ public class RouteReportService {
     private final TransportPort transportPort;
     private final DelayCalculationService delayCalculationService;
     private final MinioStorageService minioStorageService;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final ObjectMapper objectMapper;
     private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
 
@@ -759,17 +760,18 @@ public class RouteReportService {
     }
 
     /**
-     * POD photo URLs are stored as MinIO public URLs by ProofOfDeliveryService.
-     * If we received an object key (no http prefix), convert it via getPublicUrl.
+     * POD media is stored as a MinIO object KEY; turn it into an absolute URL the caller can reach
+     * (see {@link com.asm.delivery.storage.MediaUrlResolver}). Legacy rows holding a full URL are
+     * re-based on the current origin by the same call, so reports render on any network.
      */
-    private String presignSafe(String url) {
-        if (url == null || url.isBlank()) return null;
+    private String presignSafe(String keyOrUrl) {
+        if (keyOrUrl == null || keyOrUrl.isBlank()) return null;
         try {
-            if (!url.startsWith("http")) return minioStorageService.getPublicUrl(url);
+            return mediaUrlResolver.toPublicUrl(keyOrUrl);
         } catch (Exception e) {
-            log.debug("Public URL conversion failed for {}: {}", url, e.getMessage());
+            log.debug("Public URL conversion failed for {}: {}", keyOrUrl, e.getMessage());
+            return keyOrUrl;
         }
-        return url;
     }
 
     private String labelFor(String key) {

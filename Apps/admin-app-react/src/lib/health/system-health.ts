@@ -179,3 +179,29 @@ export function ageParts(iso: string | null | undefined, now: number): AgeParts 
   const days = Math.floor(hours / 24);
   return { kind: 'days', d: days, h: hours % 24 };
 }
+
+/** Past this, a daily backup has plainly missed its slot — one skipped night is already a miss. */
+export const BACKUP_STALE_AFTER_MS = 36 * 60 * 60 * 1000;
+
+export interface BackupStatus {
+  status?: string; finishedAt?: string; detail?: string; offsite?: boolean;
+}
+
+export type BackupState = 'unknown' | 'failed' | 'stale' | 'fresh';
+
+/**
+ * Judges the backup state file.
+ *
+ * The failure worth catching is the quiet one: a job that stopped running weeks ago leaves a
+ * state file still saying "ok". So freshness is decided here rather than trusted from the file —
+ * an old success is reported as stale, never as fresh. A missing file is 'unknown', which is not
+ * the same as healthy: it is what an operator sees before the schedule has ever been installed.
+ */
+export function backupState(b: BackupStatus | undefined, now: number): BackupState {
+  if (!b?.status || b.status === 'unknown') return 'unknown';
+  if (b.status !== 'ok') return 'failed';
+  if (!b.finishedAt) return 'stale';
+  const at = Date.parse(b.finishedAt);
+  if (Number.isNaN(at)) return 'stale';
+  return now - at > BACKUP_STALE_AFTER_MS ? 'stale' : 'fresh';
+}

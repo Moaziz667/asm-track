@@ -1,6 +1,6 @@
 package com.asm.erpadapter.conformance;
 
-import com.asm.erpadapter.adapter.odoo.OdooCapabilities;
+import com.asm.erpadapter.adapter.odoo.CapabilityRegistry;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import com.asm.erpadapter.adapter.odoo.OdooVersionResolver;
 import com.asm.erpadapter.conformance.ConformanceReport.CapabilityCheck;
@@ -30,7 +30,8 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
 
     private final OdooJsonRpcClient rpc;
     private final OdooVersionResolver versionResolver;
-    private final OdooCapabilities caps;
+    private final CapabilityRegistry registry;
+    private final com.asm.erpadapter.adapter.odoo.MethodResolver methodResolver;
 
     @Override
     public String provider() {
@@ -75,16 +76,44 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         checkAccess(checks, "stock.scrap", "create", Severity.RECOMMENDED);
         checkAccess(checks, "ir.attachment", "create", Severity.RECOMMENDED);
 
-        // ── Version-derived method resolutions (cannot be probed read-only → UNKNOWN, never fails) ─
-        checks.add(new CapabilityCheck(
-                "stock.return.picking." + caps.createReturnsMethod(),
-                Kind.METHOD, Severity.REQUIRED, Status.UNKNOWN,
-                "Version-resolved via CapabilityMap; call-with-fallback tries "
-                        + caps.createReturnsMethodCandidates() + " (method existence not verifiable read-only)."));
-        checks.add(new CapabilityCheck(
-                "sale.order.action_unlock", Kind.METHOD, Severity.RECOMMENDED, Status.UNKNOWN,
+        // ── Methods the write path calls ──────────────────────────────────────────────────────────
+        // These were reported UNKNOWN on the assumption that method existence "is not verifiable
+        // read-only". That assumption is exactly what let two capabilities reach live use
+        // unresolvable — SET_FULL_QUANTITY (dropped in Odoo 19) and FORCE_AVAILABILITY (absent from
+        // every current version) — each dead-lettering a delivery the driver had already made.
+        // MethodResolver probes on an EMPTY recordset: the method iterates nothing, so the probe has
+        // no side effects even when the method is destructive. Methods are therefore verifiable, and
+        // a missing one now fails certification instead of surfacing months later in production.
+        checkMethod(checks, "DELIVERY_VALIDATE", Severity.REQUIRED,
+                "Validates the transfer; without it nothing can be delivered.");
+        checkMethod(checks, "RESERVE_STOCK", Severity.REQUIRED,
+                "Reserves stock before validation.");
+        checkMethod(checks, "CREATE_RETURN", Severity.REQUIRED,
+                "Reverse stock move for RMAs.");
+        checkMethod(checks, "CANCEL_DELIVERY", Severity.REQUIRED,
+                "Cancels the picking when an order is cancelled.");
+        checkMethod(checks, "BACKORDER_CONFIRM", Severity.REQUIRED,
+                "Confirms the backorder wizard after a partial delivery.");
+        // RECOMMENDED, not REQUIRED: the adapter has an equivalent path when these are absent, so a
+        // version lacking them is degraded, not unusable.
+        // Both were dropped by Odoo, not by this customer: 19 removed the set-quantities button, and
+        // force-availability has been gone since before the oldest version ASM supports. Flagging
+        // either as a gap sends an integrator hunting for a repair no Odoo of that version can offer.
+        checkMethod(checks, "SET_FULL_QUANTITY", Severity.RECOMMENDED,
+                "Full-delivery shortcut; falls back to marking the reserved lines picked.", 19, major);
+        checkMethod(checks, "FORCE_AVAILABILITY", Severity.RECOMMENDED,
+                "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).",
+                16, major);
+
+        // Probed like every other method rather than asserted from the version number. Reporting it
+        // as UNKNOWN listed a capability this instance does have among the ones it lacks, which reads
+        // as a defect in the integration rather than a gap in our own certification.
+        checkMethod(checks, "UNLOCK_SALE_ORDER", Severity.RECOMMENDED,
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
-                            : "No-op on Odoo ≤18 (orders are not auto-locked)."));
+                            : "No-op on Odoo ≤18 (orders are not auto-locked).");
+
+        // ── The delivery note now comes from Odoo, so its report must exist here ──────────────────
+        checkDeliverySlipReport(checks);
 
         ConformanceReport.Verdict verdict = ConformanceReport.deriveVerdict(checks);
         log.info("provider=odoo operation=conformanceProbe version={} verdict={} checks={}",
@@ -97,6 +126,102 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
     // ══════════════════════════════════════════════════════════════════════════════════════════════
 
     /** Verify a model exists (fields_get succeeds) — reported under the model name itself. */
+    /**
+     * Verify that at least one candidate method of a capability actually exists on this instance.
+     *
+     * <p>Probes on an empty recordset, so it is side-effect free regardless of what the method does.
+     * INCONCLUSIVE (transport failure) maps to UNKNOWN, which never fails the verdict — an unreachable
+     * instance is not evidence of a missing method.
+     */
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note) {
+        checkMethod(checks, capability, sev, note, 0, 0);
+    }
+
+    /**
+     * Same, for a method the vendor removed in a known release.
+     *
+     * <p>An absence the vendor chose is not a defect in the customer's instance. Reporting it as
+     * MISSING drags the whole verdict to DEGRADED, so a current, healthy Odoo 19 is presented as an
+     * installation with gaps — and the integrator goes looking for something to repair that no
+     * version of Odoo 19 will ever have. Below {@code absentFrom} the absence is still real news.
+     *
+     * @param absentFrom the first major version where the absence is expected, {@code 0} if never
+     * @param major      the version actually running
+     */
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note,
+                             int absentFrom, int major) {
+        List<String> candidates;
+        String model;
+        try {
+            candidates = registry.getCandidates(capability);
+            model = registry.getModel(capability);
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(capability, Kind.METHOD, sev, Status.UNKNOWN,
+                    "Not declared in the capability registry. " + note));
+            return;
+        }
+
+        boolean inconclusive = false;
+        for (String candidate : candidates) {
+            com.asm.erpadapter.adapter.odoo.MethodResolver.Probe p = methodResolver.probe(model, candidate);
+            if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.EXISTS) {
+                checks.add(new CapabilityCheck(model + "." + candidate, Kind.METHOD, sev, Status.OK, note));
+                return;
+            }
+            if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.INCONCLUSIVE) inconclusive = true;
+        }
+        String name = model + "." + String.join("|", candidates);
+        if (inconclusive) {
+            checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.UNKNOWN,
+                    "Could not be probed (transport failure). " + note));
+            return;
+        }
+        if (absentFrom > 0 && major >= absentFrom) {
+            checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.OK,
+                    "Absent from Odoo " + absentFrom + " onward — expected on this version, not a gap "
+                            + "in this instance; the adapter's fallback covers it. " + note));
+            return;
+        }
+        checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.MISSING,
+                "No candidate exists on this instance: " + candidates + ". " + note));
+    }
+
+    /**
+     * Verify the instance can produce a delivery-note PDF.
+     *
+     * <p>ASM stopped drawing its own bon de livraison and now serves Odoo's, so a tenant whose instance
+     * defines no {@code qweb-pdf} report for {@code stock.picking} has no delivery note at all. That must
+     * surface at certification, not the morning a driver is waiting at the depot for a document.
+     *
+     * <p>RECOMMENDED rather than REQUIRED: the sync itself works fine without it — only the printed
+     * document is lost — and a NO_GO would block deliveries over a paperwork gap.
+     */
+    @SuppressWarnings("unchecked")
+    private void checkDeliverySlipReport(List<CapabilityCheck> checks) {
+        String name = "ir.actions.report[stock.picking]";
+        String note = "Delivery note PDF is fetched from Odoo; without a qweb-pdf report on stock.picking "
+                + "no bon de livraison can be printed.";
+        try {
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("ir.actions.report", "search_count",
+                    List.of(List.of(
+                            List.of("model", "=", "stock.picking"),
+                            List.of("report_type", "=", "qweb-pdf")))));
+            if (resp == null || resp.containsKey("error")) {
+                checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
+                        "Could not be probed (transport or access failure). " + note));
+                return;
+            }
+            Integer count = com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.asInt(resp.get("result"));
+            boolean present = count != null && count > 0;
+            checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED,
+                    present ? Status.OK : Status.MISSING,
+                    present ? note : "No qweb-pdf report defined for stock.picking on this instance. " + note));
+        } catch (Exception e) {
+            checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
+                    "Probe failed: " + e.getMessage() + ". " + note));
+        }
+    }
+
     private void checkModel(List<CapabilityCheck> checks, String model, Severity sev, String note) {
         Map<String, Object> fields = fieldsGet(model);
         Status status = fields != null ? Status.OK : Status.MISSING;
@@ -134,12 +259,12 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
     /**
      * The done-quantity field on {@code stock.move.line} is the highest-value check: Odoo 17 renamed
      * {@code qty_done} → {@code quantity}. The adapter now resolves this field via the CapabilityMap
-     * ({@link OdooCapabilities#doneQtyField()}), so the probe verifies that the exact field the adapter
+     * ({@link CapabilityRegistry#getCandidates(String)}), so the probe verifies that the exact field the adapter
      * WILL write for this version is actually present — GO on both ≤16 and 17+, NO_GO only on a genuine
      * mismatch (the field the CapabilityMap picked is absent on the instance).
      */
     private void checkDoneQtyField(List<CapabilityCheck> checks, int major) {
-        String expected = caps.doneQtyField();
+        String expected = registry.getCandidates("DONE_QUANTITY").get(0);
         Map<String, Object> fields = fieldsGet("stock.move.line");
         boolean present = fields != null && fields.containsKey(expected);
         checks.add(new CapabilityCheck("stock.move.line." + expected, Kind.FIELD, Severity.REQUIRED,

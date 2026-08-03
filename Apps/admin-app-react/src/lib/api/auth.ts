@@ -35,7 +35,9 @@ export function getCurrentUser(): AdminUser | null {
   if (data) {
     try {
       return JSON.parse(data);
-    } catch (e) {}
+    } catch {
+      // A malformed cached payload is not worth failing over — treat it as absent.
+    }
   }
 
   // Try individual fields as fallback

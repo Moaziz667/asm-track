@@ -33,12 +33,14 @@ public class TenantIterator {
     public void forEachActive(Consumer<UUID> action) {
         for (UUID companyId : listProvisionedTenants()) {
             TenantContext.set(companyId);
+            org.slf4j.MDC.put("companyId", companyId.toString());
             try {
                 action.accept(companyId);
             } catch (Exception e) {
                 log.error("Scheduled job failed for company {}: {}", companyId, e.getMessage(), e);
             } finally {
                 TenantContext.clear();
+                org.slf4j.MDC.remove("companyId");
             }
         }
     }

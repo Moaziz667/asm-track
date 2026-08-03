@@ -32,7 +32,7 @@ const TONE_TEXT: Record<string, string> = {
   info:    'text-[var(--info)]',
 };
 
-function TrendPill({ trend, tone = 'default' }: { trend: KpiTrend; tone?: string }) {
+function TrendPill({ trend }: { trend: KpiTrend; tone?: string }) {
   const goodUp = (trend.goodWhen ?? 'up') === 'up';
   const isUp = trend.delta > 0;
   const isFlat = trend.delta === 0;

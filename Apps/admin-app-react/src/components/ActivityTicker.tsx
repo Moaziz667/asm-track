@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  IconCircleCheck, IconTruck, IconContainer,
+  IconCircleCheck, IconTruck, IconContainer, IconArrowsSplit2,
   IconAlertTriangle, IconLayoutGrid, IconChevronRight,
 } from '@tabler/icons-react';
 import { useRealtimeStatus } from '@/components/RealtimeProvider';
@@ -21,6 +21,8 @@ type TypeStyle = { Icon: typeof IconTruck; fg: string; bg: string };
 function typeStyle(n: Notification): TypeStyle {
   if (n.severity === 'critical') return { Icon: IconAlertTriangle, fg: 'var(--danger)', bg: 'var(--danger-bg)' };
   if (n.category === 'route') return { Icon: IconLayoutGrid, fg: '#7c6cf0', bg: 'rgba(124,108,240,0.12)' };
+  // A conflict is a divergence, not a shipment: give it a glyph that says two things disagree.
+  if (n.event === 'erp.conflict') return { Icon: IconArrowsSplit2, fg: 'var(--warning)', bg: 'var(--warning-bg)' };
   if (n.category === 'erp') return { Icon: IconContainer, fg: 'var(--brand)', bg: 'var(--brand-bg)' };
   return { Icon: IconTruck, fg: 'var(--success)', bg: 'var(--success-bg)' };
 }
@@ -42,7 +44,7 @@ export default function ActivityTicker() {
   const viewAllLabel = locale === 'ar' ? 'عرض الكل' : locale === 'en' ? 'View all' : 'Voir tout';
 
   return (
-    <div className="border border-[var(--border)] rounded-lg h-full overflow-hidden flex flex-col">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] h-full overflow-hidden flex flex-col">
       <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{titleLabel}</span>
         <span
@@ -62,43 +64,49 @@ export default function ActivityTicker() {
         ) : (
           <div className="flex flex-col">
             {entries.map((n, i) => {
-              const { Icon, fg } = typeStyle(n);
+              const { Icon, fg, bg } = typeStyle(n);
               const loc = getLocalizedNotif(n, locale);
-              const subtitle = [n.clientName, n.orderId || n.routeName].filter(Boolean).join(' · ');
+              const ref = n.orderId || n.routeName;
               const isLast = i === entries.length - 1;
               return (
                 <button
                   key={n.id}
                   type="button"
                   onClick={() => navigate(notifDestination(n))}
-                  className="group flex items-stretch gap-2.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-left"
+                  className="group flex items-stretch gap-3 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-left"
                 >
                   {/* Absolute clock time */}
-                  <span className="w-10 shrink-0 text-end text-2xs font-mono tabular-nums text-[var(--text-muted)] pt-3">
+                  <span className="w-10 shrink-0 text-end text-2xs font-mono tabular-nums text-[var(--text-muted)] pt-3.5">
                     {clock(n.timestamp, locale)}
                   </span>
 
-                  {/* Timeline rail: continuous line with a colored dot node.
-                      Top segment (h-4, hidden on first) + dot + flex-1 bottom segment
-                      (hidden on last) meet flush across rows → one unbroken vertical line. */}
-                  <div className="flex flex-col items-center shrink-0 w-2.5">
-                    <span className="w-px h-4 bg-[var(--border)]" style={{ visibility: i === 0 ? 'hidden' : 'visible' }} aria-hidden="true" />
-                    <span className="w-1.5 h-1.5 rounded-full z-10 shrink-0 border-2 border-white dark:border-[var(--surface)]" style={{ background: fg }} />
+                  {/* Timeline rail. The node used to be a 6px dot with a 2px ring — barely two
+                      pixels of actual colour — sitting next to a bare icon in the same colour:
+                      two marks encoding one fact, neither of them legible. The icon is now the
+                      node, on the tint typeStyle had been returning and nobody was using. */}
+                  <div className="flex flex-col items-center shrink-0 w-7">
+                    <span className="w-px h-3 bg-[var(--border)]" style={{ visibility: i === 0 ? 'hidden' : 'visible' }} aria-hidden="true" />
+                    <span
+                      className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 z-10 ring-2 ring-[var(--surface)]"
+                      style={{ background: bg }}
+                    >
+                      <Icon size={15} strokeWidth={1.8} style={{ color: fg }} />
+                    </span>
                     <span className="w-px flex-1 bg-[var(--border)]" style={{ visibility: isLast ? 'hidden' : 'visible' }} aria-hidden="true" />
                   </div>
 
-                  {/* Type icon — no background chip */}
-                  <span className="w-8 h-8 flex items-center justify-center shrink-0 mt-1">
-                    <Icon size={18} strokeWidth={1.5} style={{ color: fg }} />
-                  </span>
-
-                  {/* Title + subtitle */}
-                  <div className="flex flex-col min-w-0 flex-1 py-3 pe-1">
-                    <span className="text-xs font-medium text-[var(--text-primary)] leading-tight truncate">
+                  {/* Title, then who and which shipment. The reference is set in the mono face so a
+                      column of BL numbers scans vertically instead of blurring into the prose. */}
+                  <div className="flex flex-col min-w-0 flex-1 py-2.5 pe-1">
+                    <span className="text-xs font-medium text-[var(--text-primary)] leading-snug line-clamp-2">
                       {loc.title}
                     </span>
-                    <span className="text-2xs text-[var(--text-muted)] truncate mt-0.5">
-                      {subtitle || loc.message || '—'}
+                    <span className="text-2xs text-[var(--text-muted)] truncate mt-1 flex items-center gap-1.5">
+                      {n.clientName && <span className="truncate">{n.clientName}</span>}
+                      {ref && (
+                        <span className="font-mono text-[var(--text-soft)] shrink-0">{ref}</span>
+                      )}
+                      {!n.clientName && !ref && <span className="truncate">{loc.message || '—'}</span>}
                     </span>
                   </div>
                 </button>

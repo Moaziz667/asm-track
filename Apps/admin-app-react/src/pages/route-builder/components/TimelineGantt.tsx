@@ -4,12 +4,10 @@ import { useMemo } from 'react';
 import { IconCalendarStats } from '@tabler/icons-react';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 
 const HOUR_WIDTH = 64; // px per hour
 const LANE_HEIGHT = 36;
-const HEADER_HEIGHT = 28;
 const FALLBACK_START_HOUR = 6;
 const FALLBACK_END_HOUR = 20;
 
@@ -28,7 +26,6 @@ const minutesToLabel = (mins: number) => {
 
 export function TimelineGantt() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     routes,

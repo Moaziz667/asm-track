@@ -1,7 +1,9 @@
 package com.asm.erpadapter.controller;
 
+import com.asm.erpadapter.conformance.ConformanceCache;
 import com.asm.erpadapter.conformance.ConformanceReport;
 import com.asm.erpadapter.routing.ErpProviderRouter;
+import com.asm.erpadapter.security.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -10,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /**
  * Certifies the current tenant's live ERP instance against the exact contract the ASM adapter needs —
@@ -29,19 +34,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class ErpConformanceController {
 
     private final ErpProviderRouter router;
+    private final ConformanceCache cache;
 
     @GetMapping
     @Operation(summary = "Certify the tenant's ERP instance (drytest)",
             description = "Runs the read-only conformance probe against the current tenant's configured ERP "
                     + "and returns a GO/DEGRADED/NO_GO report with per-capability results and the detected "
-                    + "version. 204 when the tenant has no ERP configured.")
+                    + "version. Served from a short-lived per-tenant cache unless forceRefresh is set. "
+                    + "204 when the tenant has no ERP configured.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Conformance report"),
             @ApiResponse(responseCode = "204", description = "No ERP configured for this tenant")
     })
-    public ResponseEntity<ConformanceReport> certify() {
+    public ResponseEntity<ConformanceReport> certify(
+            @RequestParam(defaultValue = "false") boolean forceRefresh) {
+        UUID tenantId = TenantContext.get();
         return router.getProbe()
-                .map(probe -> ResponseEntity.ok(probe.probe()))
+                .map(probe -> ResponseEntity.ok(cache.get(tenantId, forceRefresh, probe::probe)))
                 .orElseGet(() -> ResponseEntity.<ConformanceReport>noContent().build());
     }
 }

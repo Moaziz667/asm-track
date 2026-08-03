@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconPlus,
@@ -141,7 +140,6 @@ function RouteCard({
 
 export function RouteSidebar() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const rb = useRouteBuilderContext();
   const {
     routes,

@@ -2,7 +2,9 @@ import { DeliveryItem } from "./index";
 
 export type ErpPendingOrderSummaryDTO = {
   erpOrderId: string
-  externalRef?: string
+  customerRef?: string
+  /** NORMAL | HIGH — flagged in the list so an urgent order is visible before import. */
+  priority?: string
   customerName: string
   customerPhone?: string
   deliveryAddress?: string

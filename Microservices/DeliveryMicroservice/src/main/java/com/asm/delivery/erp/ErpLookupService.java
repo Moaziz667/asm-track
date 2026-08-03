@@ -61,6 +61,23 @@ public class ErpLookupService {
         return companyId != null ? companyId.toString() : "global";
     }
 
+    /**
+     * Drop this tenant's cached lookups.
+     *
+     * <p>These caches answer "what does the ERP hold", but a business-field mapping changes what that
+     * answer <em>means</em> — which ERP field each value is read from. Without eviction an integrator
+     * changes a mapping, sees the list unchanged for five minutes, and reasonably concludes the
+     * feature is broken. Only this tenant's entries go, so one company's configuration change cannot
+     * flush another's cache.
+     */
+    public void evictTenantCaches() {
+        String prefix = cacheScope() + "-";
+        clientCache.keySet().removeIf(k -> k.startsWith(prefix));
+        productCache.keySet().removeIf(k -> k.startsWith(prefix));
+        pendingOrderCache.keySet().removeIf(k -> k.startsWith(prefix));
+        log.info("ERP lookup caches evicted for tenant scope {}", cacheScope());
+    }
+
     /** A delivery attempt is finished (no longer blocking a reliquat) in these states. */
     private static final List<DeliveryStatus> TERMINAL_DELIVERY_STATUSES = List.of(
             DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
@@ -110,6 +127,11 @@ public class ErpLookupService {
                             ? importedBls.contains(dto.getBlNumber())
                             : activeSaleRefs.contains(dto.getErpOrderId());
                     dto.setAlreadyImported(imported);
+                    // The adapter reports what the ERP says — "URGENT", "normale", whatever the
+                    // customer writes. ASM's own vocabulary starts here, so the screen compares
+                    // against the same two values it will see after the import rather than against
+                    // one customer's wording.
+                    dto.setPriority(OrderPriority.of(dto.getPriority()).name());
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -179,6 +201,8 @@ public class ErpLookupService {
         // is passed separately as pickingRef to the adapter.
         String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : null;
 
+        boolean collectOnDelivery = resolveCodRequired(preview, blNumber);
+
         Order order = Order.builder()
                 .source(OrderSource.fromProvider(preview.getSource()))   // ERPNEXT / ODOO — the adapter tags it
                 .clientId(null)
@@ -192,9 +216,14 @@ public class ErpLookupService {
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
+                .codRequired(collectOnDelivery)
+                .codAmount(collectOnDelivery ? preview.getCodAmount() : null)
                 .scheduledAt(preview.getScheduledAt())
-                .priority(OrderPriority.NORMAL)
+                .priority(OrderPriority.of(preview.getPriority()))
+                .customerRef(preview.getCustomerRef())
                 .items(new ArrayList<>())
+                // ERP values the integrator mapped that ASM has no field for; kept as-is for display.
+                .customFields(preview.getCustomFields())
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
@@ -313,6 +342,40 @@ public class ErpLookupService {
                 || s == DeliveryStatus.FAILED || s == DeliveryStatus.CANCELLED;
     }
 
+    /** The only currency a driver can be asked to collect. */
+    private static final String COLLECTABLE_CURRENCY = "TND";
+
+    /**
+     * Decide whether this import carries a cash-collection instruction.
+     *
+     * <p>Refuses the instruction — while still importing the delivery — when the ERP names a currency
+     * the driver cannot physically collect. This is not hypothetical: the platform already imports
+     * orders reading {@code 6000.000 USD}, because the amount and currency are copied from the ERP
+     * with no check. On a printed document that is untidy; on a sum a driver must count into his hand
+     * and hand over at the depot, it is an unrecoverable cash discrepancy.
+     *
+     * <p>Failing closed (deliver, collect nothing) is the safe half of an asymmetric choice: an
+     * uncollected payment is an invoice to chase, whereas a wrongly collected one is money in the
+     * wrong hands and an argument with the customer.
+     */
+    static boolean resolveCodRequired(ErpPendingOrderPreviewDTO preview, String blNumber) {
+        if (!Boolean.TRUE.equals(preview.getCodRequired())) return false;
+
+        String currency = StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : COLLECTABLE_CURRENCY;
+        if (!COLLECTABLE_CURRENCY.equalsIgnoreCase(currency)) {
+            log.warn("Import bl={} : ERP asks to collect {} — only {} can be collected on delivery. "
+                            + "Importing without a collection instruction.",
+                    blNumber, currency, COLLECTABLE_CURRENCY);
+            return false;
+        }
+        if (preview.getCodAmount() == null || preview.getCodAmount().signum() <= 0) {
+            log.warn("Import bl={} : ERP asks to collect but sent no positive amount — "
+                    + "importing without a collection instruction.", blNumber);
+            return false;
+        }
+        return true;
+    }
+
     private static OrderResponse toOrderResponse(Order order, Delivery delivery) {
         return OrderResponse.builder()
                 .id(order.getId())
@@ -330,6 +393,8 @@ public class ErpLookupService {
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
+                .customerRef(order.getCustomerRef())
+                .customFields(order.getCustomFields())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())
                 .status(order.getStatus().name())

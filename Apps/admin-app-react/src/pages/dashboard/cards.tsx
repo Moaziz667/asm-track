@@ -1,7 +1,6 @@
 import React from 'react';
 import {
-  IconPackage, IconUser, IconRoute, IconMapPin, IconCalendar, IconClock,
-} from '@tabler/icons-react';
+  IconPackage, IconUser, IconRoute, IconMapPin, IconCalendar } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { getDayBucket } from '@/lib/sla';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -41,7 +40,7 @@ function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; mu
   );
 }
 
-function ScheduledLine({ scheduledAt, status, t }: { scheduledAt?: string; status: DeliveryStatus; t: TranslationSchema }) {
+function ScheduledLine({ scheduledAt, status, t: _t }: { scheduledAt?: string; status: DeliveryStatus; t: TranslationSchema }) {
   if (!scheduledAt) return null;
   const bucket = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)
     ? getDayBucket(scheduledAt)
@@ -66,7 +65,7 @@ function ScheduledLine({ scheduledAt, status, t }: { scheduledAt?: string; statu
 export function DeliveryCard({ d, status }: { d: CardItem; status: DeliveryStatus }) {
   const t = useT();
   const handleClick = () => {
-    let url = '';
+    let url: string;
     if (status === 'UNSCHEDULED') url = '/route-builder';
     else if (status === 'DELIVERED' || status === 'PARTIALLY_DELIVERED') url = `/deliveries/${d.deliveryId}`;
     else if (d.routeId) url = `/routes/${d.routeId}`;

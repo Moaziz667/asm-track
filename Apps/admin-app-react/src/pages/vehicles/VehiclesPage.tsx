@@ -4,17 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { applyFieldError } from '@/lib/utils/form-errors';
-import {
-  IconRefresh, IconPlus, IconSearch,
-  IconTruck, IconCar, IconUserCheck,
+import { IconPlus,
+  IconTruck,
   IconWeight, IconCalendar, IconPencil, IconTrash,
-  IconGauge, IconX,
   IconPoint, IconPackage
 } from '@tabler/icons-react';
-import type { Driver } from '@/types';
+import type {} from '@/types';
 import { usePermissions } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,7 +22,6 @@ import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -45,13 +41,6 @@ import { TablePagination } from '@/components/data-display/TablePagination';
 
 type VehicleType = 'TRUCK' | 'VAN' | 'CAR' | 'MOTO';
 
-const VEHICLE_COLUMNS_BASE: ColumnDef[] = [
-  { id: 'vehicle',  label: '', pinned: true },
-  { id: 'plate',    label: '', pinned: true },
-  { id: 'payload',  label: '' },
-  { id: 'driver',   label: '' },
-  { id: 'status',   label: '' },
-];
 
 const VEHICLE_TYPES: VehicleType[] = ['TRUCK', 'VAN', 'CAR', 'MOTO'];
 
@@ -71,202 +60,9 @@ function Spinner({ size = 24, className }: { size?: number; className?: string }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
-function ProgressBar({ value, color = 'var(--brand)' }: { value: number; color?: string }) {
-  return (
-    <div className="h-[2px] rounded-full bg-[var(--border)]">
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${Math.min(Math.max(value, 0), 100)}%`, background: color }}
-      />
-    </div>
-  );
-}
 
 // ─── Vehicle Card ─────────────────────────────────────────────────────────────
 
-function VehicleTechnicalCard({
-  vehicle,
-  driverName,
-  onEdit,
-  onDelete,
-  onReactivate,
-  readOnly,
-  canEdit,
-}: {
-  vehicle: VehicleItem;
-  driverName?: string;
-  onEdit: (v: VehicleItem) => void;
-  onDelete: (v: VehicleItem) => void;
-  onReactivate: (v: VehicleItem) => void;
-  readOnly: boolean;
-  canEdit: boolean;
-}) {
-  const t = useT();
-  const typeLabel: Record<VehicleType, string> = {
-    TRUCK: t.vehiclesPage.vehicleTypeHeavy,
-    VAN:   t.vehiclesPage.vehicleTypeVan,
-    CAR:   t.vehiclesPage.vehicleTypeCar,
-    MOTO:  t.vehiclesPage.vehicleTypeMoto,
-  };
-  const isRetired = !vehicle.active;
-  const isBusy = vehicle.assigned ?? Boolean(vehicle.driverId);
-  const statusColor = isRetired ? '#A52B24' : (isBusy ? '#4C56B8' : '#2D8A5E');
-  const statusLabel = isRetired ? t.vehiclesPage.statusRetired : (isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable);
-
-  return (
-    <Card className={cn(
-      "group relative overflow-hidden flex flex-col transition-all hover:shadow-md border-border bg-card p-0 gap-0 rounded-lg",
-      isRetired && "opacity-60"
-    )}>
-      {/* Status ribbon */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] z-10" style={{ background: statusColor }} />
-
-      {/* Visual header */}
-      <div className="h-[130px] relative w-full border-b border-border bg-muted/30 shrink-0">
-        {vehicle.imageUrl ? (
-          <img
-            src={vehicle.imageUrl}
-            alt={vehicle.make}
-            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <IconTruck size={48} className="text-muted-foreground/30" />
-          </div>
-        )}
-
-        {/* Type badge */}
-        <div className="absolute top-3 left-6">
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-md border bg-background text-foreground shadow-sm">
-            {typeLabel[vehicle.type]}
-          </span>
-        </div>
-
-        {/* Retired badge */}
-        {isRetired && (
-          <div className="absolute top-3 right-3">
-            <span className="text-2xs font-bold px-2 py-1 rounded-md bg-red-500/10 text-red-600 border border-red-500/20">
-              {t.vehiclesPage.statusRetired}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <CardContent className="flex flex-col gap-4 p-4 flex-1">
-        <div className="flex flex-col gap-0.5">
-          <div className="flex justify-between items-start gap-2">
-            <h3 className="text-sm font-semibold tracking-tight truncate max-w-[70%]">
-              {vehicle.make}{' '}
-              <span className="font-medium text-muted-foreground">
-                {vehicle.model}
-              </span>
-            </h3>
-            <StatusBadge
-              status={isRetired ? 'RETIRED' : isBusy ? 'ENGAGED' : 'AVAILABLE'}
-              label={statusLabel}
-              size="sm"
-            />
-          </div>
-          <p className="text-xs font-semibold font-mono tracking-tight text-primary">
-            {vehicle.plate}
-          </p>
-        </div>
-
-        <div className="h-px bg-border" />
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconWeight size={14} className="text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">
-                {t.vehiclesPage.capacityLabel}
-              </span>
-            </div>
-            <p className="text-xs font-bold font-mono">
-              {vehicle.payloadKg?.toLocaleString() || '—'} KG
-            </p>
-            <div className="mt-1.5">
-              <ProgressBar
-                value={vehicle.payloadKg ? Math.min((vehicle.payloadKg / 5000) * 100, 100) : 0}
-                color="hsl(var(--muted-foreground))"
-              />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <IconGauge size={14} className="text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">
-                {t.vehiclesPage.volumeLabel}
-              </span>
-            </div>
-            <p className="text-xs font-bold font-mono">
-              {vehicle.volumeM3?.toFixed(1) || '—'} M³
-            </p>
-            <div className="mt-1.5">
-              <ProgressBar
-                value={vehicle.volumeM3 ? Math.min((vehicle.volumeM3 / 25) * 100, 100) : 0}
-                color="hsl(var(--primary))"
-              />
-            </div>
-          </div>
-        </div>
-      </CardContent>
-
-      <CardFooter className="bg-muted/30 border-t p-3 px-4 flex justify-between items-center mt-auto rounded-b-xl pb-3">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-0.5">
-            {t.vehiclesPage.assignedDriver}
-          </p>
-          <p className="text-xs font-semibold">
-            {driverName || t.vehiclesPage.unassigned}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {!readOnly && canEdit && (
-            <div className="flex gap-1 mr-1">
-              {isRetired ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-3 text-2xs font-bold text-emerald-600 hover:bg-emerald-500/10"
-                  onClick={() => onReactivate(vehicle)}
-                >
-                  <IconRefresh size={14} className="mr-1" />
-                  {t.vehiclesPage.reactivateButton}
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8"
-                    onClick={() => onEdit(vehicle)}
-                  >
-                    <IconPencil size={15} className="text-muted-foreground" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-                    onClick={() => onDelete(vehicle)}
-                  >
-                    <IconTrash size={15} />
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-          <div className="w-8 h-8 flex items-center justify-center rounded-md bg-background border shadow-sm">
-            <IconCar size={16} className="text-primary" />
-          </div>
-        </div>
-      </CardFooter>
-    </Card>
-  );
-}
 
 // ─── Main Content ─────────────────────────────────────────────────────────────
 
@@ -286,7 +82,6 @@ function VehiclesPageContent() {
     CAR:   t.vehiclesPage.vehicleTypeCar,
     MOTO:  t.vehiclesPage.vehicleTypeMoto,
   };
-  const locale = useLocaleStore(state => state.locale);
   // Managing vehicles (create/edit/status/assign/delete) needs perm:driver:manage — same as the backend.
   // Viewers see the fleet read-only; no action buttons that would just 403.
   const { has } = usePermissions();
@@ -445,7 +240,7 @@ function VehiclesPageContent() {
       await deleteVehicleMutation.mutateAsync(pendingDelete.id);
       setConfirmOpen(false);
       setPendingDelete(null);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };
@@ -453,7 +248,7 @@ function VehiclesPageContent() {
   const reactivateVehicle = async (v: VehicleItem) => {
     try {
       await reactivateVehicleMutation.mutateAsync(v.id);
-    } catch (err) {
+    } catch {
       // Errors are handled by query mutation callbacks
     }
   };
@@ -473,7 +268,6 @@ function VehiclesPageContent() {
     }
   };
 
-  const fleetOccupancy = stats.total > 0 ? (stats.busy / stats.total) * 100 : 0;
 
   const { density, setDensity } = useDensity('vehicles', 'comfortable');
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('vehicles', VEHICLE_COLUMNS);
@@ -600,7 +394,6 @@ function VehiclesPageContent() {
                   {pageRows.map((v) => {
                     const isBusy = v.assigned ?? Boolean(v.driverId);
                     const isRetired = !v.active;
-                    const statusColor = isRetired ? '#A52B24' : isBusy ? '#4C56B8' : '#2D8A5E';
                     const statusLabel = isRetired ? t.vehiclesPage.statusRetired : isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable;
                     const driverName = drivers.find(d => d.id === v.driverId)?.name;
                     const vTypeLabel: Record<string, string> = {

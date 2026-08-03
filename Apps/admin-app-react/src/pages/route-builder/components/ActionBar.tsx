@@ -3,13 +3,11 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { IconRefresh, IconSettings, IconBolt, IconCheck } from '@tabler/icons-react';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRouteBuilderContext } from '../hooks/useRouteBuilder';
 
 export function ActionBar() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     selectedRouteId,

@@ -11,7 +11,7 @@ import com.asm.delivery.dto.response.MessageResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.BonLivraisonPdfService;
+import com.asm.delivery.erp.ErpInvoiceService;
 import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.DriverDeliveryService;
 import org.springframework.http.HttpHeaders;
@@ -37,15 +37,9 @@ import java.util.UUID;
 public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
-    private final BonLivraisonPdfService bonLivraisonPdfService;
+    private final ErpInvoiceService erpInvoiceService;
+    private final com.asm.delivery.service.CashRemittanceService cashRemittanceService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
-
-    @GetMapping("/available")
-    @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
-    public ResponseEntity<List<DriverDeliveryResponse>> getAvailable(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.getAvailable(UUID.fromString(principal.getUserId())));
-    }
 
     @GetMapping("/active")
     @Operation(summary = "Get the driver's currently active delivery")
@@ -191,10 +185,42 @@ public class DriverDeliveryController {
                 req.getToken(), req.getLat(), req.getLng(), req.getNotes(), principal));
     }
 
+    @GetMapping("/cash/outstanding")
+    @Operation(summary = "How much cash the driver is currently holding",
+            description = "Everything he collected and has not handed over yet.")
+    public ResponseEntity<java.util.Map<String, Object>> cashOutstanding(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID driverId = UUID.fromString(principal.getUserId());
+        return ResponseEntity.ok(java.util.Map.of(
+                "amount", cashRemittanceService.outstandingForDriver(driverId),
+                "currency", "TND"));
+    }
+
+    @PostMapping("/cash/declare")
+    @Operation(summary = "Declare the cash being handed over at the depot",
+            description = "Attaches every collection the driver still holds to one handover and records "
+                    + "what he says he is giving. Somebody else counts it — this call cannot close it.")
+    public ResponseEntity<com.asm.delivery.entity.CashRemittance> declareCash(
+            @RequestBody DeclareCashRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID driverId = UUID.fromString(principal.getUserId());
+        return ResponseEntity.ok(cashRemittanceService.declare(
+                driverId, principal.getDisplayName(), req.getDeclaredTotal(), principal));
+    }
+
+    /** What the driver says he has in hand at the depot. */
+    @lombok.Data
+    public static class DeclareCashRequest {
+        private java.math.BigDecimal declaredTotal;
+    }
+
     @GetMapping("/{id}/bon-livraison")
-    @Operation(summary = "Download bon de livraison PDF for a delivery")
+    @Operation(summary = "Download the delivery note PDF for a delivery",
+            description = "Served from the ERP's own report (Odoo delivery slip / ERPNext Delivery Note). "
+                    + "400 when the delivery carries no ERP picking reference or the ERP copy is unreachable — "
+                    + "there is no locally drawn substitute, by design.")
     public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
-        byte[] pdf = bonLivraisonPdfService.generate(id);
+        byte[] pdf = erpInvoiceService.getDeliveryNotePdf(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { cn, formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { RmaDetailDrawer } from '@/components/returns/RmaDetailDrawer';
+import { TablePagination } from '@/components/data-display/TablePagination';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import {
   IconRotateClockwise, IconPackageExport,
@@ -61,16 +61,55 @@ export const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> 
 
 const FILTERS: (RmaStatus | 'ALL')[] = ['ALL', 'REQUESTED', 'APPROVED', 'RECEIVED', 'RESTOCKED', 'REJECTED'];
 
-const PAGE_SIZE = 25;
-
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
   const t = useT();
   const isMobile = useIsMobile();
   const statusLabel = (s: RmaStatus) => (t.statusLabels as Record<string, string>)[s] ?? s;
 
+  /**
+   * What the button does, not the state it leads to.
+   *
+   * The row actions were labelled "Approved / Rejected / Cancelled" — the names of statuses,
+   * in the past tense, on controls that had not been pressed yet. Read literally they claimed
+   * the return was already approved. Button labels take the imperative: the verb tells the
+   * operator what will happen when they press it, and the badge in the Status column is where
+   * a past-tense state belongs.
+   */
+  /**
+   * Wording for the confirmation dialog.
+   *
+   * Both its title and its confirm button used the status name, so cancelling a return opened a
+   * dialog titled "Annulé" whose confirm button read "Annulé" — a past participle on a thing
+   * that had not happened — directly beside a dismiss button reading "Annuler". One letter
+   * between "go back" and "destroy this", on the most consequential dialog in the flow.
+   *
+   * The title states the act, the confirm button names what it confirms, and neither can be
+   * mistaken for the dismiss beside it.
+   */
+  const confirmCopy = (target: RmaStatus): { title: string; confirm: string } => {
+    const c = t.returnsPage;
+    switch (target) {
+      case 'CANCELLED': return { title: c.confirmTitleCancel, confirm: c.confirmActionCancel };
+      case 'REJECTED':  return { title: c.confirmTitleReject, confirm: c.confirmActionReject };
+      case 'RECEIVED':  return { title: c.confirmTitleReceive, confirm: c.confirmActionReceive };
+      default:          return { title: actionLabel(target), confirm: actionLabel(target) };
+    }
+  };
+
+  const actionLabel = (target: RmaStatus): string => {
+    const c = t.returnsPage;
+    switch (target) {
+      case 'APPROVED':  return c.actionApprove;
+      case 'REJECTED':  return c.actionReject;
+      case 'CANCELLED': return c.actionCancel;
+      case 'RECEIVED':  return c.actionReceive;
+      case 'RESTOCKED': return c.actionRestock;
+      default:          return statusLabel(target);
+    }
+  };
+
   const [rmas, setRmas] = useState<Rma[]>([]);
-  const [kpi, setKpi] = useState<{ total: number; open: number; restocked: number; totalValue?: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<RmaStatus | 'ALL'>('ALL');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -79,6 +118,7 @@ export default function ReturnsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   // Reason modal for reject/cancel transitions (replaces window.prompt).
@@ -90,27 +130,25 @@ export default function ReturnsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page, size: PAGE_SIZE };
+      const params: Record<string, string | number> = { page, size: pageSize };
       if (filter !== 'ALL') params.status = filter;
       if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
-      const [listRes, kpiRes] = await Promise.all([
-        api.get('/admin/returns', { params }),
-        api.get('/admin/returns/kpi').catch(() => ({ data: null })),
-      ]);
+      // The KPI call went with the summary strip it fed: one fewer request per load, per filter
+      // change and per page turn, for numbers nobody was acting on.
+      const listRes = await api.get('/admin/returns', { params });
       // Endpoint is paginated → response is a Spring Page { content, totalPages, totalElements }.
       const data = listRes.data ?? {};
       setRmas(Array.isArray(data.content) ? data.content : (Array.isArray(data) ? data : []));
       setTotalPages(Math.max(1, Number(data.totalPages ?? 1)));
       setTotalElements(Number(data.totalElements ?? (Array.isArray(data.content) ? data.content.length : 0)));
-      if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked, totalValue: Number(kpiRes.data.totalValue) || 0 });
     } catch {
       showErrorToast(null, t.returnsPage?.loadError ?? 'Échec du chargement des retours');
     } finally {
       setLoading(false);
     }
-  }, [filter, debouncedQuery, dateFrom, dateTo, page, t]);
+  }, [filter, debouncedQuery, dateFrom, dateTo, page, pageSize, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
@@ -264,20 +302,6 @@ export default function ReturnsPage() {
               {totalElements} {t.returnsPage?.countSuffix ?? 'retour(s)'}
             </span>
           </div>
-          <div className="flex items-center gap-5 text-xs font-[500]">
-            <span className="text-[var(--text-muted)]">{t.returnsPage?.kpiTotal ?? 'Total'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.total ?? 0}</b></span>
-            <span className="text-[var(--text-muted)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--warning)' }} />
-              {t.returnsPage?.kpiOpen ?? 'En cours'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.open ?? 0}</b>
-            </span>
-            <span className="text-[var(--text-muted)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--success)' }} />
-              {t.returnsPage?.kpiRestocked ?? 'Restockés'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.restocked ?? 0}</b>
-            </span>
-            <span className="text-[var(--text-muted)]">
-              {t.returnsPage?.kpiValue ?? 'Valeur'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{formatMoney(kpi?.totalValue ?? 0)}</b>
-            </span>
-          </div>
         </div>
 
         {/* Mobile: tap-to-open cards (the drawer holds all transitions). Desktop: table. */}
@@ -418,20 +442,24 @@ export default function ReturnsPage() {
                         {NEXT[r.status].length === 0 ? (
                           <span className="text-xs text-[var(--text-soft)]">—</span>
                         ) : (
-                          NEXT[r.status].map((target) => {
+                          NEXT[r.status].map((target, i) => {
                             const Icon = TRANSITION_ICON[target] ?? IconArrowRight;
                             const tk = STATUS_TOKENS[target];
+                            // One move advances the return, the others end it. Three outlines in
+                            // three colours made them look like equals; filling the first says
+                            // which one the row is waiting for.
+                            const forward = i === 0;
                             return (
                               <Button
                                 key={target}
-                                variant="outline"
+                                variant={forward ? 'default' : 'outline'}
                                 size="sm"
                                 disabled={busyId === r.id}
                                 onClick={() => transition(r, target)}
                                 className="h-7 gap-1 px-2 text-xs font-semibold"
-                                style={{ color: tk.text }}
+                                style={forward ? undefined : { color: tk.text }}
                               >
-                                <Icon size={12} /> {statusLabel(target)}
+                                <Icon size={12} /> {actionLabel(target)}
                               </Button>
                             );
                           })
@@ -448,28 +476,30 @@ export default function ReturnsPage() {
         </div>
         )}
 
-        {/* Pagination footer — server-side paged (mirrors the Deliveries pager). */}
-        {(totalPages > 1 || page > 0) && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
-            <span className="text-xs text-[var(--text-muted)]">
-              {(t.deliveriesPage?.pageLabel ?? 'Page')} {page + 1} / {totalPages}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="h-7 px-3 text-xs font-[700]">
-                {t.deliveriesPage?.prevButton ?? 'Précédent'}
-              </Button>
-              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-7 px-3 text-xs font-[700]">
-                {t.deliveriesPage?.nextButton ?? 'Suivant'}
-              </Button>
-            </div>
-          </div>
-        )}
+        {/*
+          Server-side pager, shared primitive.
+
+          What stood here was a bespoke prev/next pair behind `totalPages > 1 || page > 0`, so on a
+          tenant with fewer than 26 returns the page had no visible pager and no way to say how many
+          rows it was showing — the list looked complete whether or not it was. The shared component
+          renders whenever a size selector is offered, which also gives the operator numbered pages,
+          the total, and control over the page size, exactly as on Drivers and Failure reasons.
+        */}
+        <TablePagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          size={pageSize}
+          onPageChange={setPage}
+          onSizeChange={(s) => { setPageSize(s); setPage(0); }}
+          labels={{ results: t.returnsPage?.countSuffix ?? 'retour(s)' }}
+        />
       </div>
 
       {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
       <ConfirmModal
         open={reasonModal !== null}
-        title={reasonModal ? `${statusLabel(reasonModal.target)} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
+        title={reasonModal ? `${confirmCopy(reasonModal.target).title} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
         description={t.returnsPage?.reasonRequiredDesc ?? 'A reason is required for this action.'}
         variant="danger"
         reasonLabel={t.returnsPage?.reasonLabel ?? 'Reason'}
@@ -477,7 +507,7 @@ export default function ReturnsPage() {
         reason={reasonText}
         onReasonChange={setReasonText}
         reasonRequired
-        confirmLabel={reasonModal ? statusLabel(reasonModal.target) : ''}
+        confirmLabel={reasonModal ? confirmCopy(reasonModal.target).confirm : ''}
         cancelLabel={t.actions?.cancel ?? 'Cancel'}
         loading={busyId === reasonModal?.rma.id}
         onConfirm={() => void confirmReason()}
@@ -490,6 +520,7 @@ export default function ReturnsPage() {
         open={selected !== null}
         onClose={() => setSelected(null)}
         statusLabel={statusLabel}
+        actionLabel={actionLabel}
         busyId={busyId}
         onTransition={transition}
         onResync={(r) => void resync(r)}

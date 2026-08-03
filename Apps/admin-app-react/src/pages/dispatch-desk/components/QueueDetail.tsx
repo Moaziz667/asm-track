@@ -25,6 +25,7 @@ import {
 import { rowId, isPinned } from '../utils';
 import type { OpsException } from '../types';
 import { cn, formatMoney } from '@/lib/utils';
+import { formatAddress } from '@/lib/utils/address';
 
 const driverStatusTone = (status?: string) => {
   if (status === 'ONLINE') return 'text-[var(--success)]';
@@ -188,7 +189,7 @@ export function QueueDetail() {
                 {(d.dropoffAddress || d.dropoffCity || d.zoneName) ? (
                   <div className="flex items-start gap-1.5 text-[var(--text-secondary)]">
                     <IconMapPin size={13} stroke={2.5} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
-                    <span className="text-sm leading-snug">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+                    <span className="text-sm leading-snug" title={d.dropoffAddress ?? undefined}>{formatAddress(d.dropoffAddress) || d.dropoffCity || d.zoneName}</span>
                   </div>
                 ) : (
                   <span className="text-sm font-medium text-[var(--text-muted)]">—</span>

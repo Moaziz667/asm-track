@@ -8,10 +8,9 @@ import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
 
 import {
-  IconSettings, IconMap2, IconLayoutSidebar,
+  IconSettings, IconMap2,
   IconCalendarEvent, IconChevronRight, IconSun, IconMoon,
-  IconChevronDown, IconUserCircle, IconLogout,
-} from '@tabler/icons-react';
+  IconChevronDown, IconUserCircle, IconLogout } from '@tabler/icons-react';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
@@ -202,7 +201,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const { data: user } = useCurrentUser();
   const [isClient, setIsClient] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const { locale: activeLocale, setLocale } = useLocaleStore();
+  const { locale: activeLocale } = useLocaleStore();
 
   const { mapMode, setMapMode } = useGlobalMapStore();
   const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');

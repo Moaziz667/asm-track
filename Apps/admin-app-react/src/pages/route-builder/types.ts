@@ -1,4 +1,4 @@
-import type { Driver } from '@/types';
+import type {} from '@/types';
 
 export type RouteStopType = 'PICKUP' | 'DELIVERY';
 

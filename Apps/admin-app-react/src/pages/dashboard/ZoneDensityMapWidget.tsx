@@ -59,7 +59,7 @@ function centroid(pts: [number, number][]): [number, number] {
   return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
 }
 
-export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
+export default function ZoneDensityMapWidget({ heatmap }: Props) {
   const t = useT();
   const { data: zones = [] } = useZones();
   const isDark = useIsDark();
@@ -144,7 +144,6 @@ export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
     });
   }, [points, bounds, maxOrders]);
 
-  const textColor = isDark ? '#E9EBED' : '#0F141A';
   const mutedColor = isDark ? '#8D99A8' : '#5F6B7A';
 
   function zoneFill(color: string, count: number): string {
@@ -166,7 +165,7 @@ export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
   }
 
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full relative">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden flex flex-col h-full relative">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <IconMapPinFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">

@@ -27,7 +27,7 @@ export default function ZoneDemandCards({ range, from, to }: Props) {
   const { zones, isLoading } = useZoneComparison(range, from, to);
 
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden flex flex-col h-full">
       <div className="px-5 py-3 flex items-center justify-between gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">
           {t.dashboardPage.zoneOverviewTitle || t.performancePage.densityByZone || 'Vue par zone'}

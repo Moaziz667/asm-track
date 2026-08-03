@@ -2,7 +2,6 @@
 
 import { ReactNode } from 'react';
 import { IconTruck } from '@tabler/icons-react';
-import { Progress } from '@/components/ui/progress';
 import { cn, formatMinutes } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import styles from '@/pages/route-details/route-details.module.scss';
@@ -86,9 +85,7 @@ export function RouteStats({
   progressPercent,
   driverId,
   driverName,
-  driverStatus,
   driverStatusColor,
-  driverPhone,
   cumulativeDelayMinutes,
   routeStartDelayMinutes,
   onTimeCompletionRate,

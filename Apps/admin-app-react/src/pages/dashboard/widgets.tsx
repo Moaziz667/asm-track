@@ -2,10 +2,10 @@ import { useMemo } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import {
-  IconChartAreaFilled, IconTruckFilled, IconAlertTriangleFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
-  IconChevronRight, IconLayoutKanban, IconCircleCheckFilled, IconArrowBackUp, IconInbox,
-} from '@tabler/icons-react';
+import { IconTruckFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
+  IconChevronRight, IconLayoutKanban,
+  IconMapPinOff, IconUserQuestion, IconClockExclamation, IconCalendarClock,
+  IconInbox, IconPackageImport, IconArrowBackUp, IconCoin } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
@@ -33,10 +33,6 @@ const TONE_C: Record<string, string> = {
   info: 'var(--info)', brand: 'var(--brand)', default: 'var(--text-muted)',
 };
 
-const TONE_LABEL: Record<string, string> = {
-  success: 'Nominal', warning: 'Attention', danger: 'Critique',
-  info: 'Info', brand: 'Opérationnel', default: '—',
-};
 
 function Spark({ data, color, area }: { data: number[]; color: string; area?: boolean }) {
   if (!data || data.length < 2) return null;
@@ -89,7 +85,7 @@ function KpiTile({ label, value, sub, tone = 'default', delta, deltaCaption, del
   return (
     <div
       className={cn(
-        'relative border border-[var(--border)] rounded-lg @container h-full flex flex-col justify-between gap-2 px-3.5 py-2.5 shadow-[var(--shadow-card)] overflow-hidden',
+        'relative border border-[var(--border)] rounded-lg @container h-full flex flex-col justify-between gap-2 px-3.5 py-2.5 bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)] overflow-hidden',
         onClick && 'cursor-pointer hover:shadow-[var(--shadow-md)] transition-all duration-200',
       )}
       style={{
@@ -139,7 +135,7 @@ export function StatKpiCard(p: KpiCommon) {
 export function TrendChartWidget({ trend }: { trend: Array<{ count: number; delivered: number; failed: number }> }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
@@ -179,11 +175,16 @@ export function TrendChartWidget({ trend }: { trend: Array<{ count: number; deli
   );
 }
 
+/** The list keeps every row — hiding thirty of them would make the header count a lie you have
+ *  to leave the page to check. What is capped is the height: about ten rows, then it scrolls. */
+const ATTENTION_ROW_H = 62;
+const ATTENTION_VISIBLE_ROWS = 10;
+
 export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem[]; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
@@ -193,7 +194,10 @@ export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem
           {t.dashboardPage.needsAttentionViewAll || 'View all'} <IconArrowUpRight size={11} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{ scrollbarWidth: 'thin', maxHeight: ATTENTION_ROW_H * ATTENTION_VISIBLE_ROWS }}
+      >
         <div className="divide-y divide-[var(--border)]">
           {items.map((exc, idx) => {
             const timeRef = exc.scheduledAt || exc.createdAt;
@@ -231,7 +235,7 @@ export function TopItemsWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
@@ -285,7 +289,7 @@ export function CycleTimeWidget({ stats }: { stats: DashboardStats | null }) {
     { label: t.performancePage.effectiveTransit, sub: t.performancePage.transitToCompletion, m: c, color: 'var(--text-muted)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.temporalFragmentation}</span>
       </div>
@@ -317,7 +321,7 @@ export function ZoneDensityWidget({ kpi }: { kpi: { ordersByZone?: Record<string
   );
   const max = Math.max(...entries.map(e => e[1]), 1);
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.densityByZone}</span>
       </div>
@@ -357,18 +361,18 @@ export function StatusBreakdownWidget({ ops }: { ops: { lanes?: Array<{ status: 
   ];
   const total = rows.reduce((s, r) => s + r.v, 0) || 1;
   return (
-    <div className="relative border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="relative border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.statusBreakdown ?? 'Répartition par statut'}</span>
       </div>
       <div className="p-4 flex items-center gap-3 flex-1">
         <div className="relative shrink-0">
-          <svg width="140" height="140" viewBox="0 0 42 42" aria-hidden="true">
-            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="3.5" />
-            {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="3.5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />; }); })()}
+          <svg width="168" height="168" viewBox="0 0 42 42" aria-hidden="true">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="4.5" />
+            {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="4.5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />; }); })()}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-mono text-xl font-bold tabular-nums text-[var(--text-primary)]">{rows.reduce((s, r) => s + r.v, 0)}</span>
+            <span className="font-mono text-2xl font-bold tabular-nums text-[var(--text-primary)]">{rows.reduce((s, r) => s + r.v, 0)}</span>
             <span className="text-3xs text-[var(--text-muted)]">total</span>
           </div>
         </div>
@@ -398,7 +402,7 @@ export function OpsCountersWidget({ ops }: { ops: { reassignedToday?: number; re
     { label: t.dashboardPage.opsBreached ?? 'En dépassement', v: ops?.sla?.slaBreached ?? 0, tone: 'var(--danger)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.opsCounters ?? 'Turbulence dispatch'}</span>
       </div>
@@ -418,7 +422,7 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
@@ -450,7 +454,7 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
 export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: DriverLite[]; onBreak: DriverLite[]; offline: DriverLite[] } }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
       <div className="flex flex-col gap-2 overflow-y-auto">
         {[
@@ -533,7 +537,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
 export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         {[
@@ -558,18 +562,75 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
 }
 
 // ── Returns KPI (RMA) ─────────────────────────────────────────────────────────
+/**
+ * One counted figure in a quadrant.
+ *
+ * The number carries its tone only when there is something to report. A zero painted in danger
+ * red says "nothing is overdue" in the visual language of "everything is on fire" — the one
+ * case where colour actively misleads, and part of why these panels read as loud and inert at
+ * once. At zero the figure recedes to the muted ink and the tile looks settled.
+ *
+ * Where a tile leads somewhere, an arrow fades in on hover: the whole quadrant was already
+ * clickable, it simply never said so.
+ */
+function CountTile({ n, display, label, tone, index, onClick, Icon }: {
+  n: number; display?: string; label: string; tone: string; index: number; onClick?: () => void;
+  Icon?: React.ComponentType<{ size?: number; className?: string }>;
+}) {
+  const quiet = !n;
+  const edges = {
+    borderTop: index >= 2 ? '0.5px solid var(--border)' : undefined,
+    borderInlineStart: index % 2 === 1 ? '0.5px solid var(--border)' : undefined,
+  };
+  const body = (
+    <>
+      <span
+        className="font-mono text-2xl font-semibold tabular-nums truncate leading-none transition-colors"
+        style={{ color: quiet ? 'var(--text-soft)' : tone }}
+      >
+        {display ?? n}
+      </span>
+      <span className="text-2xs text-[var(--text-muted)] mt-1.5 flex items-center gap-1.5">
+        {Icon && <Icon size={12} className="shrink-0 text-[var(--text-soft)]" />}
+        <span className="truncate">{label}</span>
+        {onClick && (
+          <IconArrowUpRight
+            size={11}
+            className="opacity-0 -translate-x-0.5 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0"
+            style={{ color: 'var(--brand)' }}
+            aria-hidden
+          />
+        )}
+      </span>
+    </>
+  );
+  if (!onClick) {
+    return <div className="flex flex-col justify-center p-4 min-w-0" style={edges}>{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col justify-center p-4 min-w-0 text-left hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+      style={edges}
+    >
+      {body}
+    </button>
+  );
+}
+
 export function ReturnsWidget({ returns, navigate }: { returns: { total?: number; open?: number; restocked?: number; totalValue?: number } | null; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
   const money = (n: number) => new Intl.NumberFormat(locale === 'ar' ? 'ar-TN' : 'fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(n || 0);
   const cells = [
-    { label: t.dashboardPage.returnsOpen || 'À traiter', v: String(returns?.open ?? 0), tone: 'var(--warning)' },
-    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', v: String(returns?.restocked ?? 0), tone: 'var(--success)' },
-    { label: t.dashboardPage.returnsTotal || 'Total', v: String(returns?.total ?? 0), tone: 'var(--text-primary)' },
-    { label: t.dashboardPage.returnsValue || 'Valeur', v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.returnsOpen || 'À traiter', n: returns?.open ?? 0, v: String(returns?.open ?? 0), tone: 'var(--warning)', Icon: IconInbox },
+    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', n: returns?.restocked ?? 0, v: String(returns?.restocked ?? 0), tone: 'var(--success)', Icon: IconPackageImport },
+    { label: t.dashboardPage.returnsTotal || 'Total', n: returns?.total ?? 0, v: String(returns?.total ?? 0), tone: 'var(--text-primary)', Icon: IconArrowBackUp },
+    { label: t.dashboardPage.returnsValue || 'Valeur', n: returns?.totalValue ?? 0, v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)', Icon: IconCoin },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.returnsTitle || 'Retours (RMA)'}</span>
@@ -580,10 +641,7 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
       </div>
       <div className="grid grid-cols-2 flex-1">
         {cells.map((c, i) => (
-          <div key={c.label} className="flex flex-col justify-center gap-0.5 p-4" style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}>
-            <span className="font-mono text-xl font-semibold tabular-nums truncate" style={{ color: c.tone }}>{c.v}</span>
-            <span className="text-2xs text-[var(--text-muted)]">{c.label}</span>
-          </div>
+          <CountTile key={c.label} display={c.v} n={c.n} label={c.label} tone={c.tone} index={i} Icon={c.Icon} />
         ))}
       </div>
     </div>
@@ -594,28 +652,27 @@ export function ReturnsWidget({ returns, navigate }: { returns: { total?: number
 export function BacklogWidget({ counts, navigate }: { counts: Record<string, number> | null; navigate: (p: string) => void }) {
   const t = useT();
   const tiles = [
-    { key: 'needsPinning', label: t.dashboardPage.backlogNeedsPinning || 'À géolocaliser', tone: 'var(--warning)', href: '/deliveries?view=needsPinning' },
-    { key: 'unassigned', label: t.dashboardPage.backlogUnassigned || 'Non assignées', tone: 'var(--info)', href: '/deliveries?view=unassigned' },
-    { key: 'overdue', label: t.dashboardPage.backlogOverdue || 'En retard', tone: 'var(--danger)', href: '/deliveries?view=overdue' },
-    { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future' },
+    { key: 'needsPinning', label: t.dashboardPage.backlogNeedsPinning || 'À géolocaliser', tone: 'var(--warning)', href: '/deliveries?view=needsPinning', Icon: IconMapPinOff },
+    { key: 'unassigned', label: t.dashboardPage.backlogUnassigned || 'Non assignées', tone: 'var(--info)', href: '/deliveries?view=unassigned', Icon: IconUserQuestion },
+    { key: 'overdue', label: t.dashboardPage.backlogOverdue || 'En retard', tone: 'var(--danger)', href: '/deliveries?view=overdue', Icon: IconClockExclamation },
+    { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future', Icon: IconCalendarClock },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full bg-[var(--surface)] shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-card-hover)]">
       <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
         <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.backlogTitle || 'Backlog livraisons'}</span>
       </div>
       <div className="grid grid-cols-2 flex-1">
         {tiles.map((tile, i) => (
-          <button
+          <CountTile
             key={tile.key}
-            type="button"
+            n={counts?.[tile.key] ?? 0}
+            label={tile.label}
+            tone={tile.tone}
+            index={i}
+            Icon={tile.Icon}
             onClick={() => navigate(tile.href)}
-            className="flex flex-col justify-center gap-0.5 p-4 text-left hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-            style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}
-          >
-            <span className="font-mono text-2xl font-semibold tabular-nums" style={{ color: tile.tone }}>{counts?.[tile.key] ?? 0}</span>
-            <span className="text-2xs text-[var(--text-muted)]">{tile.label}</span>
-          </button>
+          />
         ))}
       </div>
     </div>

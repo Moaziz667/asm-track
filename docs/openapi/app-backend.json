@@ -1,0 +1,1777 @@
+{
+  "components": {
+    "schemas": {
+      "AdminUserResponse": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CreateAdminUserRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "role": {
+            "pattern": "ADMIN|DISPATCHER|MANAGER",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "password",
+          "role"
+        ],
+        "type": "object"
+      },
+      "InternalAdminUserDTO": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OnboardRequest": {
+        "properties": {
+          "adminEmail": {
+            "type": "string"
+          },
+          "adminName": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adminEmail",
+          "adminName",
+          "companyName"
+        ],
+        "type": "object"
+      },
+      "OnboardResult": {
+        "properties": {
+          "adminUserId": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "provisioned": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SystemSettingsDto": {
+        "properties": {
+          "activeErpProvider": {
+            "type": "string"
+          },
+          "connectionStatus": {
+            "type": "string"
+          },
+          "erpConfiguration": {
+            "type": "object"
+          },
+          "lastConnectedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastTestUid": {
+            "type": "string"
+          },
+          "lastTestedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateAdminUserRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "name": "bearerAuth",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Auth and profile service for ASM Delivery client app",
+    "title": "ASM App Backend Service API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/api/auth/backchannel-logout": {
+      "post": {
+        "description": "Validates the signed logout_token (form-encoded) and revokes the matching session so the admin-web or driver-app client logs out immediately. Always returns 200 to Keycloak, even on a token it can't act on, per the spec.",
+        "operationId": "backchannelLogout",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "logout_token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout processed (or safely ignored)"
+          }
+        },
+        "summary": "Receive an OIDC back-channel logout",
+        "tags": [
+          "Auth · Back-Channel Logout"
+        ]
+      }
+    },
+    "/api/v1/admin/me": {
+      "get": {
+        "description": "Returns the caller's own profile, with the display name read live from Keycloak so a self-edit shows immediately without re-login (the token's name claim is a login-time snapshot).",
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "The caller's profile"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get my profile",
+        "tags": [
+          "Admin · Me"
+        ]
+      }
+    },
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Returns all back-office users of the caller's company.",
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of users"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List back-office users",
+        "tags": [
+          "Admin · Users"
+        ]
+      },
+      "post": {
+        "description": "Creates a user in the caller's company, provisions it in Keycloak (with the given role and a temporary password), assigns it to the company's Keycloak organization, and records an audit event. Idempotent on email within the tenant.",
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "User created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Validation error (missing/invalid fields)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Email already in use in this company"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a back-office user",
+        "tags": [
+          "Admin · Users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}": {
+      "put": {
+        "description": "Updates the profile fields and syncs the change to Keycloak (email/role). Renaming the role changes the user's effective permissions on next login.",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdminUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "User updated"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "User not found in this company"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "New email already in use"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update a user's name, email or role",
+        "tags": [
+          "Admin · Users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}/logout": {
+      "post": {
+        "description": "Invalidates the user's Keycloak sessions immediately and broadcasts a session-revoked event so the user's open clients log out without waiting for token expiry.",
+        "operationId": "forceLogout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Sessions invalidated"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Force-logout a user",
+        "tags": [
+          "Admin · Users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}/reset-password-email": {
+      "post": {
+        "description": "Triggers a Keycloak 'update password' action email to the user. Returns 502 if the Keycloak SMTP server is not configured/reachable.",
+        "operationId": "resetPasswordEmail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Reset email triggered"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Keycloak SMTP not configured/reachable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Send a password-reset email",
+        "tags": [
+          "Admin · Users"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}/status": {
+      "patch": {
+        "description": "Enables or disables the account. Body: {\"active\": true|false}. A disabled user keeps its data but can no longer authenticate. Change propagates to Keycloak.",
+        "operationId": "setStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Status updated"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Missing 'active' field"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "Caller lacks perm:user:manage"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserResponse"
+                }
+              }
+            },
+            "description": "User not found in this company"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Activate or deactivate a user",
+        "tags": [
+          "Admin · Users"
+        ]
+      }
+    },
+    "/api/v1/settings/erp": {
+      "get": {
+        "description": "Returns the company's Odoo connection settings. Secrets (password/API key) are masked in the response — never returned in clear.",
+        "operationId": "getErpSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "ERP settings (secrets masked)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get ERP settings",
+        "tags": [
+          "Settings · ERP"
+        ]
+      },
+      "put": {
+        "description": "Saves the company's Odoo URL and credentials (encrypted at rest). The URL host must be in the server's ERP allow-list. Omitted secret fields keep their stored value.",
+        "operationId": "updateErpSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Settings saved"
+          },
+          "400": {
+            "description": "Invalid URL or host not allow-listed"
+          },
+          "401": {
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update ERP settings",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/conformance": {
+      "get": {
+        "description": "Runs the read-only conformance probe against the company's configured ERP and returns a GO/DEGRADED/NO_GO report with the detected version and per-capability results. 204 when no ERP is configured.",
+        "operationId": "getErpConformance",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "forceRefresh",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conformance report"
+          },
+          "204": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "No ERP configured"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "ERP adapter unreachable"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Certify the ERP instance (drytest)",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings": {
+      "get": {
+        "operationId": "listFieldMappings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List this company's business-field mappings",
+        "tags": [
+          "Settings · ERP"
+        ]
+      },
+      "post": {
+        "operationId": "upsertFieldMapping",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "object"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create or replace one business-field mapping",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings/available-fields": {
+      "get": {
+        "operationId": "availableFields",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fields available on this company's ERP, for the mapping dropdown",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings/by-id/{id}": {
+      "delete": {
+        "operationId": "deleteFieldMappingById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove a custom (non-canonical) mapping by id",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings/canonical-fields": {
+      "get": {
+        "operationId": "canonicalFields",
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "The ASM business fields that can be mapped",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings/scopes": {
+      "get": {
+        "operationId": "mappingScopes",
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "The ERP documents each canonical scope may be mapped from",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/field-mappings/{canonicalField}": {
+      "delete": {
+        "operationId": "deleteFieldMapping",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "canonicalField",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove a mapping and fall back to the default",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/test": {
+      "post": {
+        "description": "Attempts an Odoo connection with the credentials in the body (without saving them) and reports whether the handshake succeeds. Use before saving to validate credentials.",
+        "operationId": "testErpSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Connection result (status message)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Invalid URL or host not allow-listed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Test ERP settings (from request body)",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/erp/test-stored": {
+      "post": {
+        "description": "Attempts an Odoo connection using the credentials already saved for the company. Use to re-check a previously configured connection without re-entering the password.",
+        "operationId": "testStoredErpSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Connection result (status message)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Test the stored ERP settings",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/internal/erp": {
+      "get": {
+        "description": "Service-to-service only (SERVICE role). Returns the company's ERP settings WITH decrypted credentials, for the ERP poller/adapter. Never exposed to end users.",
+        "operationId": "getInternalErpSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "ERP settings with decrypted secrets"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Get ERP settings with decrypted secrets",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/api/v1/settings/internal/erp/provider": {
+      "get": {
+        "description": "Service-to-service only (SERVICE role). Returns just the provider key (e.g. \"odoo\", \"erpnext\") — no secrets, no config.",
+        "operationId": "getInternalErpProvider",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Provider name"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing or invalid access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Caller lacks the required permission"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Get the active ERP provider name",
+        "tags": [
+          "Settings · ERP"
+        ]
+      }
+    },
+    "/internal/admin-users/by-ids": {
+      "post": {
+        "description": "Resolves a whole list of ids in one round-trip (e.g. a status timeline). Unknown or invalid ids are simply omitted from the response.",
+        "operationId": "getByIds",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InternalAdminUserDTO"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The resolved identities (subset of the input)"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Batch-resolve admin users by id",
+        "tags": [
+          "Internal · Admin User Lookup"
+        ]
+      }
+    },
+    "/internal/admin-users/{id}": {
+      "get": {
+        "description": "Returns the user's id, name and role. Unknown/invalid id → 404.",
+        "operationId": "getById",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalAdminUserDTO"
+                }
+              }
+            },
+            "description": "The user identity"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Resolve one admin user by id",
+        "tags": [
+          "Internal · Admin User Lookup"
+        ]
+      }
+    },
+    "/internal/iam/{appUserId}/enabled": {
+      "post": {
+        "description": "Enables/disables the user's Keycloak account. Body: {\"enabled\": true|false}.",
+        "operationId": "setEnabled",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appUserId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Account state updated"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Enable or disable a user",
+        "tags": [
+          "Internal · IAM"
+        ]
+      }
+    },
+    "/internal/iam/{appUserId}/password": {
+      "post": {
+        "description": "Sets a permanent password for the user in Keycloak. Body: {\"password\": \"…\"}. Used at driver onboarding so login works immediately.",
+        "operationId": "setPassword",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "appUserId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Password set"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "[internal] Set a user's password",
+        "tags": [
+          "Internal · IAM"
+        ]
+      }
+    },
+    "/internal/onboarding": {
+      "post": {
+        "description": "Provisions a complete new tenant: Keycloak organization, first admin user (added to the org), and the company's database schema. Returns the created ids. Best-effort rollback on partial failure.",
+        "operationId": "onboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardResult"
+                }
+              }
+            },
+            "description": "Tenant onboarded (ids returned)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardResult"
+                }
+              }
+            },
+            "description": "Validation error"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardResult"
+                }
+              }
+            },
+            "description": "Caller is not a SERVICE principal"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Onboard a new tenant",
+        "tags": [
+          "Internal · Tenant Onboarding"
+        ]
+      }
+    },
+    "/internal/tenants": {
+      "get": {
+        "description": "Returns the company id of every tenant that has a provisioned schema. Used by DB-less services (e.g. the ERP change poller) that run work per tenant.",
+        "operationId": "listTenants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "List of tenant company ids"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List provisioned tenants",
+        "tags": [
+          "Internal · Tenant Provisioning"
+        ]
+      }
+    },
+    "/internal/tenants/{companyId}": {
+      "delete": {
+        "description": "Drops the company's schema and all its data. Destructive and irreversible — intended for tenant offboarding/cleanup only.",
+        "operationId": "deprovision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schema dropped"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Deprovision a tenant schema",
+        "tags": [
+          "Internal · Tenant Provisioning"
+        ]
+      }
+    },
+    "/internal/tenants/{companyId}/provision": {
+      "post": {
+        "description": "Creates the company's database schema and all required tables. Idempotent — safe to re-run for an already-provisioned tenant.",
+        "operationId": "provision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schema provisioned"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Provision a tenant schema",
+        "tags": [
+          "Internal · Tenant Provisioning"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Generated server url",
+      "url": "http://app-backend:8080"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Service-to-service (SERVICE role) resolution of admin/dispatcher identities (name + role) by id — lets other services turn a stored actor UUID into a person's name for activity timelines.",
+      "name": "Internal · Admin User Lookup"
+    },
+    {
+      "description": "Service-to-service (SERVICE role) synchronous Keycloak operations that can't be eventual — e.g. setting a driver's password at onboarding so they can log in at once. AppBackend is the sole Keycloak owner; other services call these.",
+      "name": "Internal · IAM"
+    },
+    {
+      "description": "The signed-in back-office user's own profile. Available to any authenticated admin/dispatcher/manager — no special permission required, and only ever exposes the caller's own record.",
+      "name": "Admin · Me"
+    },
+    {
+      "description": "Platform/ops endpoint (SERVICE role) to onboard a new tenant in one call — creates the Keycloak organization, the first admin, and the tenant schema. Not reachable by a tenant's own admin.",
+      "name": "Internal · Tenant Onboarding"
+    },
+    {
+      "description": "The caller company's ERP (Odoo) integration settings — connection URL and credentials, stored encrypted per tenant. Management requires perm:settings:manage; the internal read is service-to-service (SERVICE) for the poller.",
+      "name": "Settings · ERP"
+    },
+    {
+      "description": "Manage back-office user accounts (admins, dispatchers, managers) for the caller's company. Every endpoint requires the perm:user:manage permission and is scoped to the caller's tenant. Users are mirrored into Keycloak (identity) and the tenant schema.",
+      "name": "Admin · Users"
+    },
+    {
+      "description": "Service-to-service (SERVICE role) provisioning of tenant database schemas. Called by the admin console after a company is created in Keycloak, and by DB-less services that must enumerate tenants.",
+      "name": "Internal · Tenant Provisioning"
+    },
+    {
+      "description": "OIDC Back-Channel Logout 1.0 receiver. Keycloak (not a user) POSTs a signed logout_token here when a session ends, so the client logs out instantly. Public endpoint — authenticity comes from the token's realm signature, not a bearer token.",
+      "name": "Auth · Back-Channel Logout"
+    }
+  ]
+}

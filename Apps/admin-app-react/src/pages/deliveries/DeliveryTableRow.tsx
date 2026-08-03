@@ -3,6 +3,7 @@ import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { STATUS_COLORS } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { PriorityDot } from '@/components/data-display/PriorityDot';
 import { IconMapPin, IconFileText, IconRoute, IconX, IconLink } from '@tabler/icons-react';
 import { cn, resolveOrderRef, shortId } from '@/lib/utils';
 import { getDayBucket } from '@/lib/sla';
@@ -11,6 +12,7 @@ import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DELIVERY_ROW_H } from './constants';
 import { Spinner } from './helpers';
+import { formatAddress } from '@/lib/utils/address';
 import type { DeliveryRow } from './types';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
@@ -82,7 +84,7 @@ export function DeliveryTableRow({
             <div className="flex flex-col gap-0.5 max-w-[400px]">
               <span className="flex items-center gap-1.5 min-w-0">
                 <span className="text-xs font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
-                  {item.clientName || t.deliveriesPage.unknownDriver}
+                  {item.clientName || t.deliveriesPage.unknownClientName}
                 </span>
                 {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (
                   <StatusBadge status="RETURN_PICKUP" label={t.deliveriesPage.returnPickupBadge ?? 'Retour'} size="sm" />
@@ -90,7 +92,18 @@ export function DeliveryTableRow({
               </span>
               <div className="flex items-center gap-1 flex-nowrap">
                 <IconMapPin size={10} className="text-[var(--text-muted)]" />
-                <span className="text-2xs font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
+                {/* `truncate` and `line-clamp-1` were both set: two mechanisms for one job, the
+                    last one winning. And the missing-address case borrowed the "geocoding in
+                    progress" string, so a delivery with no address announced work that was not
+                    happening. The title carries the full line, which the cell cannot show. */}
+                {/* Displayed cleaned, kept whole in the title: the stored value is what was
+                    geocoded, and someone chasing a bad pin needs to see exactly that. */}
+                <span
+                  className="text-2xs font-[500] text-[var(--text-soft)] truncate"
+                  title={item.dropoffAddress || undefined}
+                >
+                  {formatAddress(item.dropoffAddress) || t.deliveriesPage.missingAddress}
+                </span>
               </div>
             </div>
           </td>
@@ -103,17 +116,30 @@ export function DeliveryTableRow({
               }
               const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
               const bucket = getDayBucket(item.scheduledAt);
-              let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
+              // The pill was written and never worn: three classes were built — text, background,
+              // border — and the render used colorClass.split(' ')[0], keeping only the text
+              // colour. The background classes were raw Tailwind (bg-red-50), which would have
+              // been a near-white block in dark mode had they ever applied. Rebuilt on the tokens,
+              // tinted from the same hue, so it works in both themes.
+              let tone = 'var(--text-soft)';
               if (isPending) {
-                if (bucket === 'overdue') colorClass = 'text-[var(--danger)] bg-red-50 border-red-200';
-                else if (bucket === 'today') colorClass = 'text-[var(--warning)] bg-orange-50 border-orange-200';
-                else colorClass = 'text-[var(--info)] bg-blue-50 border-blue-200';
+                if (bucket === 'overdue') tone = 'var(--danger)';
+                else if (bucket === 'today') tone = 'var(--warning)';
+                else tone = 'var(--info)';
               }
               return (
                 <div className="inline-flex items-center gap-1.5 flex-wrap">
-                  <span className={cn('text-xs font-bold', colorClass.split(' ')[0])}>
+                  <span
+                    className="text-xs font-[600] px-2 py-0.5 rounded-full border whitespace-nowrap"
+                    style={{
+                      color: tone,
+                      backgroundColor: isPending ? `color-mix(in srgb, ${tone} 10%, transparent)` : 'transparent',
+                      borderColor: isPending ? `color-mix(in srgb, ${tone} 25%, transparent)` : 'var(--border)',
+                    }}
+                  >
                     {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
-                    <span className="mr-0.5">,</span>
+                    {/* `me-` not `mr-`: in Arabic the margin belongs on the other side. */}
+                    <span className="me-0.5">,</span>
                     {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   {item.rescheduledAt && (
@@ -138,7 +164,7 @@ export function DeliveryTableRow({
               {item.driverName ? (
                 <>
                   <DriverAvatarById driverId={item.driverId} name={item.driverName} size={20} />
-                  <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
+                  <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]" title={item.driverName}>{item.driverName}</span>
                 </>
               ) : (
                 <span className="text-xs font-[400] text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
@@ -154,7 +180,11 @@ export function DeliveryTableRow({
                   className="text-xs font-[500] px-2 py-0.5 rounded-full"
                   style={{
                     color: item.zoneColor || 'var(--text-muted)',
-                    backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
+                    // Appending "12" assumed a six-digit hex. A three-digit one, or an rgb()
+                    // value, produced an invalid colour and the chip lost its background.
+                    backgroundColor: item.zoneColor
+                      ? `color-mix(in srgb, ${item.zoneColor} 12%, transparent)`
+                      : 'color-mix(in srgb, var(--text-soft) 12%, transparent)',
                   }}
                 >
                   {item.zoneName}
@@ -330,13 +360,16 @@ export function DeliveryMobileCard({
 
       {/* Client & Address Info */}
       <div className="flex flex-col gap-1 ps-1">
-        <span className="text-xs font-bold text-[var(--text-primary)]">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
+          <PriorityDot priority={item.priority} label={t.deliveryPage.priorityHigh} />
           {item.clientName || t.deliveriesPage.unknownDriver}
         </span>
         <div className="flex items-center gap-1">
           <IconMapPin size={11} className="text-[var(--text-muted)] shrink-0" />
-          <span className="text-2xs text-[var(--text-soft)] truncate">
-            {item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}
+          {/* The mobile card carried the same two faults as the table row: the geocoding-in-progress
+              string standing in for a missing address, and the raw geocoded path printed whole. */}
+          <span className="text-2xs text-[var(--text-soft)] truncate" title={item.dropoffAddress || undefined}>
+            {formatAddress(item.dropoffAddress) || t.deliveriesPage.missingAddress}
           </span>
         </div>
       </div>

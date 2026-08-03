@@ -8,7 +8,6 @@ import { RouteStop, DeliveryOption, StopWindowDraft } from '../types';
 import { resolveOrderRef, shortId } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 
 interface StopsListProps {
@@ -44,7 +43,6 @@ export function StopsList({
   batchRemoving,
 }: StopsListProps) {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const selectableStops = stops.filter((s) => s.stopType !== 'PICKUP');
   const allSelected = selectableStops.length > 0 && selectedStopIds.length === selectableStops.length;
   const someSelected = selectedStopIds.length > 0;

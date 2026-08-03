@@ -1,3 +1,8 @@
+# Tenant-aware log context (MDC keys set by TenantContextFilter / TenantIterator / AMQP inbound)
+logging:
+  pattern:
+    level: "%5p [cid:%X{companyId:-},rid:%X{requestId:-}]"
+
 server:
   port: 8086
 

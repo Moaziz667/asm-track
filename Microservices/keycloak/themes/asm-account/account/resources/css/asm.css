@@ -4,10 +4,54 @@
    Palette + font mirror admin globals.css. Supports light + dark via
    asm-theme cookie (set by the admin app's dark mode toggle).
 
-   IMPORTANT: dark variables live ONLY under .pf-v5-theme-dark — never on :root
-   so the @media (prefers-color-scheme: light) can't silently override them.
+   IMPORTANT: light is stated on :root unconditionally and dark only under
+   .pf-v5-theme-dark. There is deliberately no OS-preference branch: every visitor
+   lands in one of exactly two states, so PatternFly's own defaults never show
+   through in the gap between them.
    ════════════════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+/* ── Light is the baseline, unconditionally ───────────────────────────────────
+   It used to live inside @media (prefers-color-scheme: light), which left a real
+   hole: a visitor whose OS is dark and who has no asm-theme cookie matched neither
+   that query nor .pf-v5-theme-dark, so PatternFly's own defaults applied. Those
+   read Color--light-100 as pure white — hence a white menu button on a white bar,
+   and a table cell painted with a "dark" background token on a light page.
+   Stating light on :root removes the gap: there is no third state any more. */
+:root {
+  --pf-v5-global--primary-color--100: #0972D3;
+  --pf-v5-global--primary-color--200: #4A9AE8;
+  --pf-v5-global--link--Color:        #0972D3;
+  --pf-v5-global--link--Color--hover: #4A9AE8;
+  --pf-v5-global--active-color--100:  #0972D3;
+  --pf-v5-global--active-color--400:  #0972D3;
+
+  --pf-v5-global--BackgroundColor--100:       #FFFFFF;
+  --pf-v5-global--BackgroundColor--200:       #F2F3F3;
+  --pf-v5-global--BackgroundColor--300:       #FFFFFF;
+  --pf-v5-global--BackgroundColor--light-100: #FFFFFF;
+  --pf-v5-global--BackgroundColor--light-300: #FFFFFF;
+  --pf-v5-global--BackgroundColor--dark-100:  #F2F3F3;
+
+  --pf-v5-global--Color--100:       #0F141A;
+  --pf-v5-global--Color--200:       #414D5C;
+  --pf-v5-global--Color--light-100: #0F141A;
+  --pf-v5-global--Color--dark-100:  #0F141A;
+
+  --pf-v5-global--BorderColor--100: #E9EBED;
+  --pf-v5-global--BorderColor--200: #E9EBED;
+  --pf-v5-global--BorderColor--300: #E9EBED;
+
+  --pf-v5-global--success-color--100: #037F0C;
+  --pf-v5-global--danger-color--100:  #D91515;
+  --pf-v5-global--warning-color--100: #8D6605;
+
+  --pf-v5-global--FontFamily--text: 'Open Sans', 'Clear Sans', system-ui, -apple-system, sans-serif;
+  --pf-v5-global--FontFamily--heading: 'Open Sans', 'Clear Sans', system-ui, -apple-system, sans-serif;
+  --pf-v5-global--FontFamily--monospace: 'JetBrains Mono', ui-monospace, monospace;
+
+  color-scheme: light;
+}
 
 /* ── Dark mode (only when .pf-v5-theme-dark is on <html>) ─────────────────── */
 .pf-v5-theme-dark {
@@ -51,72 +95,6 @@
   --pf-v5-global--FontFamily--monospace: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* ── Light mode — OS preference (no dark class, no light cookie) ──────────── */
-@media (prefers-color-scheme: light) {
-  :root:not(.pf-v5-theme-dark):not([data-theme="dark"]) {
-    --pf-v5-global--primary-color--100: #0972D3;
-    --pf-v5-global--primary-color--200: #4A9AE8;
-    --pf-v5-global--link--Color:        #0972D3;
-    --pf-v5-global--link--Color--hover: #4A9AE8;
-    --pf-v5-global--active-color--100:  #0972D3;
-    --pf-v5-global--active-color--400:  #0972D3;
-
-    --pf-v5-global--BackgroundColor--100:       #FFFFFF;
-    --pf-v5-global--BackgroundColor--200:       #F2F3F3;
-    --pf-v5-global--BackgroundColor--300:       #FFFFFF;
-    --pf-v5-global--BackgroundColor--light-100: #FFFFFF;
-    --pf-v5-global--BackgroundColor--light-300: #FFFFFF;
-    --pf-v5-global--BackgroundColor--dark-100:  #F2F3F3;
-
-    --pf-v5-global--Color--100:       #0F141A;
-    --pf-v5-global--Color--200:       #414D5C;
-    --pf-v5-global--Color--light-100: #0F141A;
-    --pf-v5-global--Color--dark-100:  #0F141A;
-
-    --pf-v5-global--BorderColor--100: #E9EBED;
-    --pf-v5-global--BorderColor--200: #E9EBED;
-    --pf-v5-global--BorderColor--300: #E9EBED;
-
-    --pf-v5-global--success-color--100: #037F0C;
-    --pf-v5-global--danger-color--100:  #D91515;
-    --pf-v5-global--warning-color--100: #8D6605;
-
-    color-scheme: light;
-  }
-}
-
-/* ── Light mode when asm-theme cookie = "light" ───────────────────────────── */
-:root[data-theme="light"]:not(.pf-v5-theme-dark) {
-  --pf-v5-global--primary-color--100: #0972D3;
-  --pf-v5-global--primary-color--200: #4A9AE8;
-  --pf-v5-global--link--Color:        #0972D3;
-  --pf-v5-global--link--Color--hover: #4A9AE8;
-  --pf-v5-global--active-color--100:  #0972D3;
-  --pf-v5-global--active-color--400:  #0972D3;
-
-  --pf-v5-global--BackgroundColor--100:       #FFFFFF;
-  --pf-v5-global--BackgroundColor--200:       #F2F3F3;
-  --pf-v5-global--BackgroundColor--300:       #FFFFFF;
-  --pf-v5-global--BackgroundColor--light-100: #FFFFFF;
-  --pf-v5-global--BackgroundColor--light-300: #FFFFFF;
-  --pf-v5-global--BackgroundColor--dark-100:  #F2F3F3;
-
-  --pf-v5-global--Color--100:       #0F141A;
-  --pf-v5-global--Color--200:       #414D5C;
-  --pf-v5-global--Color--light-100: #0F141A;
-  --pf-v5-global--Color--dark-100:  #0F141A;
-
-  --pf-v5-global--BorderColor--100: #E9EBED;
-  --pf-v5-global--BorderColor--200: #E9EBED;
-  --pf-v5-global--BorderColor--300: #E9EBED;
-
-  --pf-v5-global--success-color--100: #037F0C;
-  --pf-v5-global--danger-color--100:  #D91515;
-  --pf-v5-global--warning-color--100: #8D6605;
-
-  color-scheme: light;
-}
-
 /* ── Component overrides (both modes) ─────────────────────────────────────── */
 html, body,
 .pf-v5-c-page,
@@ -140,24 +118,28 @@ html, body,
 .pf-v5-theme-dark .pf-v5-c-nav__link:hover { color: #E9EBED !important; background-color: #232F3E !important; }
 .pf-v5-theme-dark .pf-v5-c-nav__link.pf-m-current { color: #E9EBED !important; background-color: #232F3E !important; border-inline-start-color: #539FE5 !important; }
 
-/* Left nav — light mode (OS preference, no cookie) */
-@media (prefers-color-scheme: light) {
-  :root:not(.pf-v5-theme-dark):not([data-theme="dark"]) .pf-v5-c-nav__link { color: #414D5C !important; }
-  :root:not(.pf-v5-theme-dark):not([data-theme="dark"]) .pf-v5-c-nav__link:hover { color: #0F141A !important; background-color: #F4F4F4 !important; }
-  :root:not(.pf-v5-theme-dark):not([data-theme="dark"]) .pf-v5-c-nav__link.pf-m-current { color: #0F141A !important; background-color: #F4F4F4 !important; border-inline-start-color: #0972D3 !important; }
-}
+/* Left nav — light, i.e. anything that is not the dark theme. One rule instead of
+   two near-identical blocks, and no gap for the OS-dark-without-cookie visitor. */
+:root:not(.pf-v5-theme-dark) .pf-v5-c-nav__link { color: #414D5C !important; }
+:root:not(.pf-v5-theme-dark) .pf-v5-c-nav__link:hover { color: #0F141A !important; background-color: #F4F4F4 !important; }
+:root:not(.pf-v5-theme-dark) .pf-v5-c-nav__link.pf-m-current { color: #0F141A !important; background-color: #F4F4F4 !important; border-inline-start-color: #0972D3 !important; }
 
-/* Left nav — light mode (cookie) */
-:root[data-theme="light"] .pf-v5-c-nav__link { color: #414D5C !important; }
-:root[data-theme="light"] .pf-v5-c-nav__link:hover { color: #0F141A !important; background-color: #F4F4F4 !important; }
-:root[data-theme="light"] .pf-v5-c-nav__link.pf-m-current { color: #0F141A !important; background-color: #F4F4F4 !important; border-inline-start-color: #0972D3 !important; }
+/* The masthead's own buttons — the menu toggle and the kebab. PatternFly paints
+   their icons with a token meant for a dark bar, so on our white masthead they
+   were white on white: present, clickable, invisible. */
+.pf-v5-c-masthead .pf-v5-c-button,
+.pf-v5-c-masthead .pf-v5-c-button .pf-v5-svg,
+.pf-v5-c-masthead__toggle .pf-v5-c-button {
+  color: var(--pf-v5-global--Color--100) !important;
+}
+.pf-v5-c-masthead .pf-v5-c-button:hover { background-color: var(--pf-v5-global--BackgroundColor--200) !important; }
 
 /* Sidebar */
 .pf-v5-c-page__sidebar {
   background-color: var(--pf-v5-global--BackgroundColor--100) !important;
   border-right: 1px solid var(--pf-v5-global--BorderColor--100) !important;
 }
-:root[data-theme="light"] .pf-v5-c-page__sidebar { background-color: #FFFFFF !important; border-right-color: #E9EBED !important; }
+:root:not(.pf-v5-theme-dark) .pf-v5-c-page__sidebar { background-color: #FFFFFF !important; border-right-color: #E9EBED !important; }
 
 /* Cards / panels / surfaces */
 .pf-v5-c-card,

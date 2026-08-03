@@ -30,6 +30,15 @@ public class OutboxProcessor {
     private final ObjectMapper objectMapper;
     private final IamCommandApplier iamApplier;
     private final com.asm.appbackend.config.TenantIterator tenantIterator;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    // @Transactional on methods invoked via `this` never engages the proxy (self-invocation): the
+    // SKIP LOCKED claim and the PENDING→PROCESSING flip used to run in separate implicit
+    // transactions, so two instances could claim the same event. TransactionTemplate makes the
+    // claim genuinely atomic regardless of how the method is reached.
+    private org.springframework.transaction.support.TransactionTemplate tx() {
+        return new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+    }
 
     // The IAM outbox lives in each tenant's schema, so drain it once per provisioned tenant — a
     // scheduled thread carries no TenantContext, so an unscoped run would only touch the empty
@@ -58,25 +67,24 @@ public class OutboxProcessor {
         }
     }
 
-    @Transactional
     public List<OutboxEvent> claimEvents() {
-        List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", LocalDateTime.now(), 20);
-        for (OutboxEvent event : events) event.setStatus("PROCESSING");
-        return outboxRepo.saveAll(events);
-    }
-
-    @Transactional
-    public void markProcessed(UUID eventId) {
-        outboxRepo.findById(eventId).ifPresent(event -> {
-            event.setStatus("PROCESSED");
-            event.setProcessedAt(LocalDateTime.now());
-            outboxRepo.save(event);
+        return tx().execute(status -> {
+            List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", LocalDateTime.now(), 20);
+            for (OutboxEvent event : events) event.setStatus("PROCESSING");
+            return outboxRepo.saveAll(events);
         });
     }
 
-    @Transactional
+    public void markProcessed(UUID eventId) {
+        tx().executeWithoutResult(status -> outboxRepo.findById(eventId).ifPresent(event -> {
+            event.setStatus("PROCESSED");
+            event.setProcessedAt(LocalDateTime.now());
+            outboxRepo.save(event);
+        }));
+    }
+
     public void handleFailure(UUID eventId, String error) {
-        outboxRepo.findById(eventId).ifPresent(event -> {
+        tx().executeWithoutResult(status -> outboxRepo.findById(eventId).ifPresent(event -> {
             int retry = event.getRetryCount() + 1;
             event.setRetryCount(retry);
             event.setLastError(error);
@@ -90,7 +98,7 @@ public class OutboxProcessor {
                         eventId, event.getEventType(), error);
             }
             outboxRepo.save(event);
-        });
+        }));
     }
 
     private void handleEvent(OutboxEvent event) throws Exception {

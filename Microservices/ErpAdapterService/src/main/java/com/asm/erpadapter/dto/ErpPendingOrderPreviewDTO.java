@@ -21,7 +21,10 @@ public class ErpPendingOrderPreviewDTO {
     private String erpOrderId;
     /** Which ERP produced this preview ("ODOO" / "ERPNEXT") — the adapter is the authority. */
     private String source;
-    private String externalRef;
+    private String customerRef;
+    /** ERP values the integrator mapped that have no canonical ASM field; display-only. */
+    private java.util.Map<String, Object> customFields;
+
     private String customerName;
     private String customerPhone;
     private String deliveryAddress;
@@ -29,7 +32,10 @@ public class ErpPendingOrderPreviewDTO {
     private String deliveryInstructions;
     private BigDecimal totalAmount;
     private String currency;
-    private String paymentTermName; // raw Odoo payment_term_id name e.g. "Immediate Payment"
+    /** Whether the driver must collect payment on arrival (cash on delivery). */
+    private Boolean codRequired;
+    /** How much to collect when {@link #codRequired}; ignored otherwise. */
+    private BigDecimal codAmount;
     private String priority;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;

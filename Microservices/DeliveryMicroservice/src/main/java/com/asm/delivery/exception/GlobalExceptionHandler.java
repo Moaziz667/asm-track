@@ -86,6 +86,36 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message, "INVALID_REQUEST_PARAMETER", params));
     }
 
+    /**
+     * A body Spring could not parse is a malformed <em>request</em>, not a server fault.
+     *
+     * <p>Without this it fell through to {@link #handleGeneric}, so bad JSON — a truncated payload, a
+     * wrong charset, a trailing comma — answered {@code 500 INTERNAL_SERVER_ERROR}. That misreports a
+     * client mistake as an outage: it inflates the 5xx rate, fires availability alerts, and buries
+     * real failures among caller errors. The caller also learned nothing about what to fix.
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        // Logged at WARN, not ERROR: expected traffic from a misbehaving client, not an incident.
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(),
+                        "Corps de requête illisible ou JSON invalide.", "MALFORMED_REQUEST_BODY", Map.of()));
+    }
+
+    /** A required query parameter the caller omitted — same reasoning as {@link #handleUnreadableBody}. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(
+            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        log.warn("Missing request parameter '{}'", ex.getParameterName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(),
+                        "Paramètre requis manquant : '" + ex.getParameterName() + "'.",
+                        "MISSING_REQUEST_PARAMETER",
+                        Map.of("parameter", ex.getParameterName())));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);

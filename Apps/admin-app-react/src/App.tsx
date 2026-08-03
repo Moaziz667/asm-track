@@ -27,6 +27,7 @@ const DepotsPage = lazy(() => import('./pages/depots/DepotsPage'));
 const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'));
 const OverviewCalendarPage = lazy(() => import('./pages/overview/OverviewCalendarPage'));
 const ReturnsPage = lazy(() => import('./pages/returns/ReturnsPage'));
+const CashDeskPage = lazy(() => import('./pages/cash/CashDeskPage'));
 const FailureReasonsPage = lazy(() => import('./pages/failure-reasons/FailureReasonsPage'));
 const SystemHealthPage = lazy(() => import('./pages/system-health/SystemHealthPage'));
 const PerformancePage = lazy(() => import('./pages/performance/PerformancePage'));
@@ -120,6 +121,9 @@ const router = createBrowserRouter([
       { path: "/notifications", element: guard(ANY, <NotificationsPage />) },
       { path: "/zones", element: guard('perm:route:view', <ZonesPage />) },
       { path: "/returns", element: guard('perm:dispatch:operate', <ReturnsPage />) },
+      // Counting a driver's cash is a dispatcher/admin act — the gateway's /api/v1/admin/ rule
+      // already gates the endpoints on the same permission.
+      { path: "/cash", element: guard('perm:dispatch:operate', <CashDeskPage />) },
       { path: "/failure-reasons", element: guard('perm:settings:manage', <FailureReasonsPage />) },
       { path: "/system-health", element: guard('perm:settings:manage', <SystemHealthPage />) },
       { path: "*", element: <NotFound /> },

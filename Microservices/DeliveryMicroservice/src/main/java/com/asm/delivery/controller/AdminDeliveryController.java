@@ -15,7 +15,6 @@ import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.analytics.OpsAnalyticsService;
 import com.asm.delivery.service.dispatch.DispatchService;
 import com.asm.delivery.service.dispatch.ExceptionResolutionService;
-import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.GeocodingService;
 import com.asm.delivery.service.ProofOfDeliveryService;
 import com.asm.delivery.security.UserPrincipal;
@@ -52,7 +51,6 @@ public class AdminDeliveryController {
     private final ExceptionResolutionService exceptionResolutionService;
     private final ProofOfDeliveryService podService;
     private final GeocodingService geocodingService;
-    private final BonLivraisonPdfService bonLivraisonPdfService;
     private final com.asm.delivery.service.OrderService orderService;
     private final com.asm.delivery.service.OrderGeocodingService orderGeocodingService;
     private final com.asm.delivery.sla.SlaTimelineService slaTimelineService;
@@ -136,10 +134,14 @@ public class AdminDeliveryController {
 
             @Parameter(description = "Filter by leg kind: FORWARD (delivery) and/or RETURN_PICKUP (return collection)")
             @RequestParam(name = "kind", required = false) java.util.List<com.asm.delivery.entity.DeliveryKind> kind,
+            @io.swagger.v3.oas.annotations.Parameter(
+                    description = "Filter by order priority. Repeatable: priority=HIGH&priority=NORMAL")
+            @RequestParam(name = "priority", required = false)
+            java.util.List<com.asm.delivery.entity.OrderPriority> priority,
 
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, priority, pageable));
     }
 
     @GetMapping("/calendar")
@@ -313,16 +315,24 @@ public class AdminDeliveryController {
 
     @GetMapping("/{id}/bon-livraison")
     @Operation(
-        summary = "Download bon de livraison PDF",
+        summary = "Download the delivery note (bon de livraison) PDF",
         description = """
-            Generates and returns the delivery note (bon de livraison) as a PDF.
-            Includes: company logo, client info, delivery address, product list with quantities and prices,
-            driver and barcode.
+            Returns the delivery note **as the ERP renders it** (Odoo delivery slip / ERPNext Delivery Note),
+            addressed by the delivery's picking reference.
+
+            The document is fiscal: it carries the issuer's tax identity, the ERP's uninterrupted numbering
+            series, lot/serial traceability and any legal mentions the tenant added to their own report.
+            ASM no longer draws its own — there is no local fallback, because a locally drawn sheet would be
+            indistinguishable from the compliant one. When the ERP copy cannot be fetched the operator is
+            told to open it in the ERP.
             """
     )
-    @ApiResponse(responseCode = "200", description = "PDF file (application/pdf)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "PDF file (application/pdf)"),
+        @ApiResponse(responseCode = "400", description = "No ERP picking reference, or the ERP copy is unavailable", content = @Content)
+    })
     public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
-        byte[] pdf = bonLivraisonPdfService.generate(id);
+        byte[] pdf = erpInvoiceService.getDeliveryNotePdf(id);
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
                 .contentType(org.springframework.http.MediaType.APPLICATION_PDF)

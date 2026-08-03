@@ -1,6 +1,5 @@
 'use client';
 
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { IconCheck, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -10,7 +9,6 @@ import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function ValidationModal() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     confirmValidateRouteId,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
@@ -88,7 +88,6 @@ const addMinutesToTime = (timeStr: string, minutes: number) => {
 
 export function useRouteBuilder() {
   const t = useT();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const searchParam = searchParams?.get('search') ?? '';
   const isMounted = useRef(false);
@@ -1106,7 +1105,7 @@ export function useRouteBuilder() {
       });
       showSuccessToast(t.routeBuilderPage.toastStopTransferred);
       await refreshAll(true);
-    } catch (err) {
+    } catch {
       setRoutes(snapshotRoutes);
       showErrorToast(null, t.routeBuilderPage.toastTransferFailed);
     }
@@ -1286,7 +1285,7 @@ export function useRouteBuilder() {
     const stopById = new Map(selectedRouteStops.map((stop) => [stop.id, stop]));
 
     const routeStart = optimizationStartTime || '08:00';
-    let [h, m] = routeStart.split(':').map(Number);
+    const [h, m] = routeStart.split(':').map(Number);
     const currentTime = new Date();
     currentTime.setHours(h, m, 0, 0);
 

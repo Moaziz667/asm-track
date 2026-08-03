@@ -1,26 +1,20 @@
 
-import { useLocaleStore } from '@/lib/i18n';
-import { useT, getCopy } from '@/lib/i18n/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { lazy as dynamic } from 'react';
 import { useBreakpoint } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
   IconMapPin as MapPinnedIcon,
-  IconChevronLeft as ChevronLeft,
   IconRoute as RouteIcon,
   IconClock as ClockIcon,
   IconChevronUp as ChevronUp,
   IconChevronDown as ChevronDown,
-  IconX as XIcon,
   IconArrowsMove as Move,
   IconList,
-  IconRoute2 as IconRouteIcon2,
   IconCalendarStats,
-  IconMapPlus,
-} from '@tabler/icons-react';
+  IconMapPlus } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
-import { Link } from 'react-router-dom';
-import { useRouteBuilder, RouteBuilderProvider, useRouteBuilderContext } from './hooks/useRouteBuilder';
+import { RouteBuilderProvider, useRouteBuilderContext } from './hooks/useRouteBuilder';
 import { RouteSidebar } from './components/RouteSidebar';
 import { StopsPanel } from './components/StopsPanel';
 import { OrdersTable } from './components/OrdersTable';
@@ -33,7 +27,6 @@ import {
   DeleteModal,
   ValidationModal,
 } from './components/RouteModals';
-import { RouteBuilderMapProps } from './types';
 import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {

@@ -128,7 +128,8 @@ public class CompanyService {
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));
         try {
             String path = "company-logos/" + id + "/" + System.currentTimeMillis() + "-logo.png";
-            String publicUrl = minioStorageService.getPublicUrl(path);
+            // Store the storage key; the absolute URL is derived per request (see MediaUrlResolver).
+            String publicUrl = minioStorageService.objectKeyFor(path);
             company.setLogoUrl(publicUrl);
             Company saved = repo.save(company);
 

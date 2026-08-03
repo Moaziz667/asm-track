@@ -173,7 +173,11 @@ export default function AlertBell() {
               'flex items-center justify-center leading-none',
               'ring-2 ring-[var(--surface)] pointer-events-none',
               'font-mono tabular-nums select-none',
-              hasCritical ? 'bg-[var(--danger)]' : 'bg-[var(--brand)]',
+              // A count is not an alert. Brand blue on an unread badge reads as "something new and
+              // important" for every routine notification, which spends the one signal the top bar
+              // has on noise — and leaves nothing louder for the ones that matter. Neutral ink for
+              // the tally, red kept for what genuinely needs someone now.
+              hasCritical ? 'bg-[var(--danger)]' : 'bg-[var(--text-primary)]',
             )}
           >
             {unreadCount > 9 ? '9+' : unreadCount}

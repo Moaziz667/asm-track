@@ -11,6 +11,7 @@ import { useIsDark } from '@/lib/ui/theme';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import { useRouteBuilderContext } from '@/pages/route-builder/hooks/useRouteBuilder';
+import { formatAddress } from '@/lib/utils/address';
 
 // Minimal typing for the untyped leaflet-draw plugin surface we use.
 type DrawEvent = { layer: L.Layer };
@@ -37,21 +38,7 @@ type BuilderOrder = {
   itemsSummary?: string;
 };
 
-type BuilderRouteStop = {
-  id: string;
-  deliveryId: string;
-  stopOrder: number;
-  dropoffLat?: number;
-  dropoffLng?: number;
-};
 
-type BuilderRoute = {
-  id: string;
-  name: string;
-  status: string;
-  routeGeometry?: string;
-  stops: BuilderRouteStop[];
-};
 
 type Props = {
   onPinDragStart?: (orderId: string, orderIds: string[], clientName: string, e: MouseEvent) => void;
@@ -285,7 +272,6 @@ interface NominatimResult { place_id: number; display_name: string; lat: string;
 
 function MapSearch() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
   const map = useMap();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
@@ -576,7 +562,7 @@ function RouteBuilderMapInner({
               </div>
             )}
             <div style={{ fontSize: 11, color: '#18181B', fontWeight: 600, marginTop: 6, borderTop: '1px solid #F4F4F5', paddingTop: 4 }}>
-              {order.dropoffAddress || '-'}
+              {formatAddress(order.dropoffAddress) || '-'}
             </div>
             <div style={{ fontSize: 10, color: '#71717A', fontWeight: 500 }}>
               {order.dropoffCity || ''}

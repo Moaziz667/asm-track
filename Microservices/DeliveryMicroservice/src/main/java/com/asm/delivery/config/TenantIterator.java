@@ -36,12 +36,14 @@ public class TenantIterator {
         List<UUID> companyIds = listProvisionedTenants();
         for (UUID companyId : companyIds) {
             TenantContext.set(companyId);
+            org.slf4j.MDC.put("companyId", companyId.toString());
             try {
                 action.accept(companyId);
             } catch (Exception e) {
                 log.error("Job failed for company {}: {}", companyId, e.getMessage(), e);
             } finally {
                 TenantContext.clear();
+                org.slf4j.MDC.remove("companyId");
             }
         }
     }

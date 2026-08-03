@@ -12,9 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Inbound ERP→ASM change polling, <b>multi-tenant and provider-agnostic</b>. Replaces the old
@@ -35,12 +33,10 @@ public class ErpChangeOrchestrator {
     private final TenantListClient tenantList;
     private final ErpProviderRouter router;
     private final ErpChangeForwarder forwarder;
+    private final com.asm.erpadapter.repository.ErpPollCursorRepository cursorRepository;
 
     @Value("${erp.inbound.poll.enabled:true}")
     private boolean enabled;
-
-    /** Poll cursor per tenant (companyId → the ERP's last-seen change stamp). */
-    private final Map<String, String> cursorByTenant = new ConcurrentHashMap<>();
 
     @Scheduled(fixedDelayString = "${erp.inbound.poll.fixed-delay-ms:600000}", initialDelay = 60000)
     public void pollChangedOrders() {
@@ -73,13 +69,15 @@ public class ErpChangeOrchestrator {
         ErpChangePort port = router.getChange().orElse(null);
         if (port == null) return;
 
-        String key = companyId.toString();
-        String cursor = cursorByTenant.get(key);
-        if (cursor == null) {
-            // First tick for this tenant: seed the cursor at the ERP's "now" so we don't replay history.
-            cursorByTenant.put(key, port.initialCursor());
+        // Cursor is DURABLE (per tenant, in the adapter DB): an in-memory cursor re-seeded at "now"
+        // on restart permanently skipped every ERP change made while the adapter was down.
+        var stored = cursorRepository.findById(companyId).orElse(null);
+        if (stored == null) {
+            // Genuinely first tick ever for this tenant: seed at the ERP's "now" so we don't replay history.
+            saveCursor(companyId, port.initialCursor());
             return;
         }
+        String cursor = stored.getCursorValue();
 
         List<ErpOrderChangeDTO> changes = port.fetchChanges(cursor, 100);
         if (changes.isEmpty()) return;
@@ -89,7 +87,15 @@ public class ErpChangeOrchestrator {
             forwarder.forward(ch.erpOrderId(), ch.changeType(), ch.payload(), ch.cursorToken());
             if (ch.cursorToken() != null) advanced = ch.cursorToken(); // changes are ascending by stamp
         }
-        cursorByTenant.put(key, advanced);
+        saveCursor(companyId, advanced);
         log.info("ERP change poll: tenant={} forwarded {} change(s), cursor now {}", companyId, changes.size(), advanced);
+    }
+
+    private void saveCursor(UUID companyId, String cursor) {
+        cursorRepository.save(com.asm.erpadapter.entity.ErpPollCursor.builder()
+                .tenantId(companyId)
+                .cursorValue(cursor)
+                .updatedAt(java.time.LocalDateTime.now())
+                .build());
     }
 }

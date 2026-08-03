@@ -87,9 +87,10 @@ public class DispatchService {
             LocalDate dateFrom,
             LocalDate dateTo,
             List<DeliveryKind> kinds,
+            List<OrderPriority> priorities,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, pageable);
+        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
@@ -130,13 +131,13 @@ public class DispatchService {
     public Page<Delivery> doSearch(List<DeliveryStatus> statuses, List<UUID> driverIds, LocalDate date, List<OrderSource> sources,
                                   List<UUID> zoneIds, List<UUID> depotIds, Boolean unpinned, String q, Boolean assigned, String bucket,
                                   LocalDate dateFrom, LocalDate dateTo, List<DeliveryKind> kinds,
-                                  Pageable pageable) {
+                                  List<OrderPriority> priorities, Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
+        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -147,7 +148,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, priorities);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -319,7 +320,16 @@ public class DispatchService {
 
     // Removed @Transactional so the DB write lock drops before the HTTP read in getDeliveryDetail
     public AdminDeliveryDetailResponse assignDelivery(UUID deliveryId, AssignDeliveryRequest request, UserPrincipal principal) {
-        driverDeliveryService.accept(deliveryId, request.getDriverId(), principal);
+        // The driver id is untrusted here. accept() is shared with the driver's own self-accept, where
+        // the id comes from the verified JWT and needs no check; on this admin path it arrives in the
+        // request body and was never validated, so any UUID was accepted. Assigning to a driver that
+        // does not exist left the delivery SCHEDULED and unworkable — no driver can act on it and
+        // there is no unassign endpoint to recover it. Validate before the state transition.
+        UUID driverId = request.getDriverId();
+        if (driverId == null || !transportPort.driverExists(driverId.toString())) {
+            throw AppException.notFound("DRIVER_NOT_FOUND", "Chauffeur introuvable.");
+        }
+        driverDeliveryService.accept(deliveryId, driverId, principal);
         return getDeliveryDetail(deliveryId);
     }
 
@@ -482,10 +492,16 @@ public class DispatchService {
                                             String bucket,
                                             LocalDate dateFrom,
                                             LocalDate dateTo,
-                                            List<DeliveryKind> kinds) {
+                                            List<DeliveryKind> kinds,
+                                            List<OrderPriority> priorities) {
         List<Predicate> predicates = new ArrayList<>();
         if (has(statuses)) {
             predicates.add(root.get("status").in(statuses));
+        }
+        // An indication for the dispatcher, not something ASM acts on by itself — which is exactly why
+        // it has to be filterable: a priority nobody can single out is a priority nobody uses.
+        if (has(priorities)) {
+            predicates.add(root.get("order").get("priority").in(priorities));
         }
         if (has(kinds)) {
             predicates.add(root.get("kind").in(kinds));
@@ -586,11 +602,24 @@ public class DispatchService {
         m.put("overdue",      countTally(null, driverId, date, source, zoneId, q, null, "OVERDUE", null));
         m.put("today",        countTally(null, driverId, date, source, zoneId, q, null, "TODAY", null));
         m.put("future",       countTally(null, driverId, date, source, zoneId, q, null, "FUTURE", null));
+        // The two the table also offers as quick views. Without them the chip row mixed real
+        // totals with page-local tallies, which is worse than either alone: the same row of
+        // numbers would have meant two different things.
+        m.put("priority",     countTally(null, driverId, date, source, zoneId, q, null, null, null,
+                                         null, List.of(OrderPriority.HIGH)));
+        m.put("returns",      countTally(null, driverId, date, source, zoneId, q, null, null, null,
+                                         List.of(DeliveryKind.RETURN_PICKUP), null));
         return m;
     }
 
     private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
                             UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned) {
+        return countTally(status, driverId, date, source, zoneId, q, assigned, bucket, unpinned, null, null);
+    }
+
+    private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
+                            UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned,
+                            List<DeliveryKind> kinds, List<OrderPriority> priorities) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<Delivery> root = cq.from(Delivery.class);
@@ -601,7 +630,7 @@ public class DispatchService {
                 source != null ? List.of(source) : null,
                 zoneId != null ? List.of(zoneId) : null,
                 null,
-                unpinned, q, assigned, bucket, null, null, null);
+                unpinned, q, assigned, bucket, null, null, kinds, priorities);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }
@@ -737,6 +766,7 @@ public class DispatchService {
                 .warehouseCode(order != null ? order.getWarehouseCode() : null)
                 .sourceDepotId(d.getSourceDepotId() != null ? d.getSourceDepotId()
                         : (order != null ? order.getSourceDepotId() : null))
+                .priority(order != null && order.getPriority() != null ? order.getPriority().name() : null)
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .dropoffCity(order != null ? order.getDropoffCity() : null)
@@ -911,6 +941,9 @@ public class DispatchService {
                 .zoneColor(zone != null ? zone.getColor() : null)
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .items(detailLines != null ? new ArrayList<>(detailLines) : null)
+                .customFields(order != null ? order.getCustomFields() : null)
+                .customerRef(order != null ? order.getCustomerRef() : null)
+                .priority(order != null && order.getPriority() != null ? order.getPriority().name() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .routeDistanceKm(d.getRouteDistanceKm())

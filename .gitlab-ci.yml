@@ -1,9 +1,11 @@
 # ASM Track — CI pipeline (self-hosted GitLab, git.asmtechtn.com).
 #
-# Runs on the Docker-executor runner (tag: docker). Stages follow the test pyramid / fail-fast order:
-#   1. build            — compile backend + type-check frontend (catches breakage cheapest, first)
-#   2. unit-test        — fast, fully-mocked tests, no external services
-#   3. integration-test — slower; needs a real Postgres (attached as a `services:` side-car)
+# Runs on the Docker-executor runner (tag: docker). Stages follow the test pyramid / fail-fast
+# order, so the cheapest check that can fail runs first:
+#   1. build            — compile every service, type-check and lint the frontend
+#   2. unit-test        — fast, fully-mocked, no external services
+#   3. integration-test — slower; needs a real Postgres, and a real Odoo for the connector
+#   4. package          — build and push versioned images to the project registry
 #
 # Nothing in a later stage runs if an earlier stage fails.
 
@@ -11,6 +13,7 @@ stages:
   - build
   - unit-test
   - integration-test
+  - package
 
 variables:
   # No Gradle daemon in CI (one-shot JVM), and keep its home in the project dir so it can be cached.
@@ -18,16 +21,22 @@ variables:
   GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
 
 # ── reusable snippets ────────────────────────────────────────────────────────
-.gradle-delivery: &gradle-delivery
+# One template per toolchain, driven by $SERVICE. Five near-identical job definitions used to
+# mean three services were simply forgotten — a matrix cannot forget.
+.gradle-service: &gradle-service
   image: gradle:8.5-jdk17
   tags: [docker]
   cache:
-    key: gradle-delivery
+    key: "gradle-$SERVICE"
     paths:
       - .gradle/caches
       - .gradle/wrapper
   before_script:
-    - cd Microservices/DeliveryMicroservice
+    - cd "Microservices/$SERVICE"
+
+.all-services: &all-services
+  matrix:
+    - SERVICE: [ApiGateway, AppBackend, DeliveryMicroservice, DriverService, ErpAdapterService]
 
 .npm-admin: &npm-admin
   image: node:20
@@ -43,9 +52,10 @@ variables:
     - npm ci --cache .npm --prefer-offline
 
 # ── 1. BUILD ─────────────────────────────────────────────────────────────────
-build-backend-delivery:
-  <<: *gradle-delivery
+build-backend:
+  <<: *gradle-service
   stage: build
+  parallel: *all-services
   script:
     - gradle compileJava compileTestJava
 
@@ -55,17 +65,27 @@ typecheck-admin:
   script:
     - npm run typecheck
 
+lint-admin:
+  <<: *npm-admin
+  stage: build
+  script:
+    # Errors fail the job. Warnings are known debt (see eslint.config.js) and the cap stops it
+    # growing: the count may fall, never rise.
+    - npm run lint:ci
+    - npm run check:design
+
 # ── 2. UNIT TEST ─────────────────────────────────────────────────────────────
 # `test` runs unit tests only (integration *IT excluded in build.gradle) — no DB needed.
-unit-test-backend-delivery:
-  <<: *gradle-delivery
+unit-test-backend:
+  <<: *gradle-service
   stage: unit-test
+  parallel: *all-services
   script:
     - gradle test
   artifacts:
     when: always
     reports:
-      junit: Microservices/DeliveryMicroservice/build/test-results/test/*.xml
+      junit: "Microservices/$SERVICE/build/test-results/test/*.xml"
     expire_in: 1 week
 
 test-admin:
@@ -78,12 +98,13 @@ test-admin:
 # `integrationTest` runs the *IT suite against the side-car Postgres (via IT_DB_URL). No Docker-in-Docker:
 # the tests connect to the service over the job network, they don't spawn their own container.
 integration-test-backend-delivery:
-  <<: *gradle-delivery
+  <<: *gradle-service
   stage: integration-test
   services:
     - name: postgres:16
       alias: postgres
   variables:
+    SERVICE: DeliveryMicroservice
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
     POSTGRES_DB: delivery_test
@@ -105,3 +126,187 @@ integration-test-backend-delivery:
     paths:
       - Microservices/DeliveryMicroservice/build/reports/tests/
     expire_in: 1 week
+
+# ── 3b. ERP ADAPTER — Odoo integration tests, two versions ───────────────────
+# The suite already targets both ends of the supported range (V16 and V19): if the connector
+# holds on the oldest and the newest, the versions between are covered by construction. What
+# it never had was a place to run — the job used to be `when: manual` with `allow_failure`,
+# which is a test nobody runs and a failure nobody sees.
+#
+# Side-cars instead of Docker-in-Docker: the runner is not privileged, and `services:` needs
+# no special rights. Two Odoo instances share one Postgres, each with its own database.
+#
+# Runs when the connector changes, and only then. Odoo initialises `sale` + `stock` on first
+# boot, which costs minutes — too slow to sit in front of every commit. But tying it to the
+# adapter's own files means it fires exactly when it can catch something, instead of on a clock
+# that has no relationship to the risk.
+integration-test-erp-adapter-odoo:
+  stage: integration-test
+  tags: [docker]
+  image: gradle:8.5-jdk17
+  rules:
+    - changes:
+        - Microservices/ErpAdapterService/**/*
+        - .gitlab-ci.yml
+    - if: $CI_PIPELINE_SOURCE == "web"      # still runnable on demand from the UI
+  services:
+    - name: postgres:16
+      alias: odoo-db
+    # The database host goes through HOST/USER/PASSWORD, not --db_host: Odoo's entrypoint builds
+    # its own connection arguments from those variables and appends them *after* the command, so
+    # command-line values are silently overridden by the defaults (host "db", which resolves to
+    # nothing here). `command` is left to do only what the entrypoint will not — create and
+    # populate the database. Without that, Odoo serves the database-manager screen and every test
+    # fails on authentication instead of on anything meaningful.
+    - name: odoo:16
+      alias: odoo16
+      variables:
+        HOST: odoo-db
+        USER: odoo
+        PASSWORD: odoo
+      command: ["odoo", "-d", "odoo16", "-i", "base,sale,stock", "--without-demo=all"]
+    - name: odoo:19
+      alias: odoo19
+      variables:
+        HOST: odoo-db
+        USER: odoo
+        PASSWORD: odoo
+      command: ["odoo", "-d", "odoo19", "-i", "base,sale,stock", "--without-demo=all"]
+  variables:
+    # Without this the runner uses legacy container links, which connect each service to the job
+    # and to nothing else. Odoo then cannot reach the database at all: it retries forever, never
+    # opens its HTTP port, and the only visible symptom is a name that resolves and never answers.
+    # A build-scoped network puts the services on one network so they can talk to each other.
+    FF_NETWORK_PER_BUILD: "true"
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    POSTGRES_USER: odoo
+    POSTGRES_PASSWORD: odoo
+    POSTGRES_HOST_AUTH_METHOD: trust
+    # The tests default to localhost:8069 / :8070 to match the local docker-compose. In CI the
+    # side-cars answer to their alias, so both are redirected here — no test code knows it is
+    # running in CI.
+    ODOO_V16_URL: "http://odoo16:8069/jsonrpc"
+    ODOO_V16_DB: odoo16
+    ODOO_V19_URL: "http://odoo19:8069/jsonrpc"
+    ODOO_V19_DB: odoo19
+  before_script:
+    - cd Microservices/ErpAdapterService
+    # Services all start at once, with no ordering and no health gate, so Odoo may well reach a
+    # Postgres that is not listening yet. Waiting on the HTTP endpoint covers both: it only
+    # answers once Odoo has finished creating its database.
+    - |
+      # Wait for what the tests actually need — an authenticated session on the target database —
+      # rather than for the HTTP port. Odoo answers /web/login within seconds by serving the
+      # database-manager screen, long before `-i base,sale,stock` has produced anything usable, so
+      # the port is a proxy that reports ready while every test is still doomed to fail.
+      # `authenticate` returns a numeric uid once the database exists and its modules are loaded.
+      rpc() {  # rpc <host> <service> <method> <args-json>
+        wget -qO- --timeout=10 --header='Content-Type: application/json' \
+          --post-data="{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"$2\",\"method\":\"$3\",\"args\":$4}}" \
+          "http://$1:8069/jsonrpc" 2>/dev/null | tr -d ' '
+      }
+      for host in odoo16 odoo19; do
+        echo "waiting for $host"
+        ready=""
+        for i in $(seq 1 120); do
+          # Authentication alone is not enough, and that mistake cost two runs: Odoo accepts a
+          # login as soon as `base` is in place, while `sale` and `stock` are still installing.
+          # The tests need those two modules — the first thing they touch is stock.move.line — so
+          # readiness is "both modules report installed", nothing weaker.
+          auth=$(rpc "$host" common authenticate "[\"$host\",\"admin\",\"admin\",{}]")
+          uid=$(printf '%s' "$auth" | sed -n 's/.*"result":\([0-9][0-9]*\).*/\1/p')
+          if [ -n "$uid" ]; then
+            mods=$(rpc "$host" object execute_kw \
+              "[\"$host\",$uid,\"admin\",\"ir.module.module\",\"search_count\",[[[\"name\",\"in\",[\"sale\",\"stock\"]],[\"state\",\"=\",\"installed\"]]]]")
+            case "$mods" in
+              *'"result":2'*) ready="yes"; echo "  $host ready after $((i * 5))s (sale + stock installed)"; break ;;
+            esac
+          fi
+          if [ $((i % 12)) = 0 ]; then
+            echo "  $((i * 5))s — $host: auth=${auth:-none} modules=${mods:-none}"
+          fi
+          sleep 5
+        done
+        [ -n "$ready" ] || { echo "$host never finished installing — auth=${auth:-none} modules=${mods:-none}"; exit 1; }
+      done
+  script:
+    # Infrastructure only. These are the tests that earn the two-version setup: they pin what
+    # actually differs between 16 and 19 — stock.move.line.qty_done versus quantity,
+    # create_returns versus action_create_returns — and they pass on both.
+    #
+    # The Workflow*IT suites are excluded, not deleted. They drive a full sale-to-delivery cycle,
+    # which needs an instance seeded with reserved stock; on a bare database Odoo refuses to
+    # validate "a zero quantity transfer" and the failure says nothing about our connector. Run
+    # them locally against the docker-compose Odoo, which is set up for it:
+    #   gradle integrationTest
+    - gradle integrationTest --tests '*OdooInfrastructureIT*' --no-daemon
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/ErpAdapterService/build/test-results/integrationTest/*.xml
+    paths:
+      - Microservices/ErpAdapterService/build/reports/tests/
+    expire_in: 1 week
+
+# ── 4. PACKAGE ───────────────────────────────────────────────────────────────
+# Build once, deploy many: the artefact that ships is the image built here, never a rebuild
+# on the server. The runner is not privileged, so this uses rootless BuildKit rather than
+# Docker-in-Docker — and rather than Kaniko, whose upstream repository was archived in 2025.
+#
+# Tagging, in order of what you should actually deploy:
+#   <service>:<short-sha>     immutable, one commit, one image — this is what a deploy pins to
+#   <service>:<branch-slug>   moving pointer, convenient for "the current main"
+#   <service>:<git-tag>       only when the commit carries a tag, e.g. v1.2.0
+#
+# There is deliberately no `latest`. A tag that silently changes meaning is how two machines
+# end up "on the same version" while running different code.
+.buildkit: &buildkit
+  stage: package
+  tags: [docker]
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""]
+  variables:
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+  script:
+    - |
+      IMAGE="$CI_REGISTRY_IMAGE/$NAME"
+      NAMES="$IMAGE:$CI_COMMIT_SHORT_SHA,$IMAGE:$CI_COMMIT_REF_SLUG"
+      [ -n "$CI_COMMIT_TAG" ] && NAMES="$NAMES,$IMAGE:$CI_COMMIT_TAG"
+      echo "building $NAMES"
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context="$CONTEXT" \
+        --local dockerfile="$CONTEXT" \
+        --opt build-arg:CACHE_BUST="$CI_COMMIT_SHA" \
+        --import-cache type=registry,ref=$IMAGE:buildcache \
+        --export-cache type=registry,ref=$IMAGE:buildcache,mode=max \
+        --output type=image,\"name=$NAMES\",push=true
+  rules:
+    # The default branch and release tags are what anyone deploys, so those always produce an
+    # image. Feature branches can still ask for one by hand when a VPS needs to try something.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - when: manual
+      allow_failure: true
+
+package-images:
+  <<: *buildkit
+  parallel:
+    matrix:
+      - NAME: api-gateway
+        CONTEXT: Microservices/ApiGateway
+      - NAME: app-backend
+        CONTEXT: Microservices/AppBackend
+      - NAME: delivery-service
+        CONTEXT: Microservices/DeliveryMicroservice
+      - NAME: driver-service
+        CONTEXT: Microservices/DriverService
+      - NAME: erp-adapter
+        CONTEXT: Microservices/ErpAdapterService
+      - NAME: admin-app
+        CONTEXT: Apps/admin-app-react

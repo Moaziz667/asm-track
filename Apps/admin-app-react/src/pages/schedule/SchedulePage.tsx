@@ -1,6 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate as useRouter } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import {
   IconChevronLeft, IconChevronRight,
   IconCheck, IconRoute, IconAlertTriangle, IconUsers,
@@ -19,7 +18,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
-import { hasPerm } from '@/lib/api/auth';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRoutes, type RouteItem } from '@/hooks/useRoutes';
 import { useFleetDrivers } from '@/hooks/useVehicles';
@@ -53,8 +51,6 @@ const DOT: Record<string, string> = {
 
 export default function SchedulePage() {
   const t = useT();
-  const router = useRouter();
-  const isReadOnly = !hasPerm('perm:dispatch:operate');
 
   const [tab, setTab] = useState('today');
   const [weekOffset, setWeekOffset] = useState(0);

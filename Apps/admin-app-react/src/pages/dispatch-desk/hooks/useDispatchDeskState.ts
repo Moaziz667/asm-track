@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Driver, Delivery, Zone } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
@@ -12,7 +12,7 @@ import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction, QueueRow } from '../types';
 import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
-import { formatMotif, formatComment } from '../formatters';
+import { formatMotif } from '../formatters';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
@@ -185,7 +185,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   // ── Misc ──────────────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<{ name?: string } | null>(null);
-  const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);
   const lastAppliedSearch = useRef<string | null>(null);
@@ -444,7 +443,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   const toggleRow = useCallback((id: string) => setSelectedIds(prev => {
     const n = new Set(prev);
-    n.has(id) ? n.delete(id) : n.add(id);
+    if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   }), []);
 

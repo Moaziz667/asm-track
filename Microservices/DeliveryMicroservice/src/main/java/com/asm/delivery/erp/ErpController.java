@@ -44,7 +44,6 @@ import java.util.Map;
 public class ErpController {
 
     private final ErpLookupService erpLookupService;
-
     // ── Client Search ─────────────────────────────────────────────────────────
 
     @GetMapping("/clients")

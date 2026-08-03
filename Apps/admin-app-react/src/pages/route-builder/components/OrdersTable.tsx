@@ -140,7 +140,6 @@ export function OrdersTable({
   setTargetRouteId,
 }: OrdersTableProps) {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     filteredDeliveries,

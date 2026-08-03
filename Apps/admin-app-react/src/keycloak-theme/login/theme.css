@@ -9,7 +9,7 @@
   --ring:         rgba(9, 114, 211, 0.25);
 
   /* Surfaces — light */
-  --app-bg:    #F2F3F3;
+  --app-bg:    #F7F9FC;
   --surface:   #FFFFFF;
   --elevated:  #FFFFFF;
   --hover-bg:  #F4F4F4;
@@ -39,6 +39,11 @@
   --font-sans: 'Open Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
+  /* Light: a breath of the accent, well under the threshold where it becomes a colour. */
+  --wash-a: rgba(9, 114, 211, 0.07);
+  --wash-b: rgba(9, 114, 211, 0.05);
+  --veil:   rgba(9, 114, 211, 0.10);
+
   color-scheme: light;
 }
 
@@ -66,6 +71,11 @@
   --warning:    #E0CA57;  --warning-bg: rgba(224, 202, 87, 0.12);
   --info:       #539FE5;  --info-bg:    rgba(83, 159, 229, 0.12);
 
+  /* Dark: the same idea, lifting the corners off the navy so the card has something to sit on. */
+  --wash-a: rgba(83, 159, 229, 0.10);
+  --wash-b: rgba(83, 159, 229, 0.06);
+  --veil:   rgba(83, 159, 229, 0.13);
+
   color-scheme: dark;
 }
 
@@ -81,13 +91,131 @@ html, body {
   min-height: 100dvh;
 }
 
-/* ── Layout — centered card ──────────────────────────────────────────────── */
+/* A flat fill made the page read as an empty document rather than a surface. Two very faint
+   pools of the brand's own hue give it depth without becoming decoration: single hue, no
+   second accent, nothing the eye stops on. They sit behind everything and never move. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, var(--wash-a), transparent 60%),
+    radial-gradient(50rem 36rem at 105% 108%, var(--wash-b), transparent 62%);
+}
+
+/* One soft mass hugging the lower corner, blurred until it has no edge of its own. The washes
+   above give the page depth; this gives it a shape — the difference between a tinted rectangle
+   and a surface with something behind it.
+   Uneven radii on both axes so the silhouette is not a circle: a circle reads as a shape placed
+   on the page, this reads as light falling across it. Fixed and behind everything, so it cannot
+   push the layout or catch a click. */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  inset-inline-start: -14rem;
+  bottom: -18rem;
+  width: 52rem;
+  height: 38rem;
+  border-radius: 52% 48% 42% 58% / 62% 44% 56% 38%;
+  background: var(--veil);
+  filter: blur(72px);
+}
+
+@media (max-width: 960px) {
+  /* Scaled down rather than dropped: on a phone the form sits on this, and a bare flat fill is
+     what the page looked like before. */
+  body::after { width: 30rem; height: 24rem; inset-inline-start: -10rem; bottom: -12rem; }
+}
+
+/* ── Layout — context panel beside the form ──────────────────────────────── */
+/* Two columns on a desk, one on a phone. The panel is the part that can go: on a narrow
+   screen the form is the only thing the visitor came for, and a stack of product copy above
+   it is something to scroll past before they can type. */
 .asm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
+  align-items: center;
+  justify-items: center;
+  gap: 64px;
+  min-height: 100dvh;
+  padding: 40px 32px;
+  max-width: 1180px;
+  margin-inline: auto;
+}
+
+@media (max-width: 960px) {
+  .asm-layout { grid-template-columns: minmax(0, 400px); gap: 0; padding: 32px 24px; }
+  .asm-context { display: none; }
+}
+
+.asm-context {
+  max-width: 420px;
+  justify-self: end;
+}
+
+.asm-context-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-wrap: balance;
+  margin-bottom: 12px;
+}
+
+.asm-context-intro {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 52ch;
+  margin-bottom: 32px;
+}
+
+/* A list of what the product does, not a grid of feature cards. The rule on the inline edge
+   groups the items without drawing a box around each one. */
+.asm-context-list {
+  list-style: none;
   display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 18px;
+}
+.asm-context-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+}
+.asm-context-icon {
+  grid-row: 1 / span 2;
+  align-self: start;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 100dvh;
-  padding: 32px 24px;
+  width: 30px;
+  height: 30px;
+  margin-top: 1px;
+  border-radius: var(--radius-md);
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+}
+.asm-context-point {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.asm-context-sub {
+  grid-column: 2;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 46ch;
 }
 
 .asm-form-panel {
@@ -96,6 +224,11 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-self: start;
+}
+
+@media (max-width: 960px) {
+  .asm-form-panel { justify-self: center; }
 }
 
 /* ── Brand — logo + name above card ──────────────────────────────────────── */
@@ -104,6 +237,10 @@ html, body {
   align-items: center;
   gap: 10px;
   margin-bottom: 32px;
+}
+/* Beside the form the wordmark would repeat the panel's; it only appears once the panel is gone. */
+@media (min-width: 961px) {
+  .asm-brand-compact { display: none; }
 }
 .asm-brand-logo { width: 36px; height: 36px; border-radius: 8px; }
 .asm-brand-name { font-weight: 700; font-size: 16px; color: var(--text-primary); letter-spacing: -0.2px; }
@@ -200,7 +337,9 @@ html, body {
 
 .asm-field-error { font-size: 12px; color: var(--danger); }
 
-.asm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* The options row is not another field, so it gets its own breathing space rather than relying on
+   the form's gap alone — "Se souvenir de moi" sitting flush under the input read as part of it. */
+.asm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .asm-checkbox-label {
   display: flex;
   align-items: center;
@@ -330,9 +469,14 @@ html, body {
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
+.asm-footer-secure { display: inline-flex; align-items: center; gap: 5px; }
 .asm-footer {
   margin-top: 24px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 11.5px;
   color: var(--text-soft);
 }

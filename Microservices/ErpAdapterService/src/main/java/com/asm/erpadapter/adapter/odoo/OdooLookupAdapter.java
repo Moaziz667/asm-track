@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 
 /**
- * Odoo implementation of {@link ErpLookupPort} (Odoo 19).
+ * Odoo implementation of {@link ErpLookupPort}.
  *
  * <p>Enterprise multi-depot model: the source of truth for what to deliver is the
  * Odoo <b>delivery order / bon de livraison</b> ({@code stock.picking}, outgoing).
@@ -35,7 +35,146 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 @Slf4j
 public class OdooLookupAdapter implements ErpLookupPort {
 
+    // Static import of the mapped fields keeps the builder chain readable.
+    private static final com.asm.erpadapter.mapping.CanonicalField
+            CUSTOMER_NAME = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_NAME,
+            CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
+            DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
+            DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
+            DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
+            SALE_ORDER_REF = com.asm.erpadapter.mapping.CanonicalField.SALE_ORDER_REF,
+            CUSTOMER_REF = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_REF,
+            CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
+            PRIORITY = com.asm.erpadapter.mapping.CanonicalField.PRIORITY,
+            ERP_ORDER_ID = com.asm.erpadapter.mapping.CanonicalField.ERP_ORDER_ID,
+            BL_NUMBER = com.asm.erpadapter.mapping.CanonicalField.BL_NUMBER,
+            TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
+            COD_REQUIRED = com.asm.erpadapter.mapping.CanonicalField.COD_REQUIRED,
+            COD_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.COD_AMOUNT,
+            DATE_ORDER = com.asm.erpadapter.mapping.CanonicalField.DATE_ORDER,
+            SCHEDULED_AT = com.asm.erpadapter.mapping.CanonicalField.SCHEDULED_AT,
+            WAREHOUSE_CODE = com.asm.erpadapter.mapping.CanonicalField.WAREHOUSE_CODE,
+            WAREHOUSE_NAME = com.asm.erpadapter.mapping.CanonicalField.WAREHOUSE_NAME,
+            READY = com.asm.erpadapter.mapping.CanonicalField.READY,
+            ITEM_SKU = com.asm.erpadapter.mapping.CanonicalField.ITEM_SKU,
+            ITEM_NAME = com.asm.erpadapter.mapping.CanonicalField.ITEM_NAME,
+            ITEM_QUANTITY = com.asm.erpadapter.mapping.CanonicalField.ITEM_QUANTITY,
+            ITEM_UNIT_PRICE = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_PRICE,
+            ITEM_UNIT_WEIGHT_KG = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_WEIGHT_KG,
+            ITEM_PRODUCT_TYPE = com.asm.erpadapter.mapping.CanonicalField.ITEM_PRODUCT_TYPE;
+
     private final OdooJsonRpcClient rpc;
+    private final com.asm.erpadapter.mapping.OdooFieldMappingResolver fieldMapping;
+
+    /**
+     * Applies the tenant's field mapping, falling back to this class's own reader.
+     *
+     * <p>Every business value below goes through here. When the tenant has mapped nothing — the case
+     * for every existing customer — the supplier runs and the result is identical to before mapping
+     * existed, which is what makes this safe to introduce against ERPs already in production.
+     */
+    private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
+                                Map<String, Map<String, Object>> records,
+                                java.util.function.Supplier<String> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
+    }
+
+    /*
+     * Typed variants of the same idea. A mapped field arrives as whatever Odoo stores — a float where
+     * ASM wants a BigDecimal, the string "2026-07-28 09:00:00" where it wants a LocalDateTime — so the
+     * value is coerced here rather than at twenty call sites. A value that cannot be coerced yields
+     * null instead of throwing: one bad mapping must not abort an otherwise valid import, and the
+     * blank is visible in the preview, which is where the integrator is looking.
+     */
+
+    private BigDecimal mappedDecimal(com.asm.erpadapter.mapping.CanonicalField field,
+                                     Map<String, Map<String, Object>> records,
+                                     java.util.function.Supplier<BigDecimal> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        return asBigDecimal(v);
+    }
+
+    private Integer mappedInt(com.asm.erpadapter.mapping.CanonicalField field,
+                              Map<String, Map<String, Object>> records,
+                              java.util.function.Supplier<Integer> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        if (v instanceof Integer i) return i;
+        Double d = asDouble(v);
+        return d == null ? null : (int) Math.round(d);
+    }
+
+    private java.time.LocalDateTime mappedDateTime(com.asm.erpadapter.mapping.CanonicalField field,
+                                                   Map<String, Map<String, Object>> records,
+                                                   java.util.function.Supplier<java.time.LocalDateTime> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        if (v instanceof java.time.LocalDateTime dt) return dt;
+        return parseOdooDateTime(v);
+    }
+
+    private boolean mappedBoolean(com.asm.erpadapter.mapping.CanonicalField field,
+                                  Map<String, Map<String, Object>> records,
+                                  java.util.function.Supplier<Boolean> builtIn) {
+        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
+        if (v instanceof Boolean b) return b;
+        if (v instanceof Number n) return n.doubleValue() != 0d;
+        // A customer often flags readiness with a status word rather than a checkbox.
+        if (v instanceof String s) {
+            String t = s.trim().toLowerCase();
+            return t.equals("true") || t.equals("assigned") || t.equals("ready")
+                    || t.equals("done") || t.equals("1") || t.equals("yes");
+        }
+        return false;
+    }
+
+
+    /**
+     * The adapter's own field list, widened by whatever this tenant has mapped.
+     *
+     * <p>Without this a mapping onto a field the adapter never requests resolves to nothing, and the
+     * integrator cannot tell an empty ERP field from one that was never fetched.
+     */
+    private List<String> withMappedFields(String model, List<String> base) {
+        java.util.Set<String> extra = fieldMapping.extraFieldsFor(model);
+        if (extra.isEmpty()) return base;
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(base);
+        all.addAll(extra);
+        return List.copyOf(all);
+    }
+
+    /** Keep an untouched order's payload free of an empty object nobody will render. */
+    private static Map<String, Object> emptyToNull(Map<String, Object> m) {
+        return (m == null || m.isEmpty()) ? null : m;
+    }
+
+    /** The documents a mapping path may address, for one order. */
+    private static Map<String, Map<String, Object>> scope(Map<String, Object> picking,
+                                                          Map<String, Object> sale,
+                                                          Map<String, Object> partner) {
+        Map<String, Map<String, Object>> records = new java.util.HashMap<>();
+        if (picking != null) records.put("stock.picking", picking);
+        if (sale != null) records.put("sale.order", sale);
+        if (partner != null) records.put("res.partner", partner);
+        return records;
+    }
+
+    /**
+     * The documents in scope for one order <em>line</em>.
+     *
+     * <p>The header records stay addressable on purpose: a per-line value is sometimes carried on the
+     * order rather than the move, and re-deriving the header scope per line costs nothing since the
+     * maps are already in hand.
+     */
+    private static Map<String, Map<String, Object>> lineScope(Map<String, Map<String, Object>> header,
+                                                              Map<String, Object> move,
+                                                              Map<String, Object> product,
+                                                              Map<String, Object> saleLine) {
+        Map<String, Map<String, Object>> records = new java.util.HashMap<>(header);
+        if (move != null) records.put("stock.move", move);
+        if (product != null) records.put("product.product", product);
+        if (saleLine != null) records.put("sale.order.line", saleLine);
+        return records;
+    }
 
     // ── Search Clients ──────────────────────────────────────────────────────────
 
@@ -130,7 +269,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         long start = System.currentTimeMillis();
         List<Map<String, Object>> pickings = rpc.searchReadStrict(
-                "stock.picking", READY_DELIVERY_DOMAIN, PICKING_FIELDS, limit, "id desc");
+                "stock.picking", READY_DELIVERY_DOMAIN, withMappedFields("stock.picking", PICKING_FIELDS), limit, "id desc");
         if (pickings.isEmpty()) return List.of();
 
         Map<Integer, Warehouse> warehouses = resolveWarehouses(pickings);
@@ -167,7 +306,13 @@ public class OdooLookupAdapter implements ErpLookupPort {
         Map<Integer, Map<String, Object>> saleOrders = fetchSaleOrdersByIds(relIds(List.of(picking), "sale_id"));
         Map<String, Object> sale = saleId != null ? saleOrders.get(saleId) : null;
 
-        List<ErpOrderItemDTO> items = pickingId != null ? fetchItemsFromPicking(pickingId, saleId) : List.of();
+        final Map<String, Map<String, Object>> records = scope(picking, sale, partner);
+        final Map<String, Object> saleRef = sale;
+        final Map<String, Object> partnerRef = partner;
+
+        // Built before the totals: a mapped quantity or unit weight changes what they sum to.
+        List<ErpOrderItemDTO> items = pickingId != null
+                ? fetchItemsFromPicking(pickingId, saleId, records) : List.of();
         int totalQty = items.stream().map(i -> i.getQuantity() != null ? i.getQuantity() : 0).reduce(0, Integer::sum);
         BigDecimal totalWeight = items.stream()
                 .map(i -> {
@@ -181,24 +326,42 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
         return ErpPendingOrderPreviewDTO.builder()
                 .source("ODOO")
-                .erpOrderId(asString(picking.get("name")))            // import identity = the BL number
-                .blNumber(asString(picking.get("name")))
-                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
-                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
-                .warehouseCode(wh != null ? wh.code() : null)
-                .warehouseName(wh != null ? wh.name() : null)
-                .ready(ready)
-                .customerName(resolveCustomerName(sale, partner, picking))
-                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
-                .deliveryAddress(buildAddress(partner))
-                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
-                .deliveryInstructions(sale != null ? asString(sale.get("note")) : null)
-                .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
-                .currency(resolveCurrency(sale))
-                .paymentTermName(sale != null ? asRelName(sale.get("payment_term_id")) : null)
-                .priority("NORMAL")
-                .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
-                .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
+                // The import identity. Mappable like the rest, but a tenant that repoints it
+                // re-identifies its whole catalogue of orders — the mapping screen warns about that.
+                .erpOrderId(mappedString(ERP_ORDER_ID, records, () -> asString(picking.get("name"))))
+                .blNumber(mappedString(BL_NUMBER, records, () -> asString(picking.get("name"))))
+                .saleOrderRef(mappedString(SALE_ORDER_REF, records,
+                        () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
+                .customerRef(mappedString(CUSTOMER_REF, records,
+                        () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
+                .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh != null ? wh.code() : null))
+                .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh != null ? wh.name() : null))
+                .ready(mappedBoolean(READY, records, () -> ready))
+                .customerName(mappedString(CUSTOMER_NAME, records,
+                        () -> resolveCustomerName(saleRef, partnerRef, picking)))
+                .customerPhone(mappedString(CUSTOMER_PHONE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("phone")) : null))
+                .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
+                .deliveryCity(mappedString(DELIVERY_CITY, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
+                .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records,
+                        () -> saleRef != null ? asString(saleRef.get("note")) : null))
+                .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
+                .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
+                // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
+                // "collect nothing", and switching it on is a human decision.
+                .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                .codAmount(mappedDecimal(COD_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
+                .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
+                // Whatever the integrator mapped that ASM has no field for — carried through so the
+                // value is not silently read and dropped.
+                .customFields(emptyToNull(fieldMapping.resolveCustomFields(records)))
+                .dateOrder(mappedDateTime(DATE_ORDER, records,
+                        () -> saleRef != null ? parseOdooDateTime(saleRef.get("date_order")) : null))
+                .scheduledAt(mappedDateTime(SCHEDULED_AT, records,
+                        () -> parseOdooDateTime(picking.get("scheduled_date"))))
                 .items(items)
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
@@ -295,7 +458,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (name == null) return null;
         List<Map<String, Object>> rows = rpc.searchReadStrict("stock.picking",
                 List.of(List.of("name", "=", name), List.of("picking_type_id.code", "=", "outgoing")),
-                PICKING_FIELDS, 1, "id desc");
+                withMappedFields("stock.picking", PICKING_FIELDS), 1, "id desc");
         return rows.isEmpty() ? null : rows.get(0);
     }
 
@@ -339,7 +502,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (partnerIds.isEmpty()) return Map.of();
         List<Map<String, Object>> rows = rpc.searchReadStrict("res.partner",
                 List.of(List.of("id", "in", partnerIds.stream().toList())),
-                List.of("id", "name", "phone", "street", "street2", "city", "zip"),
+                withMappedFields("res.partner",
+                        List.of("id", "name", "phone", "street", "street2", "city", "zip")),
                 partnerIds.size(), "id asc");
         Map<Integer, Map<String, Object>> result = new HashMap<>();
         for (Map<String, Object> pr : rows) {
@@ -353,8 +517,9 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (saleIds.isEmpty()) return Map.of();
         List<Map<String, Object>> rows = rpc.searchReadStrict("sale.order",
                 List.of(List.of("id", "in", saleIds.stream().toList())),
-                List.of("id", "name", "client_order_ref", "partner_id", "amount_total",
-                        "currency_id", "payment_term_id", "note", "date_order"),
+                withMappedFields("sale.order",
+                        List.of("id", "name", "client_order_ref", "partner_id", "amount_total",
+                                "currency_id", "payment_term_id", "note", "date_order")),
                 saleIds.size(), "id asc");
         Map<Integer, Map<String, Object>> result = new HashMap<>();
         for (Map<String, Object> r : rows) {
@@ -364,11 +529,19 @@ public class OdooLookupAdapter implements ErpLookupPort {
         return result;
     }
 
-    /** Line items actually shipped on this delivery note (the picking's stock moves). */
-    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId, Integer saleId) {
+    /**
+     * Line items actually shipped on this delivery note (the picking's stock moves).
+     *
+     * <p>Each line is resolved against its own scope — the move, its product, its sale line, plus the
+     * header records — so a mapping like {@code x_lot} or {@code product_id.x_ref_client} reads from
+     * the row the integrator was looking at. Without that, a per-line mapping would be evaluated
+     * against the delivery note and quietly return nothing on every row.
+     */
+    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId, Integer saleId,
+                                                        Map<String, Map<String, Object>> header) {
         List<Map<String, Object>> moves = rpc.searchReadStrict("stock.move",
                 List.of(List.of("picking_id", "=", pickingId)),
-                List.of("id", "product_id", "product_uom_qty"), 0, "id asc");
+                withMappedFields("stock.move", List.of("id", "product_id", "product_uom_qty")), 0, "id asc");
         if (moves.isEmpty()) return List.of();
 
         Set<Integer> productIds = moves.stream()
@@ -376,15 +549,17 @@ public class OdooLookupAdapter implements ErpLookupPort {
         ProductDetails pd = fetchProductDetails(productIds);
 
         Map<Integer, BigDecimal> pricesByProduct = new HashMap<>();
+        Map<Integer, Map<String, Object>> saleLinesByProduct = new HashMap<>();
         if (saleId != null) {
             List<Map<String, Object>> saleLines = rpc.searchReadStrict("sale.order.line",
                     List.of(List.of("order_id", "=", saleId)),
-                    List.of("product_id", "price_unit"), 100, "id asc");
+                    withMappedFields("sale.order.line", List.of("product_id", "price_unit")), 100, "id asc");
             for (Map<String, Object> sl : saleLines) {
                 Integer pid = asRelId(sl.get("product_id"));
                 BigDecimal price = asBigDecimal(sl.get("price_unit"));
-                if (pid != null && price != null) {
-                    pricesByProduct.put(pid, price);
+                if (pid != null) {
+                    saleLinesByProduct.putIfAbsent(pid, sl);
+                    if (price != null) pricesByProduct.put(pid, price);
                 }
             }
         }
@@ -397,38 +572,51 @@ public class OdooLookupAdapter implements ErpLookupPort {
             String sku  = productId != null ? pd.skus.get(productId)  : null;
             String type = productId != null ? pd.types.get(productId) : null;
             BigDecimal unitPrice = productId != null ? pricesByProduct.get(productId) : null;
+
+            Map<String, Map<String, Object>> lineRecords = lineScope(header, m,
+                    productId != null ? pd.records.get(productId) : null,
+                    productId != null ? saleLinesByProduct.get(productId) : null);
+
             return ErpOrderItemDTO.builder()
-                    .name(name)
-                    .sku(sku)
-                    .quantity(qty > 0 ? qty : 1)
-                    .unitPrice(unitPrice)
-                    .unitWeightKg(unitWeight)
-                    .productType(type)
+                    .name(mappedString(ITEM_NAME, lineRecords, () -> name))
+                    .sku(mappedString(ITEM_SKU, lineRecords, () -> sku))
+                    .quantity(mappedInt(ITEM_QUANTITY, lineRecords, () -> qty > 0 ? qty : 1))
+                    .unitPrice(mappedDecimal(ITEM_UNIT_PRICE, lineRecords, () -> unitPrice))
+                    .unitWeightKg(mappedDecimal(ITEM_UNIT_WEIGHT_KG, lineRecords, () -> unitWeight))
+                    .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> type))
                     .build();
         }).collect(Collectors.toList());
     }
 
-    private record ProductDetails(Map<Integer, BigDecimal> weights, Map<Integer, String> skus, Map<Integer, String> types) {}
+    /**
+     * @param records the raw product rows, kept so a line mapping can address {@code product.product}
+     *                directly instead of being limited to the three values extracted below
+     */
+    private record ProductDetails(Map<Integer, BigDecimal> weights, Map<Integer, String> skus,
+                                  Map<Integer, String> types, Map<Integer, Map<String, Object>> records) {}
 
     private ProductDetails fetchProductDetails(Set<Integer> productIds) {
-        if (productIds == null || productIds.isEmpty()) return new ProductDetails(Map.of(), Map.of(), Map.of());
-        // Odoo 19: product type lives on `type` (consu/service/combo); `is_storable` flags stockable goods.
+        if (productIds == null || productIds.isEmpty()) return new ProductDetails(Map.of(), Map.of(), Map.of(), Map.of());
+        // Product type lives on `type` (consu/service/combo); `is_storable` flags stockable goods.
         List<Map<String, Object>> rows = rpc.searchReadStrict("product.product",
                 List.of(List.of("id", "in", productIds.stream().toList())),
-                List.of("id", "weight", "default_code", "type"), productIds.size(), "id asc");
+                withMappedFields("product.product", List.of("id", "weight", "default_code", "type")),
+                productIds.size(), "id asc");
         Map<Integer, BigDecimal> weights = new HashMap<>();
         Map<Integer, String>     skus    = new HashMap<>();
         Map<Integer, String>     types   = new HashMap<>();
+        Map<Integer, Map<String, Object>> records = new HashMap<>();
         for (Map<String, Object> row : rows) {
             Integer id = asInt(row.get("id"));
             if (id == null) continue;
+            records.put(id, row);
             weights.put(id, asBigDecimal(row.get("weight")));
             String dc = asString(row.get("default_code"));
             if (dc != null && !dc.isBlank()) skus.put(id, dc);
             String dt = asString(row.get("type"));
             if (dt != null && !dt.isBlank()) types.put(id, neutralType(dt));
         }
-        return new ProductDetails(weights, skus, types);
+        return new ProductDetails(weights, skus, types, records);
     }
 
     private ErpPendingOrderSummaryDTO mapToSummary(Map<String, Object> picking,
@@ -442,26 +630,44 @@ public class OdooLookupAdapter implements ErpLookupPort {
         Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
         Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
 
+        final Map<String, Map<String, Object>> records = scope(picking, sale, partner);
+        final Map<String, Object> saleRef = sale;
+        final Map<String, Object> partnerRef = partner;
+
         return ErpPendingOrderSummaryDTO.builder()
-                .erpOrderId(bl)                                       // import identity = BL number
-                .blNumber(bl)
-                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
-                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
-                .warehouseCode(wh != null ? wh.code() : null)
-                .warehouseName(wh != null ? wh.name() : null)
-                .ready("assigned".equals(asString(picking.get("state"))))
-                .customerName(resolveCustomerName(sale, partner, picking))
-                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
-                .deliveryAddress(buildAddress(partner))
-                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
-                .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
-                .currency(resolveCurrency(sale))
+                .erpOrderId(mappedString(ERP_ORDER_ID, records, () -> bl))   // import identity
+                .blNumber(mappedString(BL_NUMBER, records, () -> bl))
+                .saleOrderRef(mappedString(SALE_ORDER_REF, records,
+                        () -> firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin")))))
+                .customerRef(mappedString(CUSTOMER_REF, records,
+                        () -> saleRef != null ? asString(saleRef.get("client_order_ref")) : null))
+                .warehouseCode(mappedString(WAREHOUSE_CODE, records, () -> wh != null ? wh.code() : null))
+                .warehouseName(mappedString(WAREHOUSE_NAME, records, () -> wh != null ? wh.name() : null))
+                .ready(mappedBoolean(READY, records, () -> "assigned".equals(asString(picking.get("state")))))
+                .customerName(mappedString(CUSTOMER_NAME, records,
+                        () -> resolveCustomerName(saleRef, partnerRef, picking)))
+                .customerPhone(mappedString(CUSTOMER_PHONE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("phone")) : null))
+                .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
+                .deliveryCity(mappedString(DELIVERY_CITY, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
+                .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
+                .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))
+                // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
+                // "collect nothing", and switching it on is a human decision.
+                .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
+                .codAmount(mappedDecimal(COD_AMOUNT, records,
+                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
+                .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 .backorder(asRelId(picking.get("backorder_id")) != null)
                 .originBl(asRelName(picking.get("backorder_id")))
-                .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
-                .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
+                .dateOrder(mappedDateTime(DATE_ORDER, records,
+                        () -> saleRef != null ? parseOdooDateTime(saleRef.get("date_order")) : null))
+                .scheduledAt(mappedDateTime(SCHEDULED_AT, records,
+                        () -> parseOdooDateTime(picking.get("scheduled_date"))))
                 .build();
     }
 

@@ -19,16 +19,27 @@ public class RouteWebSocketService {
 
     private final SimpMessagingTemplate messaging;
 
+    /** Tenant-decorated pool from AsyncConfig — NEVER publish on the ForkJoin common pool. */
+    @org.springframework.beans.factory.annotation.Qualifier("eventExecutor")
+    private final java.util.concurrent.Executor eventExecutor;
+
     private UUID getCompanyId() {
         return TenantContext.get();
     }
 
+    /**
+     * Tenant-scoped topic in relay-safe DOT notation; no silent global fallback — see
+     * EventPublisher.tenantTopic for the full rationale (slash destinations are rejected by the
+     * RabbitMQ STOMP relay, killing every tenant-scoped event).
+     */
     private String tenantTopic(String subtopic) {
         UUID companyId = getCompanyId();
         if (companyId != null) {
-            return "/topic/company/" + companyId + "/" + subtopic;
+            return "/topic/company." + companyId + "." + subtopic;
         }
-        return "/topic/" + subtopic;
+        log.error("Tenant event published WITHOUT TenantContext (subtopic={}) — event routed to dead "
+                + "destination; fix the calling path's tenant propagation", subtopic);
+        return "/topic/untenanted." + subtopic;
     }
 
     /**
@@ -237,24 +248,25 @@ public class RouteWebSocketService {
             } catch (Exception e) {
                 log.warn("notifyDriverStatusChanged: failed for driverId={}: {}", driverId, e.getMessage());
             }
-        }));
+        }), eventExecutor);
     }
 
     private void executeAfterCommitAsync(Runnable runnable) {
-        // The async worker has no TenantContext, so tenantTopic() inside the task would fall back to
-        // the global "/topic/..." destination (cross-tenant). Capture the tenant here and restore it.
+        // The async worker has no TenantContext, so tenantTopic() inside the task would route to the
+        // dead untenanted destination. Capture the tenant here and restore it (the eventExecutor's
+        // decorator also does this — kept as belt-and-braces since the capture points differ).
         final Runnable tenantAware = withTenant(runnable);
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        java.util.concurrent.CompletableFuture.runAsync(tenantAware);
+                        java.util.concurrent.CompletableFuture.runAsync(tenantAware, eventExecutor);
                     }
                 }
             );
         } else {
-            java.util.concurrent.CompletableFuture.runAsync(tenantAware);
+            java.util.concurrent.CompletableFuture.runAsync(tenantAware, eventExecutor);
         }
     }
 

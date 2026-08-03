@@ -72,6 +72,22 @@ public class ErpSyncController {
                 .body(pdf);
     }
 
+    @GetMapping("/delivery-note-pdf")
+    @Operation(summary = "Download the delivery note (bon de livraison) as the ERP renders it")
+    public ResponseEntity<byte[]> deliveryNotePdf(
+            @RequestParam String pickingRef) {
+
+        byte[] pdf = resolve().getDeliveryNotePdf(pickingRef);
+        if (pdf == null || pdf.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + pickingRef.replace('/', '-') + ".pdf\"")
+                .body(pdf);
+    }
+
     @PostMapping("/full-delivery")
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(

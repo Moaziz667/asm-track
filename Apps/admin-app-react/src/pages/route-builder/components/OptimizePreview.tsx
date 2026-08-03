@@ -11,7 +11,6 @@ import {
   IconBuildingWarehouse,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 
 interface OptimizePreviewRow {
@@ -69,7 +68,6 @@ export function OptimizePreview({
   applying,
 }: OptimizePreviewProps) {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const hasGain = (distanceSavedMeters ?? 0) > 0 || (durationSavedSeconds ?? 0) > 0;
 
   return (

@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -62,7 +61,6 @@ const ROLE_ICON: Record<string, typeof IconShieldCheck> = {
 
 export default function SettingsPage() {
   const t = useT();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const sp = t.settingsPage as TSettings;
   const [section, setSection] = useState<SettingSection>('COMPANY');

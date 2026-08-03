@@ -1,6 +1,8 @@
 package com.asm.erpadapter.messaging;
 
 import com.asm.erpadapter.config.RabbitMQConfig;
+import com.asm.erpadapter.adapter.odoo.FieldResolver;
+import com.asm.erpadapter.adapter.odoo.MethodResolver;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
 import com.asm.erpadapter.port.ErpSyncPort;
@@ -46,6 +48,23 @@ public class ErpSyncCommandConsumer {
             log.warn("ErpSyncCommandConsumer: missing op/erpOrderId, dropping: {}", cmd);
             return; // ack + drop — not retryable
         }
+
+        try {
+            dispatch(op, cmd, txId, deliveryId, orderId, erpOrderId, pickingRef);
+        } catch (MethodResolver.MethodResolutionException | FieldResolver.FieldResolutionException e) {
+            // STRUCTURAL incompatibility with this tenant's Odoo version — retrying is pointless and
+            // only buries the real cause under "ERP sync failed after retries". Report the actual
+            // reason once so the admin sees "Odoo 19 does not provide capability X" and can fix it
+            // with a version binding / mapping override, then ack the message.
+            log.error("ERP sync ABORTED (not retryable) — op={} erpOrderId={} txId={} reason={}",
+                    op, erpOrderId, txId, e.getMessage());
+            resultPublisher.publishResult(txId, deliveryId, orderId, op, false, null, null, null,
+                    e.getMessage(), str(cmd.get("rmaId")));
+        }
+    }
+
+    private void dispatch(String op, Map<String, Object> cmd, String txId, String deliveryId,
+                          String orderId, String erpOrderId, String pickingRef) {
 
         // Provider resolved per-tenant (TenantContext set by the inbound AMQP post-processor from the
         // X-Company-Id header), never from the command payload.

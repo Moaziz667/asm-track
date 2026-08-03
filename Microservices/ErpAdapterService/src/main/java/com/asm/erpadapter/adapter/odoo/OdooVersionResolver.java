@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Detects and caches the Odoo major version of each tenant's instance. The detected version drives the
- * {@link OdooCapabilities} field/method resolution, so the single adapter can speak the right dialect per
+ * {@link CapabilityRegistry} field/method resolution, so the single adapter can speak the right dialect per
  * tenant instead of assuming one version.
  *
  * <p>Read via {@code ir.module.module} base.latest_version (works on every version). Cached per tenant

@@ -22,4 +22,18 @@ public final class TenantSchema {
     public static String schemaFor(UUID companyId) {
         return "company_" + companyId.toString().replace("-", "");
     }
+
+    /** Inverse of {@link #schemaFor}: {@code company_<32hex>} → company UUID, or {@code null}. */
+    public static UUID companyIdFrom(String schemaName) {
+        if (schemaName == null || !schemaName.startsWith("company_")) return null;
+        String hex = schemaName.substring("company_".length());
+        if (hex.length() != 32) return null;
+        try {
+            String dashed = hex.substring(0, 8) + "-" + hex.substring(8, 12) + "-"
+                    + hex.substring(12, 16) + "-" + hex.substring(16, 20) + "-" + hex.substring(20);
+            return UUID.fromString(dashed);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

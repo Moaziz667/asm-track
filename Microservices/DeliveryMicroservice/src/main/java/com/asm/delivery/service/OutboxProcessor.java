@@ -33,13 +33,25 @@ public class OutboxProcessor {
     private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final com.asm.delivery.repository.RmaRepository rmaRepo;
     private final com.asm.delivery.config.TenantIterator tenantIterator;
+    private final com.asm.delivery.storage.MinioStorageService minioStorageService;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    // @Transactional on methods invoked via `this` never engages the proxy (self-invocation): the
+    // SKIP LOCKED claim and the PENDING→PROCESSING flip used to run in separate implicit
+    // transactions, so two instances could claim the same event. TransactionTemplate makes the
+    // claim genuinely atomic regardless of how the method is reached.
+    private org.springframework.transaction.support.TransactionTemplate tx() {
+        return new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+    }
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
                            TransportPort transportPort, EventPublisher eventPublisher,
                            com.asm.delivery.repository.OrderRepository orderRepo,
                            com.asm.delivery.repository.RmaRepository rmaRepo,
-                           com.asm.delivery.config.TenantIterator tenantIterator) {
+                           com.asm.delivery.config.TenantIterator tenantIterator,
+                           com.asm.delivery.storage.MinioStorageService minioStorageService,
+                           org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
@@ -49,6 +61,8 @@ public class OutboxProcessor {
         this.orderRepo = orderRepo;
         this.rmaRepo = rmaRepo;
         this.tenantIterator = tenantIterator;
+        this.minioStorageService = minioStorageService;
+        this.transactionManager = transactionManager;
     }
 
     @Scheduled(fixedDelay = 20000)
@@ -79,27 +93,26 @@ public class OutboxProcessor {
     }
 
     /** Atomically claims a batch of events to prevent multiple workers from picking them up. */
-    @Transactional
     public List<OutboxEvent> claimEvents() {
-        List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", LocalDateTime.now(), 10);
-        for (OutboxEvent event : events) {
-            event.setStatus("PROCESSING");
-        }
-        return outboxRepo.saveAll(events);
-    }
-
-    @Transactional
-    public void markProcessed(UUID eventId) {
-        outboxRepo.findById(eventId).ifPresent(event -> {
-            event.setStatus("PROCESSED");
-            event.setProcessedAt(LocalDateTime.now());
-            outboxRepo.save(event);
+        return tx().execute(status -> {
+            List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", LocalDateTime.now(), 10);
+            for (OutboxEvent event : events) {
+                event.setStatus("PROCESSING");
+            }
+            return outboxRepo.saveAll(events);
         });
     }
 
-    @Transactional
+    public void markProcessed(UUID eventId) {
+        tx().executeWithoutResult(status -> outboxRepo.findById(eventId).ifPresent(event -> {
+            event.setStatus("PROCESSED");
+            event.setProcessedAt(LocalDateTime.now());
+            outboxRepo.save(event);
+        }));
+    }
+
     public void handleFailure(UUID eventId, String error) {
-        outboxRepo.findById(eventId).ifPresent(event -> {
+        tx().executeWithoutResult(status -> outboxRepo.findById(eventId).ifPresent(event -> {
             int newRetryCount = event.getRetryCount() + 1;
             event.setRetryCount(newRetryCount);
             event.setLastError(error);
@@ -164,7 +177,7 @@ public class OutboxProcessor {
                 notifyErpSyncFailed(event);
             }
             outboxRepo.save(event);
-        });
+        }));
     }
 
     /**
@@ -289,10 +302,17 @@ public class OutboxProcessor {
         // Forward the POD metadata + MinIO photo URLs carried in the outbox payload (C5). The image
         // bytes are NOT inlined — the ERP adapter fetches them from these URLs and uploads to Odoo,
         // so neither the outbox table nor the RabbitMQ frame carries the (large) base64 payload.
+        // Photo URLs are PRESIGNED here (fresh on every retry attempt) so the adapter's fetch keeps
+        // working once the POD bucket is made private (minio.pod-bucket-public-read=false).
         Map<String, Object> pod = new java.util.HashMap<>();
-        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng",
-                                 "bonLivraisonPhotoUrl", "packagePhotoUrl")) {
+        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng")) {
             if (payload.get(k) != null) pod.put(k, payload.get(k));
+        }
+        for (String k : List.of("bonLivraisonPhotoUrl", "packagePhotoUrl")) {
+            if (payload.get(k) != null) {
+                pod.put(k, minioStorageService.presignedGetUrl(
+                        String.valueOf(payload.get(k)), java.time.Duration.ofHours(24)));
+            }
         }
         erpSyncService.syncProofOfDelivery(delivery, pod, txId);
     }

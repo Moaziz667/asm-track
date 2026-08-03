@@ -16,14 +16,8 @@ import {
   IconSearch,
   IconGripVertical,
   IconMinus,
-  IconMaximize,
-  IconChevronRight,
-  IconChevronLeft,
-  IconSquare,
-  IconList,
   IconLayoutSidebar,
-  IconAlertTriangle,
-} from '@tabler/icons-react';
+  IconAlertTriangle } from '@tabler/icons-react';
 
 const MAP_SIZES = {
   S: 'w-[380px] h-[280px]',

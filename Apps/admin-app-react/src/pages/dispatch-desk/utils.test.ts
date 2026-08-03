@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { sortQueue, sortByRoute, getWeekStart, getMonthStart, rowId } from './utils';
 
-// Minimal row shape sortQueue/​sortByRoute operate on.
+// Minimal row shape sortQueue/sortByRoute operate on.
 const row = (o: {
   id?: string; routeId?: string; routeName?: string;
   severity?: string; slaHealth?: string; status?: string; worst?: string; createdAt?: string;

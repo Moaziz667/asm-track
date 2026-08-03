@@ -23,12 +23,15 @@ public class ErpPendingOrderPreviewDTO {
     private String erpOrderId;
 
     @Schema(description = "Client's own purchase order reference", example = "PO-2026-001")
-    private String externalRef;
+    private String customerRef;
 
     @Schema(description = "ERP source system", example = "ODOO")
     private String source;
 
     @Schema(description = "End client full name", example = "Mohamed Ali Ben Salah")
+    /** ERP values the integrator mapped that have no canonical ASM field; display-only. */
+    private java.util.Map<String, Object> customFields;
+
     private String customerName;
 
     @Schema(description = "End client phone number", example = "21612345678")
@@ -49,11 +52,16 @@ public class ErpPendingOrderPreviewDTO {
     @Schema(description = "Currency code (3 chars)", example = "TND")
     private String currency;
 
-    @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH", "URGENT"})
-    private String priority;
+    @Schema(description = "Whether the driver must collect payment on arrival", example = "false")
+    private Boolean codRequired;
 
-    @Schema(description = "Odoo payment term name", example = "Immediate Payment")
-    private String paymentTermName;
+    @Schema(description = "Amount to collect when codRequired", example = "150.500")
+    private BigDecimal codAmount;
+
+    // URGENT is not an ASM priority: OrderPriority has NORMAL and HIGH only, and a mapped "URGENT"
+    // collapses onto HIGH at import. Advertising it here promised a level nothing downstream knows.
+    @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH"})
+    private String priority;
 
     @Schema(description = "Date the order was confirmed in ERP", example = "2026-05-13T09:00:00")
     private LocalDateTime dateOrder;

@@ -51,7 +51,7 @@ interface FormState {
 // Code is auto-generated server-side from the label (and deduped) — not an editable field.
 const EMPTY_FORM: FormState = { label: '', category: 'OTHER', scope: 'DELIVERY', sortOrder: 100, active: true };
 
-type SortKey = 'label' | 'code' | 'category' | 'order' | 'status';
+type SortKey = 'label' | 'category' | 'order' | 'status';
 
 export default function FailureReasonsTable({ canManage }: { canManage: boolean }) {
   const t = useT();
@@ -61,8 +61,11 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Delivery', ITEM: 'Item', BOTH: 'Both' } as Record<string, string>)[sc] ?? sc;
 
   const REASON_COLUMNS = useMemo<ColumnDef[]>(() => [
+    // The code is the backend's key, not the operator's. They recognise "Client absent", never
+    // CUSTOMER_ABSENT, so the column spent width on a string nobody reads and made every row
+    // carry a second, uglier name for the same thing. It stays searchable — typing a code still
+    // finds its reason, which costs no space and helps whoever knows the identifiers.
     { id: 'label', label: s.tableLabel || 'Reason', pinned: true },
-    { id: 'code', label: s.tableCode || 'Code' },
     { id: 'category', label: s.tableCategory || 'Category' },
     { id: 'scope', label: tlabel(s, 'tableScope') || 'Scope' },
     { id: 'order', label: s.formOrder || 'Order' },
@@ -212,7 +215,6 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     return filtered.sort((a, b) => {
       switch (sort.key) {
         case 'label': return dir * a.label.localeCompare(b.label);
-        case 'code': return dir * a.code.localeCompare(b.code);
         case 'category': return dir * catLabel(a.category).localeCompare(catLabel(b.category));
         case 'status': return dir * (Number(a.active) - Number(b.active));
         case 'order':
@@ -235,7 +237,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const sortIcon = (key: SortKey) => sort.key !== key
     ? <IconSelector size={12} className="opacity-40" />
     : (sort.dir === 'asc' ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />);
-  const SORTABLE: Record<string, SortKey> = { label: 'label', code: 'code', category: 'category', order: 'order', status: 'status' };
+  const SORTABLE: Record<string, SortKey> = { label: 'label', category: 'category', order: 'order', status: 'status' };
 
   const scopeOptions = allowedScopes(form.category);
 
@@ -321,9 +323,6 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
                         if (!visibleIds.has(col.id)) return null;
                         if (col.id === 'label') return (
                           <td key="label" className="px-6 text-xs font-[600] text-[var(--text-primary)] align-middle">{r.label}</td>
-                        );
-                        if (col.id === 'code') return (
-                          <td key="code" className="px-6 font-mono text-xs text-[var(--text-muted)] align-middle">{r.code}</td>
                         );
                         if (col.id === 'category') return (
                           <td key="category" className="px-6 align-middle">

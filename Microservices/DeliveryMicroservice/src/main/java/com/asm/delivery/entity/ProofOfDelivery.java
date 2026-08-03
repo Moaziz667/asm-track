@@ -35,6 +35,10 @@ public class ProofOfDelivery {
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 
+    /** Person who signed for the parcel; part of the delivery evidence. */
+    @Column(name = "recipient_name", length = 150)
+    private String recipientName;
+
     @Column(name = "collected_at", nullable = false)
     @Builder.Default
     private LocalDateTime collectedAt = LocalDateTime.now();

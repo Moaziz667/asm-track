@@ -1,11 +1,11 @@
 
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { showErrorToast } from '@/lib/ui/toast-service';
 import { isAbortError } from '@/lib/utils/errors';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
@@ -35,7 +35,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Clean the actor for display: a raw UUID becomes the system label, an email keeps its local part,
  *  otherwise the name as-is. So the actor column never shows machine garbage. */
-function displayActor(name: string | undefined, role: string, t: TranslationSchema): string {
+function displayActor(name: string | undefined, role: string, _t: TranslationSchema): string {
   const n = (name ?? '').trim();
   const systemLabel = 'System';
   const roleLabel = role ? `${role.charAt(0)}${role.slice(1).toLowerCase()}` : systemLabel;
@@ -390,7 +390,6 @@ function FeedItem({
 export default function AuditLogsPage() {
   const t = useT();
   const locale = useLocaleStore(state => state.locale);
-  const navigate = useNavigate();
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalElements, setTotalElements] = useState(0);

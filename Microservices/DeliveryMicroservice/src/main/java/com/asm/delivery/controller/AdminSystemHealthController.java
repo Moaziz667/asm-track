@@ -29,6 +29,7 @@ public class AdminSystemHealthController {
 
     private final SystemHealthSnapshotService snapshotService;
     private final ErpResyncService erpResyncService;
+    private final com.asm.delivery.service.ErpSyncJournalService syncJournalService;
 
     @GetMapping("/health")
     @Operation(summary = "Aggregated system health for the operator console (cached snapshot)")
@@ -40,6 +41,22 @@ public class AdminSystemHealthController {
     @Operation(summary = "Rolling health history (~1h) for the console's trend sparklines + status timelines")
     public ResponseEntity<List<Map<String, Object>>> healthHistory() {
         return ResponseEntity.ok(snapshotService.history());
+    }
+
+    @GetMapping("/erp-sync/history")
+    @Operation(summary = "Journal of ERP sync attempts, newest first (all providers, successes and failures)",
+            description = "Unlike /health, which reports the current state, this returns every recorded "
+                    + "attempt — including failures that were later retried successfully.")
+    public ResponseEntity<Map<String, Object>> erpSyncHistory(
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "false") boolean failedOnly) {
+        return ResponseEntity.ok(syncJournalService.recent(limit, failedOnly));
+    }
+
+    @GetMapping("/erp-sync/history/{orderId}")
+    @Operation(summary = "Every ERP sync attempt recorded for one order, newest first")
+    public ResponseEntity<List<Map<String, Object>>> erpSyncHistoryForOrder(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(syncJournalService.forOrder(orderId));
     }
 
     @PostMapping("/erp-sync/{orderId}/resync")

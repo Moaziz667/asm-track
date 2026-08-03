@@ -1,11 +1,11 @@
 
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { lazy as dynamic } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { IconPhone, IconChevronUp, IconChevronDown, IconCheck, IconClipboardList, IconPackage, IconTruckDelivery, IconHomeCheck } from '@tabler/icons-react';
+import { IconPhone, IconChevronUp, IconChevronDown, IconCheck, IconCopy, IconClipboardList, IconPackage, IconTruckDelivery, IconHomeCheck } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import ReturnSection from './ReturnSection';
 import s from './TrackDelivery.module.scss';
@@ -14,7 +14,7 @@ const TrackingMap = dynamic(() => import('./TrackingMap'));
 
 interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
-  deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
+  deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string; customerRef?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
@@ -43,10 +43,59 @@ function getStepLabels(t: TranslationSchema): string[] {
   return [t.trackingPage.stepPlanifiee, t.trackingPage.stepRecuperee, t.trackingPage.stepEnRoute, t.trackingPage.stepLivree];
 }
 
+/**
+ * Ink ramp for the public page.
+ *
+ * This page is deliberately token-free: it renders for a customer who has never seen the admin app,
+ * outside its theme, so it carries its own light-only palette. That freedom had drifted into text
+ * set in `#94a3b8` (2.8:1 on white) and a footer in `#cbd5e1` (1.6:1) — the latter is barely a
+ * shade away from invisible. WCAG 1.4.3 asks 4.5:1 for body text, and this is the one screen the
+ * business does not control the viewing conditions for: a courier link is read outdoors, at arm's
+ * length, on a phone at half brightness.
+ *
+ * `muted` is the floor for anything a customer must read. `faint` is reserved for genuinely
+ * inactive indicators (a step not yet reached) and pure ornament (the sheet handle).
+ */
+const INK = {
+  strong: '#0f172a',
+  body:   '#334155',
+  muted:  '#64748b', // 4.8:1 on white — the lightest grey allowed to carry text
+  faint:  '#94a3b8', // inactive/ornamental only, never a sentence
+  hairline: '#f1f5f9',
+  border: '#e2e8f0',
+};
+
+/** Visually hidden, still announced — for state a sighted user reads from colour alone. */
+const SR_ONLY: React.CSSProperties = {
+  position: 'absolute', width: 1, height: 1, padding: 0, margin: -1,
+  overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+};
+
 function fmtTime(iso?: string | null) {
   if (!iso) return null;
   try { const d = new Date(iso); return isNaN(d.getTime()) ? null : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
   catch { return null; }
+}
+
+/**
+ * The day the parcel arrives, not just the hour.
+ *
+ * The ETA rendered as a bare "14:35". Baymard's order-tracking research puts the expected delivery
+ * *date* first among the details customers look for — they open the link to plan around it — and a
+ * clock time with no day silently reads as "today". For a delivery scheduled for tomorrow morning
+ * that is not a cosmetic problem: it is the page telling the customer to wait in today.
+ *
+ * Today and tomorrow are named rather than dated, because that is how the answer gets used.
+ */
+function fmtEtaDay(iso: string | null | undefined, t: TranslationSchema): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(d) - startOfDay(new Date())) / 86_400_000);
+  if (days === 0) return t.trackingPage.etaToday;
+  if (days === 1) return t.trackingPage.etaTomorrow;
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function fmtAmount(n: number) {
@@ -61,6 +110,7 @@ export default function TrackingPage() {
   const [error, setError]       = useState(false);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied]     = useState(false);
   const stompRef                = useRef<Client | null>(null);
   const t = useT();
 
@@ -100,6 +150,22 @@ export default function TrackingPage() {
     return () => { controller.abort(); clearInterval(t); client.deactivate(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /*
+    Name the tab after the parcel.
+
+    A tracking link is something customers leave open and come back to, often beside three other
+    tabs from the same shop. The document title never changed from the admin app's default, so all
+    of them read alike and the status — the thing worth glancing at — was only visible after
+    switching. The reference disambiguates; the status answers the question without a click.
+  */
+  useEffect(() => {
+    if (!data) return;
+    const label = getStatusConfig(t)[data.status]?.label ?? '';
+    const ref = data.customerRef ?? data.erpOrderId;
+    document.title = [label, ref, data.companyName ?? t.trackingPage.appTitle]
+      .filter(Boolean).join(' · ');
+  }, [data, t]);
+
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 520, height: '100%', background: '#fff', overflow: 'hidden' }}>
@@ -118,7 +184,7 @@ export default function TrackingPage() {
     <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 520, height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
         <p style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.trackingPage.notFoundTitle}</p>
-        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, textAlign: 'center', maxWidth: 260 }}>
+        <p style={{ fontSize: 13, color: INK.muted, margin: 0, textAlign: 'center', maxWidth: 260 }}>
           {t.trackingPage.notFoundSub}
         </p>
       </div>
@@ -128,6 +194,7 @@ export default function TrackingPage() {
   const st      = getStatusConfig(t)[data.status] ?? getStatusConfig(t).UNSCHEDULED;
   const stepIdx = STEPS.indexOf(data.status);
   const eta     = fmtTime(data.etaAt);
+  const etaDay  = fmtEtaDay(data.etaAt, t);
   const hasItems = data.items && data.items.length > 0;
   const SHEET   = expanded ? '82dvh' : '54dvh';
 
@@ -161,12 +228,34 @@ export default function TrackingPage() {
         }
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{data.companyName ?? t.trackingPage.appTitle}</div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t.trackingPage.pageTitle}</div>
+          <div style={{ fontSize: 11, color: INK.muted, marginTop: 2 }}>{t.trackingPage.pageTitle}</div>
         </div>
-        {data.erpOrderId && (
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', fontFamily: 'monospace', background: '#f8fafc', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-            {data.erpOrderId}
-          </div>
+        {/* The recipient's own reference when we have it: erpOrderId is the distributor's
+            delivery-note number and means nothing to the person waiting for the parcel. */}
+        {(data.customerRef ?? data.erpOrderId) && (
+          /*
+            Copyable, not just displayed.
+
+            Baymard's tracking research asks for one-click access to the reference: customers quote
+            it into a chat window or a phone call to support. There is no carrier site to link to
+            here — we are the carrier — so the useful affordance is the copy, and selecting eight
+            monospace characters on a phone is precisely the friction it removes.
+          */
+          <button
+            type="button"
+            onClick={() => { void navigator.clipboard?.writeText(data.customerRef ?? data.erpOrderId!).then(() => setCopied(true)); }}
+            title={t.trackingPage.copyRef}
+            aria-label={`${t.trackingPage.copyRef} ${data.customerRef ?? data.erpOrderId}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+              fontSize: 11, fontWeight: 700, color: INK.muted, fontFamily: 'monospace',
+              background: '#f8fafc', padding: '4px 8px', borderRadius: 6, border: `1px solid ${INK.border}`,
+            }}
+          >
+            {data.customerRef ?? data.erpOrderId}
+            {copied ? <IconCheck size={12} stroke={2.5} color="#16a34a" /> : <IconCopy size={12} stroke={2} />}
+            <span style={SR_ONLY} role="status">{copied ? t.trackingPage.copied : ''}</span>
+          </button>
         )}
       </div>
 
@@ -191,25 +280,36 @@ export default function TrackingPage() {
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
           >
             <div style={{ width: 32, height: 3, borderRadius: 2, background: '#e2e8f0' }} />
-            {expanded ? <IconChevronDown size={14} color="#cbd5e1" /> : <IconChevronUp size={14} color="#cbd5e1" />}
+            {expanded ? <IconChevronDown size={14} color={INK.faint} /> : <IconChevronUp size={14} color={INK.faint} />}
           </button>
 
-          {/* Status */}
-          <div style={{ padding: '18px 20px 16px' }}>
+          {/*
+            Status block.
+
+            `role="status"` + `aria-live="polite"`: the delivery state and the driver's position
+            arrive over a websocket, so this text changes under a reader who is not touching the
+            page. Without a live region a blind customer waiting for "En route" is told nothing
+            when it happens — the one event this page exists to report.
+          */}
+          <div style={{ padding: '18px 20px 16px' }} role="status" aria-live="polite">
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
               <div>
                 {data.kind === 'RETURN_PICKUP' && (
                   <div style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, color: '#7c3aed', background: '#f3e8ff', padding: '3px 8px', borderRadius: 999, letterSpacing: '0.04em', marginBottom: 6 }}>
-                    COLLECTE RETOUR
+                    {t.trackingPage.badgeReturnPickup}
                   </div>
                 )}
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{st.label}</div>
-                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{st.sub}</div>
+                {/* The page's only heading: a screen reader landing here otherwise finds no title at all. */}
+                <h1 style={{ fontSize: 22, fontWeight: 800, color: INK.strong, lineHeight: 1.1, margin: 0 }}>{st.label}</h1>
+                <div style={{ fontSize: 13, color: INK.muted, marginTop: 4 }}>{st.sub}</div>
               </div>
               {eta && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>ETA</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: INK.muted, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {t.trackingPage.labelEta}
+                  </div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: st.color, fontFamily: 'monospace', lineHeight: 1.1 }}>{eta}</div>
+                  {etaDay && <div style={{ fontSize: 11, fontWeight: 600, color: INK.body, marginTop: 2 }}>{etaDay}</div>}
                 </div>
               )}
             </div>
@@ -234,14 +334,34 @@ export default function TrackingPage() {
 
             {/* Stepper — modern icon timeline: filled progress, check for done, pulsing current */}
             {stepIdx >= 0 && (
-              <div style={{ display: 'flex', alignItems: 'flex-start', marginTop: 22 }}>
+              /*
+                An ordered list, not four styled divs.
+
+                Progress was carried entirely by colour and a check glyph: to a screen reader the
+                stepper read as four bare words with no order, no current position and no sense of
+                which were behind us. `aria-current="step"` marks where we are, and each label
+                carries its state in text — the WCAG 1.4.1 rule that colour may not be the only
+                channel for meaning, which is exactly what "reached = tinted" was.
+              */
+              <>
+              <ol
+                style={{ display: 'flex', alignItems: 'flex-start', marginTop: 22, listStyle: 'none', margin: '22px 0 0', padding: 0 }}
+                aria-label={t.trackingPage.stepperLabel}
+              >
                 {STEPS.map((step, i) => {
                   const reached = stepIdx >= i;   // node coloured
                   const done    = stepIdx > i;    // past → check
                   const active  = stepIdx === i;  // current → icon + pulse
                   const StepIcon = STEP_ICONS[i];
+                  const stateText = done ? t.trackingPage.stepStateDone
+                    : active ? t.trackingPage.stepStateCurrent
+                    : t.trackingPage.stepStateUpcoming;
                   return (
-                    <div key={step} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <li
+                      key={step}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                      aria-current={active ? 'step' : undefined}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                         <div style={{ flex: 1, height: 3, borderRadius: 2, background: (i > 0 && stepIdx >= i) ? st.color : '#e5e7eb', transition: 'background 0.3s' }} />
                         <div style={{
@@ -255,18 +375,20 @@ export default function TrackingPage() {
                           {active && <span style={{ position: 'absolute', inset: -3, borderRadius: '50%', background: st.color, opacity: 0.18, animation: 'trkPulse 1.6s ease-out infinite' }} />}
                           {done
                             ? <IconCheck size={16} color="#fff" stroke={3} />
-                            : <StepIcon size={15} color={reached ? '#fff' : '#94a3b8'} stroke={2} />}
+                            : <StepIcon size={15} color={reached ? '#fff' : INK.faint} stroke={2} />}
                         </div>
                         <div style={{ flex: 1, height: 3, borderRadius: 2, background: (i < STEPS.length - 1 && stepIdx > i) ? st.color : '#e5e7eb', transition: 'background 0.3s' }} />
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: active ? 800 : 600, color: active ? st.color : reached ? '#334155' : '#cbd5e1', marginTop: 8, textAlign: 'center', lineHeight: 1.2 }}>
+                      <div style={{ fontSize: 11, fontWeight: active ? 800 : 600, color: active ? st.color : reached ? INK.body : INK.faint, marginTop: 8, textAlign: 'center', lineHeight: 1.2 }}>
                         {getStepLabels(t)[i]}
+                        <span style={SR_ONLY}> — {stateText}</span>
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-                <style>{`@keyframes trkPulse{0%{transform:scale(1);opacity:0.22}100%{transform:scale(1.7);opacity:0}}@media (prefers-reduced-motion:reduce){[style*="trkPulse"]{animation:none!important}}`}</style>
-              </div>
+              </ol>
+              <style>{`@keyframes trkPulse{0%{transform:scale(1);opacity:0.22}100%{transform:scale(1.7);opacity:0}}@media (prefers-reduced-motion:reduce){[style*="trkPulse"]{animation:none!important}}`}</style>
+              </>
             )}
           </div>
         </div>
@@ -286,7 +408,7 @@ export default function TrackingPage() {
                   {data.driverName?.[0] ?? '?'}
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.trackingPage.labelDriver}</div>
+                  <div style={{ fontSize: 11, color: INK.muted, fontWeight: 600 }}>{t.trackingPage.labelDriver}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{data.driverName}</div>
                 </div>
               </div>
@@ -307,7 +429,7 @@ export default function TrackingPage() {
           {/* Order */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: INK.muted }}>
                 {t.trackingPage.sectionContents}
               </div>
             </div>
@@ -327,7 +449,7 @@ export default function TrackingPage() {
                     {item.unitPrice != null && (
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {fmtAmount(item.unitPrice * item.quantity)}
-                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400 }}> {t.trackingPage.currencyTnd}</span>
+                        <span style={{ fontSize: 10, color: INK.muted, fontWeight: 400 }}> {t.trackingPage.currencyTnd}</span>
                       </span>
                     )}
                   </div>
@@ -335,16 +457,16 @@ export default function TrackingPage() {
 
                 {data.totalAmount != null && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #f1f5f9', marginTop: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>{t.trackingPage.labelTotal}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: INK.muted }}>{t.trackingPage.labelTotal}</span>
                     <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
                       {fmtAmount(data.totalAmount)}
-                      <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}> {t.trackingPage.currencyTnd}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: INK.muted }}> {t.trackingPage.currencyTnd}</span>
                     </span>
                   </div>
                 )}
               </div>
             ) : (
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>{t.trackingPage.noItems}</p>
+              <p style={{ fontSize: 13, color: INK.muted, margin: 0 }}>{t.trackingPage.noItems}</p>
             )}
 
             {/* Self-service return (client) */}
@@ -358,7 +480,7 @@ export default function TrackingPage() {
 
           {/* Address */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: INK.muted, marginBottom: 8 }}>
               {t.trackingPage.sectionAddress}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{data.clientName}</div>
@@ -369,7 +491,7 @@ export default function TrackingPage() {
           {/* Window */}
           {(data.startWindow || data.endWindow) && (
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: INK.muted }}>
                 {t.trackingPage.sectionSlot}
               </div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
@@ -379,7 +501,7 @@ export default function TrackingPage() {
           )}
 
           <div style={{ padding: '16px 20px', textAlign: 'center' }}>
-            <span style={{ fontSize: 11, color: '#cbd5e1' }}>{t.trackingPage.liveTracking}{data.companyName ?? t.trackingPage.appTitle}</span>
+            <span style={{ fontSize: 11, color: INK.muted }}>{t.trackingPage.liveTracking}{data.companyName ?? t.trackingPage.appTitle}</span>
           </div>
         </div>
       </div>

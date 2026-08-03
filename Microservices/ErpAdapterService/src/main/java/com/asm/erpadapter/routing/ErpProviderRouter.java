@@ -131,6 +131,17 @@ public class ErpProviderRouter {
         return cleaned.toLowerCase(); // "odoo", "erpnext", "dux", etc.
     }
 
+    /**
+     * The current tenant's ERP family, or {@code "none"} when it has not configured one.
+     *
+     * <p>Exposed so callers that route on something other than a port — the field catalogue and the
+     * mapping resolver, which are per-provider but not adapters — can select their own
+     * implementation without a second copy of this lookup.
+     */
+    public String provider() {
+        return resolveProvider();
+    }
+
     private String resolveProvider() {
         String active = settingsClient.getSettings().getActiveErpProvider();
         if (active == null || active.isBlank() || active.equalsIgnoreCase("NONE")) {

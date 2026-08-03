@@ -1,3 +1,8 @@
+# Tenant-aware log context (MDC keys set by TenantContextFilter / TenantIterator / AMQP inbound)
+logging:
+  pattern:
+    level: "%5p [cid:%X{companyId:-},rid:%X{requestId:-}]"
+
 server:
   port: 8088
 
@@ -104,7 +109,9 @@ erp:
       enabled: ${ERP_INBOUND_POLL_ENABLED:true}
       fixed-delay-ms: ${ERP_INBOUND_POLL_DELAY_MS:600000}   # 10 min safety net
 
-# POD photo fetch: map the public MinIO base (as stored on the URL) to the internal container base.
+# POD photo fetch. Media is stored as a bare object key, so the bucket is needed to build the
+# internal MinIO URL; the public base only serves to rewrite legacy absolute URLs.
 minio:
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
   internal-url: ${MINIO_INTERNAL_URL:http://minio:9000}
+  bucket: ${MINIO_BUCKET:pod-files}

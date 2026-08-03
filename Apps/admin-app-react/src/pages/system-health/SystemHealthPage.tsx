@@ -1,24 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import type { TablerIcon } from '@tabler/icons-react';
 import {
-  IconActivityHeartbeat, IconAlertTriangle, IconPlugConnected, IconInbox,
-  IconTruck, IconMessages, IconShieldCheck, IconRoute, IconBell, IconServer, IconDatabase,
-  IconWifiOff, IconChevronDown, IconInfoCircle,
+  IconActivityHeartbeat, IconChevronDown, IconChevronRight, IconInfoCircle,
+  IconMessages, IconServer, IconDatabase, IconPlugConnected,
 } from '@tabler/icons-react';
-import { useT } from '@/lib/i18n/LocaleContext';
+import { useT, useLocaleContext } from '@/lib/i18n/LocaleContext';
 import { AppModal } from '@/components/overlays/AppModal';
 import {
   deriveHealthSummary, computeStale, groupServices, describeKey,
   type DescriptionKey,
 } from '@/lib/health/system-health';
 import {
-  type Tone, type ComponentRowData, type CircuitBreaker,
-  TONE_ICON, TONE_VAR, TONE_BG, worstTone, groupTone, RANGES,
-  HeroBanner, ActionRow, ActionButton, Banner, SkeletonRow, formatAge,
+  type Tone, type CircuitBreaker,
+  TONE_VAR, groupTone, formatAge, describeBackup,
 } from './SystemHealthParts';
 
 // ── Backend payload contract ──────────────────────────────────────────────────
@@ -38,149 +35,161 @@ interface HealthPayload {
   db?: { reachable: boolean };
   erpSync?: ErpSyncInfo;
   erp: { reachable: boolean; pendingSyncFailures: number };
+  /** Written by the nightly job — see {@code ops/backup/backup.sh}. */
+  backup?: { status?: string; finishedAt?: string; directory?: string; detail?: string; offsite?: boolean };
 }
-type ComponentKey = 'drivers' | 'erp' | 'db' | 'queues';
-interface HistoryPoint {
-  t: number; erpFailed: number; maxFailureRate: number; dlqTotal: number;
-  breakersOpen: number; components: Record<ComponentKey, Tone>;
+/** One recorded exchange with the ERP — see {@code erp_sync_event} on the backend. */
+interface SyncEvent {
+  id: string; occurredAt: string; provider: string | null; op: string | null;
+  success: boolean; errorReason: string | null;
+  orderId: string | null; rmaId: string | null; reference: string | null;
+}
+interface JournalPayload {
+  events: SyncEvent[]; total24h: number; failed24h: number; provider: string | null;
 }
 
-// ── Small presentational helpers ──────────────────────────────────────────────
-function StatusPill({ tone, label }: { tone: Tone; label: string }) {
-  const Icon = TONE_ICON[tone];
+const PROVIDER_LABELS: Record<string, string> = { odoo: 'Odoo', erpnext: 'ERPNext' };
+
+// ── Quiet building blocks ─────────────────────────────────────────────────────
+/** Status is a small coloured dot plus a word — never a badge shouting for attention. */
+function Dot({ tone }: { tone: Tone }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-[600]"
-      style={{ background: TONE_BG[tone], color: TONE_VAR[tone], border: `1px solid color-mix(in srgb, ${TONE_VAR[tone]} 18%, transparent)` }}>
-      <Icon size={13} /><span>{label}</span>
+    <span
+      aria-hidden
+      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+      style={{ background: TONE_VAR[tone] }}
+    />
+  );
+}
+
+function Status({ tone, label }: { tone: Tone; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm shrink-0" style={{ color: 'var(--text-secondary)' }}>
+      <Dot tone={tone} />{label}
     </span>
+  );
+}
+
+function Section({ title, sub, aside, children }: {
+  title: string; sub?: string; aside?: React.ReactNode; children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="flex items-end justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <h2 className="text-sm font-[600]" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
+        </div>
+        {aside}
+      </div>
+      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/** A label/value line. The whole overview is three of these — nothing to decode. */
+function Line({ label, value, status }: { label: string; value?: string; status?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5 border-t border-[var(--border)] first:border-t-0">
+      <span className="text-sm min-w-0 flex-1" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      {value && <span className="text-sm tabular-nums" style={{ color: 'var(--text-primary)' }}>{value}</span>}
+      {status}
+    </div>
+  );
+}
+
+/**
+ * The page's action button.
+ *
+ * <p>It used to be a text button on the reasoning that a resync is rare, so it should stay
+ * quiet. That was the wrong read: rare is not the same as minor. Every row this appears on is a
+ * delivery the ERP never received, and the button is the whole reason the operator opened the
+ * page — hiding the only thing to do here behind a hairline made the section look like a report
+ * to read rather than a queue to clear.
+ *
+ * <p>`primary` is the bulk action at the top of a section; rows get the secondary weight so a
+ * list of twenty does not turn into twenty blue rectangles competing with the one above them.
+ */
+function ResyncIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
+function ActionButton({ onClick, disabled, label, busy, variant = 'secondary' }: {
+  onClick: () => void; disabled?: boolean; label: string; busy?: boolean;
+  variant?: 'primary' | 'secondary' | 'recover';
+}) {
+  // `recover` carries the danger hue on its border and label but leaves the fill empty.
+  // A filled red block is the established signal for a destructive, irreversible action, and a
+  // resync is the opposite of that — it repairs. Outlined, the colour says "this belongs to the
+  // failure you are looking at" without promising to delete anything, and it stays distinct from
+  // a real delete button sitting next to it.
+  const tone = variant === 'recover' ? 'var(--danger)' : 'var(--brand)';
+  const primary = variant === 'primary';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={busy || undefined}
+      className={[
+        'group inline-flex items-center justify-center gap-1.5 shrink-0',
+        'text-xs font-[600] h-8 px-3 rounded-[var(--radius)]',
+        'transition-colors duration-150',
+        'focus-visible:outline-2 focus-visible:outline-offset-2',
+        'disabled:opacity-45 disabled:cursor-not-allowed',
+        primary
+          ? 'text-white bg-[var(--brand)] hover:bg-[var(--brand-hover)] border border-transparent'
+          : 'bg-[var(--surface)] border hover:bg-[var(--hover-bg)]',
+      ].join(' ')}
+      style={primary ? undefined : { color: tone, borderColor: tone, outlineColor: tone }}
+    >
+      {busy ? (
+        // The spinner replaces the icon rather than joining it, so the button keeps its width and
+        // the row does not shift while a request is in flight.
+        <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" aria-hidden />
+      ) : (
+        <ResyncIcon />
+      )}
+      {label}
+    </button>
   );
 }
 
 function InfoDot({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className="shrink-0 w-5 h-5 inline-flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
+      type="button" onClick={onClick} aria-label={label} title={label}
+      className="shrink-0 w-4 h-4 inline-flex items-center justify-center rounded-full text-[var(--text-soft)] hover:text-[var(--brand)] transition-colors"
     >
-      <IconInfoCircle size={14} />
+      <IconInfoCircle size={13} />
     </button>
-  );
-}
-
-function MetricCard({
-  title, icon: Icon, value, sub, tone,
-}: {
-  title: string; icon: TablerIcon; value: string | number; sub: string; tone: Tone;
-}) {
-  return (
-    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3.5 flex items-center gap-3">
-      <Icon size={18} style={{ color: 'var(--text-soft)' }} />
-      <div className="min-w-0 flex-1">
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{title}</p>
-        <p className="text-lg font-bold tabular-nums leading-tight" style={{ color: 'var(--text-primary)' }}>{value}</p>
-      </div>
-      <StatusPill tone={tone} label={sub} />
-    </div>
-  );
-}
-
-function ServiceRow({
-  label, icon: Icon, tone, statusLabel, metric,
-  hasDetails, isOpen, onToggle, onInfo, children,
-}: {
-  label: string; icon: TablerIcon; tone: Tone; statusLabel: string;
-  metric?: { value: string; tone: Tone };
-  hasDetails: boolean; isOpen: boolean; onToggle: () => void;
-  onInfo?: () => void; children?: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-[var(--border)] last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={!hasDetails}
-        className="w-full text-start px-4 py-2.5 transition-colors hover:bg-[var(--hover-bg)] disabled:cursor-default"
-      >
-        <div className="flex items-center gap-3">
-          <Icon size={17} style={{ color: 'var(--text-soft)' }} />
-          <div className="min-w-0 flex-1 flex items-center gap-2">
-            <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{label}</span>
-            {onInfo && <InfoDot onClick={onInfo} label="What this means" />}
-          </div>
-          {metric && (
-            <span className="font-mono text-xs tabular-nums font-[600]" style={{ color: TONE_VAR[metric.tone] }}>{metric.value}</span>
-          )}
-          <StatusPill tone={tone} label={statusLabel} />
-          {hasDetails && <IconChevronDown size={15} className={`shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--text-soft)' }} />}
-        </div>
-      </button>
-      {isOpen && hasDetails && children && (
-        <div className="px-4 pb-3 pt-1 bg-[var(--surface-sunken)]">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BreakerTable({
-  breakers, statusFor, onInfo, thBreaker, thState, thRate, thFb, infoLabel,
-}: {
-  breakers: CircuitBreaker[]; statusFor: (s: string) => { label: string; tone: Tone };
-  onInfo: (k: DescriptionKey) => void;
-  thBreaker: string; thState: string; thRate: string; thFb: string; infoLabel: string;
-}) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs min-w-[460px]">
-        <thead>
-          <tr className="text-2xs" style={{ color: 'var(--text-muted)' }}>
-            <th className="text-start font-[600] py-1.5">{thBreaker}</th>
-            <th className="text-start font-[600] py-1.5">{thState}</th>
-            <th className="text-end font-[600] py-1.5">{thRate}</th>
-            <th className="text-end font-[600] py-1.5">{thFb}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {breakers.map(cb => {
-            const s = statusFor(cb.state);
-            return (
-              <tr key={cb.name} className="border-t border-[var(--border)]">
-                <td className="py-1.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                  <span className="inline-flex items-center gap-1.5">
-                    <InfoDot onClick={() => onInfo(describeKey(cb.name, false))} label={infoLabel} />
-                    <span className="truncate">{cb.name}{cb.reachable === false ? ' ⚠' : ''}</span>
-                  </span>
-                </td>
-                <td className="py-1.5 font-mono" style={{ color: TONE_VAR[s.tone] }}>{cb.state}</td>
-                <td className="py-1.5 text-end tabular-nums">{cb.failureRate < 0 ? '—' : `${cb.failureRate.toFixed(0)}%`}</td>
-                <td className="py-1.5 text-end tabular-nums">{cb.failedCalls} / {cb.bufferedCalls}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
 export default function SystemHealthPage() {
   const t = useT();
+  const { locale } = useLocaleContext();
   const dd = t.systemHealthPage;
   const [data, setData] = useState<HealthPayload | null>(null);
-  const [history, setHistory] = useState<HistoryPoint[]>([]);
-  const [rangeMin, setRangeMin] = useState(60);
+  const [journal, setJournal] = useState<JournalPayload | null>(null);
+  const [onlyFailed, setOnlyFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [replaying, setReplaying] = useState<string | null>(null);
   const [resyncing, setResyncing] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [showTechnical, setShowTechnical] = useState(false);
   const [connected, setConnected] = useState(true);
   const [infoKey, setInfoKey] = useState<DescriptionKey | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const [, setNowTick] = useState(0);
+  // The clock is state, not a Date.now() call in render: "updated 12s ago" has to keep ticking on
+  // its own, and reading the wall clock while rendering makes the output depend on when React runs.
+  const [now, setNow] = useState(() => Date.now());
 
   // ── Friendly-name resolvers (raw breaker / queue ids → human labels) ─────────
   const getFriendlyService = (name: string): string => {
@@ -209,40 +218,30 @@ export default function SystemHealthPage() {
     const labels = dd.resync.opLabels;
     return labels[op as keyof typeof labels] ?? op;
   };
-  const statusFor = (state: string): { label: string; tone: Tone } => {
-    const s = dd.states[state as keyof typeof dd.states];
-    const tone: Tone = state === 'CLOSED' ? 'ok'
-      : state === 'OPEN' || state === 'FORCED_OPEN' ? 'down'
-      : state === 'HALF_OPEN' ? 'warn' : 'idle';
-    return { label: s?.label ?? state, tone };
-  };
   const toneLabel = (tone: Tone): string =>
-    tone === 'ok' ? (dd.statusOperational ?? 'Operational')
+    tone === 'ok' ? dd.statusOperational
     : tone === 'warn' ? dd.states.HALF_OPEN.label
     : tone === 'down' ? dd.states.OPEN.label
     : dd.states.DISABLED.label;
 
-  const iconForGroup = (label: string) => {
-    const s = dd.services;
-    if (label === s.drivers) return IconTruck;
-    if (label === s.erp) return IconPlugConnected;
-    if (label === s.auth) return IconShieldCheck;
-    if (label === s.routes) return IconRoute;
-    if (label === s.notifications) return IconBell;
-    if (label === s.main) return IconServer;
-    return IconServer;
-  };
+  const formatTime = useCallback((iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    const tag = locale === 'ar' ? 'ar-TN' : locale === 'en' ? 'en-GB' : 'fr-FR';
+    return d.toLocaleString(tag, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }, [locale]);
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const fetchHealth = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const [snapRes, histRes] = await Promise.all([
+      const [snapRes, journalRes] = await Promise.all([
         api.get<HealthPayload>('/admin/system/health'),
-        api.get<HistoryPoint[]>('/admin/system/health/history').catch(() => ({ data: [] as HistoryPoint[] })),
+        api.get<JournalPayload>('/admin/system/erp-sync/history', { params: { limit: 50, failedOnly: onlyFailed } })
+          .catch(() => ({ data: null as JournalPayload | null })),
       ]);
       setData(snapRes.data);
-      setHistory(Array.isArray(histRes.data) ? histRes.data : []);
+      setJournal(journalRes.data);
       setConnected(true);
       setLastUpdated(Date.now());
     } catch {
@@ -251,12 +250,14 @@ export default function SystemHealthPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [dd]);
+  }, [dd, onlyFailed]);
 
   useEffect(() => {
-    void fetchHealth();
-    const id = setInterval(() => void fetchHealth(true), 10_000);
-    const tick = setInterval(() => setNowTick(n => n + 1), 5_000);
+    // Silent on mount: the visible spinner belongs to an explicit refresh, and a non-silent call
+    // would set state synchronously inside the effect body.
+    void fetchHealth(true);
+    const id = setInterval(() => void fetchHealth(true), 15_000);
+    const tick = setInterval(() => setNow(Date.now()), 5_000);
     return () => { clearInterval(id); clearInterval(tick); };
   }, [fetchHealth]);
 
@@ -312,67 +313,38 @@ export default function SystemHealthPage() {
   const summary = deriveHealthSummary(data, getFriendlyService);
   const actionCount = failures.length + stuckQueues.length;
 
-  const isStale = computeStale({ connected, generatedAt: data?.generatedAt, lastUpdated, now: Date.now() });
-  const agoSeconds = lastUpdated ? Math.max(0, Math.round((Date.now() - lastUpdated) / 1000)) : null;
+  const isStale = computeStale({ connected, generatedAt: data?.generatedAt, lastUpdated, now });
+  const agoSeconds = lastUpdated ? Math.max(0, Math.round((now - lastUpdated) / 1000)) : null;
 
-  const now = Date.now();
-  const windowPoints = history.filter(p => now - p.t <= rangeMin * 60_000);
-  const hasDown = summary.downCount > 0 || !dbReachable;
-  const hasWarn = summary.recoveringCount > 0 || summary.erpFailed > 0 || stuckQueues.length > 0;
-  const overall: Tone = hasDown ? 'down' : hasWarn ? 'warn' : 'ok';
-  const recoveringOnly = summary.recoveringCount > 0 && !hasDown && summary.erpFailed === 0 && stuckQueues.length === 0;
-  const heroTitle = overall === 'ok' ? dd.allGoodTitle
-    : overall === 'warn' && recoveringOnly ? dd.recoveringTitle
-    : dd.pointsAttentionTitle.replace('{count}', String(summary.problems)).replace('{plural}', summary.problems > 1 ? 's' : '');
-  const heroSub = overall === 'ok' ? dd.allGoodSub
-    : overall === 'warn' && recoveringOnly ? dd.recoveringSub
-    : dd.pointsAttentionSub;
-  const HeroIcon = TONE_ICON[overall];
+  const erpReachable = data?.erp?.reachable ?? true;
+  const providerLabel = journal?.provider ? (PROVIDER_LABELS[journal.provider] ?? journal.provider) : null;
+  const backup = describeBackup(data?.backup, now, t);
 
-  // ── Build grouped service rows ──────────────────────────────────────────────
-  const groups = useMemo(() => groupServices(breakers, getFriendlyService), [breakers, getFriendlyService]);
-  const rows: ComponentRowData[] = useMemo(() => {
-    const out: ComponentRowData[] = [];
-    for (const g of groups) {
-      const isDrivers = g.label === dd.services.drivers;
-      const isErp = g.label === dd.services.erp;
-      const lane: ComponentKey | null = isDrivers ? 'drivers' : isErp ? 'erp' : null;
-      let tone = groupTone(g);
-      let metric: ComponentRowData['metric'];
-      if (isErp && erpSync && erpSync.failed > 0) {
-        tone = worstTone([tone, 'warn']);
-        metric = { value: String(erpSync.failed), tone: 'down' };
-      } else if (g.bufferedCalls > 0 && g.failureRate >= 0) {
-        const fr = Math.round(g.failureRate);
-        if (fr > 0) metric = { value: `${fr}%`, tone: fr > 50 ? 'down' : 'warn' };
-      }
-      out.push({
-        kind: 'group', label: g.label, icon: iconForGroup(g.label), lane, tone, metric,
-        breakers: breakers.filter(b => getFriendlyService(b.name) === g.label),
-      });
-    }
-    return out;
-  }, [groups, breakers, erpSync, dd.services.drivers, dd.services.erp, getFriendlyService]);
+  const overall: Tone = summary.downCount > 0 || !dbReachable ? 'down'
+    : actionCount > 0 || summary.recoveringCount > 0 ? 'warn'
+    : 'ok';
+  const headline = overall === 'ok' ? dd.allGoodTitle
+    : actionCount > 0
+      ? dd.pointsAttentionTitle.replace('{count}', String(actionCount)).replace('{plural}', actionCount > 1 ? 's' : '')
+      : dd.recoveringTitle;
+  const headlineSub = overall === 'ok' ? dd.allGoodSub
+    : actionCount > 0 ? dd.pointsAttentionSub
+    : dd.recoveringSub;
 
-  const rangeLabel = RANGES.find(r => r.min === rangeMin)?.label;
+  const groups = groupServices(breakers, getFriendlyService);
+  const events = journal?.events ?? [];
+  const loading = data === null && connected;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="h-auto lg:h-[calc(100dvh-56px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
-      {/* Command bar */}
-      <header className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0 sticky top-0 z-[5]">
-        <div className="px-6 py-3 flex items-center gap-3 flex-wrap max-w-[1200px] mx-auto">
-          <IconActivityHeartbeat size={18} style={{ color: 'var(--brand)' }} />
-          <h1 className="text-base font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{dd.title}</h1>
-          <span className="text-xs hidden sm:inline" style={{ color: 'var(--text-soft)' }}>{dd.subtitle}</span>
+    <div className="min-h-full" style={{ background: 'var(--app-bg)' }}>
+      <header className="border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-[5]">
+        <div className="px-6 py-3 flex items-center gap-3 max-w-[1180px] mx-auto">
+          <IconActivityHeartbeat size={17} style={{ color: 'var(--text-soft)' }} />
+          <h1 className="text-sm font-[600]" style={{ color: 'var(--text-primary)' }}>{dd.title}</h1>
           <div className="ms-auto flex items-center gap-3">
-            <SegmentedControl<number>
-              value={rangeMin}
-              onChange={setRangeMin}
-              options={RANGES.map(r => ({ value: r.min, label: r.label }))}
-            />
             {agoSeconds != null && !isStale && (
-              <span className="hidden md:inline text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+              <span className="hidden sm:inline text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
                 {dd.updatedAgo.replace('{n}', String(agoSeconds))}
               </span>
             )}
@@ -381,180 +353,251 @@ export default function SystemHealthPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1200px] mx-auto p-6 flex flex-col gap-6">
+      <div className="max-w-[1180px] mx-auto px-6 py-6 flex flex-col gap-7">
 
-          {/* ── Hero status banner ── */}
-          {data ? (
-            <HeroBanner
-              tone={overall} icon={HeroIcon} title={heroTitle} sub={heroSub}
-              range={rangeLabel}
+        {/* ── One sentence: is anything wrong, and does it need me? ── */}
+        <div className="flex items-start gap-2.5">
+          <span className="mt-[7px]"><Dot tone={loading || isStale ? 'idle' : overall} /></span>
+          <div className="min-w-0">
+            <p className="text-base font-[600] leading-snug" style={{ color: 'var(--text-primary)' }}>
+              {loading ? dd.loading : isStale ? dd.disconnectedTitle : headline}
+            </p>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {loading ? dd.subtitle : isStale ? dd.disconnectedSub : headlineSub}
+            </p>
+          </div>
+        </div>
+
+        {/* Two summaries, side by side on a wide screen. Simply widening the column would have
+            pulled "Connexion ......... Active" a metre apart — a label and its value that far
+            from each other are harder to pair than a page with margins. */}
+        <div className="grid gap-7 lg:grid-cols-2 items-start">
+
+        {/* ── The integration, in three plain lines ── */}
+        <Section title={dd.overviewTitle} sub={providerLabel ?? dd.noProvider}>
+          <Line
+            label={dd.overviewConnection}
+            status={<Status tone={erpReachable ? 'ok' : 'down'} label={erpReachable ? dd.connectionActive : dd.connectionInterrupted} />}
+          />
+          <Line
+            label={dd.overviewSyncs}
+            value={journal
+              ? (journal.failed24h > 0
+                  ? dd.syncsValue.replace('{total}', String(journal.total24h)).replace('{failed}', String(journal.failed24h))
+                  : dd.syncsValueOk.replace('{total}', String(journal.total24h)))
+              : '—'}
+          />
+          <Line label={dd.overviewPending} value={String(erpSync?.inProgress ?? 0)} />
+        </Section>
+
+        {/* ── Backups: the failure to catch is a job that stopped running, not one that errored ── */}
+        <Section title={dd.backupTitle} sub={backup.offsite ? dd.backupOffsiteOn : dd.backupOffsiteOff}>
+          <Line
+            label={dd.backupLast}
+            value={backup.age}
+            status={<Status tone={backup.tone} label={backup.label} />}
+          />
+        </Section>
+
+        </div>
+
+        {/* ── Only shown when someone has to do something ── */}
+        {actionCount > 0 && (
+          <Section
+            title={dd.actionRequiredTitle}
+            sub={dd.failuresSubNeedsAttention}
+            aside={failures.length > 1
+              ? <ActionButton variant="primary" onClick={resyncAll} disabled={resyncing != null}
+                              busy={resyncing === 'ALL'} label={dd.resync.resyncAllButton} />
+              : undefined}
+          >
+            {failures.map(f => (
+              <div key={f.orderId} className="flex items-start gap-3 px-4 py-3 border-t border-[var(--border)] first:border-t-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-[500] truncate" style={{ color: 'var(--text-primary)' }}>
+                    {f.blNumber || f.erpRef || f.orderId.slice(0, 8)}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {opLabel(f.lastSyncOp)} · {dd.stuckFor.replace('{duration}', formatAge(f.stuckSince, t))}
+                    {f.retryCount > 0 ? ` · ${dd.attemptsLabel.replace('{count}', String(f.retryCount))}` : ''}
+                  </p>
+                  {f.lastSyncError && (
+                    <p className="text-xs mt-1 break-words line-clamp-2" style={{ color: 'var(--text-soft)' }}>{f.lastSyncError}</p>
+                  )}
+                </div>
+                <ActionButton
+                  variant="recover"
+                  onClick={() => resync(f.orderId, f.blNumber)}
+                  disabled={resyncing != null}
+                  busy={resyncing === f.orderId}
+                  label={resyncing === f.orderId ? dd.resync.resyncingButton : dd.resync.resyncButton}
+                />
+              </div>
+            ))}
+            {stuckQueues.map(([queue, depth]) => (
+              <div key={queue} className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border)] first:border-t-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-[500] truncate" style={{ color: 'var(--text-primary)' }}>{getFriendlyQueue(queue)}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{dd.replaysAwaiting.replace('{count}', String(depth))}</p>
+                </div>
+                <ActionButton
+                  onClick={() => replay(queue)}
+                  disabled={replaying === queue}
+                  busy={replaying === queue}
+                  label={replaying === queue ? dd.replayingButton : dd.replayButton}
+                />
+              </div>
+            ))}
+          </Section>
+        )}
+
+        {/* ── The history: what actually happened, whichever ERP it was ── */}
+        <Section
+          title={dd.journalTitle}
+          sub={dd.journalSubtitle}
+          aside={
+            <SegmentedControl<'all' | 'failed'>
+              value={onlyFailed ? 'failed' : 'all'}
+              onChange={(v) => setOnlyFailed(v === 'failed')}
+              options={[{ value: 'all', label: dd.journalAll }, { value: 'failed', label: dd.journalOnlyFailed }]}
             />
+          }
+        >
+          {events.length === 0 ? (
+            <p className="px-4 py-8 text-sm text-center" style={{ color: 'var(--text-muted)' }}>
+              {onlyFailed ? dd.journalEmptyFailed : dd.journalEmpty}
+            </p>
           ) : (
-            <HeroBanner tone="idle" icon={IconActivityHeartbeat} title={dd.loading ?? 'Loading…'} sub={dd.subtitle} range={rangeLabel} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[520px]">
+                <thead>
+                  <tr style={{ color: 'var(--text-muted)' }}>
+                    <th className="text-start font-[500] text-xs px-4 py-2">{dd.colTime}</th>
+                    <th className="text-start font-[500] text-xs px-4 py-2">{dd.colReference}</th>
+                    <th className="text-start font-[500] text-xs px-4 py-2">{dd.colOperation}</th>
+                    <th className="text-start font-[500] text-xs px-4 py-2">{dd.colStatus}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map(e => (
+                    <tr key={e.id} className="border-t border-[var(--border)] align-top">
+                      <td className="px-4 py-2.5 whitespace-nowrap tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                        {formatTime(e.occurredAt)}
+                      </td>
+                      <td className="px-4 py-2.5" style={{ color: 'var(--text-primary)' }}>
+                        <span className="block truncate max-w-[180px]">{e.reference ?? '—'}</span>
+                        {e.errorReason && (
+                          <span className="block text-xs mt-0.5 break-words line-clamp-2" style={{ color: 'var(--text-soft)' }}>
+                            {e.errorReason}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>{opLabel(e.op)}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <Status tone={e.success ? 'ok' : 'down'} label={e.success ? dd.journalOk : dd.journalFailedLabel} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+        </Section>
 
-          {/* ── Stale / disconnected ── */}
-          {isStale && (
-            <Banner tone="warn" icon={IconWifiOff} title={dd.disconnectedTitle} sub={dd.disconnectedSub} />
-          )}
+        {/* ── Everything an operator never needs, folded away ── */}
+        <section>
+          <button
+            type="button"
+            onClick={() => setShowTechnical(v => !v)}
+            className="inline-flex items-center gap-1.5 text-sm hover:text-[var(--text-primary)] transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            aria-expanded={showTechnical}
+          >
+            {showTechnical ? <IconChevronDown size={15} /> : <IconChevronRight size={15} />}
+            {dd.techDetailsToggle}
+          </button>
+          {showTechnical && (
+            <div className="mt-3 flex flex-col gap-4">
+              <p className="text-xs" style={{ color: 'var(--text-soft)' }}>{dd.technicalSub}</p>
 
-          {/* ── Loading skeleton ── */}
-          {!data && (
-            <section className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)] overflow-hidden">
-              {[0, 1, 2, 3].map(i => <SkeletonRow key={i} />)}
-            </section>
-          )}
-
-          {data && (
-            <>
-              {/* ── Summary cards ── */}
-              <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <MetricCard
-                  title={dd.cardServicesTitle}
-                  icon={IconServer}
-                  value={`${summary.okServices}/${summary.serviceCount}`}
-                  tone={summary.downCount > 0 ? 'down' : summary.recoveringCount > 0 ? 'warn' : 'ok'}
-                  sub={summary.downCount > 0 ? dd.cardServicesFootFailures.replace('{count}', String(summary.downCount))
-                    : summary.recoveringCount > 0 ? dd.cardServicesFootRecovering.replace('{count}', String(summary.recoveringCount))
-                    : dd.cardServicesFootOk}
-                />
-                <MetricCard
-                  title={dd.cardReplayTitle}
-                  icon={IconMessages}
-                  value={totalStuck}
-                  tone={stuckQueues.length > 0 ? 'warn' : 'ok'}
-                  sub={stuckQueues.length > 0 ? dd.cardReplayFootFailures.replace('{count}', String(stuckQueues.length)) : dd.cardReplayFootOk}
-                />
-                <MetricCard
-                  title={dd.cardErpTitle}
-                  icon={IconPlugConnected}
-                  value={summary.erpFailed}
-                  tone={summary.erpFailed > 0 ? 'down' : 'ok'}
-                  sub={summary.erpFailed > 0 ? dd.cardErpFootFailures.replace('{count}', String(summary.erpFailed)) : dd.cardErpFootOk}
-                />
-              </section>
-
-              {/* ── Service list ── */}
-              <section>
-                <h2 className="text-sm font-bold mb-2.5 inline-flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
-                  <IconActivityHeartbeat size={15} style={{ color: 'var(--text-muted)' }} />
-                  {dd.statusTitle}
-                </h2>
-                {rows.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-center rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)]" style={{ color: 'var(--text-muted)' }}>{dd.noServices}</p>
-                ) : (
-                  <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-                    {rows.map(row => {
-                      const key = `group:${row.label}`;
-                      const isOpen = expanded === key;
-                      const hasDetails = (row.breakers?.length ?? 0) > 0;
-                      return (
-                        <ServiceRow
-                          key={key}
-                          label={row.label}
-                          icon={row.icon}
-                          tone={row.tone}
-                          statusLabel={toneLabel(row.tone)}
-                          metric={row.metric}
-                          hasDetails={hasDetails}
-                          isOpen={isOpen}
-                          onToggle={() => hasDetails && setExpanded(isOpen ? null : key)}
-                          onInfo={() => setInfoKey(describeKey(row.label, false))}
-                        >
-                          {hasDetails && (
-                            <BreakerTable
-                              breakers={row.breakers!}
-                              statusFor={statusFor}
-                              onInfo={setInfoKey}
-                              thBreaker={dd.thCircuitBreaker}
-                              thState={dd.thState}
-                              thRate={dd.thFailureRate}
-                              thFb={dd.thFailedBuffered}
-                              infoLabel={dd.descriptionsModalSubtitle}
-                            />
-                          )}
-                        </ServiceRow>
-                      );
-                    })}
-
-                    {/* Database row */}
-                    <ServiceRow
-                      label={dd.services.database}
-                      icon={IconDatabase}
-                      tone={dbReachable ? 'ok' : 'down'}
-                      statusLabel={dbReachable ? dd.dbOk : dd.dbDown}
-                      hasDetails={false}
-                      isOpen={false}
-                      onToggle={() => {}}
-                    />
-
-                    {/* Queues row */}
-                    <ServiceRow
-                      label={dd.queuesGroupLabel}
-                      icon={IconMessages}
-                      tone={stuckQueues.length > 0 ? 'warn' : 'ok'}
-                      statusLabel={stuckQueues.length > 0 ? dd.cardReplayFootFailures.replace('{count}', String(stuckQueues.length)) : dd.cardReplayFootOk}
-                      metric={totalStuck > 0 ? { value: String(totalStuck), tone: 'warn' } : undefined}
-                      hasDetails={dlqEntries.length > 0}
-                      isOpen={expanded === 'queues'}
-                      onToggle={() => setExpanded(expanded === 'queues' ? null : 'queues')}
-                      onInfo={() => setInfoKey('dlqGeneric')}
-                    >
-                      <div className="flex flex-col">
-                        {dlqEntries.map(([q, d]) => (
-                          <div key={q} className="flex items-center justify-between gap-3 py-1.5 border-t border-[var(--border)] first:border-t-0">
-                            <span className="inline-flex items-center gap-1.5 min-w-0 font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
-                              <InfoDot onClick={() => setInfoKey(describeKey(q, true))} label={dd.descriptionsModalSubtitle} />
-                              <span className="truncate">{getFriendlyQueue(q)}</span>
-                            </span>
-                            <span className="font-mono text-xs tabular-nums shrink-0" style={{ color: Number(d) > 0 ? 'var(--danger)' : 'var(--text-soft)' }}>{d}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </ServiceRow>
+              <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                {groups.map(g => {
+                  const tone = groupTone(g);
+                  return (
+                    <div key={g.label} className="flex items-center gap-3 px-4 py-2.5 border-t border-[var(--border)] first:border-t-0">
+                      <IconServer size={15} style={{ color: 'var(--text-soft)' }} />
+                      <span className="text-sm min-w-0 flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>{g.label}</span>
+                      <InfoDot onClick={() => setInfoKey(describeKey(g.label, false))} label={dd.descriptionsModalSubtitle} />
+                      <Status tone={tone} label={toneLabel(tone)} />
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-3 px-4 py-2.5 border-t border-[var(--border)]">
+                  <IconDatabase size={15} style={{ color: 'var(--text-soft)' }} />
+                  <span className="text-sm min-w-0 flex-1" style={{ color: 'var(--text-secondary)' }}>{dd.services.database}</span>
+                  <Status tone={dbReachable ? 'ok' : 'down'} label={dbReachable ? dd.connectionActive : dd.connectionInterrupted} />
+                </div>
+                <div className="flex items-center gap-3 px-4 py-2.5 border-t border-[var(--border)]">
+                  <IconMessages size={15} style={{ color: 'var(--text-soft)' }} />
+                  <span className="text-sm min-w-0 flex-1" style={{ color: 'var(--text-secondary)' }}>{dd.queuesGroupLabel}</span>
+                  <InfoDot onClick={() => setInfoKey('dlqGeneric')} label={dd.descriptionsModalSubtitle} />
+                  <span className="text-sm tabular-nums" style={{ color: totalStuck > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{totalStuck}</span>
+                </div>
+                {data?.erp && (
+                  <div className="flex items-center gap-3 px-4 py-2.5 border-t border-[var(--border)]">
+                    <IconPlugConnected size={15} style={{ color: 'var(--text-soft)' }} />
+                    <span className="text-sm min-w-0 flex-1" style={{ color: 'var(--text-secondary)' }}>{dd.cardErpTitle}</span>
+                    <InfoDot onClick={() => setInfoKey('erp')} label={dd.descriptionsModalSubtitle} />
+                    <Status tone={erpReachable ? 'ok' : 'down'} label={erpReachable ? dd.connectionActive : dd.connectionInterrupted} />
                   </div>
                 )}
-              </section>
+              </div>
 
-              {/* ── Action feed (ERP resync + DLQ replay) ── */}
-              {actionCount > 0 && (
-                <section className="rounded-[var(--radius-xl)] overflow-hidden border" style={{ borderColor: 'var(--danger)' }}>
-                  <header className="flex items-center justify-between gap-2 px-4 py-2.5" style={{ background: 'var(--danger-bg)' }}>
-                    <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--danger)' }}>
-                      <IconAlertTriangle size={15} />
-                      {(dd.actionRequiredTitle ?? 'Action required')} · {actionCount}
-                    </span>
-                    {failures.length > 1 && (
-                      <ActionButton onClick={resyncAll} busy={resyncing === '__all__'} disabled={resyncing != null} label={dd.resync.resyncAllButton} />
-                    )}
-                  </header>
-                  <div className="flex flex-col">
-                    {failures.map(f => (
-                      <ActionRow
-                        key={f.orderId}
-                        icon={IconPlugConnected}
-                        title={`${dd.erpSyncTitle} — ${f.blNumber || f.erpRef || f.orderId.slice(0, 8)}`}
-                        meta={`${opLabel(f.lastSyncOp)} · ${dd.stuckFor.replace('{duration}', formatAge(f.stuckSince, t))}${f.retryCount > 0 ? ` · ${dd.attemptsLabel.replace('{count}', String(f.retryCount))}` : ''}`}
-                        detail={f.lastSyncError ?? undefined}
-                        action={<ActionButton onClick={() => resync(f.orderId, f.blNumber)} busy={resyncing === f.orderId} disabled={resyncing != null} label={resyncing === f.orderId ? dd.resync.resyncingButton : dd.resync.resyncButton} />}
-                      />
-                    ))}
-                    {stuckQueues.map(([queue, depth]) => (
-                      <ActionRow
-                        key={queue}
-                        icon={IconInbox}
-                        title={getFriendlyQueue(queue)}
-                        meta={dd.replaysAwaiting.replace('{count}', String(depth))}
-                        action={<ActionButton onClick={() => replay(queue)} busy={replaying === queue} disabled={replaying === queue} label={replaying === queue ? dd.replayingButton : dd.replayButton} />}
-                      />
-                    ))}
-                  </div>
-                </section>
+              {breakers.length > 0 && (
+                <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)]">
+                  <table className="w-full text-xs min-w-[460px]">
+                    <thead>
+                      <tr style={{ color: 'var(--text-muted)' }}>
+                        <th className="text-start font-[500] px-4 py-2">{dd.thCircuitBreaker}</th>
+                        <th className="text-start font-[500] px-4 py-2">{dd.thState}</th>
+                        <th className="text-end font-[500] px-4 py-2">{dd.thFailureRate}</th>
+                        <th className="text-end font-[500] px-4 py-2">{dd.thFailedBuffered}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {breakers.map(cb => (
+                        <tr key={cb.name} className="border-t border-[var(--border)]">
+                          <td className="px-4 py-1.5 font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+                            {cb.name}{cb.reachable === false ? ' ·' : ''}
+                          </td>
+                          <td className="px-4 py-1.5 font-mono" style={{ color: 'var(--text-muted)' }}>{cb.state}</td>
+                          <td className="px-4 py-1.5 text-end tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                            {cb.failureRate < 0 ? '—' : `${cb.failureRate.toFixed(0)}%`}
+                          </td>
+                          <td className="px-4 py-1.5 text-end tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                            {cb.failedCalls} / {cb.bufferedCalls}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
-            </>
+
+              {dlqEntries.length > 0 && (
+                <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                  {dlqEntries.map(([q, d]) => (
+                    <div key={q} className="flex items-center gap-3 px-4 py-2 border-t border-[var(--border)] first:border-t-0">
+                      <span className="font-mono text-xs min-w-0 flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>{getFriendlyQueue(q)}</span>
+                      <InfoDot onClick={() => setInfoKey(describeKey(q, true))} label={dd.descriptionsModalSubtitle} />
+                      <span className="text-xs tabular-nums" style={{ color: Number(d) > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{d}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
-        </div>
+        </section>
       </div>
 
       {infoKey && (

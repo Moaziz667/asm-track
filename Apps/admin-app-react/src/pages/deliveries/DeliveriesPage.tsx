@@ -14,7 +14,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { Button } from '@/components/ui/button';
 import { FieldSelect } from '@/components/ui/field';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { IconScan, IconX } from '@tabler/icons-react';
+import { IconScan, IconX, IconLayoutList } from '@tabler/icons-react';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useGlobalFilters } from '@/lib/state/global-filters';
 import { resolveOrderRef } from '@/lib/utils';
@@ -24,14 +24,16 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import {
   useDeliveries,
+  useDeliveryCounts,
   useActiveZones,
   useCancelDelivery,
 } from '@/hooks/useDeliveries';
 import { useFleetDrivers } from '@/hooks/useVehicles';
 
 import { DELIVERY_COLUMNS, DELIVERY_STATUSES } from './constants';
-import { getRowId } from './helpers';
+import { getRowId } from './format';
 import { useDepots } from '@/hooks/useDepots';
+import { QUICK_VIEWS } from './types';
 import type { DeliveryRow, QuickView } from './types';
 import { useDeliveryListData } from './useDeliveryListData';
 import { DeliveryTableRow, DeliveryMobileCard } from './DeliveryTableRow';
@@ -62,7 +64,16 @@ function DeliveriesPageContent() {
   const [driverId, setDriverId] = useState<string[]>(globalFilters.driver ? [globalFilters.driver] : []);
   const [zoneId, setZoneId] = useState<string[]>([]);
   const [depot, setDepot] = useState<string[]>([]);
-  const [quickView, setQuickView] = useState<QuickView>('all');
+  // ?view= opens the table on a quick view. The dashboard's backlog tiles have been linking here
+  // with it since they were written — the page just never read the parameter, so every one of
+  // them landed on "toutes les livraisons" and the operator had to re-pick the filter they had
+  // just clicked. Read once at mount rather than synced in an effect: the chips own this state
+  // afterwards, and an effect writing it back would fight them. Validated against the list, so
+  // an unknown value falls back instead of leaving the table in a state no chip represents.
+  const [quickView, setQuickView] = useState<QuickView>(() => {
+    const v = searchParams?.get('view');
+    return v && (QUICK_VIEWS as readonly string[]).includes(v) ? (v as QuickView) : 'all';
+  });
   const [sortAsc, setSortAsc] = useState(false);
   const [groupByClient, setGroupByClient] = useState(false);
   const [groupByZone, setGroupByZone] = useState(false);
@@ -109,8 +120,31 @@ function DeliveriesPageContent() {
     if (driverId.length) params.driverId = driverId;
     if (zoneId.length) params.zoneId = zoneId;
     if (depot.length) params.depot = depot;
+    // Every quick view goes to the server. Three of them already did; the other eight were
+    // applied to the twenty-five rows already loaded, so "Livrées" meant "the delivered ones on
+    // this page" — the chip said 9, the table showed 3, and paging on kept cutting the same
+    // unfiltered 77 into slices. The predicates exist: countTally computes the chip totals from
+    // these very parameters, so the server could always answer; the list was not asking.
     if (quickView === 'needsPinning') params.unpinned = 'true';
     if (quickView === 'returns') params.kind = ['RETURN_PICKUP'];
+    if (quickView === 'priority') params.priority = ['HIGH'];
+    if (quickView === 'unassigned') params.assigned = 'false';
+    if (quickView === 'overdue') params.bucket = 'OVERDUE';
+    if (quickView === 'today') params.bucket = 'TODAY';
+    if (quickView === 'future') params.bucket = 'FUTURE';
+
+    // A view that is really a set of statuses. When the operator has also picked statuses by
+    // hand, both constraints hold — the narrower answer is the honest one, and silently dropping
+    // either would show rows the screen claims to have excluded.
+    const viewStatuses: Record<string, string[]> = {
+      inTransit: ['IN_TRANSIT', 'AWAITING_HANDOFF'],
+      completed: ['DELIVERED'],
+      failed: ['FAILED', 'CANCELLED'],
+    };
+    const fromView = viewStatuses[quickView];
+    if (fromView) {
+      params.status = status.length ? status.filter(x => fromView.includes(x)) : fromView;
+    }
     return params;
   }, [page, size, status, dateFrom, dateTo, driverId, zoneId, depot, quickView]);
 
@@ -186,7 +220,24 @@ function DeliveriesPageContent() {
     }
   }, [query, dateFrom, dateTo, applyFilters]);
 
-  const { filteredRows, quickCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
+  const { filteredRows, quickCounts: pageCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
+
+  // Real tallies, across every matching delivery rather than the twenty-five on screen. The
+  // endpoint was written for exactly this and the page had been counting its own rows instead,
+  // so "Toutes les livraisons 25" was reporting the page size and calling it a total.
+  // Single-valued filters only: the endpoint takes one driver and one zone, so a multi-select
+  // is left out rather than silently narrowed to its first entry.
+  const { data: serverCounts } = useDeliveryCounts({
+    driverId: driverId.length === 1 ? driverId[0] : undefined,
+    zoneId: zoneId.length === 1 ? zoneId[0] : undefined,
+    date: dateFrom && dateFrom === dateTo ? dateFrom : undefined,
+    q: query || undefined,
+  });
+  // Page-local counts stand in until the tallies land, so the chips never flash empty.
+  const quickCounts = useMemo(
+    () => ({ ...pageCounts, ...(serverCounts ?? {}) }) as typeof pageCounts,
+    [pageCounts, serverCounts],
+  );
 
   const openRoute = (item: DeliveryRow) => {
     if (item.routeId) { router(`/routes/${item.routeId}?deliveryId=${item.rowId}`); return; }
@@ -240,12 +291,35 @@ function DeliveriesPageContent() {
     { value: 'today',       label: t.deliveriesPage.quickViewToday,       count: quickCounts.today },
     { value: 'future',      label: t.deliveriesPage.quickViewFuture,      count: quickCounts.future },
     { value: 'needsPinning',label: t.deliveriesPage.quickViewNeedsPinning,count: quickCounts.needsPinning },
+    { value: 'priority',    label: t.deliveryPage.priorityHigh,             count: quickCounts.priority },
     { value: 'unassigned',  label: t.deliveriesPage.quickViewUnassigned,  count: quickCounts.unassigned },
     { value: 'inTransit',   label: t.deliveriesPage.quickViewInTransit,   count: quickCounts.inTransit },
     { value: 'completed',   label: t.deliveriesPage.quickViewCompleted,   count: quickCounts.completed },
     { value: 'failed',      label: t.deliveriesPage.quickViewFailed,      count: quickCounts.failed },
     { value: 'returns',     label: t.deliveriesPage.quickViewReturns,     count: quickCounts.returns },
   ];
+
+  /**
+   * The column names, translated.
+   *
+   * DELIVERY_COLUMNS carries French literals — fine as identifiers, wrong on screen. The table
+   * headers already went through a translation map; the show/hide menu printed the raw label, so
+   * an English or Arabic session got "Référence" and "Client / Adresse" in its column picker.
+   * One map now feeds both, and a column added without a translation shows its id rather than
+   * silently shipping French.
+   */
+  const columnLabels: Record<string, string> = useMemo(() => ({
+    ref: t.deliveriesPage.refHeader,
+    client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
+    scheduled: t.deliveriesPage.scheduledHeader,
+    status: t.deliveriesPage.statusHeader,
+    driver: t.deliveriesPage.driverHeader,
+    zone: t.deliveriesPage.zoneHeader,
+  }), [t]);
+  const translatedColumns = useMemo(
+    () => orderedColumns.map(c => ({ ...c, label: columnLabels[c.id] ?? c.id })),
+    [orderedColumns, columnLabels],
+  );
 
   const headerSort = (key: 'ref' | 'client' | 'status' | 'zone') => {
     if (key === 'ref') setSortAsc(v => !v);
@@ -327,10 +401,14 @@ function DeliveriesPageContent() {
                   value={String(size)}
                   onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
                   options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
-                  className="h-7 text-xs font-medium w-[100px]"
+                  /* py-0 because the shared input padding (py-2) plus a line box is about 36px of
+                     content, and h-7 is 28px: the label was being clipped top and bottom by a box
+                     too small to hold it. The extra width is for "100 / page" to clear the chevron,
+                     which reserves 32px on the inline end. */
+                  className="h-7 py-0 text-xs font-medium w-[120px]"
                 />
                 <DisplaySettingsDropdown
-                  columns={orderedColumns}
+                  columns={translatedColumns}
                   visibleIds={visibleIds}
                   onToggle={toggleColumn}
                   onReorder={moveColumn}
@@ -376,14 +454,7 @@ function DeliveriesPageContent() {
                         <th className="w-2 px-0"></th>
                         {orderedColumns.map(col => {
                           if (!visibleIds.has(col.id)) return null;
-                          const labelMap: Record<string, string> = {
-                            ref: t.deliveriesPage.refHeader,
-                            client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
-                            scheduled: t.deliveriesPage.scheduledHeader,
-                            status: t.deliveriesPage.statusHeader,
-                            driver: t.deliveriesPage.driverHeader,
-                            zone: t.deliveriesPage.zoneHeader,
-                          };
+                          const labelMap = columnLabels;
                           const sortable = col.id === 'ref' || col.id === 'client' || col.id === 'status' || col.id === 'zone';
                           const align = col.id === 'driver' || col.id === 'zone' ? 'text-center' : 'text-left';
                           return (
@@ -391,7 +462,22 @@ function DeliveriesPageContent() {
                               {sortable ? (
                                 <button onClick={() => headerSort(col.id as 'ref' | 'client' | 'status' | 'zone')} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                                   {labelMap[col.id]}
-                                  <span className="text-2xs">{col.id === 'ref' ? (sortAsc ? '▲' : '▼') : (groupActive[col.id] ? (sortAsc ? '▲' : '▼') : '⇅')}</span>
+                                  {/* Only Référence sorts. Client, Statut and Zone toggle a
+                                      grouping, and they were drawing a sort arrow whose direction
+                                      came from sortAsc — the reference column's state — so
+                                      grouping by client moved an arrow describing another column.
+                                      A grouping is on or off; it has no direction to show. */}
+                                  {col.id === 'ref' ? (
+                                    <span className="text-2xs">{sortAsc ? '▲' : '▼'}</span>
+                                  ) : (
+                                    <IconLayoutList
+                                      size={12}
+                                      style={{
+                                        color: groupActive[col.id] ? 'var(--brand)' : 'var(--text-soft)',
+                                        opacity: groupActive[col.id] ? 1 : 0.5,
+                                      }}
+                                    />
+                                  )}
                                 </button>
                               ) : labelMap[col.id]}
                             </th>
@@ -441,8 +527,15 @@ function DeliveriesPageContent() {
             {/* Pagination footer */}
             {(rows.length >= size || page > 0 || totalPages > 1) && (
               <div className="flex items-center justify-between px-6 py-2.5 border-t border-[var(--border)] bg-[var(--app-bg)] shrink-0">
+                {/* What is on screen out of what matched, then the page. "Page 1 · 77 résultats"
+                    gave a position and a total and never said how many of them you were looking
+                    at — the one number the reader is checking. */}
                 <span className="text-xs text-[var(--text-muted)]">
-                  {t.deliveriesPage.pageLabel} {page + 1}{totalElements > rows.length ? ` · ${totalElements} ${t.deliveriesPage.resultsLabel}` : ''}
+                  <span className="font-mono tabular-nums text-[var(--text-secondary)]">
+                    {rows.length}/{totalElements}
+                  </span>
+                  {' '}{t.deliveriesPage.resultsLabel}
+                  {totalPages > 1 && ` · ${t.deliveriesPage.pageLabel} ${page + 1}/${totalPages}`}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-7 px-3 text-xs font-[700]">

@@ -67,6 +67,9 @@ public class AdminDeliverySummaryResponse {
     private UUID sourceDepotId;
 
     @Schema(description = "Client full name")
+    /** NORMAL | HIGH — an indication for the dispatcher scanning the list. */
+    private String priority;
+
     private String clientName;
 
     @Schema(description = "Dropoff street address")

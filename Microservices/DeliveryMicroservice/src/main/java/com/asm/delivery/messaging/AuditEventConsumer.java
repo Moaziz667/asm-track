@@ -59,9 +59,12 @@ public class AuditEventConsumer {
                         Map.of("type", "session.revoked", "driverId", driverId));
             } else if (sub != null) {
                 // Admin clients match this against their own token's `sub` (immutable Keycloak subject).
-                // Use tenant-scoped topic
+                // Tenant-scoped, relay-safe DOT notation (slash destinations are rejected by the
+                // RabbitMQ STOMP relay). No global fallback: without a tenant the event goes to a
+                // dead destination rather than a topic any tenant could observe.
                 UUID cid = TenantContext.get();
-                String topic = cid != null ? "/topic/company/" + cid + "/admin.security" : "/topic/admin.security";
+                String topic = cid != null ? "/topic/company." + cid + ".admin.security"
+                                           : "/topic/untenanted.admin.security";
                 ws.convertAndSend(topic,
                         Map.of("type", "session.revoked", "sub", sub));
             }

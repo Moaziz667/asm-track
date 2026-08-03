@@ -21,7 +21,7 @@ public class ErpPendingOrderSummaryDTO {
     private String erpOrderId;
 
     @Schema(description = "Client's own purchase order reference, if provided", example = "PO-2026-001")
-    private String externalRef;
+    private String customerRef;
 
     @Schema(description = "End client full name", example = "Mohamed Ali Ben Salah")
     private String customerName;
@@ -40,6 +40,12 @@ public class ErpPendingOrderSummaryDTO {
 
     @Schema(description = "Currency code", example = "TND")
     private String currency;
+
+    @Schema(description = "Whether the driver must collect payment on arrival", example = "false")
+    private Boolean codRequired;
+
+    @Schema(description = "Amount to collect when codRequired", example = "150.500")
+    private BigDecimal codAmount;
 
     @Schema(description = "Date the order was confirmed in the ERP", example = "2026-05-13T09:00:00")
     private LocalDateTime dateOrder;
@@ -71,6 +77,9 @@ public class ErpPendingOrderSummaryDTO {
     private Boolean ready;
 
     @Schema(description = "True when this picking is a backorder (reliquat of a prior partial delivery)", example = "true")
+    /** NORMAL | HIGH — so the list can flag an urgent order before anyone imports it. */
+    private String priority;
+
     private boolean backorder;
 
     @Schema(description = "BL number of the origin picking this is a backorder of", example = "WH/OUT/00012")

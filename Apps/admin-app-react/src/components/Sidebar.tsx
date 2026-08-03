@@ -8,7 +8,7 @@ import {
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2,
   IconChartLine, IconFileText, IconSettings, IconDatabase,
   IconChevronsLeft, IconChevronsRight,
-  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan,
+  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan, IconCashBanknote,
   IconSun, IconMoon, IconMap2 as IconMap, IconUserCircle, IconLogout
 } from '@tabler/icons-react';
 import {
@@ -19,7 +19,6 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useAlerts } from '@/components/AlertsProvider';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { useAuth } from 'react-oidc-context';
 import { safeStorage } from '@/lib/storage';
@@ -71,6 +70,7 @@ export const GROUP_DEFS: NavGroupDef[] = [
     items: [
       { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          perm: 'perm:delivery:view' },
       { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    perm: 'perm:dispatch:operate' },
+      { labelKey: 'cash',       href: '/cash',          Icon: IconCashBanknote,     perm: 'perm:dispatch:operate' },
       { labelKey: 'import',     href: '/import',        Icon: IconUpload,           perm: 'perm:erp:sync' },
       { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        perm: 'perm:settings:manage' },
     ],
@@ -121,7 +121,6 @@ export function AppSidebar() {
   const { mapMode, setMapMode } = useGlobalMapStore();
   const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');
   const { locale: activeLocale } = useLocaleStore();
-  const { unreadCount } = useAlerts();
 
   // Auto-close drawer on mobile when routing changes
   useEffect(() => {
@@ -130,21 +129,7 @@ export function AppSidebar() {
     }
   }, [pathname, isMobile]);
 
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    operations: true,
-    deliveries: true,
-    planning: true,
-    fleet: true,
-    analytics: false,
-    settings: true,
-  });
 
-  const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupKey]: !prev[groupKey]
-    }));
-  };
 
   useEffect(() => {
     setIsClient(true);
@@ -490,9 +475,6 @@ export function AppSidebar() {
             if (visibleItems.length === 0) return null;
 
             const isGroupExpanded = activeGroup === group.labelKey;
-            const hasActiveChild = visibleItems.some(item => 
-              pathname === item.href || pathname.startsWith(`${item.href}/`)
-            );
 
             return (
               <div key={group.labelKey} className={s.navPanel__group}>
@@ -518,10 +500,9 @@ export function AppSidebar() {
 
                 {/* Group Items */}
                 <div className={cn(s['navPanel__items'], !isGroupExpanded && s['navPanel__items--collapsed'])}>
-                  {visibleItems.map((item, index) => {
+                  {visibleItems.map((item) => {
                     const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                     const badge = getBadgeFor(item.labelKey);
-                    const isLast = index === visibleItems.length - 1;
 
                     return (
                       <Link

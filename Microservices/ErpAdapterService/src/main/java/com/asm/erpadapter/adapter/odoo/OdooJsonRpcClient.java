@@ -103,19 +103,49 @@ public class OdooJsonRpcClient {
         return !apiKey.isBlank() ? apiKey : getSettingStr("password");
     }
 
+    // ── Settings exposed for the HTTP (non-RPC) call paths ──────────────────────
+    // Odoo renders reports over a *web session*, not over JSON-RPC (see OdooReportService), so that
+    // path needs the raw connection settings. They are exposed read-only here rather than duplicating
+    // SettingsClient lookups, and every derived URL must still pass through {@link #assertUrlAllowed}.
+
+    /** The configured JSON-RPC endpoint, e.g. {@code https://erp.example.com/jsonrpc}. */
+    public String rpcUrl() { return getSettingStr("url"); }
+
+    public String db()    { return getSettingStr("db"); }
+    public String login() { return getSettingStr("login"); }
+
+    /**
+     * The literal {@code password} setting — <b>not</b> {@link #getSecret()}.
+     *
+     * <p>Odoo accepts an API key wherever RPC expects a password, but {@code /web/session/authenticate}
+     * is the browser login path and (documented) does not take API keys. Callers on the session path
+     * must therefore be able to ask for the password specifically, and decide for themselves whether to
+     * fall back to the key.
+     */
+    public String password() { return getSettingStr("password"); }
+
+    /** The literal {@code apiKey} setting, or blank. */
+    public String apiKey() { return getSettingStr("apiKey"); }
+
+    /** Apply the SSRF allow-list to a URL derived from {@link #rpcUrl()}. Throws on a disallowed host. */
+    public void assertUrlAllowed(String url) { validateUrl(url); }
+
     // ── uid resolution (login + API key → uid via common.authenticate) ──────────
     // The admin configures login + apiKey, not the internal numeric uid. We resolve it once via Odoo's
-    // common.authenticate and cache it. Cache key = db|login|secret so a credential change re-resolves.
+    // common.authenticate and cache it PER CREDENTIAL SET (db|login|secret). This client is a singleton
+    // shared by every tenant, and each tenant has its own credentials: a single cache slot would thrash
+    // between tenants and — worse — a racy key/uid pair could send one tenant's uid with another
+    // tenant's credentials. One map entry per credential set makes tenant interleaving irrelevant,
+    // and a credential change still re-resolves (new key).
 
-    private final java.util.concurrent.atomic.AtomicReference<String> cachedUidKey =
-            new java.util.concurrent.atomic.AtomicReference<>();
-    private final java.util.concurrent.atomic.AtomicInteger cachedUid =
-            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final Map<String, Integer> uidByCredentials =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Returns the Odoo uid for the current credentials. Order of resolution:
      *   1. an explicitly configured {@code uid} (legacy/back-compat) — used as-is;
-     *   2. otherwise resolve from {@code login} + secret via {@code common.authenticate}, cached.
+     *   2. otherwise resolve from {@code login} + secret via {@code common.authenticate}, cached
+     *      per credential set (single-flight per key via computeIfAbsent).
      * Throws {@link ErpAdapterException} (retryable) if authentication fails so callers don't mistake
      * an auth problem for "not found".
      */
@@ -126,25 +156,31 @@ public class OdooJsonRpcClient {
         String db = getSettingStr("db");
         String login = getSettingStr("login");
         String secret = getSecret();
-        String key = db + "|" + login + "|" + secret.hashCode();
-        if (key.equals(cachedUidKey.get()) && cachedUid.get() > 0) {
-            return cachedUid.get();
-        }
-        int uid = authenticate(db, login, secret);
-        if (uid <= 0) {
+        String key = credentialsKey(db, login, secret);
+        Integer uid = uidByCredentials.computeIfAbsent(key, k -> {
+            int resolved = authenticate(db, login, secret);
+            if (resolved <= 0) {
+                // Don't cache failures: mapping function returning null leaves the key absent,
+                // so the next call retries authentication.
+                return null;
+            }
+            log.info("Odoo uid resolved via common.authenticate — db={} login={} uid={}", db, login, resolved);
+            return resolved;
+        });
+        if (uid == null) {
             throw new ErpAdapterException(
                     "Odoo authentication failed — check login/API key in ERP settings (db=" + db + ", login=" + login + ")", 502);
         }
-        cachedUid.set(uid);
-        cachedUidKey.set(key);
-        log.info("Odoo uid resolved via common.authenticate — db={} login={} uid={}", db, login, uid);
         return uid;
     }
 
-    /** Invalidate the cached uid (e.g. after a credential change). */
+    private String credentialsKey(String db, String login, String secret) {
+        return db + "|" + login + "|" + (secret != null ? secret.hashCode() : 0);
+    }
+
+    /** Invalidate the cached uid for the CURRENT tenant's credentials (e.g. after a credential change). */
     public void invalidateAuthCache() {
-        cachedUidKey.set(null);
-        cachedUid.set(0);
+        uidByCredentials.remove(credentialsKey(getSettingStr("db"), getSettingStr("login"), getSecret()));
     }
 
     /**
@@ -362,6 +398,10 @@ public class OdooJsonRpcClient {
     }
 
     /** Pulls the most useful human message out of an Odoo JSON-RPC error object. */
+    public static String extractOdooErrorMessage(Object error) {
+        return extractOdooError(error);
+    }
+
     private static String extractOdooError(Object error) {
         if (error instanceof Map<?, ?> m) {
             Object data = m.get("data");
@@ -378,6 +418,19 @@ public class OdooJsonRpcClient {
     }
 
     // ── Type-safe value helpers ─────────────────────────────────────────────
+
+    /**
+     * Read a single field value from an Odoo record. Returns null on any failure.
+     * Shared by OdooSaleOrderService, CancelHandler, and OdooValidationService.
+     */
+    @SuppressWarnings("unchecked")
+    public String readRecordState(String model, Integer recordId) {
+        Map<String, Object> response = callRpc(buildArgs(model, "read",
+                List.of(List.of(recordId), List.of("state"))));
+        List<Map<String, Object>> result = response != null
+                ? (List<Map<String, Object>>) response.get("result") : null;
+        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
+    }
 
     public static Integer asInt(Object value) {
         if (value == null) return null;

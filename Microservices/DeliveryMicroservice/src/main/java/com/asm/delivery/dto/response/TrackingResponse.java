@@ -21,6 +21,13 @@ public class TrackingResponse {
     private String clientName;
     private String clientPhone;
     private String erpOrderId;
+    /**
+     * The recipient's own order reference.
+     *
+     * <p>The one number on this page they recognise: erpOrderId is the distributor's delivery-note
+     * number and means nothing to the person waiting at the door.
+     */
+    private String customerRef;
     private Double dropoffLat;
     private Double dropoffLng;
     private String dropoffAddress;

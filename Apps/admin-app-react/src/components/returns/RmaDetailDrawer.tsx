@@ -21,6 +21,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   statusLabel: (s: RmaStatus) => string;
+  /** Imperative label for a transition — what the button does, not the state it lands on. */
+  actionLabel: (s: RmaStatus) => string;
   busyId: string | null;
   onTransition: (r: Rma, target: RmaStatus) => void;
   onResync: (r: Rma) => void;
@@ -93,7 +95,7 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   ];
 }
 
-export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, onSaveShipping, t }: Props) {
+export function RmaDetailDrawer({ rma, open, onClose, statusLabel, actionLabel, busyId, onTransition, onResync, t }: Props) {
   const ref = rma?.rmaNumber || rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
   const returnValue = rma
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
@@ -127,20 +129,25 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
   const footer = rma && NEXT[rma.status].length > 0 ? (
     <>
       <Button variant="ghost" size="sm" onClick={onClose}>{t.actions?.close ?? 'Close'}</Button>
-      {NEXT[rma.status].map((target) => {
+      {NEXT[rma.status].map((target, i) => {
         const Icon = TRANSITION_ICON[target] ?? IconArrowRight;
         const tk = STATUS_TOKENS[target];
+        // The first transition is the one that advances the return; the rest end it. Three
+        // outlined buttons in three different colours asked the operator to choose between
+        // equals when there is an obvious next move — so that one is filled and the others
+        // recede to a quiet outline.
+        const forward = i === 0;
         return (
           <Button
             key={target}
-            variant="outline"
+            variant={forward ? 'default' : 'outline'}
             size="sm"
             disabled={busyId === rma.id}
             onClick={() => onTransition(rma, target)}
             className="h-8 gap-1.5 px-3 text-xs font-semibold"
-            style={{ color: tk.text }}
+            style={forward ? undefined : { color: tk.text }}
           >
-            <Icon size={13} /> {statusLabel(target)}
+            <Icon size={13} /> {actionLabel(target)}
           </Button>
         );
       })}
@@ -152,7 +159,9 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
       open={open}
       onClose={onClose}
       title={title}
-      subtitle={rma ? `${tlabel(t.returnsPage, 'drawerSubtitle') ?? 'Return'} · ${ref}` : undefined}
+      /* The subtitle used to repeat the RMA number the title already carries. It now names the
+         shipment the return came from, which is the one identifier not yet on screen. */
+      subtitle={rma ? `${tlabel(t.returnsPage, 'drawerSubtitle') ?? 'Retour'} · ${rma.blNumber || rma.erpOrderId || ref}` : undefined}
       width={560}
       footer={footer}
     >
@@ -162,11 +171,15 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
             <Metric label={tlabel(t.returnsPage, 'colBl') ?? 'BL / Réf ERP'} value={rma.blNumber || rma.erpOrderId || '—'} mono />
             <Metric label={tlabel(t.returnsPage, 'drawerUnits') ?? 'Unités · lignes'} value={`${rma.totalUnits} · ${rma.items.length}`} mono />
-            <Metric
-              label={tlabel(t.returnsPage, 'drawerValue') ?? 'Returned value'}
-              value={returnValue > 0 ? formatMoney(returnValue, 'TND') : '—'}
-              mono
-            />
+            {/* Only when there is one. Unit prices are often absent on a return, and a label with
+                a dash under it spends a column saying nothing. */}
+            {returnValue > 0 && (
+              <Metric
+                label={tlabel(t.returnsPage, 'drawerValue') ?? 'Valeur retournée'}
+                value={formatMoney(returnValue, 'TND')}
+                mono
+              />
+            )}
             <Metric
               label={tlabel(t.returnsPage, 'drawerCreated') ?? 'Created'}
               value={
@@ -215,10 +228,15 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                         <span className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
                           {it.name ?? it.sku ?? '—'}
                         </span>
-                        <span className="text-2xs font-mono truncate" style={{ color: 'var(--text-soft)' }}>
-                          {it.sku ?? '—'}
-                          {it.reason ? <span style={{ color: 'var(--text-muted)' }}> · {it.reason}</span> : null}
-                        </span>
+                        {/* The second line repeats nothing: with no product name the first line is
+                            already the SKU, and printing it again under itself in grey read as a
+                            rendering fault rather than as detail. */}
+                        {(it.reason || (it.sku && it.name && it.sku !== it.name)) && (
+                          <span className="text-2xs font-mono truncate" style={{ color: 'var(--text-soft)' }}>
+                            {it.name && it.sku !== it.name ? it.sku : null}
+                            {it.reason ? <span style={{ color: 'var(--text-muted)' }}>{it.name && it.sku !== it.name ? ' · ' : ''}{it.reason}</span> : null}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-2 text-right text-xs font-mono font-[600] tabular-nums" style={{ color: 'var(--text-primary)' }}>

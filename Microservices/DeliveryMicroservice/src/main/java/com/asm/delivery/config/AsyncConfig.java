@@ -34,6 +34,25 @@ public class AsyncConfig {
         return ex;
     }
 
+    /**
+     * Shared executor for after-commit event publishing (STOMP broadcasts, FCM pushes, notification
+     * persistence). Replaces bare {@code CompletableFuture.runAsync} on the ForkJoin COMMON pool:
+     * common-pool threads carry no {@link TenantContext} (each caller had to remember a hand-rolled
+     * wrapper — the exact omission that broke the ERP metadata cache), and event bursts competed
+     * with every other common-pool user. The tenant decorator makes propagation structural.
+     */
+    @Bean(name = "eventExecutor")
+    public Executor eventExecutor() {
+        ThreadPoolTaskExecutor ex = new ThreadPoolTaskExecutor();
+        ex.setCorePoolSize(2);
+        ex.setMaxPoolSize(4);
+        ex.setQueueCapacity(5000);
+        ex.setThreadNamePrefix("event-");
+        ex.setTaskDecorator(tenantPropagatingDecorator());
+        ex.initialize();
+        return ex;
+    }
+
     /** Captures the submitting thread's tenant and restores it around the async task. */
     private static TaskDecorator tenantPropagatingDecorator() {
         return runnable -> {

@@ -14,7 +14,6 @@ import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
-import { useLocaleStore } from '@/lib/i18n';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { DRIVER_STATUS_COLOR } from '@/lib/ui/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
@@ -25,6 +24,7 @@ import { DriverNote } from '@/components/data-display/DriverNote';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { CreateReturnModal } from '@/components/returns/CreateReturnModal';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
+import { formatAddress } from '@/lib/utils/address';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -193,6 +193,12 @@ export default function DeliveryDetailPage() {
   );
 
   const items: DeliveryItem[] = delivery.items ?? [];
+
+  // Rendered as text whatever the ERP returned: a mapped value can be a number, a date or a
+  // boolean, and InfoRow hides anything that came back empty.
+  const customFields: Array<[string, string]> = Object.entries(delivery.customFields ?? {})
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => [k, String(v)]);
   // Human ERP reference — mirrors the backend Order.resolveRef() priority (erpOrderId →
   // erpExternalRef → uuid) so the header/breadcrumb never fall back to a bare UUID when the ERP id exists.
   const orderRef = (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
@@ -325,6 +331,18 @@ export default function DeliveryDetailPage() {
               {items.length > 0 && (
                 <StatChip icon={<IconPackage size={11} />} label={`${items.length} article${items.length > 1 ? 's' : ''}`} />
               )}
+              {delivery.priority === 'HIGH' && (
+                // First in the row and coloured, but no heavier than the chips beside it: this is one
+                // delivery, so the word is worth its width — on a list it would not be, which is why
+                // the lists get the dot alone.
+                <span
+                  className="flex items-center gap-[6px] shrink-0 px-2 py-1 text-2xs font-medium"
+                  style={{ color: 'var(--danger)' }}
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'var(--danger)' }} />
+                  {t.deliveryPage.priorityHigh}
+                </span>
+              )}
               {delivery.totalWeightKg && (
                 <StatChip icon={<IconWeight size={11} />} label={`${delivery.totalWeightKg} kg`} />
               )}
@@ -366,11 +384,35 @@ export default function DeliveryDetailPage() {
                 <div className="flex flex-col">
                   <InfoRow label={t.deliveryPage.labelName}      value={delivery.clientName} />
                   <InfoRow label={t.deliveryPage.labelPhone}    value={delivery.clientPhone} />
-                  <InfoRow label={t.deliveryPage.labelAddress}  value={delivery.dropoffAddress} />
+                  <InfoRow label={t.deliveryPage.labelAddress}  value={formatAddress(delivery.dropoffAddress)} />
                   <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
                   <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />
                 </div>
+
+                {/* Not an InfoRow: this is a sentence the driver will act on, and the row layout
+                    right-aligns and truncates it. The admin was the only place it did not appear —
+                    the driver's app has shown it all along, so a dispatcher on the phone was the
+                    one person who could not see what the delivery actually asks for. */}
+                {delivery.deliveryInstructions && (
+                  <div
+                    className="mt-3 flex items-start gap-2 rounded-sm px-3 py-2"
+                    style={{
+                      background: 'var(--surface-sunken)',
+                      borderInlineStart: '2px solid var(--brand)',
+                    }}
+                  >
+                    <IconQuote size={13} className="shrink-0 mt-0.5 text-[var(--text-muted)]" />
+                    <div className="min-w-0">
+                      <p className="text-2xs font-medium text-[var(--text-muted)]">
+                        {t.deliveryPage.deliveryInstructions}
+                      </p>
+                      <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+                        {delivery.deliveryInstructions}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </Section>
 
               {/* Order */}
@@ -467,6 +509,20 @@ export default function DeliveryDetailPage() {
                   </button>
                 )}
               </Section>
+
+              {/* ERP values with no ASM equivalent — last, because nothing here is actionable */}
+              {customFields.length > 0 && (
+                <Section title={t.deliveryPage.sectionCustomFields} icon={<IconReceipt size={12} />}>
+                  <p className="text-2xs text-[var(--text-muted)] mb-2">
+                    {t.deliveryPage.customFieldsHint}
+                  </p>
+                  <div className="flex flex-col">
+                    {customFields.map(([key, value]) => (
+                      <InfoRow key={key} label={key} value={value} />
+                    ))}
+                  </div>
+                </Section>
+              )}
             </div>{/* ════ /LEFT ════ */}
 
             {/* ════ RIGHT — Status & tracking (sticky sidebar) ════ */}

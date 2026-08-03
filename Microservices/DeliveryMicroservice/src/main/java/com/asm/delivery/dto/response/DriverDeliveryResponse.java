@@ -42,6 +42,18 @@ public class DriverDeliveryResponse {
     private BigDecimal    totalAmount;
     private String        currency;
 
+    /**
+     * Whether this delivery carries a collection instruction.
+     *
+     * <p>Sent even when false: the driver's screen has to be able to say "collect nothing" as
+     * plainly as it says "collect 6 000". A shop that offers cash on a 30-day account, and a driver
+     * who takes it because his screen was silent, is a reconciliation nobody can close.
+     */
+    private Boolean       codRequired;
+
+    /** How much to collect. Null unless {@link #codRequired}. */
+    private BigDecimal    codAmount;
+
     // items
     private List<OrderItem> items;
     private Integer         totalQuantity;

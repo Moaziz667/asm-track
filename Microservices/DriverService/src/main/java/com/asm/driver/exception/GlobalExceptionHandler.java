@@ -46,6 +46,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    /**
+     * A body Spring could not parse, or a required parameter the caller omitted, is a malformed
+     * <em>request</em> — not a server fault. Without these they fell through to
+     * {@link #handleException} and answered {@code 500}, which misreports a client mistake as an
+     * outage: it inflates the 5xx rate, fires availability alerts, and buries real failures among
+     * caller errors. Logged at WARN for the same reason.
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Corps de requête illisible ou JSON invalide.");
+        body.put("errorCode", "MALFORMED_REQUEST_BODY");
+        body.put("status", 400);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingParam(
+            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        log.warn("Missing request parameter '{}'", ex.getParameterName());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Paramètre requis manquant : '" + ex.getParameterName() + "'.");
+        body.put("errorCode", "MISSING_REQUEST_PARAMETER");
+        body.put("parameter", ex.getParameterName());
+        body.put("status", 400);
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
         log.error("Unhandled exception", ex);

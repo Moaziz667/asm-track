@@ -21,7 +21,7 @@ if (typeof window !== 'undefined') {
   // Fix for leaflet-draw ReferenceError: type is not defined in strict mode
   (window as unknown as { type: string }).type = '';
 
-  // @ts-ignore
+  // @ts-expect-error — see the note above
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -108,7 +108,7 @@ async function detectCodes(
         }
         codes = Array.from(seen.values());
       }
-    } catch (err) {
+    } catch {
       // Silently catch the error so we can gracefully fall back to Nominatim
       // The browser will inherently log network failures (like 504), but we don't need to throw our own warning.
     }
@@ -236,7 +236,6 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
 function SearchControl() {
   const map = useMap();
   const t = useT();
-  const isDark = useIsDark();
   const [query,   setQuery]   = useState('');
   const [loading, setLoading] = useState(false);
 

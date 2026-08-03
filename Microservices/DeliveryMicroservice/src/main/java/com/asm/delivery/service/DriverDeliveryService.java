@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 public class DriverDeliveryService {
 
     private final DeliveryRepository              deliveryRepo;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
@@ -55,8 +56,10 @@ public class DriverDeliveryService {
     private final HandoffService                  handoffService;
     private final com.asm.delivery.repository.HandoffRepository handoffRepository;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
+    private final CashCollectionService           cashCollectionService;
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     /** Lazy to avoid any construction-time cycle; used to create a refused-defect replacement shipment. */
     @org.springframework.context.annotation.Lazy
@@ -78,15 +81,6 @@ public class DriverDeliveryService {
             RouteStatus.VALIDATED,
             RouteStatus.IN_PROGRESS
     );
-
-    // ── Get available deliveries ──────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public List<DriverDeliveryResponse> getAvailable(UUID driverId) {
-        return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.UNSCHEDULED).stream()
-                .map(this::toDriverDeliveryResponse)
-                .toList();
-    }
 
     // ── Get active delivery for driver ────────────────────────────────────────
 
@@ -547,38 +541,68 @@ public class DriverDeliveryService {
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
 
 
-    @Transactional
+    /**
+     * Submits the proof of delivery.
+     *
+     * <p><b>Not transactional, by design.</b> The photos are uploaded to object storage <em>before</em>
+     * the database transaction opens, and a failed upload aborts the submit.
+     *
+     * <p>They used to be uploaded after commit, where a failure could only be logged: the POD row,
+     * the terminal delivery status and the {@code ERP_SYNC_POD} event were all committed anyway, so
+     * the database recorded a photo key for an object that had never been written, the ERP received
+     * a POD referencing bytes nobody could fetch, and nothing ever retried. A storage outage silently
+     * destroyed the proof of delivery — the one artefact a delivery exists to produce.
+     *
+     * <p>Uploading first inverts the failure mode into the safe one: the driver gets an error and
+     * retries with the photos still on the device, and nothing downstream ever references an object
+     * that is not there. The keys are deterministic ({@code pod/{deliveryId}/…}), so a retry
+     * overwrites rather than accumulates, and an upload orphaned by a later rollback is simply
+     * reclaimed by the next attempt.
+     */
     public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
         final String blBase64 = req.getBonLivraisonPhotoBase64();
         final String pkgBase64 = req.getPackagePhotoBase64();
         // ADR-033 — the bon de livraison is optional for a return collection (no delivery note exists).
         final boolean hasBl = blBase64 != null && !blBase64.isBlank();
-        return persistAndCompletePod(
-                deliveryId, driverId, req.getComment(), req.getLat(), req.getLng(),
-                req.isPartial(), req.getItemsDone(), hasBl, principal,
-                (blPath, pkgPath) -> {
-                    if (hasBl) {
-                        try {
-                            minioStorageService.uploadBase64(blBase64, blPath);
-                        } catch (Exception e) {
-                            log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
-                        }
-                    }
-                    try {
-                        minioStorageService.uploadBase64(pkgBase64, pkgPath);
-                    } catch (Exception e) {
-                        log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
-                    }
-                });
+
+        String deliveryFolder = "pod/" + deliveryId;
+        String bonLivraisonPhotoPath = deliveryFolder + "/bon-livraison.png";
+        String packagePhotoPath = deliveryFolder + "/package.png";
+
+        if (hasBl) uploadPodPhoto(blBase64, bonLivraisonPhotoPath, deliveryId, "bon-livraison");
+        uploadPodPhoto(pkgBase64, packagePhotoPath, deliveryId, "package");
+
+        // TransactionTemplate, not @Transactional: this method is now the entry point and calls the
+        // persistence step through `this`, which never engages the proxy (self-invocation) — the work
+        // below would otherwise run in separate implicit transactions.
+        return new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                .execute(status -> persistAndCompletePod(
+                        deliveryId, driverId, req.getComment(), req.getLat(), req.getLng(),
+                        req.getRecipientName(), req.isPartial(), req.getItemsDone(), hasBl, principal,
+                        bonLivraisonPhotoPath, packagePhotoPath, req.getCash()));
     }
 
-    /** Shared POD persistence + completion + ERP sync. {@code mediaUploader} receives the
-     *  (bon-livraison, package) object paths and performs the actual upload post-commit. */
+    /** Stores one POD photo, turning a storage failure into a retryable 503 for the driver. */
+    private void uploadPodPhoto(String base64, String path, UUID deliveryId, String label) {
+        try {
+            minioStorageService.uploadBase64(base64, path);
+        } catch (Exception e) {
+            log.error("POD_UPLOAD_FAILED deliveryId={} photo={} path={} reason={}",
+                    deliveryId, label, path, e.getMessage());
+            throw AppException.serviceUnavailable("POD_UPLOAD_FAILED",
+                    "Impossible d'enregistrer les photos de livraison. Réessayez.");
+        }
+    }
+
+    /** Shared POD persistence + completion + ERP sync. The photos named by the two paths are already
+     *  in object storage by the time this runs — see {@link #submitPod}. */
     private DriverDeliveryResponse persistAndCompletePod(
             UUID deliveryId, UUID driverId, String comment, BigDecimal lat, BigDecimal lng,
+            String recipientName,
             boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
             boolean hasBonLivraison,
-            UserPrincipal principal, java.util.function.BiConsumer<String, String> mediaUploader) {
+            UserPrincipal principal, String bonLivraisonPhotoPath, String packagePhotoPath,
+            com.asm.delivery.dto.request.ProofOfDeliveryRequest.CashCollectionEntry cash) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         // Idempotency FIRST: if a POD already exists, this submit is a duplicate/replay (double-tap,
@@ -611,13 +635,11 @@ public class DriverDeliveryService {
         // P0: Geofence Enforcement
         validateGeofence(delivery, lat, lng);
 
-        // P2: Deterministic Object Storage
-        String deliveryFolder = "pod/" + deliveryId;
-        String bonLivraisonPhotoPath = deliveryFolder + "/bon-livraison.png";
-        String packagePhotoPath = deliveryFolder + "/package.png";
-
-        String bonLivraisonPhotoUrl = hasBonLivraison ? minioStorageService.getPublicUrl(bonLivraisonPhotoPath) : null;
-        String packagePhotoUrl = minioStorageService.getPublicUrl(packagePhotoPath);
+        // Persist the STORAGE KEY, not an absolute URL: a URL would freeze this server's address
+        // into the row and break the photo the moment the host changes (new Wi-Fi/DHCP lease, VPS,
+        // production domain). MediaUrlResolver turns the key into a caller-reachable URL at read time.
+        String bonLivraisonPhotoUrl = hasBonLivraison ? minioStorageService.objectKeyFor(bonLivraisonPhotoPath) : null;
+        String packagePhotoUrl = minioStorageService.objectKeyFor(packagePhotoPath);
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
                 .deliveryId(deliveryId)
@@ -625,6 +647,7 @@ public class DriverDeliveryService {
                 .photoUrl(packagePhotoUrl)
                 .signatureUrl(null)
                 .comment(comment)
+                .recipientName(recipientName)
                 .lat(lat)
                 .lng(lng)
                 .collectedAt(LocalDateTime.now())
@@ -638,8 +661,10 @@ public class DriverDeliveryService {
             return toDriverDeliveryResponse(latest);
         }
 
-        // Defer upload to MinIO until the database transaction successfully commits.
-        runAfterCommit(() -> mediaUploader.accept(bonLivraisonPhotoPath, packagePhotoPath));
+        // The money is recorded in the same transaction as the proof, because it changed hands in the
+        // same moment. Never a gate: whatever is wrong or missing about the collection is written
+        // down and surfaced at the depot, not used to refuse a delivery that physically happened.
+        cashCollectionService.recordAtPod(delivery.getOrder(), deliveryId, driverId, cash);
 
         // C1 — Order matters in Odoo: the stock move (picking validation) must reach the ERP
         // BEFORE the proof of delivery, otherwise the POD attaches to a picking that is not yet
@@ -647,12 +672,14 @@ public class DriverDeliveryService {
         // (which enqueues ERP_SYNC_STOCK) and enqueue ERP_SYNC_POD only afterwards.
         DriverDeliveryResponse response = complete(deliveryId, driverId, partial, itemsDone, principal);
 
-        // C5 — The images already live in MinIO (uploaded post-commit above). The ERP event carries
-        // their stable MinIO URLs, not the raw base64: the adapter fetches the bytes and uploads them
-        // to Odoo. This keeps large binaries out of the outbox table and off the RabbitMQ frames.
+        // C5 — The images are already in MinIO (uploaded before this transaction opened). The ERP
+        // event carries their stable object keys, not the raw base64: the adapter fetches the bytes
+        // and uploads them to Odoo. This keeps large binaries out of the outbox table and off the
+        // RabbitMQ frames.
         Map<String, Object> podPayload = new HashMap<>();
         podPayload.put("deliveryId", deliveryId.toString());
         podPayload.put("deliveredAt", LocalDateTime.now().toString());
+        if (recipientName != null && !recipientName.isBlank()) podPayload.put("recipientName", recipientName);
         if (comment != null) podPayload.put("comment", comment);
         if (lat != null) podPayload.put("lat", lat);
         if (lng != null) podPayload.put("lng", lng);
@@ -1078,9 +1105,9 @@ public class DriverDeliveryService {
                 podResponse = ProofOfDeliveryResponse.builder()
                         .id(pod.getId())
                         .deliveryId(pod.getDeliveryId())
-                        .photoUrl(pod.getPhotoUrl())
-                        .signatureUrl(pod.getSignatureUrl())
-                        .bonLivraisonPhotoUrl(pod.getBonLivraisonPhotoUrl())
+                        .photoUrl(mediaUrlResolver.toPublicUrl(pod.getPhotoUrl()))
+                        .signatureUrl(mediaUrlResolver.toPublicUrl(pod.getSignatureUrl()))
+                        .bonLivraisonPhotoUrl(mediaUrlResolver.toPublicUrl(pod.getBonLivraisonPhotoUrl()))
                         .comment(pod.getComment())
                         .collectedAt(pod.getCollectedAt())
                         .lat(pod.getLat())
@@ -1117,6 +1144,9 @@ public class DriverDeliveryService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .currency(order != null ? order.getCurrency() : null)
+                .codRequired(order != null && Boolean.TRUE.equals(order.getCodRequired()))
+                .codAmount(order != null && Boolean.TRUE.equals(order.getCodRequired())
+                        ? order.getCodAmount() : null)
                 .kind(delivery.getKind() != null ? delivery.getKind().name() : "FORWARD")
                 .rmaNumber(isReturnPickupManifest ? rmaService.collectionRef(delivery.getRmaId()) : null)
                 .items(manifestItems)
@@ -1159,18 +1189,4 @@ public class DriverDeliveryService {
         }
     }
 
-    private void runAfterCommit(Runnable action) {
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                new org.springframework.transaction.support.TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        action.run();
-                    }
-                }
-            );
-        } else {
-            action.run();
-        }
-    }
 }

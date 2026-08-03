@@ -18,13 +18,16 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ErpPendingOrderSummaryDTO {
     private String erpOrderId;
-    private String externalRef;
+    private String customerRef;
     private String customerName;
     private String customerPhone;
     private String deliveryAddress;
     private String deliveryCity;
     private BigDecimal totalAmount;
     private String currency;
+    /** Carried on the list too, so the operator sees which orders come with a collection before importing. */
+    private Boolean codRequired;
+    private BigDecimal codAmount;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;
 
@@ -40,6 +43,9 @@ public class ErpPendingOrderSummaryDTO {
     /** True when ready to ship (Odoo picking state = 'assigned'). */
     private Boolean ready;
     /** True when this picking is a backorder (reliquat) — Odoo {@code backorder_id} is set. */
+    /** NORMAL | HIGH — so the list can flag an urgent order before anyone imports it. */
+    private String priority;
+
     private boolean backorder;
     /** BL number of the origin picking this is a backorder of (from {@code backorder_id}). */
     private String originBl;

@@ -63,6 +63,10 @@ export interface Delivery {
   dropoffAddress?: string;
   dropoffCity?: string;
   dropoffPostalCode?: string;
+  /** Free text the driver acts on at the door. Served by the API and shown in the driver app. */
+  deliveryInstructions?: string | null;
+  /** The end customer's own order reference (their PO number), mapped from their ERP. */
+  customerRef?: string | null;
   dropoffCountryCode?: string;
   dropoffLat?: number;
   dropoffLng?: number;
@@ -83,6 +87,13 @@ export interface Delivery {
   blNumber?: string;
   /** ERP source-warehouse code. */
   warehouseCode?: string;
+  /**
+   * ERP values the integrator mapped that ASM has no field of its own for.
+   *
+   * Display-only: whatever this customer keeps in their ERP, so nothing here can be sorted or
+   * filtered on. Keys are the labels the integrator chose on the mapping screen.
+   */
+  customFields?: Record<string, unknown> | null;
   /** Resolved source depot (where goods are loaded). */
   sourceDepotId?: string;
   sourceDepotName?: string;
@@ -111,6 +122,7 @@ export interface Delivery {
   source?: DeliverySource;
   erpId?: string;
   erpOrderId?: string;
+  /** NORMAL | HIGH — an indication for the dispatcher, not something ASM acts on by itself. */
   priority?: string;
   assignedAt?: string;
   completedAt?: string;
