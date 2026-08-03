@@ -167,12 +167,12 @@ public class CashRemittanceService {
     public CashRemittance reconcile(UUID remittanceId, String note, UserPrincipal actor) {
         String explanation = trimToNull(note);
         if (explanation == null) {
-            throw AppException.badRequest("Une explication est obligatoire pour solder un écart.");
+            throw AppException.badRequest("Une explication est obligatoire pour justifier un écart.");
         }
         CashRemittance r = load(remittanceId);
         if (r.getStatus() != CashRemittanceStatus.DISPUTED) {
             throw AppException.badRequest(
-                    "Seule une remise en écart peut être soldée (état actuel : " + r.getStatus() + ").");
+                    "Seule une remise en écart peut être justifiée (état actuel : " + r.getStatus() + ").");
         }
 
         r.setNote(explanation);
