@@ -410,6 +410,7 @@ export const AR_COPY = {
     colClient: 'العميل', colWindow: 'النافذة', colDelivered: 'سُلّمت',
     colDelay: 'التأخير', colStatus: 'الحالة', colMotif: 'السبب / الإثبات',
     onTimeShort: 'في الوقت', dwellSuffix: 'في الموقع', reassigned: 'أُعيد الإسناد', replanned: 'أُعيدت الجدولة', proof: 'إثبات',
+    earlyShort: 'مبكرا',
     syntheseTitle: 'الملخّص',
     synDeparture: 'الانطلاق', synResults: 'النتائج', synReassigned: 'أُعيد إسنادها', synFailures: 'الإخفاقات', synClosure: 'الإغلاق',
     synOnPlan: 'مقابل المخطط', synStops: 'محطات', synDelivered: 'مُسلّمة', synPartial: 'جزئية', synFailed: 'فاشلة',

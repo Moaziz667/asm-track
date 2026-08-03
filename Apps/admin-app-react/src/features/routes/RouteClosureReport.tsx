@@ -86,7 +86,7 @@ export default function RouteClosureReport({ routeId }: { routeId: string }) {
 function Bar({ title, meta }: { title: string; meta?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--surface-sunken)] border-y border-[var(--border-strong)]">
-      <span className="text-2xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{title}</span>
+      <span className="text-xs font-semibold text-[var(--text-secondary)]">{title}</span>
       {meta != null && <span className="text-2xs text-[var(--text-muted)]">{meta}</span>}
     </div>
   );
@@ -119,7 +119,7 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
 function IdentityGrid({ report, c }: { report: RouteReport; c: C }) {
   const h = report.header;
   const K = ({ children }: { children: React.ReactNode }) => (
-    <td className="px-2.5 py-1.5 w-[90px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] text-2xs font-semibold uppercase tracking-wider">{children}</td>
+    <td className="px-2.5 py-1.5 w-[90px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] text-2xs font-semibold">{children}</td>
   );
   const V = ({ children, mono, border }: { children: React.ReactNode; mono?: boolean; border?: boolean }) => (
     <td className={`px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs ${border ? 'border-r border-[var(--border)]' : ''} ${mono ? 'font-mono' : ''}`}>{children}</td>
@@ -142,7 +142,7 @@ function IdentityGrid({ report, c }: { report: RouteReport; c: C }) {
           <K>{c.date}</K><V mono>{fmtDate(h.date)}</V>
         </tr>
         <tr>
-          <td className="px-2.5 py-1.5 bg-[var(--surface-sunken)] text-[var(--text-muted)] text-2xs font-semibold uppercase tracking-wider">{c.execution}</td>
+          <td className="px-2.5 py-1.5 bg-[var(--surface-sunken)] text-[var(--text-muted)] text-2xs font-semibold">{c.execution}</td>
           <td className="px-2.5 py-1.5 font-mono text-xs text-[var(--text-secondary)]" colSpan={3}>
             {c.started} <span className="font-semibold">{fmtTime(h.startedAt)}</span>  →  {c.endedAt} <span className="font-semibold">{fmtTime(h.closedAt)}</span>  ·  {c.duration} {h.durationMinutes != null ? formatMinutes(h.durationMinutes) : '—'}  ·  {c.plan} {clock(h.plannedStartTime)}–{clock(h.plannedEndTime)}
           </td>
@@ -158,7 +158,17 @@ function VerdictLine({ report, c }: { report: RouteReport; c: C }) {
   const dot = <span className="text-[var(--border-strong)]">·</span>;
   return (
     <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5 px-2.5 py-1.5 border-t border-[var(--border-strong)] text-xs">
-      <span className="font-semibold text-[var(--text-primary)]">{k.completedStops + k.partialStops} / {k.attemptedStops} {c.verdictDelivered}</span>
+      {/*
+        "Livré" means one thing on this page.
+
+        This line counted completed + partial and called the total "livrés", while the stops bar
+        below counted completed alone and the summary listed the two apart. One route printed
+        "1 / 1 livrés" at the top and "0 livrés · 1 partiels" at the bottom — the same word, two
+        answers, on a document meant to close a day. A partial delivery is not a delivery; it gets
+        its own mention, next to the count rather than folded into it.
+      */}
+      <span className="font-semibold text-[var(--text-primary)]">{k.completedStops} / {k.attemptedStops} {c.verdictDelivered}</span>
+      {k.partialStops > 0 && <>{dot}<span style={{ color: T.warning }}>{k.partialStops} {c.synPartial}</span></>}
       {dot}
       <span style={{ color: k.onTimeRate >= 85 ? undefined : T.danger }}>{k.onTimeRate.toFixed(0)} % {c.verdictOnTime}</span>
       {k.failedStops + k.failedAttemptStops > 0 && <>{dot}<span style={{ color: T.danger }}>{k.failedStops + k.failedAttemptStops} {c.verdictFailures}</span></>}
@@ -172,7 +182,7 @@ function KpiRow({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
   const cell = (label: string, value: React.ReactNode, tone?: string, last?: boolean) => (
     <td className={`px-3 py-2 ${last ? '' : 'border-r border-[var(--border)]'}`}>
-      <div className="text-2xs text-[var(--text-muted)] font-semibold uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-2xs text-[var(--text-muted)] font-semibold mb-0.5">{label}</div>
       <div className="text-base font-mono font-bold tabular-nums" style={tone ? { color: tone } : undefined}>{value}</div>
     </td>
   );
@@ -196,11 +206,24 @@ function KpiRow({ report, c }: { report: RouteReport; c: C }) {
 function delayCell(s: RouteReport['stops'][number], c: C) {
   if (!['COMPLETED', 'PARTIAL'].includes(s.finalStatus) || s.delayMinutes == null) return <span className="text-[var(--text-soft)]">—</span>;
   if (s.delayMinutes <= 0 && s.delayMinutes > -5) return <span className="whitespace-nowrap" style={{ color: T.success }}>{c.onTimeShort}</span>;
+  /*
+    A negative delay is an early arrival, and the column is headed "Retard".
+    One report showed "−17h 1m" there, which reads as broken rather than as information: the reader
+    has to work out that a minus sign in a delay column means the opposite of the column's name.
+    Early arrivals say so in words and keep the magnitude beside them.
+  */
+  if (s.delayMinutes < 0) {
+    return (
+      <span className="whitespace-nowrap tabular-nums" style={{ color: T.success }}>
+        {c.earlyShort} {absMin(s.delayMinutes)}
+      </span>
+    );
+  }
   return <span className="whitespace-nowrap tabular-nums" style={{ color: delayTone(s.delayMinutes) }}>{signed(s.delayMinutes)}</span>;
 }
 function StopsTable({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
-  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs uppercase tracking-wider';
+  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs';
   const td = 'px-2 py-2 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
   return (
     <>
@@ -275,7 +298,7 @@ function Synthese({ report, c }: { report: RouteReport; c: C }) {
   const startLate = (k.routeStartDelayMinutes ?? 0) > 0;
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <tr>
-      <td className="px-2.5 py-1.5 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top text-2xs font-semibold uppercase tracking-wider">{label}</td>
+      <td className="px-2.5 py-1.5 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top text-2xs font-semibold">{label}</td>
       <td className="px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs">{children}</td>
     </tr>
   );
@@ -399,7 +422,7 @@ function AuditFold({ report, c }: { report: RouteReport; c: C }) {
   const [open, setOpen] = useState(false);
   const rows = report.auditTrail;
   if (rows.length === 0) return null;
-  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs uppercase tracking-wider';
+  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs';
   const td = 'px-2 py-1.5 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
   return (
     <>

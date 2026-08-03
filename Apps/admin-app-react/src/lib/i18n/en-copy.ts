@@ -402,6 +402,7 @@ export const EN_COPY = {
     colClient: 'Client', colWindow: 'Window', colDelivered: 'Delivered',
     colDelay: 'Delay', colStatus: 'Status', colMotif: 'Reason / proof',
     onTimeShort: 'on time', dwellSuffix: 'on site', reassigned: 'Reassigned', replanned: 'Replanned', proof: 'Proof',
+    earlyShort: 'early',
     syntheseTitle: 'Summary',
     synDeparture: 'Departure', synResults: 'Results', synReassigned: 'Reassigned', synFailures: 'Failures', synClosure: 'Closure',
     synOnPlan: 'vs plan', synStops: 'stops', synDelivered: 'delivered', synPartial: 'partial', synFailed: 'failed',

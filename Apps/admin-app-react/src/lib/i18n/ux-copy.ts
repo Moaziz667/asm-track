@@ -432,6 +432,7 @@ export const FR_COPY = {
     colClient: 'Client', colWindow: 'Créneau', colDelivered: 'Livré',
     colDelay: 'Retard', colStatus: 'Statut', colMotif: 'Motif / preuve',
     onTimeShort: 'à l’heure', dwellSuffix: 'sur place', reassigned: 'Réassigné', replanned: 'Replanifié', proof: 'Preuve',
+    earlyShort: 'en avance',
     syntheseTitle: 'Synthèse',
     synDeparture: 'Départ', synResults: 'Résultats', synReassigned: 'Réassignés', synFailures: 'Échecs', synClosure: 'Clôture',
     synOnPlan: 'sur le plan', synStops: 'arrêts', synDelivered: 'livrés', synPartial: 'partiels', synFailed: 'échecs',
