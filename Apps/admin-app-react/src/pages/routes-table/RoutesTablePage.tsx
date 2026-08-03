@@ -263,7 +263,7 @@ function RouteRow({
           <span className="text-2xs font-[600] px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]">
             {route.zoneLabel || 'Zone ?'}
           </span>
-          <span className="text-2xs font-[600] text-[var(--text-muted)] truncate italic">{depotName}</span>
+          <span className="text-2xs font-[600] text-[var(--text-muted)] truncate">{depotName}</span>
         </div>
 
         {/* Chauffeur */}
@@ -432,7 +432,7 @@ function RouteMobileCard({
           {route.zoneLabel || 'Zone ?'}
         </span>
         {depotName && (
-          <span className="text-2xs text-[var(--text-muted)] truncate max-w-[150px] italic">
+          <span className="text-2xs text-[var(--text-muted)] truncate max-w-[150px]">
             {depotName}
           </span>
         )}
