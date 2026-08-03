@@ -183,19 +183,170 @@ public class OdooTestDataFactory {
                 + " for product=" + productId + " in picking=" + pickingId);
     }
 
+    // ── Confirmation wizards ─────────────────────────────────────────────────
+
+    /**
+     * Carry a {@code button_validate} through to a settled transfer, whatever it asks for on the way.
+     *
+     * <p>Validation rarely finishes in one call. Odoo answers with an {@code ir.actions.act_window}
+     * describing a confirmation the user is expected to give, and the transfer stays put until it is
+     * given. Two details make that easy to get wrong, and both cost this suite a red job:
+     *
+     * <ul>
+     *   <li><b>The wizard record does not exist yet.</b> On Odoo 16 <i>and</i> 19 the action comes back
+     *       with no {@code res_id} — only {@code default_*} keys in its context. The web client builds
+     *       the record from those; over RPC nobody does, so code that looks for {@code res_id} and gives
+     *       up silently leaves the picking {@code assigned} and reports no error at all.</li>
+     *   <li><b>Wizards chain.</b> On Odoo 16, processing "Immediate Transfer?" returns "Create
+     *       Backorder?". Handling one and stopping is the same silent nothing.</li>
+     * </ul>
+     *
+     * <p>So this follows the chain instead of assuming its length, and stops when Odoo stops asking.
+     */
+    public void settleValidationWizards(Object validateResult) {
+        Object step = validateResult;
+        // A confirmation that keeps asking is a bug in this loop, not a workflow; five is far past
+        // anything Odoo does and turns a hang into a readable failure.
+        for (int guard = 0; guard < 5; guard++) {
+            if (!(step instanceof Map<?, ?> action)) return;
+            Object model = action.get("res_model");
+            if (!(model instanceof String wizardModel) || wizardModel.isEmpty()) return;
+
+            Map<String, Object> context = action.get("context") instanceof Map<?, ?> c
+                    ? castContext(c) : Map.of();
+
+            int wizardId;
+            if (action.get("res_id") instanceof Number n && n.intValue() > 0) {
+                wizardId = n.intValue();
+            } else {
+                Map<String, Object> defaults = new java.util.HashMap<>();
+                context.forEach((k, v) -> {
+                    if (k.startsWith("default_")) defaults.put(k.substring("default_".length()), v);
+                });
+                if (defaults.isEmpty()) return;   // nothing to build the wizard from
+                addWizardLines(wizardModel, defaults);
+                wizardId = create(wizardModel, defaults, context);
+            }
+            System.out.println("[TestDataFactory] Settling wizard " + wizardModel + "#" + wizardId);
+            step = callMethod(wizardModel, "process", List.of(wizardId), context);
+        }
+    }
+
+    /**
+     * Give a confirmation wizard the one line per picking it is really being asked about.
+     *
+     * <p>{@code pick_ids} alone builds a wizard that answers for nothing: {@code process()} walks the
+     * per-picking lines, and with none it transfers zero and leaves the picking {@code assigned}
+     * without complaint. On Odoo 16 that silence is compounded — the empty immediate transfer then
+     * raises a backorder for the whole order, so the chain "succeeds" twice and delivers nothing.
+     * The web client builds these lines in {@code default_get}; over RPC they have to be stated.
+     */
+    private static void addWizardLines(String wizardModel, Map<String, Object> vals) {
+        String lineField;
+        String flag;
+        switch (wizardModel) {
+            case "stock.immediate.transfer" -> { lineField = "immediate_transfer_line_ids"; flag = "to_immediate"; }
+            case "stock.backorder.confirmation" -> { lineField = "backorder_confirmation_line_ids"; flag = "to_backorder"; }
+            default -> { return; }
+        }
+        if (!(vals.get("pick_ids") instanceof List<?> commands)) return;
+
+        List<Object> lines = new java.util.ArrayList<>();
+        for (Object command : commands) {
+            // x2many commands arrive as [4, id] — "link this existing record".
+            if (command instanceof List<?> pair && pair.size() > 1 && pair.get(1) instanceof Number id) {
+                lines.add(List.of(0, 0, Map.of("picking_id", id.intValue(), flag, true)));
+            }
+        }
+        if (!lines.isEmpty()) vals.put(lineField, lines);
+    }
+
+    /** Validate a picking and see the confirmation through — the whole gesture, as a user makes it. */
+    public void validatePicking(int pickingId) {
+        settleValidationWizards(callMethod("stock.picking", "button_validate", List.of(pickingId)));
+    }
+
+    // ── Return wizard ────────────────────────────────────────────────────────
+
+    /**
+     * Build a return wizard for a delivered picking, with lines that are actually returnable.
+     *
+     * <p>{@code stock.return.picking} fills its lines in {@code default_get}, which the web client
+     * triggers and a bare {@code create()} over RPC does not — on Odoo 16 the wizard comes back empty
+     * and the return is refused for "at least one non-zero quantity", which reads like a broken
+     * workflow and is only a missing prefill. Odoo 19 computes the lines but leaves them at zero.
+     *
+     * <p>Both are handled the way {@code OdooProductService} handles them in production: materialise
+     * the lines from the source picking's moves when they are missing, then set the quantity.
+     */
+    public int createReturnWizard(int pickingId, double quantity) {
+        Map<String, Object> context = Map.of(
+                "active_id", pickingId,
+                "active_ids", List.of(pickingId),
+                "active_model", "stock.picking");
+        int wizardId = create("stock.return.picking", Map.of("picking_id", pickingId), context);
+
+        List<Map<String, Object>> lines = searchRead("stock.return.picking.line",
+                List.of(List.of("wizard_id", "=", wizardId)), List.of("id"), 50);
+        if (lines.isEmpty()) {
+            for (Map<String, Object> move : searchRead("stock.move",
+                    List.of(List.of("picking_id", "=", pickingId)), List.of("id", "product_id"), 50)) {
+                Object productRef = move.get("product_id");
+                Integer productId = productRef instanceof List<?> pair && !pair.isEmpty()
+                        && pair.get(0) instanceof Number n ? n.intValue() : null;
+                if (productId == null) continue;
+                create("stock.return.picking.line", Map.of(
+                        "wizard_id", wizardId,
+                        "product_id", productId,
+                        "move_id", ((Number) move.get("id")).intValue(),
+                        "quantity", quantity));
+            }
+        } else {
+            for (Map<String, Object> line : lines) {
+                write("stock.return.picking.line", ((Number) line.get("id")).intValue(),
+                        Map.of("quantity", quantity));
+            }
+        }
+        return wizardId;
+    }
+
+    /**
+     * The method that creates the reverse transfer, under the name this Odoo knows it by.
+     *
+     * <p>Renamed in Odoo 18: {@code create_returns} → {@code action_create_returns}. Neither name
+     * exists on both, so calling the wrong one fails with "method does not exist" — which is exactly
+     * the breakage these two-version tests exist to catch, and the reason the name is derived from the
+     * version rather than tried in turn.
+     */
+    public String returnMethod() {
+        return odoo.getVersion() == OdooVersion.V16 ? "create_returns" : "action_create_returns";
+    }
+
     // ── Generic Odoo operations ──────────────────────────────────────────────
 
     /**
      * Create a record in Odoo.
      */
-    @SuppressWarnings("unchecked")
     public Integer create(String model, Map<String, Object> vals) {
+        return create(model, vals, null);
+    }
+
+    /**
+     * Create a record, with a context — wizards need one to prefill themselves from the active record.
+     */
+    public Integer create(String model, Map<String, Object> vals, Map<String, Object> context) {
         Object uid = authenticate();
-        Map<String, Object> params = Map.of(
+        // `vals` goes inside the positional list: passing it bare makes Odoo read it as a *list of*
+        // records to create, which succeeds and answers with a list of ids instead of an id — a
+        // ClassCastException three calls later, nowhere near the mistake.
+        Map<String, Object> params = new java.util.HashMap<>(Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, "create", List.of(vals))
-        );
+                "args", context == null
+                        ? List.of(odoo.getDb(), uid, odoo.getPassword(), model, "create", List.of(vals))
+                        : List.of(odoo.getDb(), uid, odoo.getPassword(), model, "create", List.of(vals),
+                                  Map.of("context", context))
+        ));
         Map<String, Object> resp = jsonRpc(params);
         Object result = resp.get("result");
         if (result instanceof Number n) return n.intValue();
@@ -241,13 +392,23 @@ public class OdooTestDataFactory {
     /**
      * Call a method on an Odoo model.
      */
-    @SuppressWarnings("unchecked")
     public Object callMethod(String model, String method, List<Object> args) {
+        return callMethod(model, method, args, null);
+    }
+
+    /**
+     * Call a method with a context. Wizards read {@code active_id} and the {@code button_validate_*}
+     * keys from it, and refuse or misbehave without them.
+     */
+    public Object callMethod(String model, String method, List<Object> args, Map<String, Object> context) {
         Object uid = authenticate();
         Map<String, Object> params = Map.of(
                 "service", "object",
                 "method", "execute_kw",
-                "args", List.of(odoo.getDb(), uid, odoo.getPassword(), model, method, List.of(args))
+                "args", context == null || context.isEmpty()
+                        ? List.of(odoo.getDb(), uid, odoo.getPassword(), model, method, List.of(args))
+                        : List.of(odoo.getDb(), uid, odoo.getPassword(), model, method, List.of(args),
+                                  Map.of("context", context))
         );
         Map<String, Object> resp = jsonRpc(params);
         // JSON-RPC reports failure in the body, not the transport, so a refused call arrives as a
@@ -338,6 +499,11 @@ public class OdooTestDataFactory {
     }
 
     // ── Internal ─────────────────────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castContext(Map<?, ?> raw) {
+        return (Map<String, Object>) raw;
+    }
 
     private int authenticate() {
         if (cachedUid > 0) return cachedUid;

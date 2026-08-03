@@ -103,27 +103,29 @@ class WorkflowValidationIT extends AbstractOdooIntegrationTest {
         // Validate picking — should return a backorder confirmation wizard
         Object result = data.callMethod("stock.picking", "button_validate", List.of(pickingId));
         assertNotNull(result, "button_validate should return backorder wizard");
+        assertEquals("stock.backorder.confirmation", asAction(result).get("res_model"),
+                "A partial delivery should ask to create a backorder");
 
-        // The result is a wizard dict — confirm backorder
-        if (result instanceof Map<?, ?> wizard) {
-            Object wizardId = wizard.get("res_id");
-            if (wizardId instanceof Number n && n.intValue() > 0) {
-                data.callMethod("stock.backorder.confirmation", "process", List.of(n.intValue()));
-            }
-        }
+        // Answer it. The action carries no res_id — only defaults — so the wizard has to be built
+        // before it can be processed; see settleValidationWizards.
+        data.settleValidationWizards(result);
 
         // Verify original picking is done
         Map<String, Object> updatedPicking = data.read("stock.picking", pickingId, List.of("state"));
         assertEquals("done", updatedPicking.get("state"),
                 "Original picking should be 'done' after backorder creation");
 
-        // Verify a backorder picking was created
+        // Verify a backorder picking was created.
+        //
+        // Matched on backorder_id, the way OdooPickingService.findBackorderPickingId does it. The
+        // obvious-looking `origin = <this picking's name>` finds nothing: `origin` carries the sale
+        // order that started the chain, not the transfer being split, so it is identical on the
+        // original and its backorder and identifies neither.
         List<Map<String, Object>> backorderPickings = data.searchRead("stock.picking",
-                List.of(List.of("origin", "=", picking.get("name"))),
+                List.of(List.of("backorder_id", "=", pickingId)),
                 List.of("id", "state", "backorder_id"), 10);
-        boolean hasBackorder = backorderPickings.stream()
-                .anyMatch(bp -> bp.get("backorder_id") != null);
-        assertTrue(hasBackorder, "A backorder picking should have been created");
+        assertFalse(backorderPickings.isEmpty(),
+                "A backorder picking should have been created for picking " + pickingId);
     }
 
     @Test
@@ -145,30 +147,35 @@ class WorkflowValidationIT extends AbstractOdooIntegrationTest {
         // Validate picking — should return a backorder confirmation wizard
         Object result = data.callMethod("stock.picking", "button_validate", List.of(pickingId));
         assertNotNull(result, "button_validate should return backorder wizard");
+        assertEquals("stock.backorder.confirmation", asAction(result).get("res_model"),
+                "A partial delivery should ask to create a backorder");
 
-        // Confirm backorder
-        if (result instanceof Map<?, ?> wizard) {
-            Object wizardId = wizard.get("res_id");
-            if (wizardId instanceof Number n && n.intValue() > 0) {
-                data.callMethod("stock.backorder.confirmation", "process", List.of(n.intValue()));
-            }
-        }
+        data.settleValidationWizards(result);
 
         // Verify original picking is done
         Map<String, Object> updatedPicking = data.read("stock.picking", pickingId, List.of("state"));
         assertEquals("done", updatedPicking.get("state"),
                 "Original picking should be 'done' after backorder creation");
 
-        // Verify a backorder picking was created
+        // Verify a backorder picking was created.
+        //
+        // Matched on backorder_id, the way OdooPickingService.findBackorderPickingId does it. The
+        // obvious-looking `origin = <this picking's name>` finds nothing: `origin` carries the sale
+        // order that started the chain, not the transfer being split, so it is identical on the
+        // original and its backorder and identifies neither.
         List<Map<String, Object>> backorderPickings = data.searchRead("stock.picking",
-                List.of(List.of("origin", "=", picking.get("name"))),
+                List.of(List.of("backorder_id", "=", pickingId)),
                 List.of("id", "state", "backorder_id"), 10);
-        boolean hasBackorder = backorderPickings.stream()
-                .anyMatch(bp -> bp.get("backorder_id") != null);
-        assertTrue(hasBackorder, "A backorder picking should have been created");
+        assertFalse(backorderPickings.isEmpty(),
+                "A backorder picking should have been created for picking " + pickingId);
     }
 
     // ── Immediate transfer ───────────────────────────────────────────────────
+    //
+    // Validating with no quantity set is where the two versions genuinely part ways, and the split
+    // is worth pinning: Odoo 16 asks "Immediate Transfer?" and then, once answered, asks "Create
+    // Backorder?" on top — two wizards for one click. Odoo 19 asks nothing and returns `true`.
+    // Either way the picking must end up done, which is all the connector cares about.
 
     @Test
     void odoo16_immediateTransfer_whenNoQtySet() {
@@ -183,19 +190,10 @@ class WorkflowValidationIT extends AbstractOdooIntegrationTest {
         assertNotNull(picking, "Picking should exist");
         int pickingId = ((Number) picking.get("id")).intValue();
 
-        // Don't set any qty — validate should trigger immediate transfer wizard
+        // Don't set any qty — Odoo 16 asks to confirm an immediate transfer, and then asks again
+        // about the backorder. settleValidationWizards answers whatever it is asked, in order.
         Object result = data.callMethod("stock.picking", "button_validate", List.of(pickingId));
-
-        // If result is a wizard, process it
-        if (result instanceof Map<?, ?> wizard) {
-            String wizardModel = String.valueOf(wizard.get("res_model"));
-            if ("stock.immediate.transfer".equals(wizardModel)) {
-                Object wizardId = wizard.get("res_id");
-                if (wizardId instanceof Number n && n.intValue() > 0) {
-                    data.callMethod("stock.immediate.transfer", "process", List.of(n.intValue()));
-                }
-            }
-        }
+        data.settleValidationWizards(result);
 
         Map<String, Object> updatedPicking = data.read("stock.picking", pickingId, List.of("state"));
         assertEquals("done", updatedPicking.get("state"),
@@ -231,5 +229,20 @@ class WorkflowValidationIT extends AbstractOdooIntegrationTest {
         Map<String, Object> updatedPicking = data.read("stock.picking", pickingId, List.of("state"));
         assertEquals("done", updatedPicking.get("state"),
                 "Picking should be 'done' after immediate transfer");
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Read a {@code button_validate} answer as the window action it is.
+     *
+     * <p>Fails loudly when it is not one. Odoo returns {@code true} for a validation that needed no
+     * confirmation, and a test that quietly accepted that would report success for a backorder it
+     * never created.
+     */
+    private static Map<?, ?> asAction(Object validateResult) {
+        assertInstanceOf(Map.class, validateResult,
+                "Expected a confirmation wizard action, got: " + validateResult);
+        return (Map<?, ?>) validateResult;
     }
 }
