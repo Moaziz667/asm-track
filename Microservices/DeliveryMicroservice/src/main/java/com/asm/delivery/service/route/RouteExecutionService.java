@@ -34,7 +34,6 @@ public class RouteExecutionService {
     private final RoutePlanningService routePlanningService;
     private final TransportPort transportPort;
     private final DelayCalculationService delayCalculationService;
-    private final com.asm.delivery.service.VehicleInspectionService inspectionService;
     private final RouteReportService routeReportService;
     private final RouteAutoCloseService routeAutoCloseService;
     private final RouteWebSocketService routeWebSocketService;

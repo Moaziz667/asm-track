@@ -5813,114 +5813,6 @@
         },
         "type": "object"
       },
-      "VehicleInspectionRequest": {
-        "properties": {
-          "brakesStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "fuelLevel": {
-            "format": "int32",
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "lightsStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "odometerReading": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "tiresStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "vehicleId": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "required": [
-          "brakesStatus",
-          "lightsStatus",
-          "tiresStatus",
-          "vehicleId"
-        ],
-        "type": "object"
-      },
-      "VehicleInspectionResponse": {
-        "properties": {
-          "brakesStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "driverId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "fuelLevel": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "inspectedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "lightsStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "odometerReading": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "tiresStatus": {
-            "enum": [
-              "PASS",
-              "FAIL",
-              "WARNING"
-            ],
-            "type": "string"
-          },
-          "vehicleId": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "VehicleResponse": {
         "properties": {
           "active": {
@@ -14956,54 +14848,6 @@
         ]
       }
     },
-    "/api/v1/driver/vehicles/inspection": {
-      "post": {
-        "operationId": "submitInspection",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VehicleInspectionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VehicleInspectionResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Submit a pre-route vehicle inspection",
-        "tags": [
-          "Driver Vehicles"
-        ]
-      }
-    },
     "/api/v1/public/track/{deliveryId}": {
       "get": {
         "description": "Returns the public tracking view (status, ETA, driver position when live) for the delivery. No auth — the id is the shareable tracking token. Rate limited per caller IP and delivery.",
@@ -15822,10 +15666,6 @@
     {
       "description": "Delivery status, tracking and history (client + driver)",
       "name": "Deliveries"
-    },
-    {
-      "description": "Vehicle management for drivers",
-      "name": "Driver Vehicles"
     },
     {
       "description": "Custody transfer oversight",
