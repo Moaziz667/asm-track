@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  IconCircleCheck, IconTruck, IconContainer,
+  IconCircleCheck, IconTruck, IconContainer, IconArrowsSplit2,
   IconAlertTriangle, IconLayoutGrid, IconChevronRight,
 } from '@tabler/icons-react';
 import { useRealtimeStatus } from '@/components/RealtimeProvider';
@@ -21,6 +21,8 @@ type TypeStyle = { Icon: typeof IconTruck; fg: string; bg: string };
 function typeStyle(n: Notification): TypeStyle {
   if (n.severity === 'critical') return { Icon: IconAlertTriangle, fg: 'var(--danger)', bg: 'var(--danger-bg)' };
   if (n.category === 'route') return { Icon: IconLayoutGrid, fg: '#7c6cf0', bg: 'rgba(124,108,240,0.12)' };
+  // A conflict is a divergence, not a shipment: give it a glyph that says two things disagree.
+  if (n.event === 'erp.conflict') return { Icon: IconArrowsSplit2, fg: 'var(--warning)', bg: 'var(--warning-bg)' };
   if (n.category === 'erp') return { Icon: IconContainer, fg: 'var(--brand)', bg: 'var(--brand-bg)' };
   return { Icon: IconTruck, fg: 'var(--success)', bg: 'var(--success-bg)' };
 }

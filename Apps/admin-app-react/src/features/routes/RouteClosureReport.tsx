@@ -85,9 +85,9 @@ export default function RouteClosureReport({ routeId }: { routeId: string }) {
 // ── section bar ─────────────────────────────────────────────────────────────────
 function Bar({ title, meta }: { title: string; meta?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--surface-sunken)] border-y border-[var(--border-strong)]">
+    <div className="flex items-center justify-between px-3 py-2 bg-[var(--surface-sunken)] border-t border-[var(--border-strong)] border-b border-[var(--border)]">
       <span className="text-xs font-semibold text-[var(--text-secondary)]">{title}</span>
-      {meta != null && <span className="text-2xs text-[var(--text-muted)]">{meta}</span>}
+      {meta != null && <span className="text-xs text-[var(--text-muted)]">{meta}</span>}
     </div>
   );
 }
@@ -100,14 +100,14 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
       <div className="flex items-center gap-2 min-w-0">
         <img src="/AppLogo.png" alt="ASM Track" className="h-5 w-5 rounded-[4px] shrink-0" />
         <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">{h.routeName ?? 'Tournée'}</span>
-        <span className="text-2xs text-[var(--text-muted)] truncate">— {c.subtitle}</span>
+        <span className="text-xs text-[var(--text-muted)] truncate">— {c.subtitle}</span>
         <StatusBadge status="CLOSED" label={c.closed} size="sm" />
       </div>
       <div className="flex gap-1.5 shrink-0 print-hide">
-        <Button size="sm" variant="outline" onClick={onPrint} className="h-7 gap-1 rounded-none text-2xs">
+        <Button size="sm" variant="outline" onClick={onPrint} className="h-7 gap-1 text-xs">
           <IconPrinter size={14} /> {c.print}
         </Button>
-        <Button size="sm" disabled={downloading} onClick={onDownload} className="h-7 gap-1 rounded-none text-2xs">
+        <Button size="sm" disabled={downloading} onClick={onDownload} className="h-7 gap-1 text-xs">
           <IconFileTypePdf size={14} /> {downloading ? '…' : 'PDF'}
         </Button>
       </div>
@@ -119,7 +119,7 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
 function IdentityGrid({ report, c }: { report: RouteReport; c: C }) {
   const h = report.header;
   const K = ({ children }: { children: React.ReactNode }) => (
-    <td className="px-2.5 py-1.5 w-[90px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] text-2xs font-semibold">{children}</td>
+    <td className="px-2.5 py-1.5 w-[90px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] text-xs font-medium">{children}</td>
   );
   const V = ({ children, mono, border }: { children: React.ReactNode; mono?: boolean; border?: boolean }) => (
     <td className={`px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs ${border ? 'border-r border-[var(--border)]' : ''} ${mono ? 'font-mono' : ''}`}>{children}</td>
@@ -142,7 +142,7 @@ function IdentityGrid({ report, c }: { report: RouteReport; c: C }) {
           <K>{c.date}</K><V mono>{fmtDate(h.date)}</V>
         </tr>
         <tr>
-          <td className="px-2.5 py-1.5 bg-[var(--surface-sunken)] text-[var(--text-muted)] text-2xs font-semibold">{c.execution}</td>
+          <td className="px-2.5 py-1.5 bg-[var(--surface-sunken)] text-[var(--text-muted)] text-xs font-medium">{c.execution}</td>
           <td className="px-2.5 py-1.5 font-mono text-xs text-[var(--text-secondary)]" colSpan={3}>
             {c.started} <span className="font-semibold">{fmtTime(h.startedAt)}</span>  →  {c.endedAt} <span className="font-semibold">{fmtTime(h.closedAt)}</span>  ·  {c.duration} {h.durationMinutes != null ? formatMinutes(h.durationMinutes) : '—'}  ·  {c.plan} {clock(h.plannedStartTime)}–{clock(h.plannedEndTime)}
           </td>
@@ -181,9 +181,9 @@ function VerdictLine({ report, c }: { report: RouteReport; c: C }) {
 function KpiRow({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
   const cell = (label: string, value: React.ReactNode, tone?: string, last?: boolean) => (
-    <td className={`px-3 py-2 ${last ? '' : 'border-r border-[var(--border)]'}`}>
-      <div className="text-2xs text-[var(--text-muted)] font-semibold mb-0.5">{label}</div>
-      <div className="text-base font-mono font-bold tabular-nums" style={tone ? { color: tone } : undefined}>{value}</div>
+    <td className={`px-3 py-2.5 align-top ${last ? '' : 'border-r border-[var(--border)]'}`}>
+      <div className="text-xs text-[var(--text-muted)] font-medium mb-1">{label}</div>
+      <div className="text-lg font-[650] tabular-nums leading-none" style={tone ? { color: tone } : undefined}>{value}</div>
     </td>
   );
   const compTone = k.completionRate >= 90 ? undefined : k.completionRate >= 70 ? T.warning : T.danger;
@@ -223,7 +223,7 @@ function delayCell(s: RouteReport['stops'][number], c: C) {
 }
 function StopsTable({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
-  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs';
+  const th = 'text-left font-medium text-[var(--text-muted)] px-2 py-2 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-xs';
   const td = 'px-2 py-2 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
   return (
     <>
@@ -252,7 +252,7 @@ function StopsTable({ report, c }: { report: RouteReport; c: C }) {
                 <td className={`${td} text-[var(--text-muted)]`}>{String(s.stopOrder).padStart(2, '0')}</td>
                 <td className={`${td} font-sans`}>
                   <div className={`font-semibold text-[var(--text-primary)] ${removed ? 'line-through' : ''}`}>{s.clientName ?? '—'}</div>
-                  <div className="text-2xs text-[var(--text-muted)] truncate mt-0.5">
+                  <div className="text-xs text-[var(--text-muted)] truncate mt-0.5">
                     {s.orderRef && <Link to={`/deliveries/${s.deliveryId}`} className="font-mono hover:text-[var(--brand)] transition-colors">{s.orderRef}</Link>}
                     {s.orderRef && (s.city || s.address) ? ' · ' : ''}{s.city ?? s.address ?? ''}
                   </div>
@@ -298,7 +298,7 @@ function Synthese({ report, c }: { report: RouteReport; c: C }) {
   const startLate = (k.routeStartDelayMinutes ?? 0) > 0;
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <tr>
-      <td className="px-2.5 py-1.5 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top text-2xs font-semibold">{label}</td>
+      <td className="px-2.5 py-1.5 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top text-xs font-medium">{label}</td>
       <td className="px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs">{children}</td>
     </tr>
   );
@@ -355,7 +355,7 @@ function Highlights({ report, c }: { report: RouteReport; c: C }) {
           const { icon, tone } = hlIcon(m.type);
           return (
             <div key={i} className="flex gap-2 px-2.5 py-1.5 border-b border-[var(--border)] text-xs">
-              <span className="font-mono text-2xs text-[var(--text-muted)] w-[38px] shrink-0 pt-px">{fmtTime(m.at)}</span>
+              <span className="font-mono text-xs text-[var(--text-muted)] w-[38px] shrink-0 pt-px">{fmtTime(m.at)}</span>
               <span className="shrink-0 pt-px" style={{ color: tone }}>{icon}</span>
               <div className="text-[var(--text-secondary)]">
                 {m.detail ?? m.type}
@@ -391,7 +391,7 @@ function PodStrip({ report, c }: { report: RouteReport; c: C }) {
             <img src={cell.url} alt={cell.title} className="w-full h-full object-cover" />
           </button>
         ))}
-        {cells.length > 12 && <div className="self-center text-2xs font-semibold text-[var(--text-muted)]">+ {cells.length - 12}</div>}
+        {cells.length > 12 && <div className="self-center text-xs font-medium text-[var(--text-muted)]">+ {cells.length - 12}</div>}
       </div>
       <AppModal opened={!!open} onClose={() => setOpen(null)} title={open?.title} size="lg">
         {open && (
