@@ -23,7 +23,7 @@ import java.util.Map;
  * as the real sync path.
  */
 @RestController
-@RequestMapping("/api/erp/test-auth")
+@RequestMapping("/api/v1/erp/test-auth")
 @Tag(name = "ERP Test Auth", description = "Validates ERP credentials using the adapter's real auth path.")
 @Slf4j
 public class ErpTestAuthController {

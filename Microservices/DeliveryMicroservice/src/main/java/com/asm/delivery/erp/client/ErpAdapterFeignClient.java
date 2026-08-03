@@ -26,51 +26,51 @@ import java.util.Map;
 public interface ErpAdapterFeignClient {
 
     // ── Sync operations ──────────────────────────────────────────────────────
-    @PostMapping("/api/erp/sync/order-cancellation")
+    @PostMapping("/api/v1/erp/sync/order-cancellation")
     Map<String, Object> syncOrderCancellation(@RequestParam("erpOrderId") String erpOrderId,
                                               @RequestParam("transactionId") String transactionId,
                                               @RequestParam(value = "pickingRef", required = false) String pickingRef);
 
-    @PostMapping("/api/erp/sync/invoice")
+    @PostMapping("/api/v1/erp/sync/invoice")
     Map<String, Object> createInvoice(@RequestParam("erpOrderId") String erpOrderId,
                                       @RequestParam(value = "pickingRef", required = false) String pickingRef);
 
-    @GetMapping("/api/erp/sync/invoice-pdf")
+    @GetMapping("/api/v1/erp/sync/invoice-pdf")
     byte[] getInvoicePdf(@RequestParam("invoiceRef") String invoiceRef);
 
-    @GetMapping("/api/erp/sync/delivery-note-pdf")
+    @GetMapping("/api/v1/erp/sync/delivery-note-pdf")
     byte[] getDeliveryNotePdf(@RequestParam("pickingRef") String pickingRef);
 
-    @PostMapping("/api/erp/sync/full-delivery")
+    @PostMapping("/api/v1/erp/sync/full-delivery")
     Map<String, Object> syncFullDelivery(@RequestBody Map<String, Object> body);
 
-    @PostMapping("/api/erp/sync/partial-delivery")
+    @PostMapping("/api/v1/erp/sync/partial-delivery")
     Map<String, Object> syncPartialDelivery(@RequestBody Map<String, Object> body);
 
-    @PostMapping("/api/erp/sync/failure")
+    @PostMapping("/api/v1/erp/sync/failure")
     Map<String, Object> syncFailure(@RequestBody Map<String, Object> body);
 
     // ── Lookup operations (JSON deserialized straight into the canonical DTOs) ─
-    @GetMapping("/api/erp/lookup/clients")
+    @GetMapping("/api/v1/erp/lookup/clients")
     List<ErpClientDTO> searchClients(@RequestParam("search") String search,
                                      @RequestParam("limit") int limit);
 
-    @GetMapping("/api/erp/lookup/products")
+    @GetMapping("/api/v1/erp/lookup/products")
     List<ErpProductDTO> searchProducts(@RequestParam("search") String search,
                                        @RequestParam("limit") int limit);
 
-    @GetMapping("/api/erp/lookup/pending-orders")
+    @GetMapping("/api/v1/erp/lookup/pending-orders")
     List<ErpPendingOrderSummaryDTO> getPendingOrders(@RequestParam("limit") int limit);
 
-    @GetMapping("/api/erp/lookup/pending-orders/preview")
+    @GetMapping("/api/v1/erp/lookup/pending-orders/preview")
     ErpPendingOrderPreviewDTO getPendingOrderPreview(@RequestParam("erpOrderId") String erpOrderId);
 
-    @GetMapping("/api/erp/lookup/warehouses")
+    @GetMapping("/api/v1/erp/lookup/warehouses")
     List<ErpWarehouseDTO> getWarehouses();
 
-    @GetMapping("/api/erp/lookup/picking-ref")
+    @GetMapping("/api/v1/erp/lookup/picking-ref")
     Map<String, Object> getPickingRef(@RequestParam("pickingId") String pickingId);
 
-    @GetMapping("/api/erp/lookup/company")
+    @GetMapping("/api/v1/erp/lookup/company")
     ErpCompanyDTO getCompany();
 }

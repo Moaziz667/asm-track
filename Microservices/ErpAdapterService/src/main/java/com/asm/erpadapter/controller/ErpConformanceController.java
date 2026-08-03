@@ -27,7 +27,7 @@ import java.util.UUID;
  * a scheduled fleet health job. A {@code NO_GO} verdict must block enabling the tenant's sync.
  */
 @RestController
-@RequestMapping("/api/erp/conformance")
+@RequestMapping("/api/v1/erp/conformance")
 @Tag(name = "ERP Conformance", description = "Read-only certification (drytest) of the tenant's ERP "
         + "instance against the ASM integration contract — version + model/field/access checks.")
 @RequiredArgsConstructor

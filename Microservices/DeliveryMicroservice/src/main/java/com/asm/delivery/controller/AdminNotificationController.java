@@ -39,12 +39,6 @@ public class AdminNotificationController {
         return ResponseEntity.ok(notificationService.list(severity, unread, search, page, size));
     }
 
-    @GetMapping("/unread-count")
-    @Operation(summary = "Unread notification count")
-    public ResponseEntity<Map<String, Long>> unreadCount() {
-        return ResponseEntity.ok(Map.of("count", notificationService.unreadCount()));
-    }
-
     @PostMapping("/{id}/read")
     @Operation(summary = "Mark a notification read")
     public ResponseEntity<Void> markRead(@PathVariable UUID id) {

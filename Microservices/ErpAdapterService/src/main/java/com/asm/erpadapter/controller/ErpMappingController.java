@@ -27,7 +27,7 @@ import java.util.UUID;
  * Callers cannot modify another tenant's mappings.
  */
 @RestController
-@RequestMapping("/api/erp/mappings")
+@RequestMapping("/api/v1/erp/mappings")
 @Tag(name = "ERP Mappings", description = "Manage customer-specific ERP capability overrides")
 @RequiredArgsConstructor
 @Slf4j

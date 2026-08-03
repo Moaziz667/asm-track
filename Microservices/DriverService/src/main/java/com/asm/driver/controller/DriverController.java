@@ -98,13 +98,9 @@ public class DriverController {
         return ResponseEntity.ok(Map.of("message", "FCM token cleared"));
     }
 
-    @PostMapping("/duty-status")
-    @Operation(summary = "Set my on/off-duty status", description = "Toggles whether the driver is on duty and dispatchable.")
-    public ResponseEntity<Map<String, Object>> toggleDuty(@AuthenticationPrincipal UserPrincipal user,
-                                                          @RequestParam boolean onDuty) {
-        driverService.toggleDuty(UUID.fromString(user.getUserId()), onDuty);
-        return ResponseEntity.ok(Map.of("onDuty", onDuty, "message", "Duty status updated"));
-    }
+    // A driver's dispatchability is set through PATCH /availability below, which carries the three
+    // states the product actually has (ONLINE / ON_BREAK / OFFLINE). A boolean duty flag alongside it
+    // was a second, coarser way to say the same thing, and nothing ever called it.
 
     @PatchMapping("/availability")
     @Operation(summary = "Set my availability", description = "Sets the driver's online status: ONLINE, ON_BREAK or OFFLINE.")

@@ -74,14 +74,6 @@ public class AdminDeliveryController {
                 .body(pdf);
     }
 
-    @PostMapping("/re-geocode-missing")
-    @Operation(summary = "Re-run auto-geocoding for all unlocated orders",
-            description = "Queues every order with no coordinates for geocoding (full address, then city fallback). Returns how many were queued.")
-    public ResponseEntity<java.util.Map<String, Integer>> reGeocodeMissing() {
-        int queued = orderGeocodingService.reEnrichMissing();
-        return ResponseEntity.ok(java.util.Map.of("queued", queued));
-    }
-
     @GetMapping
     @Operation(
         summary = "Search and monitor deliveries",
@@ -203,15 +195,6 @@ public class AdminDeliveryController {
         AdminDeliveryDetailResponse delivery = dispatchService.getDeliveryDetail(id);
         String query = buildGeocodeQuery(delivery.getDropoffAddress(), delivery.getDropoffCity());
         return ResponseEntity.ok(geocodingService.geocode(query));
-    }
-
-    @GetMapping("/geocode-search")
-    @Operation(summary = "Free-text address autocomplete",
-            description = "Server-side proxy to Nominatim (Tunisia) so the browser never calls the public geocoder directly. Returns up to {limit} suggestions for an address query.")
-    public ResponseEntity<List<GeocodeSuggestionResponse>> geocodeSearch(
-            @RequestParam String q,
-            @RequestParam(required = false, defaultValue = "5") int limit) {
-        return ResponseEntity.ok(geocodingService.searchAddresses(q, limit));
     }
 
     @GetMapping("/reverse-geocode")

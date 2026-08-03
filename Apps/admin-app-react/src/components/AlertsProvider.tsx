@@ -203,22 +203,16 @@ export default function NotificationsProvider({ children }: { children: ReactNod
   useEffect(() => { void refresh(); }, [refresh]);
 
   const addNotification = useCallback((raw: Record<string, any>) => {
-    if (import.meta.env.DEV) {
-      console.log('[Notifications] addNotification called with raw payload:', raw);
-    }
     const event = raw.event || raw.status || '';
-    if (import.meta.env.DEV) {
-      console.log('[Notifications] Resolved event name:', event);
-    }
     const cfg = EVENT_MAP[event];
     if (!cfg) {
+      // Kept, unlike the step-by-step traces that used to surround it: this one reports a real
+      // condition — the backend emitted an event the UI has no mapping for, so the notification is
+      // silently dropped. Without it, that looks like a lost message rather than a missing entry.
       if (import.meta.env.DEV) {
         console.warn('[Notifications] Unknown event ignored (not mapped):', event, raw);
       }
       return;
-    }
-    if (import.meta.env.DEV) {
-      console.log('[Notifications] Found mapped config:', cfg);
     }
 
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

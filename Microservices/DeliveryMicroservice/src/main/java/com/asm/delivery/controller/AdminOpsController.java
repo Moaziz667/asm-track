@@ -167,37 +167,4 @@ public class AdminOpsController {
         return ResponseEntity.ok(exceptionResolutionService.replanException(deliveryId, request, principal));
     }
 
-    @GetMapping("/live-stops")
-    @Transactional(readOnly = true)
-    @Operation(summary = "Active delivery stops for the live dispatch map")
-    public ResponseEntity<List<LiveStopDTO>> liveStops() {
-        List<Delivery> deliveries = deliveryRepository.findActiveDeliveriesWithOrder(
-            List.of(DeliveryStatus.SCHEDULED, DeliveryStatus.PICKED_UP, DeliveryStatus.IN_TRANSIT)
-        );
-        List<LiveStopDTO> result = deliveries.stream()
-            .filter(d -> d.getOrder() != null && d.getOrder().getDropoffLat() != null && d.getOrder().getDropoffLng() != null)
-            .map(d -> new LiveStopDTO(
-                d.getId().toString(),
-                d.getStatus().name(),
-                d.getOrder().getClientName(),
-                d.getOrder().getDropoffCity(),
-                d.getDriverId() != null ? d.getDriverId().toString() : null,
-                d.getOrder().getDropoffLat().doubleValue(),
-                d.getOrder().getDropoffLng().doubleValue(),
-                d.getUpdatedAt() != null ? d.getUpdatedAt().toString() : null
-            ))
-            .toList();
-        return ResponseEntity.ok(result);
-    }
-
-    public record LiveStopDTO(
-        String deliveryId,
-        String status,
-        String clientName,
-        String city,
-        String driverId,
-        Double dropoffLat,
-        Double dropoffLng,
-        String updatedAt
-    ) {}
 }

@@ -934,46 +934,6 @@
         ]
       }
     },
-    "/api/v1/driver/duty-status": {
-      "post": {
-        "description": "Toggles whether the driver is on duty and dispatchable.",
-        "operationId": "toggleDuty",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "onDuty",
-            "required": true,
-            "schema": {
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "object"
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "OK"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "summary": "Set my on/off-duty status",
-        "tags": [
-          "Driver Operations"
-        ]
-      }
-    },
     "/api/v1/driver/fcm-token": {
       "delete": {
         "description": "Removes the stored FCM token (e.g. on logout).",

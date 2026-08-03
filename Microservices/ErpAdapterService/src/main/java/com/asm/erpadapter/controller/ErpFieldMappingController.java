@@ -35,7 +35,7 @@ import java.util.UUID;
  * so no caller can write another tenant's mapping.
  */
 @RestController
-@RequestMapping("/api/erp/field-mappings")
+@RequestMapping("/api/v1/erp/field-mappings")
 @Tag(name = "ERP Field Mappings", description = "Map ASM business fields onto a customer's ERP fields")
 @RequiredArgsConstructor
 @Slf4j

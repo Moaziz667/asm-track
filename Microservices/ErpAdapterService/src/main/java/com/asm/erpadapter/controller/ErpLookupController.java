@@ -20,7 +20,7 @@ import java.util.List;
  * can't (and shouldn't) pick another tenant's ERP.
  */
 @RestController
-@RequestMapping("/api/erp/lookup")
+@RequestMapping("/api/v1/erp/lookup")
 @Tag(name = "ERP Lookup", description = "Search clients, products, pending orders")
 @RequiredArgsConstructor
 @Validated

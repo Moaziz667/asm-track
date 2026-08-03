@@ -20,7 +20,7 @@ import java.util.Map;
  * {@code X-Company-Id}), so no {@code erpProvider} param is accepted — the caller can't override it.
  */
 @RestController
-@RequestMapping("/api/erp/sync")
+@RequestMapping("/api/v1/erp/sync")
 @Tag(name = "ERP Sync", description = "Order lifecycle synchronization")
 @RequiredArgsConstructor
 public class ErpSyncController {

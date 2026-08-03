@@ -216,45 +216,6 @@ public class AdminRouteController {
         return ResponseEntity.ok(routeOptimizationService.suggestOptimization(id));
     }
 
-    @PutMapping("/{id}/apply-optimization")
-    @Operation(summary = "Apply optimized stop order and recalculate ETAs/SLAs")
-    @IdempotentOperation
-    public ResponseEntity<RouteResponse> applyOptimization(@PathVariable UUID id) {
-        routeOptimizationService.applyOptimization(id);
-        return ResponseEntity.ok(routePlanningService.get(id));
-    }
-
-    @PutMapping("/{id}/reorder")
-    @Operation(summary = "Manually reorder stops and recalculate ETAs/SLAs")
-    @IdempotentOperation
-    public ResponseEntity<RouteResponse> reorder(@PathVariable UUID id,
-                                                 @Valid @RequestBody ReorderStopsRequest request) {
-        routeOptimizationService.applyManualReorder(id, request.getStopIds());
-        return ResponseEntity.ok(routePlanningService.get(id));
-    }
-
-    @GetMapping("/{id}/eta-details")
-    @Operation(summary = "Get ETA and SLA details for all stops")
-    public ResponseEntity<List<RouteStopEtaResponse>> etaDetails(@PathVariable UUID id) {
-        RouteResponse route = routePlanningService.get(id);
-        List<RouteStopEtaResponse> details = route.getStops().stream()
-                .map(s -> RouteStopEtaResponse.builder()
-                        .stopId(s.getId())
-                        .sequenceOrder(s.getStopOrder())
-                        .deliveryAddress(s.getDeliveryAddress())
-                        .etaAt(s.getEtaAt())
-                        .slaDeadline(s.getSlaDeadline())
-                        .slaStatus(s.getSlaStatus())
-                        .driveDurationSeconds(s.getDriveDurationSeconds())
-                        .driveDistanceMeters(s.getDriveDistanceMeters())
-                        .actualArrivalAt(s.getActualArrivalAt())
-                        .status(s.getStatus())
-                        .dwellMinutes(s.getDwellMinutes())
-                        .build())
-                .toList();
-        return ResponseEntity.ok(details);
-    }
-
     @PostMapping("/{id}/recalculate")
     @Operation(summary = "Recalculate ETAs and SLAs from current departure time")
     @IdempotentOperation
@@ -295,12 +256,6 @@ public class AdminRouteController {
                 "lng", t.getLng(),
                 "updatedAt", t.getTimestamp().toString()
         ));
-    }
-
-    @GetMapping("/sla-summary")
-    @Operation(summary = "Aggregated SLA status (ON_TIME / LATE) across all active route stops")
-    public ResponseEntity<SlaSummaryResponse> slaSummary() {
-        return ResponseEntity.ok(routePlanningService.getSlaSummary());
     }
 
     // ─── Route cancellation ───────────────────────────────────────────────────────

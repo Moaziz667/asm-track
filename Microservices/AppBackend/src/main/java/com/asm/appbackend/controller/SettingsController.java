@@ -300,7 +300,7 @@ public class SettingsController {
     }
 
     /**
-     * Proxy the auth test to ErpAdapterService's {@code POST /api/erp/test-auth} endpoint,
+     * Proxy the auth test to ErpAdapterService's {@code POST /api/v1/erp/test-auth} endpoint,
      * which uses the adapter's own HTTP client (timeouts, SSRF guard) — the same path that
      * real sync operations use. Eliminates the duplicated inline RestClient logic.
      */
@@ -322,7 +322,7 @@ public class SettingsController {
 
             Map<String, String> result = restClientBuilder.build()
                     .post()
-                    .uri(erpAdapterUrl + "/api/erp/test-auth")
+                    .uri(erpAdapterUrl + "/api/v1/erp/test-auth")
                     .headers(h -> {
                         h.setContentType(MediaType.APPLICATION_JSON);
                         h.set("Accept", "application/json");
@@ -381,7 +381,7 @@ public class SettingsController {
         try {
             Map<String, Object> report = restClientBuilder.build()
                     .get()
-                    .uri(erpAdapterUrl + "/api/erp/conformance")
+                    .uri(erpAdapterUrl + "/api/v1/erp/conformance")
                     .headers(h -> {
                         if (companyId != null) h.set("X-Company-Id", companyId.toString());
                         if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
@@ -467,7 +467,7 @@ public class SettingsController {
             // button means nothing if the proxy answers it from a stale copy of its own.
             Object report = restClientBuilder.build()
                     .get()
-                    .uri(erpAdapterUrl + "/api/erp/conformance?forceRefresh=" + forceRefresh)
+                    .uri(erpAdapterUrl + "/api/v1/erp/conformance?forceRefresh=" + forceRefresh)
                     .headers(h -> {
                         h.set("X-Company-Id", companyId.toString());
                         if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
@@ -497,7 +497,7 @@ public class SettingsController {
             @RequestParam(required = false) String provider) {
         // Not defaulted here: the adapter knows this company's ERP, and a default of "odoo" listed
         // the wrong provider's mappings for everyone else — an ERPNext screen simply looked empty.
-        return proxyToAdapter("/api/erp/field-mappings" + providerQuery(provider), HttpMethod.GET, null);
+        return proxyToAdapter("/api/v1/erp/field-mappings" + providerQuery(provider), HttpMethod.GET, null);
     }
 
     /** Forward {@code provider} only when the caller named one, so the adapter can use the tenant's. */
@@ -510,7 +510,7 @@ public class SettingsController {
     @Operation(summary = "The ASM business fields that can be mapped")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> canonicalFields() {
-        return proxyToAdapter("/api/erp/field-mappings/canonical-fields", HttpMethod.GET, null);
+        return proxyToAdapter("/api/v1/erp/field-mappings/canonical-fields", HttpMethod.GET, null);
     }
 
     /**
@@ -523,7 +523,7 @@ public class SettingsController {
     @Operation(summary = "The ERP documents each canonical scope may be mapped from")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> mappingScopes() {
-        return proxyToAdapter("/api/erp/field-mappings/scopes", HttpMethod.GET, null);
+        return proxyToAdapter("/api/v1/erp/field-mappings/scopes", HttpMethod.GET, null);
     }
 
     /**
@@ -534,7 +534,7 @@ public class SettingsController {
     @Operation(summary = "Fields available on this company's ERP, for the mapping dropdown")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> availableFields(@RequestParam(required = false) String model) {
-        String path = "/api/erp/field-mappings/available-fields"
+        String path = "/api/v1/erp/field-mappings/available-fields"
                 + (model != null && !model.isBlank() ? "?model=" + model : "");
         return proxyToAdapter(path, HttpMethod.GET, null);
     }
@@ -543,7 +543,7 @@ public class SettingsController {
     @Operation(summary = "Create or replace one business-field mapping")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> upsertFieldMapping(@RequestBody Map<String, Object> body) {
-        return proxyToAdapter("/api/erp/field-mappings", HttpMethod.POST, body);
+        return proxyToAdapter("/api/v1/erp/field-mappings", HttpMethod.POST, body);
     }
 
     /** Removing a mapping restores the shipped default; it does not blank the field. */
@@ -553,7 +553,7 @@ public class SettingsController {
     public ResponseEntity<Object> deleteFieldMapping(
             @PathVariable String canonicalField,
             @RequestParam(required = false) String provider) {
-        return proxyToAdapter("/api/erp/field-mappings/" + canonicalField + providerQuery(provider),
+        return proxyToAdapter("/api/v1/erp/field-mappings/" + canonicalField + providerQuery(provider),
                 HttpMethod.DELETE, null);
     }
 
@@ -561,7 +561,7 @@ public class SettingsController {
     @Operation(summary = "Remove a custom (non-canonical) mapping by id")
     @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Object> deleteFieldMappingById(@PathVariable Long id) {
-        return proxyToAdapter("/api/erp/field-mappings/by-id/" + id, HttpMethod.DELETE, null);
+        return proxyToAdapter("/api/v1/erp/field-mappings/by-id/" + id, HttpMethod.DELETE, null);
     }
 
     /**

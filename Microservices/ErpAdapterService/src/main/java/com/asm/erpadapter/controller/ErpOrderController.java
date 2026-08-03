@@ -15,7 +15,7 @@ import java.util.Map;
  * {@code X-Company-Id}), so no {@code erpProvider} param is accepted.
  */
 @RestController
-@RequestMapping("/api/erp/orders")
+@RequestMapping("/api/v1/erp/orders")
 @Tag(name = "ERP Orders", description = "Order creation and reference resolution")
 @RequiredArgsConstructor
 public class ErpOrderController {

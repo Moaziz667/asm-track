@@ -70,31 +70,9 @@ public class ErpController {
         return ResponseEntity.ok(erpLookupService.searchClients(search, limit));
     }
 
-    // ── Product Search ────────────────────────────────────────────────────────
-
-    @GetMapping("/products")
-    @Operation(
-        summary = "Search ERP products",
-        description = """
-            Search products from the connected ERP by name or SKU.
-            Used to populate the items list when creating a new delivery manually.
-            Results are cached for 5 minutes per company.
-            """
-    )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List of matching ERP products",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ErpProductDTO.class)))),
-        @ApiResponse(responseCode = "503", description = "ERP adapter unreachable", content = @Content)
-    })
-    public ResponseEntity<List<ErpProductDTO>> searchProducts(
-            @Parameter(description = "Search term — matches product name or SKU", example = "Colis")
-            @RequestParam(defaultValue = "") String search,
-
-            @Parameter(description = "Max results to return (1–50)", example = "10")
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit
-    ) {
-        return ResponseEntity.ok(erpLookupService.searchProducts(search, limit));
-    }
+    // Product search used to feed the item list when a delivery was created by hand. V18 made the
+    // ERP the only source of an order — "every order is imported from an ERP" — so the screen it
+    // served no longer exists, and nothing has called it since.
 
     // ── Pending Orders ────────────────────────────────────────────────────────
 

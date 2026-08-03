@@ -2324,38 +2324,6 @@
         },
         "type": "object"
       },
-      "ErpProductDTO": {
-        "properties": {
-          "available": {
-            "type": "boolean"
-          },
-          "description": {
-            "type": "string"
-          },
-          "erpProductId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "price": {
-            "format": "double",
-            "type": "number"
-          },
-          "sku": {
-            "type": "string"
-          },
-          "stock": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "weightKg": {
-            "format": "double",
-            "type": "number"
-          }
-        },
-        "type": "object"
-      },
       "Event": {
         "properties": {
           "actor": {
@@ -3211,37 +3179,6 @@
         },
         "type": "object"
       },
-      "LiveStopDTO": {
-        "properties": {
-          "city": {
-            "type": "string"
-          },
-          "clientName": {
-            "type": "string"
-          },
-          "deliveryId": {
-            "type": "string"
-          },
-          "driverId": {
-            "type": "string"
-          },
-          "dropoffLat": {
-            "format": "double",
-            "type": "number"
-          },
-          "dropoffLng": {
-            "format": "double",
-            "type": "number"
-          },
-          "status": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "LocalTime": {
         "description": "Manual end time window",
         "properties": {
@@ -3933,21 +3870,6 @@
         "type": "object"
       },
       "ReorderRouteStopsRequest": {
-        "properties": {
-          "stopIds": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "type": "array"
-          }
-        },
-        "required": [
-          "stopIds"
-        ],
-        "type": "object"
-      },
-      "ReorderStopsRequest": {
         "properties": {
           "stopIds": {
             "items": {
@@ -5243,60 +5165,6 @@
             "type": "integer"
           },
           "waitingThresholdMinutes": {
-            "format": "int32",
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
-      "SlaStopItem": {
-        "properties": {
-          "clientName": {
-            "type": "string"
-          },
-          "deliveryId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "etaAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "routeId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "slaDeadline": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "slaStatus": {
-            "type": "string"
-          },
-          "stopId": {
-            "format": "uuid",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "SlaSummaryResponse": {
-        "properties": {
-          "late": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "lateStops": {
-            "items": {
-              "$ref": "#/components/schemas/SlaStopItem"
-            },
-            "type": "array"
-          },
-          "onTime": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "total": {
             "format": "int32",
             "type": "integer"
           }
@@ -7457,68 +7325,6 @@
         ]
       }
     },
-    "/api/v1/admin/deliveries/geocode-search": {
-      "get": {
-        "description": "Server-side proxy to Nominatim (Tunisia) so the browser never calls the public geocoder directly. Returns up to {limit} suggestions for an address query.",
-        "operationId": "geocodeSearch",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "q",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 5,
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/GeocodeSuggestionResponse"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Free-text address autocomplete",
-        "tags": [
-          "Admin Deliveries"
-        ]
-      }
-    },
     "/api/v1/admin/deliveries/orders/{orderId}/cancel": {
       "post": {
         "description": "Cancels the order and its associated delivery. Triggers an asynchronous ERP sync to cancel the corresponding Odoo sale order. If the ERP is unavailable, the sync is retried with exponential backoff.",
@@ -7565,49 +7371,6 @@
           }
         ],
         "summary": "Cancel order and sync to ERP",
-        "tags": [
-          "Admin Deliveries"
-        ]
-      }
-    },
-    "/api/v1/admin/deliveries/re-geocode-missing": {
-      "post": {
-        "description": "Queues every order with no coordinates for geocoding (full address, then city fallback). Returns how many were queued.",
-        "operationId": "reGeocodeMissing",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "format": "int32",
-                    "type": "integer"
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Re-run auto-geocoding for all unlocated orders",
         "tags": [
           "Admin Deliveries"
         ]
@@ -8794,78 +8557,6 @@
         ]
       }
     },
-    "/api/v1/admin/erp/products": {
-      "get": {
-        "description": "Search products from the connected ERP by name or SKU.\nUsed to populate the items list when creating a new delivery manually.\nResults are cached for 5 minutes per company.\n",
-        "operationId": "searchProducts",
-        "parameters": [
-          {
-            "description": "Search term — matches product name or SKU",
-            "example": "Colis",
-            "in": "query",
-            "name": "search",
-            "required": false,
-            "schema": {
-              "default": "",
-              "type": "string"
-            }
-          },
-          {
-            "description": "Max results to return (1–50)",
-            "example": 10,
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 10,
-              "format": "int32",
-              "maximum": 50,
-              "minimum": 1,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ErpProductDTO"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "List of matching ERP products"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          },
-          "503": {
-            "description": "ERP adapter unreachable"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Search ERP products",
-        "tags": [
-          "Admin — ERP Import"
-        ]
-      }
-    },
     "/api/v1/admin/failure-reasons": {
       "get": {
         "description": "active=true returns only active reasons (for dropdowns); otherwise all.",
@@ -9499,48 +9190,6 @@
         ]
       }
     },
-    "/api/v1/admin/notifications/unread-count": {
-      "get": {
-        "operationId": "unreadCount",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "format": "int64",
-                    "type": "integer"
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Unread notification count",
-        "tags": [
-          "Admin Notifications"
-        ]
-      }
-    },
     "/api/v1/admin/notifications/{id}/acknowledge": {
       "post": {
         "operationId": "acknowledge",
@@ -10055,47 +9704,6 @@
           }
         ],
         "summary": "Move exception back to waiting queue",
-        "tags": [
-          "Admin — Operations & Dispatch"
-        ]
-      }
-    },
-    "/api/v1/admin/ops/live-stops": {
-      "get": {
-        "operationId": "liveStops",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LiveStopDTO"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Active delivery stops for the live dispatch map",
         "tags": [
           "Admin — Operations & Dispatch"
         ]
@@ -11418,44 +11026,6 @@
         ]
       }
     },
-    "/api/v1/admin/routes/sla-summary": {
-      "get": {
-        "operationId": "slaSummary",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SlaSummaryResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Aggregated SLA status (ON_TIME / LATE) across all active route stops",
-        "tags": [
-          "Admin Routes"
-        ]
-      }
-    },
     "/api/v1/admin/routes/transfer-stops": {
       "post": {
         "operationId": "transferStops",
@@ -11650,55 +11220,6 @@
         ]
       }
     },
-    "/api/v1/admin/routes/{id}/apply-optimization": {
-      "put": {
-        "operationId": "applyOptimization",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RouteResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Apply optimized stop order and recalculate ETAs/SLAs",
-        "tags": [
-          "Admin Routes"
-        ]
-      }
-    },
     "/api/v1/admin/routes/{id}/cancel": {
       "post": {
         "operationId": "cancelRoute",
@@ -11852,58 +11373,6 @@
           }
         ],
         "summary": "Latest driver GPS location for an in-progress route (from tracking table)",
-        "tags": [
-          "Admin Routes"
-        ]
-      }
-    },
-    "/api/v1/admin/routes/{id}/eta-details": {
-      "get": {
-        "operationId": "etaDetails",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RouteStopEtaResponse"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Get ETA and SLA details for all stops",
         "tags": [
           "Admin Routes"
         ]
@@ -12219,65 +11688,6 @@
           }
         ],
         "summary": "Recalculate ETAs and SLAs from current departure time",
-        "tags": [
-          "Admin Routes"
-        ]
-      }
-    },
-    "/api/v1/admin/routes/{id}/reorder": {
-      "put": {
-        "operationId": "reorder",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReorderStopsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RouteResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Manually reorder stops and recalculate ETAs/SLAs",
         "tags": [
           "Admin Routes"
         ]
@@ -15594,47 +15004,9 @@
         ]
       }
     },
-    "/api/v1/driver/vehicles/my-vehicle": {
-      "get": {
-        "operationId": "getMyVehicle",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VehicleResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "description": "Requete invalide"
-          },
-          "401": {
-            "description": "Authentification requise"
-          },
-          "403": {
-            "description": "Acces refuse"
-          },
-          "500": {
-            "description": "Erreur interne serveur"
-          }
-        },
-        "security": [
-          {
-            "Bearer Authentication": []
-          }
-        ],
-        "summary": "Get the vehicle assigned to the current driver",
-        "tags": [
-          "Driver Vehicles"
-        ]
-      }
-    },
     "/api/v1/public/track/{deliveryId}": {
       "get": {
-        "description": "Returns the public tracking view (status, ETA, driver position when live) for the delivery. No auth — the id is the shareable tracking token.",
+        "description": "Returns the public tracking view (status, ETA, driver position when live) for the delivery. No auth — the id is the shareable tracking token. Rate limited per caller IP and delivery.",
         "operationId": "track",
         "parameters": [
           {
@@ -15676,6 +15048,16 @@
               }
             },
             "description": "Unknown delivery id"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingResponse"
+                }
+              }
+            },
+            "description": "Too many requests for this delivery"
           },
           "500": {
             "description": "Erreur interne serveur"
