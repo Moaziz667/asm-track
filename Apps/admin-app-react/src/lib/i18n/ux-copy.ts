@@ -616,6 +616,15 @@ export const FR_COPY = {
     statTotal: 'événements',
     markAllRead: 'Tout marquer lu',
     clearAll: 'Vider',
+    searchPlaceholder: 'Rechercher…',
+    refresh: 'Actualiser',
+    refreshed: 'Actualisé',
+    actionFail: 'Échec de l’action',
+    countSuffix: 'événement(s)',
+    justNow: 'à l’instant',
+    minutesAgo: 'il y a {n} min',
+    hoursAgo: 'il y a {n} h',
+    daysAgo: 'il y a {n} j',
     eventSingular: 'événement',
     eventPlural: 'événements',
     filters: {
@@ -627,6 +636,7 @@ export const FR_COPY = {
     },
     groups: {
       today: "Aujourd'hui",
+      yesterday: 'Hier',
       week: 'Cette semaine',
       older: 'Plus tôt',
     },

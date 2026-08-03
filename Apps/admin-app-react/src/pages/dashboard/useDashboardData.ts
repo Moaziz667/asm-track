@@ -41,7 +41,6 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
     if (scope.status?.length) p.status = scope.status;
     if (scope.motif?.length) p.motif = scope.motif;
     if (scope.city?.length) p.city = scope.city;
-    if (scope.source?.length) p.source = scope.source;
     if (scope.depot?.length) p.depot = scope.depot;
     return p;
   }, [scope]);

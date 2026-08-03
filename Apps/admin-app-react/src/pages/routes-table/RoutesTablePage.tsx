@@ -260,7 +260,7 @@ function RouteRow({
 
         {/* Zone & Depot */}
         <div className="flex items-center gap-2">
-          <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] uppercase tracking-widest font-bold">
+          <span className="text-2xs font-[600] px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)]">
             {route.zoneLabel || 'Zone ?'}
           </span>
           <span className="text-2xs font-[600] text-[var(--text-muted)] truncate italic">{depotName}</span>
@@ -428,7 +428,7 @@ function RouteMobileCard({
           <IconCalendar size={11} className="text-[var(--text-muted)] shrink-0" />
           <span className="font-[600]">{route.date}</span>
         </div>
-        <span className="text-3xs font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-primary)] uppercase tracking-wider font-bold">
+        <span className="text-3xs font-[600] px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-primary)]">
           {route.zoneLabel || 'Zone ?'}
         </span>
         {depotName && (
@@ -523,7 +523,7 @@ function RouteMobileCard({
       {/* Expanded Stops Timeline */}
       {expanded && (
         <div className="bg-[var(--surface-sunken)] border-t border-[var(--border)] mt-2 -mx-4 -mb-4 p-3 rounded-b-md flex flex-col gap-2">
-          <span className="text-3xs uppercase font-bold text-[var(--text-muted)] tracking-wider">{t.common?.arrets ?? 'Stops'} {t.common?.de ?? 'of'} {t.common?.tournee ?? 'Route'}</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">{t.common?.arrets ?? 'Stops'} {t.common?.de ?? 'of'} {t.common?.tournee ?? 'Route'}</span>
           {loadingStops ? (
             <div className="py-3 text-center italic text-[var(--text-muted)] text-xs">…</div>
           ) : stops.length === 0 ? (

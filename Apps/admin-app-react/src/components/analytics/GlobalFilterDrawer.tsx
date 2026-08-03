@@ -13,7 +13,7 @@ import { useDepots } from '@/hooks/useDepots';
 import { useDrivers } from '@/hooks/useDrivers';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { cn } from '@/lib/utils';
-import type { AnalyticsScope, DeliveryStatus, OrderSource } from '@/types';
+import type { AnalyticsScope, DeliveryStatus } from '@/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -22,16 +22,19 @@ const DELIVERY_STATUSES: DeliveryStatus[] = [
   'AWAITING_HANDOFF', 'DELIVERED', 'PARTIALLY_DELIVERED', 'CANCELLED', 'FAILED',
 ];
 
-const ORDER_SOURCES: { value: OrderSource; icon: string; label: string }[] = [
-  { value: 'ODOO', icon: '🏭', label: 'ERP Odoo' },
-  { value: 'DUX', icon: '📦', label: 'DUX' },
-];
-
 // Deliveries store the coarse FailureCode category (not the granular reason-catalog code), so the
 // motif pivot filters on these — the only failure dimension persisted queryably on a delivery.
 const FAILURE_CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'MISSING', 'OTHER'] as const;
 
-type FilterCategory = 'period' | 'zone' | 'driver' | 'status' | 'motif' | 'source' | 'depot';
+/*
+ * No 'source' pivot.
+ *
+ * A tenant connects exactly one ERP, so every delivery it holds carries the same source: the filter
+ * could only ever return everything or nothing. It also listed "DUX", a provider this platform has
+ * never supported — a filter that offers a choice which cannot exist teaches the operator to
+ * distrust the ones that can.
+ */
+type FilterCategory = 'period' | 'zone' | 'driver' | 'status' | 'motif' | 'depot';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,7 +88,6 @@ export function GlobalFilterDrawer<R extends string>({
     driver: value.driverId?.length ?? 0,
     status: value.status?.length ?? 0,
     motif: value.motif?.length ?? 0,
-    source: value.source?.length ?? 0,
     depot: value.depot?.length ?? 0,
   }), [value, range, defaultRange]);
 
@@ -93,7 +95,7 @@ export function GlobalFilterDrawer<R extends string>({
 
   // Field key per category + toggle helper (add/remove within a multi-value pivot).
   const FIELD_BY_CAT: Record<Exclude<FilterCategory, 'period'>, keyof AnalyticsScope> = {
-    zone: 'zone', driver: 'driverId', status: 'status', motif: 'motif', source: 'source', depot: 'depot',
+    zone: 'zone', driver: 'driverId', status: 'status', motif: 'motif', depot: 'depot',
   };
   const toggleValue = useCallback(<K extends keyof AnalyticsScope>(field: K, v: string) => {
     const cur = (value[field] as string[] | undefined) ?? [];
@@ -129,7 +131,6 @@ export function GlobalFilterDrawer<R extends string>({
     });
     (value.status ?? []).forEach(s => items.push({ key: 'status', val: s, label: t.statusLabels?.[s] ?? s }));
     (value.motif ?? []).forEach(m => items.push({ key: 'motif', val: m, label: t.failureCodes?.[m] ?? m }));
-    (value.source ?? []).forEach(s => items.push({ key: 'source', val: s, label: t.sources?.[s] ?? s }));
     (value.depot ?? []).forEach(id => {
       const d = depots.find(d => d.id === id);
       items.push({ key: 'depot', val: id, label: d?.name ?? id.slice(0, 8) });
@@ -144,7 +145,6 @@ export function GlobalFilterDrawer<R extends string>({
     { key: 'driver', label: t.scopeFilters?.driver ?? 'Chauffeur', count: counts.driver },
     { key: 'status', label: t.scopeFilters?.status ?? 'Statut', count: counts.status },
     { key: 'motif', label: t.scopeFilters?.motif ?? 'Motif', count: counts.motif },
-    { key: 'source', label: t.scopeFilters?.source ?? 'Source', count: counts.source },
     { key: 'depot', label: t.scopeFilters?.depot ?? 'Dépôt', count: counts.depot },
   ];
 
@@ -279,9 +279,6 @@ export function GlobalFilterDrawer<R extends string>({
                 )}
                 {activeCategory === 'motif' && (
                   <MotifOptions selected={value.motif} onSelect={c => toggleValue('motif', c)} labels={t.failureCodes} onClear={() => onChange({ ...value, motif: undefined })} />
-                )}
-                {activeCategory === 'source' && (
-                  <SourceOptions selected={value.source} onSelect={s => toggleValue('source', s)} onClear={() => onChange({ ...value, source: undefined })} />
                 )}
                 {activeCategory === 'depot' && (
                   <DepotOptions depots={activeDepots} selectedIds={value.depot} onSelect={id => toggleValue('depot', id)} onClear={() => onChange({ ...value, depot: undefined })} />
@@ -484,35 +481,6 @@ function MotifOptions({ selected, onSelect, labels, onClear }: { selected?: stri
   );
 }
 
-// ── Source Options ────────────────────────────────────────────────────────────
-
-function SourceOptions({ selected, onSelect, onClear }: { selected?: OrderSource[]; onSelect: (s: OrderSource) => void; onClear: () => void }) {
-  return (
-    <div className="flex flex-col">
-      <CheckboxRow checked={!selected?.length} label="(Tous)" onClick={onClear} />
-      {ORDER_SOURCES.map(source => (
-        <div
-          key={source.value}
-          className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
-          onClick={() => onSelect(source.value)}
-        >
-          <div className={cn(
-            'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
-            selected?.includes(source.value)
-              ? 'bg-[var(--brand)] border-[var(--brand)]'
-              : 'border-[var(--border)] bg-[var(--surface)]',
-          )}>
-            {selected?.includes(source.value) && (
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            )}
-          </div>
-          <span className="text-xs">{source.icon}</span>
-          <span className="text-2xs text-[var(--text-secondary)]">{source.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ── Depot Options ─────────────────────────────────────────────────────────────
 
