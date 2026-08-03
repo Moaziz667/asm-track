@@ -116,7 +116,16 @@ public class OutboxProcessor {
             int newRetryCount = event.getRetryCount() + 1;
             event.setRetryCount(newRetryCount);
             event.setLastError(error);
-            // 15 retries with exponential backoff spreads retries over 45+ hours, fully protecting against weekend outages.
+            // 15 retries with this backoff span 21.7 hours in total, not the "45+ hours, fully
+            // protecting against weekend outages" this comment used to claim — the sum was never
+            // computed. The tail dominates: attempts 12 to 15 sit at the 4-hour cap and contribute
+            // 16 of those hours, while the first eleven together add under 6.
+            //
+            // 21.7 hours covers an overnight outage comfortably and a working day entirely. It does
+            // NOT cover a Friday-evening failure resolved on Monday; reaching 60 hours would take 25
+            // attempts. That trade-off is deliberate for now — an event that has failed for a day is
+            // usually a broken configuration rather than an outage, and the dead-letter queue keeps
+            // it visible and replayable rather than lost.
             if (newRetryCount <= 15) {
                 event.setStatus("PENDING");
                 // Exponential backoff: 2^retryCount * 5 seconds, capped at 4 hours per retry attempt

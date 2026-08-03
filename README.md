@@ -29,6 +29,12 @@ Le parti pris central : **l'ERP du client reste maître de ses documents et de s
 
 ### Décisions structurantes
 
+Chacune est détaillée dans un ADR — contexte, alternatives écartées et **ce qu'elle coûte** :
+[001 multi-tenant](docs/adr/001-multi-tenant-par-schema.md) ·
+[002 autorisation](docs/adr/002-politique-rbac-unique.md) ·
+[003 intégration ERP](docs/adr/003-ports-adapters-erp.md) ·
+[004 outbox](docs/adr/004-outbox-transactionnel.md)
+
 **Multi-tenant par schéma PostgreSQL** — un schéma `company_<uuid>` par client, résolu à l'exécution via le SPI de multi-tenance d'Hibernate. Un seul pool de connexions, un `SET search_path` au retrait. Le nom de schéma dérive d'un `UUID` déjà parsé, donc il est sûr par construction vis-à-vis de l'injection SQL.
 
 **Politique d'autorisation unique et déclarative** — un fichier `rbac-policy.json` décrit les règles `chemin → permission`. Il est répliqué à l'identique dans chaque service et évalué par la gateway *et* par le service. Les règles sont ordonnées, premier match gagnant, et **l'absence de règle vaut refus** (fail-closed). L'alternative — une annotation sur chacun des 271 endpoints — rendait impossible de répondre à « qui a le droit de faire quoi ? ».
