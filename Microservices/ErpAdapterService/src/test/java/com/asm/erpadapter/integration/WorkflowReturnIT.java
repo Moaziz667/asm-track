@@ -47,25 +47,16 @@ class WorkflowReturnIT extends AbstractOdooIntegrationTest {
 
         // Validate picking (full delivery)
         data.setQuantityDone(pickingId, productId, 5);
-        data.callMethod("stock.picking", "button_validate", List.of(pickingId));
+        data.validatePicking(pickingId);
+        assertEquals("done", data.read("stock.picking", pickingId, List.of("state")).get("state"),
+                "There is nothing to return until the delivery is actually done");
 
-        // Create return wizard
-        Object returnWizard = data.callMethod("stock.return.picking", "create", List.of(
-                Map.of("picking_id", pickingId)));
-        assertNotNull(returnWizard, "Return wizard should be created");
-
-        int returnWizardId;
-        if (returnWizard instanceof Number n) {
-            returnWizardId = n.intValue();
-        } else if (returnWizard instanceof Map<?, ?> m) {
-            returnWizardId = ((Number) m.get("res_id")).intValue();
-        } else {
-            fail("Unexpected return wizard type: " + returnWizard.getClass());
-            return;
-        }
+        // Create the return wizard, with lines Odoo 16 will not prefill over RPC
+        int returnWizardId = data.createReturnWizard(pickingId, 5);
 
         // Execute return — Odoo 16 uses create_returns
-        Object returnResult = data.callMethod("stock.return.picking", "create_returns",
+        assertEquals("create_returns", data.returnMethod(), "Odoo 16 names it create_returns");
+        Object returnResult = data.callMethod("stock.return.picking", data.returnMethod(),
                 List.of(returnWizardId));
         assertNotNull(returnResult, "create_returns should return a result (picking ID or dict)");
 
@@ -104,25 +95,17 @@ class WorkflowReturnIT extends AbstractOdooIntegrationTest {
 
         // Validate picking (full delivery)
         data.setQuantityField(pickingId, productId, 5, "quantity");
-        data.callMethod("stock.picking", "button_validate", List.of(pickingId));
+        data.validatePicking(pickingId);
+        assertEquals("done", data.read("stock.picking", pickingId, List.of("state")).get("state"),
+                "There is nothing to return until the delivery is actually done");
 
-        // Create return wizard
-        Object returnWizard = data.callMethod("stock.return.picking", "create", List.of(
-                Map.of("picking_id", pickingId)));
-        assertNotNull(returnWizard, "Return wizard should be created");
-
-        int returnWizardId;
-        if (returnWizard instanceof Number n) {
-            returnWizardId = n.intValue();
-        } else if (returnWizard instanceof Map<?, ?> m) {
-            returnWizardId = ((Number) m.get("res_id")).intValue();
-        } else {
-            fail("Unexpected return wizard type: " + returnWizard.getClass());
-            return;
-        }
+        // Create the return wizard. Odoo 19 computes the lines but leaves every quantity at zero,
+        // and refuses the return for exactly that.
+        int returnWizardId = data.createReturnWizard(pickingId, 5);
 
         // Execute return — Odoo 19 uses action_create_returns
-        Object returnResult = data.callMethod("stock.return.picking", "action_create_returns",
+        assertEquals("action_create_returns", data.returnMethod(), "Odoo 18+ renamed it");
+        Object returnResult = data.callMethod("stock.return.picking", data.returnMethod(),
                 List.of(returnWizardId));
         assertNotNull(returnResult, "action_create_returns should return a result");
 

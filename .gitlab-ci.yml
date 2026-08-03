@@ -231,16 +231,16 @@ integration-test-erp-adapter-odoo:
         [ -n "$ready" ] || { echo "$host never finished installing — auth=${auth:-none} modules=${mods:-none}"; exit 1; }
       done
   script:
-    # Infrastructure only. These are the tests that earn the two-version setup: they pin what
-    # actually differs between 16 and 19 — stock.move.line.qty_done versus quantity,
-    # create_returns versus action_create_returns — and they pass on both.
+    # The whole suite, on both versions — 28 tests, no filter. They earn the two-version setup by
+    # pinning what actually differs: stock.move.line.qty_done versus quantity, create_returns
+    # versus action_create_returns, and the confirmation wizards, which differ most of all.
     #
-    # The Workflow*IT suites are excluded, not deleted. They drive a full sale-to-delivery cycle,
-    # which needs an instance seeded with reserved stock; on a bare database Odoo refuses to
-    # validate "a zero quantity transfer" and the failure says nothing about our connector. Run
-    # them locally against the docker-compose Odoo, which is set up for it:
-    #   gradle integrationTest
-    - gradle integrationTest --tests '*OdooInfrastructureIT*' --no-daemon
+    # The workflow suites used to be excluded here for needing "an instance seeded with reserved
+    # stock". That was never the obstacle — the fixture stocks its own products. They failed
+    # because they drove Odoo's wizards the way an RPC caller assumes rather than the way the web
+    # client does, and each of those mistakes fails *silently*: the transfer stays `assigned` and
+    # nothing anywhere raises. See OdooTestDataFactory.settleValidationWizards.
+    - gradle integrationTest --no-daemon
   artifacts:
     when: always
     reports:
