@@ -3607,8 +3607,8 @@ export const AR_COPY = {
       },
     },
     'erp.conflict': {
-      title: 'تعارض Odoo',
-      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطلب'} — تم تعديله في Odoo بعد مغادرة الشحنة${p.field ? ` (${p.field})` : ''}. يرجى المراجعة.`,
+      title: 'تعارض مع نظام ERP',
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطلب'} — تم تعديله في نظام ERP بعد مغادرة الشحنة${p.field ? ` (${p.field})` : ''}. يرجى المراجعة.`,
     },
     'route.cancelled': {
       title: 'تم إلغاء الجولة',

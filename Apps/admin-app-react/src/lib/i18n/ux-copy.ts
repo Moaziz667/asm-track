@@ -3654,8 +3654,8 @@ export const FR_COPY = {
       },
     },
     'erp.conflict': {
-      title: 'Conflit Odoo',
-      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Commande'} — modifiée dans Odoo alors que la livraison était déjà partie${p.field ? ` (${p.field})` : ''}. À vérifier.`,
+      title: 'Conflit ERP',
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Commande'} — modifiée dans l’ERP alors que la livraison était déjà partie${p.field ? ` (${p.field})` : ''}. À vérifier.`,
     },
     'route.cancelled': {
       title: 'Tournée annulée',

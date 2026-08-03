@@ -3259,8 +3259,8 @@ export const EN_COPY = {
       },
     },
     'erp.conflict': {
-      title: 'Odoo Conflict',
-      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Order'} — changed in Odoo after the delivery had already left${p.field ? ` (${p.field})` : ''}. Please review.`,
+      title: 'ERP conflict',
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Order'} — changed in the ERP after the delivery had already left${p.field ? ` (${p.field})` : ''}. Please review.`,
     },
     'route.cancelled': {
       title: 'Route Cancelled',
