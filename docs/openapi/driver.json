@@ -1,0 +1,1337 @@
+{
+  "components": {
+    "schemas": {
+      "AdminDriverResponse": {
+        "properties": {
+          "accountStatus": {
+            "type": "string"
+          },
+          "activeDeliveryId": {
+            "type": "string"
+          },
+          "activeRouteId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currentLat": {
+            "type": "number"
+          },
+          "currentLng": {
+            "type": "number"
+          },
+          "delivered": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "failed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "invitationExpiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invitedByName": {
+            "type": "string"
+          },
+          "lastInvitedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastLocationAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "onlineStatus": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "photoUrl": {
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          },
+          "suspendedReason": {
+            "type": "string"
+          },
+          "totalDeliveries": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "CancelInviteRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverAuditLogResponse": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "details": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ipAddress": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "targetEntity": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverProfileResponse": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "currentLat": {
+            "type": "number"
+          },
+          "currentLng": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastLocationAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "onboardingStatus": {
+            "type": "string"
+          },
+          "onlineStatus": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "photoUrl": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HistoryItem": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "deliveryId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HistoryResponse": {
+        "properties": {
+          "hasNext": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryItem"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "InviteDriverRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "LocationRequest": {
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "type": "object"
+      },
+      "Pageable": {
+        "properties": {
+          "page": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sort": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SetStatusRequest": {
+        "properties": {
+          "isRegistered": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SetupAccountRequest": {
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "token": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "type": "object"
+      },
+      "StatsResponse": {
+        "properties": {
+          "cancelled": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "delivered": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "failed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalDeliveries": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateDriverRequest": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "Bearer Authentication": {
+        "bearerFormat": "JWT",
+        "name": "Bearer Authentication",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "Internal Secret": {
+        "in": "header",
+        "name": "X-Internal-Secret",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "API documentation for the ASM Driver Service",
+    "title": "Driver Service API",
+    "version": "v1.0.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/api/v1/admin/drivers": {
+      "get": {
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminDriverResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List drivers",
+        "tags": [
+          "Admin Drivers"
+        ]
+      },
+      "post": {
+        "operationId": "invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteDriverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Invite driver — sends setup email, no password required",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/audit-logs": {
+      "get": {
+        "operationId": "listAuditLogs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actorRole",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "object"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "List driver audit logs (paginated, filterable)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/avatars": {
+      "get": {
+        "operationId": "avatars",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "driverId → avatar URL map (dispatcher-visible; non-sensitive)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/import": {
+      "post": {
+        "operationId": "importCsv",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminDriverResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Bulk import drivers from CSV (name,phone,password)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}": {
+      "delete": {
+        "operationId": "cancelInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelInviteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Cancel a pending invite (PENDING_SETUP drivers only)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      },
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Get driver detail",
+        "tags": [
+          "Admin Drivers"
+        ]
+      },
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDriverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Update driver info",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/audit-logs": {
+      "get": {
+        "operationId": "driverAuditLogs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DriverAuditLogResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Audit logs for a single driver",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/logout": {
+      "post": {
+        "operationId": "forceLogout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Force logout a driver (session invalidation)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/resend-invite": {
+      "post": {
+        "operationId": "resendInvite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "object"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Resend invitation email to a PENDING_SETUP driver",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/status": {
+      "patch": {
+        "operationId": "setStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Activate or deactivate driver (PENDING_SETUP is rejected)",
+        "tags": [
+          "Admin Drivers"
+        ]
+      }
+    },
+    "/api/v1/auth/driver/setup": {
+      "post": {
+        "operationId": "setupAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDriverResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Activate account and set password",
+        "tags": [
+          "Driver Activation"
+        ]
+      }
+    },
+    "/api/v1/auth/driver/setup/resend": {
+      "post": {
+        "operationId": "resendCode",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "phone",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "object"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Resend activation code",
+        "tags": [
+          "Driver Activation"
+        ]
+      }
+    },
+    "/api/v1/auth/driver/setup/validate": {
+      "get": {
+        "operationId": "validateToken",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Validate invitation token and retrieve driver name",
+        "tags": [
+          "Driver Activation"
+        ]
+      }
+    },
+    "/api/v1/driver/availability": {
+      "patch": {
+        "description": "Sets the driver's online status: ONLINE, ON_BREAK or OFFLINE.",
+        "operationId": "updateAvailability",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Set my availability",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/duty-status": {
+      "post": {
+        "description": "Toggles whether the driver is on duty and dispatchable.",
+        "operationId": "toggleDuty",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "onDuty",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "object"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Set my on/off-duty status",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/fcm-token": {
+      "delete": {
+        "description": "Removes the stored FCM token (e.g. on logout).",
+        "operationId": "clearFcmToken",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Clear my push token",
+        "tags": [
+          "Driver Operations"
+        ]
+      },
+      "put": {
+        "description": "Stores the device's FCM token for push notifications.",
+        "operationId": "updateFcmToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register my push token",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/history": {
+      "get": {
+        "description": "Paginated history of the driver's past deliveries.",
+        "operationId": "getHistory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get my delivery history",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/location": {
+      "post": {
+        "description": "Pushes the driver's live GPS position (used for tracking).",
+        "operationId": "updateLocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Report my current location",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/me/photo": {
+      "post": {
+        "description": "Uploads/replaces the driver's own photo (multipart field 'file'); re-encoded and stored server-side.",
+        "operationId": "uploadPhoto",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Upload my profile photo",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/profile": {
+      "get": {
+        "description": "Returns the signed-in driver's own profile.",
+        "operationId": "getProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get my driver profile",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/api/v1/driver/stats": {
+      "get": {
+        "description": "Returns the driver's own performance counters.",
+        "operationId": "getStats",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get my delivery stats",
+        "tags": [
+          "Driver Operations"
+        ]
+      }
+    },
+    "/internal/tenants/{companyId}": {
+      "delete": {
+        "description": "Drops the company's driver schema and all its data. Destructive and irreversible.",
+        "operationId": "deprovision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schema dropped"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Deprovision the driver schema for a tenant",
+        "tags": [
+          "Internal · Tenant Provisioning (Driver DB)"
+        ]
+      }
+    },
+    "/internal/tenants/{companyId}/provision": {
+      "post": {
+        "description": "Creates the company's driver-database schema and tables. Idempotent.",
+        "operationId": "provision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "companyId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Schema provisioned"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Provision the driver schema for a tenant",
+        "tags": [
+          "Internal · Tenant Provisioning (Driver DB)"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer Authentication": [],
+      "Internal Secret": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Generated server url",
+      "url": "http://driver-service:8086"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Super-admin driver management",
+      "name": "Admin Drivers"
+    },
+    {
+      "description": "Service-to-service (SERVICE role) provisioning of the driver database schema for a tenant. Called by onboarding after the company is created in Keycloak.",
+      "name": "Internal · Tenant Provisioning (Driver DB)"
+    },
+    {
+      "description": "Endpoints for driver account activation and password setup",
+      "name": "Driver Activation"
+    },
+    {
+      "description": "Endpoints for Driver App (Requires DRIVER role)",
+      "name": "Driver Operations"
+    }
+  ]
+}
