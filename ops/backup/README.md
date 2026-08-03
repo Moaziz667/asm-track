@@ -8,7 +8,6 @@ ops/backup/
 ├── backup.sh          sauvegarde complète (bases + volumes)
 ├── restore.sh         restauration : un client, une base, ou un volume
 ├── crontab.example    planification quotidienne
-├── PLAN.md            plan de mise en œuvre + scénario de démonstration
 └── README.md          ce fichier
 ```
 
@@ -329,5 +328,3 @@ Le cron installé ici protège les données de ce serveur, rien d'autre.
 | **RTO** — temps de remise en service | restauration d'un client : **2 s** · reprise dans le temps : **< 2 min** | mesuré |
 | **Rétention** | 14 jours en local | en place |
 | **Copie hors-machine** | `BACKUP_REMOTE` non renseignée | à activer |
-
-Détail du raisonnement et étapes restantes : [PLAN.md](PLAN.md).
