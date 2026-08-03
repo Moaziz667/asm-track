@@ -282,7 +282,7 @@ export default function CashDeskPage() {
         onClose={() => setCounting(null)}
         title={c.countTitle}
         subtitle={counting?.driverName ?? undefined}
-        size="sm"
+        size="md"
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setCounting(null)}>
@@ -299,51 +299,78 @@ export default function CashDeskPage() {
         }
       >
         <div className="flex flex-col gap-4">
+          {/*
+            The two reference figures, each said to come from somewhere.
+
+            "Attendu" and "Déclaré" alone are two bare numbers that happen to match; where they come
+            from is the whole point of the check. One is what the platform computed from the
+            collections — nobody can move it. The other is what the driver said. A cashier who does
+            not know which is which cannot know what he is arbitrating.
+          */}
           <div className="grid grid-cols-2 gap-3">
-            <Figure label={c.colExpected} value={formatAmount(counting?.expectedTotal)} />
-            <Figure label={c.colDeclared} value={formatAmount(counting?.declaredTotal)} />
+            <Figure label={c.colExpected} hint={c.expectedFrom}
+                    value={`${formatAmount(counting?.expectedTotal)} ${CURRENCY}`} />
+            <Figure label={c.colDeclared} hint={c.declaredFrom}
+                    value={`${formatAmount(counting?.declaredTotal)} ${CURRENCY}`} />
           </div>
 
+          {/* A driver whose own two numbers already disagree is worth knowing about before counting. */}
+          {counting && counting.declaredTotal != null
+            && Number(counting.declaredTotal) !== Number(counting.expectedTotal) && (
+            <div className="rounded-lg px-3 py-2 flex items-start gap-2"
+                 style={{ background: 'color-mix(in srgb, var(--warning) 12%, transparent)' }}>
+              <IconAlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warning)' }} />
+              <span className="text-xs text-[var(--text-secondary)]">{c.declaredMismatch}</span>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="counted" className="text-xs font-medium text-[var(--text-muted)]">
+            <label htmlFor="counted" className="text-sm font-[600] text-[var(--text-primary)]">
               {c.countedLabel}
             </label>
             <div className="flex items-center gap-2">
+              {/*
+                No numeric placeholder.
+                A greyed "0,000" in a money field reads as a filled-in zero — and zero counted
+                against a real expectation is the largest discrepancy this screen can produce. The
+                field stays visibly empty until somebody types, and the submit button stays disabled.
+              */}
               <Input
                 id="counted"
                 inputMode="decimal"
                 autoFocus
                 value={countedText}
                 onChange={e => setCountedText(e.target.value)}
-                placeholder="0,000"
-                className="tabular-nums text-end font-[600]"
+                placeholder={c.countedPlaceholder}
+                className="tabular-nums text-end text-lg font-[700] h-12"
               />
-              <span className="text-xs font-medium text-[var(--text-muted)]">{CURRENCY}</span>
+              <span className="text-sm font-medium text-[var(--text-muted)]">{CURRENCY}</span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">{c.countedHint}</p>
           </div>
 
-          {/* The gap appears while typing: the operator commits to a number he has already seen. */}
-          {liveDelta !== null && (
-            <div
-              className="rounded-lg px-3 py-2 flex items-center justify-between"
-              style={{
-                background: liveDelta === 0
-                  ? 'color-mix(in srgb, var(--success) 10%, transparent)'
-                  : 'color-mix(in srgb, var(--danger) 10%, transparent)',
-              }}
-            >
-              <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-                {c.colDelta}
-              </span>
-              <span
-                className="text-sm font-[700] tabular-nums"
-                style={{ color: liveDelta === 0 ? 'var(--success)' : 'var(--danger)' }}
-              >
-                {formatDelta(liveDelta)} {CURRENCY}
-              </span>
-            </div>
-          )}
+          {/*
+            The gap, while typing — the operator commits to a number he has already seen.
+            The box keeps its height when empty so the dialog does not jump under the cursor at the
+            exact moment a figure is being entered.
+          */}
+          <div className="rounded-lg px-3 py-2 flex items-center justify-between min-h-[38px]"
+               style={{
+                 background: liveDelta === null
+                   ? 'var(--surface-sunken)'
+                   : liveDelta === 0
+                     ? 'color-mix(in srgb, var(--success) 10%, transparent)'
+                     : 'color-mix(in srgb, var(--danger) 10%, transparent)',
+               }}>
+            <span className="text-xs font-medium text-[var(--text-secondary)]">{c.colDelta}</span>
+            <span className="text-sm font-[700] tabular-nums"
+                  style={{
+                    color: liveDelta === null ? 'var(--text-soft)'
+                      : liveDelta === 0 ? 'var(--success)' : 'var(--danger)',
+                  }}>
+              {liveDelta === null ? '—' : `${formatDelta(liveDelta)} ${CURRENCY}`}
+            </span>
+          </div>
         </div>
       </AppModal>
 
@@ -369,11 +396,12 @@ export default function CashDeskPage() {
 }
 
 /** One read-only figure in the counting dialog. */
-function Figure({ label, value }: { label: string; value: string }) {
+function Figure({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-lg border border-[var(--border)] px-3 py-2">
       <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
       <div className="text-sm font-[600] tabular-nums text-[var(--text-primary)]">{value}</div>
+      {hint && <div className="text-2xs text-[var(--text-soft)] mt-0.5 leading-snug">{hint}</div>}
     </div>
   );
 }
