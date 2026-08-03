@@ -587,7 +587,7 @@ export const AR_COPY = {
   },
 
   notificationsPage: {
-    title: 'سجل العمليات',
+    title: 'الإشعارات',
     statUnread: 'غير مقروءة',
     statCritical: 'حرجة',
     statTotal: 'أحداث',

@@ -579,7 +579,7 @@ export const EN_COPY = {
   },
 
   notificationsPage: {
-    title: 'Ops feed',
+    title: 'Notifications',
     statUnread: 'unread',
     statCritical: 'critical',
     statTotal: 'events',

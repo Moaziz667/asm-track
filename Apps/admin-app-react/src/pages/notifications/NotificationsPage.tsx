@@ -186,20 +186,29 @@ export default function NotificationsPage() {
                   key={f.value}
                   type="button"
                   onClick={() => { setFilter(f.value); setPage(0); }}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 h-7 rounded-md px-2.5 text-xs font-medium transition-colors',
-                    active
-                      ? 'bg-[var(--brand)] text-white'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-secondary)]',
-                  )}
+                  /*
+                    The same soft treatment every other filter row in the app uses (Deliveries,
+                    Returns, Cash — see PageFilterBar): a tint and coloured text, not a solid fill.
+                    Five pills in flat brand blue made "selected" shout louder than anything else on
+                    a page whose whole job is to rank what deserves attention.
+                  */
+                  className="inline-flex items-center gap-1.5 h-7 rounded-full px-2.5 text-xs font-[500] transition-colors border"
+                  style={{
+                    borderColor: active ? 'var(--brand-blue)' : 'var(--border)',
+                    background: active ? 'var(--brand-blue-soft)' : 'transparent',
+                    color: active ? 'var(--brand-blue)' : 'var(--text-muted)',
+                  }}
                 >
                   <Icon size={13} />
                   {f.label}
                   {count > 0 && (
-                    <span className={cn(
-                      'ml-0.5 tabular-nums',
-                      active ? 'text-white/70' : 'text-[var(--text-soft)]',
-                    )}>
+                    <span
+                      className="text-2xs font-bold px-1 rounded-full tabular-nums"
+                      style={{
+                        background: active ? 'var(--brand-blue)' : 'var(--hover-bg)',
+                        color: active ? '#fff' : 'var(--text-muted)',
+                      }}
+                    >
                       {count}
                     </span>
                   )}
@@ -256,7 +265,10 @@ export default function NotificationsPage() {
                         onClick={() => openInDispatch(n)}
                         className={cn(
                           'flex w-full items-center gap-3 px-3 py-2.5 text-start transition-colors hover:bg-[var(--hover-bg)]',
-                          !n.read && 'border-l-2 border-l-[var(--brand)]',
+                          // Neutral ink, not brand blue. Colour on this row means severity — the
+                          // icon is red, amber or blue for a reason — and a blue edge for "unread"
+                          // competed with the one signal that ranks the list.
+                          !n.read && 'border-l-2 border-l-[var(--text-primary)]',
                         )}
                       >
                         <SeverityIcon severity={n.severity} className="w-6 h-6 shrink-0" />

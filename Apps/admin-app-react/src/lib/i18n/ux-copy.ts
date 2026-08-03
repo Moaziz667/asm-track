@@ -610,7 +610,7 @@ export const FR_COPY = {
 
   // ── notificationsPage ─────────────────────────────────────────────────
   notificationsPage: {
-    title: 'Flux opérations',
+    title: 'Notifications',
     statUnread: 'non lues',
     statCritical: 'critiques',
     statTotal: 'événements',
