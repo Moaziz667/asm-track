@@ -7,7 +7,7 @@ import { Toaster } from '@/components/feedback/Toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LocaleProvider } from '@/lib/i18n/LocaleContext';
 import { AuthProvider, useAuth } from 'react-oidc-context';
-import { oidcConfig, syncSession } from '@/lib/api/oidcConfig';
+import { oidcConfig, syncSession, userManager } from '@/lib/api/oidcConfig';
 import { registerTokenRefresher, registerLogoutHandler } from '@/lib/api';
 
 type ProvidersProps = {
@@ -43,8 +43,21 @@ function AuthSync() {
   authRef.current = auth;
 
   useEffect(() => {
+    /*
+      Renew on the UserManager itself, never through the signinSilent that useAuth() hands out.
+
+      That one is a wrapper: it dispatches NAVIGATOR_INIT before doing anything, which sets
+      `isLoading: true` — on a session that is valid and merely being refreshed. ProtectedRoute
+      gates on isLoading, so a renewal blanked the whole page, unmounted the dashboard, and remounted
+      it when the token arrived; every query refired, and a single 401 among them started the same
+      cycle again. That is the endless refresh: not a failing renewal, a *succeeding* one that tore
+      the page down each time it ran.
+
+      The UserManager renews and emits userLoaded, which AuthProvider already listens for, so
+      `auth.user` still updates. Nothing observes a loading state that was never meaningful here.
+    */
     registerTokenRefresher(async () => {
-      const user = await authRef.current.signinSilent();
+      const user = await userManager.signinSilent();
       syncSession(user);
       return user;
     });
