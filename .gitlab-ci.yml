@@ -340,8 +340,18 @@ pages:
     # MkDocs lit site_url depuis cette variable (voir mkdocs.yml). CI_PAGES_URL est fournie par
     # GitLab et porte le sous-chemin réel du projet.
     SITE_URL: $CI_PAGES_URL
+  # Rien à récupérer des étapes précédentes. Sans cette ligne, le job télécharge les rapports de
+  # tests JUnit et les rapports HTML de l'étape d'intégration, qu'il n'ouvre jamais.
+  dependencies: []
+  # Expose l'URL dans l'interface : un bouton « View deployment » apparaît sur le job et sur la
+  # pipeline. C'est la façon la plus simple de retrouver le lien sans aller le chercher dans
+  # Deploy → Pages.
+  environment:
+    name: documentation
+    url: $CI_PAGES_URL
   script:
     - mkdocs build --strict --site-dir public
+    - echo "Documentation publiée sur $CI_PAGES_URL"
   artifacts:
     paths:
       - public
