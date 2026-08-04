@@ -29,7 +29,24 @@ Le parti pris central : **l'ERP du client reste maître de ses documents et de s
 
 > 📖 **Documentation technique complète** dans [`docs/`](docs/index.md) — architecture, métier,
 > exploitation et décisions, avec 84 diagrammes.
-> Pour la consulter comme un site : `docker run --rm -p 8000:8000 -v "$PWD:/docs" squidfunk/mkdocs-material serve -a 0.0.0.0:8000`
+
+<details>
+<summary><b>Comment la consulter</b></summary>
+
+**Depuis un artefact de CI** — aucune installation. Dans GitLab, ouvrir la pipeline de `main`, job
+`pages` → **Download artifacts**, décompresser, puis ouvrir `public/index.html`. La navigation et
+les diagrammes fonctionnent hors ligne ; seule la barre de recherche demande un serveur (elle charge
+son index par XHR, ce que le navigateur bloque sur `file://`).
+
+**En local, avec la recherche** — depuis la racine du dépôt :
+
+```bash
+docker run --rm -p 8000:8000 -v "$PWD:/docs" squidfunk/mkdocs-material serve -a 0.0.0.0:8000
+```
+
+→ <http://localhost:8000>
+
+</details>
 
 ### Décisions structurantes
 
