@@ -3,7 +3,7 @@ package com.asm.erpadapter.mapping;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import com.asm.erpadapter.entity.ErpFieldMapping;
 import com.asm.erpadapter.repository.ErpFieldMappingRepository;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -1,5 +1,7 @@
 package com.asm.driver.config;
 
+import com.asm.tenant.TenantSchema;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

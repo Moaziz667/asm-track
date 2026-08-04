@@ -1,10 +1,13 @@
-package com.asm.erpadapter.security;
+package com.asm.tenant;
 
 import java.util.UUID;
 
 /**
  * Holds the current tenant (company) identifier for the request thread.
- * Set by {@link TenantContextFilter} from the X-Company-Id header injected by the API Gateway.
+ *
+ * <p>Set from the {@code X-Company-Id} header by the web filter, from the AMQP header by the inbound
+ * message post-processor, or explicitly by scheduled jobs iterating tenants. Read by the Hibernate
+ * tenant resolver to choose a schema.
  */
 public final class TenantContext {
 

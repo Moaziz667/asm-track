@@ -1,5 +1,8 @@
 package com.asm.erpadapter.config;
 
+import com.asm.tenant.amqp.TenantInboundPostProcessor;
+import com.asm.tenant.amqp.TenantMessagePostProcessor;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;

@@ -1,5 +1,7 @@
 package com.asm.delivery.storage;
 
+import com.asm.tenant.TenantContext;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,7 +105,7 @@ public class MediaUrlResolver {
         // Legacy tenant-less reference (a bare logical path): the object lives under this tenant's
         // prefix. Keys that already name a tenant are left untouched.
         if (!TENANT_PREFIXED.matcher(key).matches()) {
-            java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+            java.util.UUID companyId = com.asm.tenant.TenantContext.get();
             if (companyId != null) key = companyId + "/" + key;
         }
         return key;

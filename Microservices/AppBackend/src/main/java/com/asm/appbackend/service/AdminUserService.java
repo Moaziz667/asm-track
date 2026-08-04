@@ -7,7 +7,7 @@ import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.messaging.AuditEventPublisher;
 import com.asm.appbackend.repository.AdminUserRepository;
 import com.asm.appbackend.security.KeycloakUserRollbackEvent;
-import com.asm.appbackend.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

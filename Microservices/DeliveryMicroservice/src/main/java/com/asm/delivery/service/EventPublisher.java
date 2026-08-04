@@ -10,7 +10,7 @@ import com.asm.delivery.event.CloudEventWrapper;
 import com.asm.delivery.event.DeliveryEventPayload;
 import com.asm.delivery.event.HandoffEventPayload;
 import com.asm.delivery.event.RouteEventPayload;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

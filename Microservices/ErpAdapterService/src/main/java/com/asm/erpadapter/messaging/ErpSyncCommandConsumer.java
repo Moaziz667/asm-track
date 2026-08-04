@@ -1,5 +1,7 @@
 package com.asm.erpadapter.messaging;
 
+import com.asm.tenant.TenantContext;
+
 import com.asm.erpadapter.config.RabbitMQConfig;
 import com.asm.erpadapter.adapter.odoo.FieldResolver;
 import com.asm.erpadapter.adapter.odoo.MethodResolver;

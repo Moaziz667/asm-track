@@ -1,5 +1,7 @@
 package com.asm.delivery.config;
 
+import com.asm.tenant.TenantSchema;
+
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.Location;

@@ -2,7 +2,7 @@ package com.asm.erpadapter.controller;
 
 import com.asm.erpadapter.adapter.odoo.ErpMappingService;
 import com.asm.erpadapter.entity.ErpMapping;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

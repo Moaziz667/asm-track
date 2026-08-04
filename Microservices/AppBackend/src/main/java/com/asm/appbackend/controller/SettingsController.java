@@ -3,7 +3,7 @@ package com.asm.appbackend.controller;
 import com.asm.appbackend.dto.SystemSettingsDto;
 import com.asm.appbackend.entity.SystemSettings;
 import com.asm.appbackend.repository.SystemSettingsRepository;
-import com.asm.appbackend.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.appbackend.service.EncryptionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

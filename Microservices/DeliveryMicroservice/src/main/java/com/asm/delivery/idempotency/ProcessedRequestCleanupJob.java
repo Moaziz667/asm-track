@@ -1,6 +1,6 @@
 package com.asm.delivery.idempotency;
 
-import com.asm.delivery.config.TenantIterator;
+import com.asm.tenant.jpa.TenantIterator;
 import com.asm.delivery.repository.ProcessedRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,19 +1,17 @@
-package com.asm.delivery.config;
+package com.asm.tenant.amqp;
 
-import com.asm.delivery.security.TenantContext;
-import lombok.extern.slf4j.Slf4j;
+import com.asm.tenant.TenantContext;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 /**
- * RabbitTemplate post-processor that automatically adds the X-Company-Id header
- * to every outgoing message based on the current TenantContext.
+ * Stamps every outgoing AMQP message with the current tenant, so the consumer can restore it.
+ *
+ * <p>Wired on the RabbitTemplate. Without it, an event published inside a tenant's transaction would
+ * arrive with no way of telling whose data it concerns.
  */
-@Slf4j
-@Component
 public class TenantMessagePostProcessor implements MessagePostProcessor {
 
     @Override

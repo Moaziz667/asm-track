@@ -1,6 +1,6 @@
 package com.asm.driver.controller;
 
-import com.asm.driver.config.TenantSchema;
+import com.asm.tenant.TenantSchema;
 import com.asm.driver.config.TenantSchemaProvisioner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

@@ -6,7 +6,7 @@ import com.asm.erpadapter.mapping.ErpFieldMappingService;
 import com.asm.erpadapter.mapping.ErpFieldCatalog;
 import com.asm.erpadapter.mapping.FieldMappingResolver;
 import com.asm.erpadapter.routing.ErpProviderRouter;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

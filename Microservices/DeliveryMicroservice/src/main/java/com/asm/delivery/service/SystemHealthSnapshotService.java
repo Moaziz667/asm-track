@@ -1,5 +1,7 @@
 package com.asm.delivery.service;
 
+import com.asm.tenant.TenantContext;
+
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.repository.OrderRepository;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -94,7 +96,7 @@ public class SystemHealthSnapshotService {
             globalSnapshot = global;
         }
         Map<String, Object> out = new LinkedHashMap<>(global);
-        java.util.UUID tenant = com.asm.delivery.security.TenantContext.get();
+        java.util.UUID tenant = com.asm.tenant.TenantContext.get();
         if (tenant != null) {
             TenantErpEntry entry = freshTenantErp(tenant);
             out.put("erpSync", entry.erpSync());
@@ -110,7 +112,7 @@ public class SystemHealthSnapshotService {
 
     /** Rolling history for the CURRENT tenant, oldest → newest (a copy, safe to serialize off-thread). */
     public List<Map<String, Object>> history() {
-        java.util.UUID tenant = com.asm.delivery.security.TenantContext.get();
+        java.util.UUID tenant = com.asm.tenant.TenantContext.get();
         if (tenant == null) return List.of();
         java.util.Deque<Map<String, Object>> h = historyByTenant.get(tenant);
         if (h == null) return List.of();

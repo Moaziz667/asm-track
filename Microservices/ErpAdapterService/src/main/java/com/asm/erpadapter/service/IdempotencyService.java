@@ -1,5 +1,7 @@
 package com.asm.erpadapter.service;
 
+import com.asm.tenant.TenantContext;
+
 import com.asm.erpadapter.entity.IdempotentTransaction;
 import com.asm.erpadapter.repository.IdempotentTransactionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +47,7 @@ public class IdempotencyService {
             // Tenant guard: the store is shared across tenants (single H2), and txIds are
             // caller-generated. A record written by another tenant must NEVER satisfy this tenant's
             // replay check — that would return one tenant's ERP response payload to another.
-            java.util.UUID currentTenant = com.asm.erpadapter.security.TenantContext.get();
+            java.util.UUID currentTenant = com.asm.tenant.TenantContext.get();
             if (tx.getTenantId() != null && !tx.getTenantId().equals(currentTenant)) {
                 log.error("Idempotency txId COLLISION across tenants — txId={} storedTenant={} currentTenant={} "
                         + "action=ignoring_cached_re_executing", txId, tx.getTenantId(), currentTenant);
@@ -89,7 +91,7 @@ public class IdempotencyService {
         try {
             IdempotentTransaction tx = IdempotentTransaction.builder()
                     .transactionId(txId)
-                    .tenantId(com.asm.erpadapter.security.TenantContext.get())
+                    .tenantId(com.asm.tenant.TenantContext.get())
                     .erpOrderId(erpOrderId)
                     .status("SUCCESS")
                     .responsePayload(objectMapper.writeValueAsString(result))

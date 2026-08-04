@@ -1,5 +1,8 @@
 package com.asm.appbackend.service;
 
+import com.asm.tenant.TenantContext;
+import com.asm.tenant.jpa.TenantIterator;
+
 import com.asm.appbackend.entity.OutboxEvent;
 import com.asm.appbackend.repository.OutboxRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,7 +32,7 @@ public class OutboxProcessor {
     private final OutboxRepository outboxRepo;
     private final ObjectMapper objectMapper;
     private final IamCommandApplier iamApplier;
-    private final com.asm.appbackend.config.TenantIterator tenantIterator;
+    private final com.asm.tenant.jpa.TenantIterator tenantIterator;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     // @Transactional on methods invoked via `this` never engages the proxy (self-invocation): the

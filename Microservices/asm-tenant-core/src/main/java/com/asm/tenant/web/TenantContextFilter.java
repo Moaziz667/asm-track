@@ -1,25 +1,41 @@
-package com.asm.erpadapter.security;
+package com.asm.tenant.web;
 
-import jakarta.servlet.*;
+import com.asm.tenant.TenantContext;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Web filter that reads the X-Company-Id header (injected by the API Gateway)
- * and stores it in the {@link TenantContext} ThreadLocal for the duration of the request.
- * Enforces that every authenticated request carries a valid company identifier.
+ * Reads the {@code X-Company-Id} header injected by the API Gateway and holds it in
+ * {@link TenantContext} for the duration of the request.
+ *
+ * <h2>The one thing that varies between services</h2>
+ * Which paths may legitimately arrive without a tenant. Every service needs the same rule — a
+ * business route without a tenant is rejected — but not the same exceptions: the delivery service
+ * serves public tracking, the others do not. That list used to be hard-coded, which meant four
+ * copies of this class existed only so that four different {@code startsWith} chains could live in
+ * them. It is now a constructor argument, so the behaviour is one implementation and the difference
+ * is configuration.
+ *
+ * <p>Pass an empty list for a service where every {@code /api/} route is tenant-scoped.
  */
 @Slf4j
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class TenantContextFilter implements Filter {
+
+    private final List<String> tenantLessPrefixes;
+
+    public TenantContextFilter(List<String> tenantLessPrefixes) {
+        this.tenantLessPrefixes = List.copyOf(tenantLessPrefixes);
+    }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -48,11 +64,12 @@ public class TenantContextFilter implements Filter {
             }
         }
 
-        // Fail-closed: every /api/** route on this service resolves ERP settings/credentials by
-        // tenant. Without a tenant the settings silently degrade to NONE — reject instead so a
-        // caller that lost the header fails loudly rather than "syncing" against nothing.
-        if (companyId == null && httpReq.getRequestURI() != null && httpReq.getRequestURI().startsWith("/api/")) {
-            log.warn("Missing X-Company-Id on tenant-scoped path {} — rejecting (fail-closed)", httpReq.getRequestURI());
+        // Fail-closed at the DB boundary too: an authenticated business route without a tenant would
+        // otherwise silently read/write the (empty) `public` schema — bugs become invisible empty
+        // results instead of loud failures.
+        if (companyId == null && requiresTenant(httpReq.getRequestURI())) {
+            log.warn("Missing X-Company-Id on tenant-scoped path {} — rejecting (fail-closed)",
+                    httpReq.getRequestURI());
             httpResp.setStatus(HttpServletResponse.SC_FORBIDDEN);
             httpResp.setContentType("application/json");
             httpResp.getWriter().write("{\"status\":403,\"message\":\"No tenant context\"}");
@@ -79,5 +96,11 @@ public class TenantContextFilter implements Filter {
             org.slf4j.MDC.remove("userId");
             org.slf4j.MDC.remove("requestId");
         }
+    }
+
+    /** Business API paths need a tenant; the configured prefixes do not (actuator, /ws, /internal, swagger never do). */
+    boolean requiresTenant(String path) {
+        if (path == null || !path.startsWith("/api/")) return false;
+        return tenantLessPrefixes.stream().noneMatch(path::startsWith);
     }
 }

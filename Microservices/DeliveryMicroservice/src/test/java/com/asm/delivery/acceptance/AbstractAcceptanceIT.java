@@ -1,12 +1,12 @@
 package com.asm.delivery.acceptance;
 
-import com.asm.delivery.config.SchemaMultiTenantConnectionProvider;
-import com.asm.delivery.config.TenantIdentifierResolver;
+import com.asm.tenant.jpa.SchemaMultiTenantConnectionProvider;
+import com.asm.tenant.jpa.TenantIdentifierResolver;
 import com.asm.delivery.config.TenantSchemaProvisioner;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.*;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.transport.DriverDTO;

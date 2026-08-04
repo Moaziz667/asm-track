@@ -3,7 +3,7 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.entity.SystemSetting;
 import com.asm.delivery.repository.SystemSettingRepository;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

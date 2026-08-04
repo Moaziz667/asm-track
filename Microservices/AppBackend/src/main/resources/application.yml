@@ -102,3 +102,9 @@ management:
         enabled: true
       show-details: when_authorized
 
+
+# Paths that may legitimately arrive without an X-Company-Id. Every other /api/ route is rejected
+# without one (fail-closed) — see asm-tenant-core, TenantContextFilter.
+asm:
+  tenant:
+    tenant-less-prefixes: /api/v1/auth/

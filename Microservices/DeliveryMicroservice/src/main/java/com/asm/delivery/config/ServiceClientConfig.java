@@ -1,6 +1,6 @@
 package com.asm.delivery.config;
 
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;

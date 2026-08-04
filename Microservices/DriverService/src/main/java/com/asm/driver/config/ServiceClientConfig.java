@@ -1,5 +1,7 @@
 package com.asm.driver.config;
 
+import com.asm.tenant.TenantContext;
+
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;
@@ -72,7 +74,7 @@ public class ServiceClientConfig {
         ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attrs == null) {
-            java.util.UUID tenantCompanyId = com.asm.driver.security.TenantContext.get();
+            java.util.UUID tenantCompanyId = com.asm.tenant.TenantContext.get();
             if (tenantCompanyId != null) {
                 template.header("X-Company-Id", tenantCompanyId.toString());
             }
@@ -89,7 +91,7 @@ public class ServiceClientConfig {
             }
         }
         if (!forwardedAny) {
-            java.util.UUID tenantCompanyId = com.asm.driver.security.TenantContext.get();
+            java.util.UUID tenantCompanyId = com.asm.tenant.TenantContext.get();
             if (tenantCompanyId != null) {
                 template.header("X-Company-Id", tenantCompanyId.toString());
             }

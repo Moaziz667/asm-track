@@ -1,23 +1,26 @@
-package com.asm.erpadapter.config;
+package com.asm.tenant.amqp;
 
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 /**
- * Inbound counterpart of {@link TenantMessagePostProcessor}: on every message received by a
- * {@code @RabbitListener}, reads the {@code X-Company-Id} AMQP header and sets the {@link TenantContext}
- * before the listener runs. ErpAdapter is stateless (no DB), but the tenant drives which company's ERP
- * config is used and is propagated on outbound Feign calls.
+ * Inbound counterpart of {@link TenantMessagePostProcessor}: restores the tenant on the consumer
+ * thread before a {@code @RabbitListener} runs, so the listener's database work reaches the right
+ * schema.
  *
- * <p>Clear-then-set: a message without the header never inherits a stale tenant. Fail-safe, not a leak.
+ * <p>Wired as an {@code afterReceivePostProcessor} on the listener container factory. It coexists
+ * with retry advice, which re-invokes the listener in memory without re-receiving — the context set
+ * here survives those retries.
+ *
+ * <p><b>Clear then set.</b> The previous message's tenant is cleared first, so a message arriving
+ * without the header never inherits a stale one: it falls through to the default schema, never to
+ * another tenant's. A missing header is fail-safe, not a cross-tenant leak.
  */
 @Slf4j
-@Component
 public class TenantInboundPostProcessor implements MessagePostProcessor {
 
     @Override

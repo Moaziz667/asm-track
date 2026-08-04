@@ -267,8 +267,10 @@ services:
   #  CORE MICROSERVICES
   app-backend:
     build:
-      context: ./AppBackend
-      dockerfile: Dockerfile
+      # Context is Microservices/, not the service folder: the build needs the sibling
+      # asm-tenant-core module, which a per-service context cannot reach.
+      context: .
+      dockerfile: AppBackend/Dockerfile
     container_name: app-backend
     # ports:
     #   - "8080:8080" # Commented out for VPS security. Access via API Gateway instead.
@@ -315,8 +317,10 @@ services:
 
   delivery-service:
     build:
-      context: ./DeliveryMicroservice
-      dockerfile: Dockerfile
+      # Context is Microservices/, not the service folder: the build needs the sibling
+      # asm-tenant-core module, which a per-service context cannot reach.
+      context: .
+      dockerfile: DeliveryMicroservice/Dockerfile
     container_name: delivery-service
     # ports:
     #   - "8082:8082" # Commented out for VPS security. Access via API Gateway instead.
@@ -400,8 +404,10 @@ services:
   # ── ERP Adapter Service ────────────────────────────────────────────────────
   erp-adapter:
     build:
-      context: ./ErpAdapterService
-      dockerfile: Dockerfile
+      # Context is Microservices/, not the service folder: the build needs the sibling
+      # asm-tenant-core module, which a per-service context cannot reach.
+      context: .
+      dockerfile: ErpAdapterService/Dockerfile
     container_name: erp-adapter
     # ports:
     #   - "8088:8088" # Commented out for VPS security. Access via API Gateway instead.
@@ -443,8 +449,10 @@ services:
 
   driver-service:
     build:
-      context: ./DriverService
-      dockerfile: Dockerfile
+      # Context is Microservices/, not the service folder: the build needs the sibling
+      # asm-tenant-core module, which a per-service context cannot reach.
+      context: .
+      dockerfile: DriverService/Dockerfile
     container_name: driver-service
     # ports:
     #   - "8086:8086" # Commented out for VPS security. Access via API Gateway instead.

@@ -2,7 +2,7 @@ package com.asm.appbackend.service;
 
 import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.config.TenantSchemaProvisioner;
-import com.asm.appbackend.config.TenantSchema;
+import com.asm.tenant.TenantSchema;
 import com.asm.appbackend.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

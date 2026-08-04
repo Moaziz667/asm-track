@@ -1,6 +1,8 @@
 package com.asm.delivery.erp;
 
-import com.asm.delivery.config.TenantIterator;
+import com.asm.tenant.TenantContext;
+
+import com.asm.tenant.jpa.TenantIterator;
 import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.service.EventPublisher;

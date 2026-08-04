@@ -1,6 +1,8 @@
 package com.asm.delivery.sla;
 
-import com.asm.delivery.config.TenantIterator;
+import com.asm.tenant.TenantContext;
+
+import com.asm.tenant.jpa.TenantIterator;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.repository.DeliveryRepository;

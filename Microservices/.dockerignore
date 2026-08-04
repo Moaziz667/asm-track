@@ -1,0 +1,35 @@
+# The build context is this whole directory now, not one service folder — the composite build has
+# to see the sibling asm-tenant-core module. That means every service's working files would be sent
+# to the builder on every image build unless they are excluded here.
+#
+# Only source and build scripts are needed. Everything below is either regenerated inside the image
+# or has no business in one.
+
+# Gradle working state and outputs
+*/build/
+*/.gradle/
+*/bin/
+.gradle/
+build/
+
+# Local databases, dumps and data volumes
+db-seed/
+*/data/
+*.db
+*.mv.db
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Editor and OS noise
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

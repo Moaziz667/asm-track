@@ -1,7 +1,7 @@
 package com.asm.appbackend.controller;
 
-import com.asm.appbackend.config.TenantIterator;
-import com.asm.appbackend.config.TenantSchema;
+import com.asm.tenant.jpa.TenantIterator;
+import com.asm.tenant.TenantSchema;
 import com.asm.appbackend.config.TenantSchemaProvisioner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

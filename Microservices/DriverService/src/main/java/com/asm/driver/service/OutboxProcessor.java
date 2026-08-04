@@ -1,5 +1,8 @@
 package com.asm.driver.service;
 
+import com.asm.tenant.TenantContext;
+import com.asm.tenant.jpa.TenantIterator;
+
 import com.asm.driver.config.RabbitMQConfig;
 import com.asm.driver.entity.OutboxEvent;
 import com.asm.driver.repository.OutboxRepository;
@@ -40,7 +43,7 @@ public class OutboxProcessor {
     private final OutboxRepository outboxRepo;
     private final ObjectMapper objectMapper;
     private final RabbitTemplate rabbitTemplate;
-    private final com.asm.driver.config.TenantIterator tenantIterator;
+    private final com.asm.tenant.jpa.TenantIterator tenantIterator;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     // @Transactional on methods invoked via `this` never engages the proxy (self-invocation): the

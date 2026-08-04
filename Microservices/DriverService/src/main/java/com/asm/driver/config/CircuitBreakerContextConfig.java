@@ -1,6 +1,6 @@
 package com.asm.driver.config;
 
-import com.asm.driver.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import org.slf4j.MDC;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
 import org.springframework.cloud.client.circuitbreaker.Customizer;

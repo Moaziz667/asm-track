@@ -1,6 +1,6 @@
 package com.asm.delivery.service;
 
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import com.google.firebase.messaging.FirebaseMessaging;

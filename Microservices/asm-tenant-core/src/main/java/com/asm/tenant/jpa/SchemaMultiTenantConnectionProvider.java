@@ -1,10 +1,9 @@
-package com.asm.delivery.config;
+package com.asm.tenant.jpa;
 
-import lombok.RequiredArgsConstructor;
+import com.asm.tenant.TenantSchema;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
-import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -13,22 +12,24 @@ import java.sql.Statement;
 import java.util.Map;
 
 /**
- * The real fix for tenant isolation: sets the PostgreSQL {@code search_path} on the very connection
- * Hibernate is about to hand to the current transaction — not on a throwaway connection like the old
- * servlet-filter did. On release the search_path is reset before the connection returns to the single
- * shared Hikari pool, so no tenant state leaks to the next borrower.
+ * Sets the PostgreSQL {@code search_path} on the very connection Hibernate is about to hand to the
+ * current transaction — not on a throwaway connection. On release the search_path is reset before the
+ * connection returns to the single shared pool, so no tenant state leaks to the next borrower.
  *
- * <p>Single pool, one {@code SET search_path} per checkout. No datasource-per-tenant, no pool explosion.
+ * <p>One pool, one {@code SET search_path} per checkout. No datasource per tenant, no pool explosion
+ * as the customer base grows.
  *
- * <p>The tenant identifier is the schema name already derived from a validated UUID via
- * {@link TenantSchema} (or {@link TenantSchema#DEFAULT}), so it is injection-safe.
+ * <p>The identifier is a schema name already derived from a parsed UUID via {@link TenantSchema}, so
+ * the concatenation below cannot carry injectable input — see that class for why.
  */
-@Component
-@RequiredArgsConstructor
 public class SchemaMultiTenantConnectionProvider
         implements MultiTenantConnectionProvider<String>, HibernatePropertiesCustomizer {
 
     private final DataSource dataSource;
+
+    public SchemaMultiTenantConnectionProvider(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @Override
     public Connection getAnyConnection() throws SQLException {

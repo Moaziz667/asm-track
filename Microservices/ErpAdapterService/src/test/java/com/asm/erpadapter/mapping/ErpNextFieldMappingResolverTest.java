@@ -3,7 +3,7 @@ package com.asm.erpadapter.mapping;
 import com.asm.erpadapter.adapter.erpnext.ErpNextRestClient;
 import com.asm.erpadapter.entity.ErpFieldMapping;
 import com.asm.erpadapter.repository.ErpFieldMappingRepository;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

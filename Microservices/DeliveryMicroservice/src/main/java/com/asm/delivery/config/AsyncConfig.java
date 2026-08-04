@@ -1,6 +1,6 @@
 package com.asm.delivery.config;
 
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskDecorator;

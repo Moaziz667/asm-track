@@ -1,6 +1,6 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.config.TenantSchema;
+import com.asm.tenant.TenantSchema;
 import com.asm.delivery.config.TenantSchemaProvisioner;
 import com.asm.delivery.web.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;

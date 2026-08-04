@@ -1,7 +1,7 @@
 package com.asm.delivery.messaging;
 
 import com.asm.delivery.config.RabbitMQConfig;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.delivery.service.route.RouteWebSocketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

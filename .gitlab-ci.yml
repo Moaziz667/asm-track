@@ -278,10 +278,14 @@ integration-test-erp-adapter-odoo:
       NAMES="$IMAGE:$CI_COMMIT_SHORT_SHA,$IMAGE:$CI_COMMIT_REF_SLUG"
       [ -n "$CI_COMMIT_TAG" ] && NAMES="$NAMES,$IMAGE:$CI_COMMIT_TAG"
       echo "building $NAMES"
+      # The four Java services build from Microservices/ rather than their own folder, because the
+      # composite build reaches a sibling module (asm-tenant-core). Their Dockerfile still lives in
+      # the service folder, so the two paths are no longer the same — DOCKERFILE_DIR falls back to
+      # CONTEXT for everything else.
       buildctl-daemonless.sh build \
         --frontend dockerfile.v0 \
         --local context="$CONTEXT" \
-        --local dockerfile="$CONTEXT" \
+        --local dockerfile="${DOCKERFILE_DIR:-$CONTEXT}" \
         --opt build-arg:CACHE_BUST="$CI_COMMIT_SHA" \
         --import-cache type=registry,ref=$IMAGE:buildcache \
         --export-cache type=registry,ref=$IMAGE:buildcache,mode=max \
@@ -301,12 +305,16 @@ package-images:
       - NAME: api-gateway
         CONTEXT: Microservices/ApiGateway
       - NAME: app-backend
-        CONTEXT: Microservices/AppBackend
+        CONTEXT: Microservices
+        DOCKERFILE_DIR: Microservices/AppBackend
       - NAME: delivery-service
-        CONTEXT: Microservices/DeliveryMicroservice
+        CONTEXT: Microservices
+        DOCKERFILE_DIR: Microservices/DeliveryMicroservice
       - NAME: driver-service
-        CONTEXT: Microservices/DriverService
+        CONTEXT: Microservices
+        DOCKERFILE_DIR: Microservices/DriverService
       - NAME: erp-adapter
-        CONTEXT: Microservices/ErpAdapterService
+        CONTEXT: Microservices
+        DOCKERFILE_DIR: Microservices/ErpAdapterService
       - NAME: admin-app
         CONTEXT: Apps/admin-app-react

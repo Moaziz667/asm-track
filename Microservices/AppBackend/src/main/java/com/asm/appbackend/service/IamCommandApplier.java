@@ -1,7 +1,7 @@
 package com.asm.appbackend.service;
 
 import com.asm.appbackend.client.KeycloakAdminClient;
-import com.asm.appbackend.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

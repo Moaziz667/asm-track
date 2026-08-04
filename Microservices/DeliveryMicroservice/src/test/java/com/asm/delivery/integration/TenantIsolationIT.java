@@ -1,12 +1,12 @@
 package com.asm.delivery.integration;
 
-import com.asm.delivery.config.SchemaMultiTenantConnectionProvider;
-import com.asm.delivery.config.TenantIdentifierResolver;
-import com.asm.delivery.config.TenantSchema;
+import com.asm.tenant.jpa.SchemaMultiTenantConnectionProvider;
+import com.asm.tenant.jpa.TenantIdentifierResolver;
+import com.asm.tenant.TenantSchema;
 import com.asm.delivery.config.TenantSchemaProvisioner;
 import com.asm.delivery.entity.Company;
 import com.asm.delivery.repository.CompanyRepository;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package com.asm.erpadapter.adapter.odoo;
 
 import com.asm.erpadapter.entity.ErpMapping;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,7 @@
 package com.asm.delivery.storage;
 
+import com.asm.tenant.TenantContext;
+
 import io.minio.*;
 import io.minio.errors.*;
 import jakarta.annotation.PostConstruct;
@@ -141,7 +143,7 @@ public class MinioStorageService {
      * this check any code path fed a foreign URL becomes an IDOR primitive.
      */
     private void requireCurrentTenantObject(String objectPath, String action) {
-        java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+        java.util.UUID companyId = com.asm.tenant.TenantContext.get();
         if (companyId == null) return; // tenant-less system paths (e.g. legacy logos) — nothing to assert
         if (!objectPath.startsWith(companyId + "/")) {
             log.warn("MinIO {} REFUSED — object '{}' does not belong to tenant {}", action, objectPath, companyId);
@@ -198,7 +200,7 @@ public class MinioStorageService {
      * surfaces instead of hiding.
      */
     private String objectKey(String logicalPath) {
-        java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+        java.util.UUID companyId = com.asm.tenant.TenantContext.get();
         if (companyId == null) {
             throw new StorageException(logicalPath,
                     new IllegalStateException("No tenant context for tenant-scoped object key"));
@@ -277,7 +279,7 @@ public class MinioStorageService {
         }
         if (key == null) return null;
         if (!TENANT_PREFIXED.matcher(key).matches()) {
-            java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+            java.util.UUID companyId = com.asm.tenant.TenantContext.get();
             if (companyId != null) {
                 log.debug("Normalising legacy tenant-less media reference '{}' under tenant {}", key, companyId);
                 key = companyId + "/" + key;

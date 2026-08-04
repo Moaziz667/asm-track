@@ -1,5 +1,7 @@
 package com.asm.delivery.erp;
 
+import com.asm.tenant.TenantContext;
+
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
@@ -57,7 +59,7 @@ public class ErpLookupService {
 
     // Multi-tenant: cache keys are scoped per company to prevent cross-tenant data leaks.
     private String cacheScope() {
-        UUID companyId = com.asm.delivery.security.TenantContext.get();
+        UUID companyId = com.asm.tenant.TenantContext.get();
         return companyId != null ? companyId.toString() : "global";
     }
 

@@ -1,5 +1,8 @@
 package com.asm.driver.config;
 
+import com.asm.tenant.TenantContext;
+import com.asm.tenant.jpa.TenantIterator;
+
 import com.asm.driver.entity.Driver;
 import com.asm.driver.entity.DriverOnlineStatus;
 import com.asm.driver.repository.DriverInviteTokenRepository;

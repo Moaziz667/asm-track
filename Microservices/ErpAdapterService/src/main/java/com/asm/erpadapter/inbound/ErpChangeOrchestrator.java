@@ -4,7 +4,7 @@ import com.asm.erpadapter.client.TenantListClient;
 import com.asm.erpadapter.dto.ErpOrderChangeDTO;
 import com.asm.erpadapter.port.ErpChangePort;
 import com.asm.erpadapter.routing.ErpProviderRouter;
-import com.asm.erpadapter.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

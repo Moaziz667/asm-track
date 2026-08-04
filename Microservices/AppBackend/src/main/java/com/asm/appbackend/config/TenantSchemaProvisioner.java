@@ -1,5 +1,7 @@
 package com.asm.appbackend.config;
 
+import com.asm.tenant.TenantSchema;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;

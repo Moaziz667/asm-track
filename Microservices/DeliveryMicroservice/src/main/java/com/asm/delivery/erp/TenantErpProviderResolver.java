@@ -1,6 +1,6 @@
 package com.asm.delivery.erp;
 
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import com.asm.delivery.service.SystemSettingsService;
 import com.asm.delivery.transport.adapters.AppBackendSettingsClient;
 import lombok.RequiredArgsConstructor;

@@ -84,10 +84,33 @@ applicatif. Une requête sans filtre ne peut pas sortir du schéma courant. La s
 restauration d'un client isolé deviennent des opérations naturelles (`pg_dump -n`).
 
 **Ce que ça coûte.** Les migrations doivent être rejouées sur chaque schéma — d'où
-`TenantMigrationRunner`. Et l'infrastructure de résolution (8 classes) est aujourd'hui **dupliquée
-dans trois services**, où elle a commencé à diverger : `TenantContextFilter` existe en quatre
-exemplaires et quatre variantes. C'est une dette identifiée, dont la résolution — un module partagé,
-sur le modèle de `asm-canonical-model` — est planifiée et non faite.
+`TenantMigrationRunner`.
+
+**Où vit ce code.** Les huit classes ci-dessus sont dans un module partagé, `asm-tenant-core`,
+consommé par les quatre services via un *composite build* Gradle. Elles ont d'abord existé en trois
+ou quatre copies, et avaient déjà divergé : `TenantContextFilter` comptait quatre variantes, et une
+capacité ajoutée à une seule copie — lister les schémas provisionnés, pour les services sans base —
+était invisible aux trois autres.
+
+Ce que ces copies encodaient réellement, c'était **une différence de configuration** : quels chemins
+peuvent arriver sans tenant. Elle est désormais déclarée là où elle appartient :
+
+```yaml
+asm:
+  tenant:
+    tenant-less-prefixes: /api/v1/public/,/api/v1/auth/,/api/v1/dev/
+```
+
+Le module expose deux configurations séparées, et cette séparation a une raison précise :
+`TenantCoreConfig` (HTTP + AMQP) est prise par les quatre services, `TenantJpaConfig` seulement par
+les trois qui ont des schémas. L'adaptateur ERP propage un locataire pour résoudre les bons
+identifiants ERP, mais garde son propre petit magasin H2 sans aucun schéma — un module monolithique
+lui aurait imposé la multi-tenance Hibernate et serait resté inadoptable chez lui.
+
+**Le coût de cette mise en commun.** Le contexte de build Docker de chaque service est passé du
+dossier du service à `Microservices/`, puisqu'un contexte par service ne peut pas voir un module
+frère. D'où un `.dockerignore` à ce niveau, sans quoi chaque image embarquerait les fichiers de
+travail de tous les autres services.
 
 **Ce qui reste ouvert.** La création d'un client provisionne un schéma ; sa suppression n'est pas
 automatisée.

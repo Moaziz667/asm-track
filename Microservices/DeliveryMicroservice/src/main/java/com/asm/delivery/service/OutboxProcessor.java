@@ -1,5 +1,7 @@
 package com.asm.delivery.service;
 
+import com.asm.tenant.jpa.TenantIterator;
+
 import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.OutboxEvent;
@@ -32,7 +34,7 @@ public class OutboxProcessor {
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final com.asm.delivery.repository.RmaRepository rmaRepo;
-    private final com.asm.delivery.config.TenantIterator tenantIterator;
+    private final com.asm.tenant.jpa.TenantIterator tenantIterator;
     private final com.asm.delivery.storage.MinioStorageService minioStorageService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
@@ -49,7 +51,7 @@ public class OutboxProcessor {
                            TransportPort transportPort, EventPublisher eventPublisher,
                            com.asm.delivery.repository.OrderRepository orderRepo,
                            com.asm.delivery.repository.RmaRepository rmaRepo,
-                           com.asm.delivery.config.TenantIterator tenantIterator,
+                           com.asm.tenant.jpa.TenantIterator tenantIterator,
                            com.asm.delivery.storage.MinioStorageService minioStorageService,
                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
         this.outboxRepo = outboxRepo;

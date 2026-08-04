@@ -1,1 +1,6 @@
 rootProject.name = 'driver-service'
+
+// Composite build: the shared tenant module is a sibling directory, not a published artefact.
+// Each service keeps its own independent build (and its own Docker image) — this only makes the
+// module's classes available at compile time.
+includeBuild('../asm-tenant-core')

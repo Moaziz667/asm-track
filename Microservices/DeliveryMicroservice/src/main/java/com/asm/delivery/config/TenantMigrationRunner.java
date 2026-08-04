@@ -1,5 +1,7 @@
 package com.asm.delivery.config;
 
+import com.asm.tenant.jpa.TenantIterator;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;

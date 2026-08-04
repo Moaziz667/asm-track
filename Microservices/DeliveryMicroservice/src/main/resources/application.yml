@@ -263,3 +263,10 @@ resilience4j:
       default:
         timeoutDuration: 30s
         cancelRunningFuture: true
+
+# Paths that may legitimately arrive without an X-Company-Id. Every other /api/ route is rejected
+# without one (fail-closed) — see asm-tenant-core, TenantContextFilter.
+# Public tracking is here because it resolves its own tenant further down, in PublicTrackingTenantFilter.
+asm:
+  tenant:
+    tenant-less-prefixes: /api/v1/public/,/api/v1/auth/,/api/v1/dev/

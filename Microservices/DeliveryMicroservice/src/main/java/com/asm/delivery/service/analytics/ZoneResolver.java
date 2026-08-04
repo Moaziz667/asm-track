@@ -2,7 +2,7 @@ package com.asm.delivery.service.analytics;
 
 import com.asm.delivery.entity.Zone;
 import com.asm.delivery.repository.ZoneRepository;
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

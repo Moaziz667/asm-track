@@ -1,26 +1,21 @@
-package com.asm.delivery.config;
+package com.asm.tenant.jpa;
 
-import com.asm.delivery.security.TenantContext;
+import com.asm.tenant.TenantContext;
+import com.asm.tenant.TenantSchema;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Tells Hibernate which tenant (schema) the current unit of work belongs to, by reading the
- * {@link TenantContext} ThreadLocal set from the gateway-injected X-Company-Id header.
+ * Tells Hibernate which schema the current unit of work belongs to, by reading {@link TenantContext}.
  *
- * <p>When no tenant is resolved (actuator, bootstrap, legacy single-tenant data) it falls back to
- * {@link TenantSchema#DEFAULT} = {@code public}. Hibernate forbids a null identifier.
- *
- * <p>Public tracking endpoints (no X-Company-Id) are handled upstream by
- * {@link com.asm.delivery.security.PublicTrackingTenantFilter}, which resolves the tenant from the
- * deliveryId in the path and sets the TenantContext before the request reaches JPA.
+ * <p>When no tenant is resolved — actuator, bootstrap, a public endpoint whose tenant is established
+ * further down — it falls back to {@link TenantSchema#DEFAULT}. Hibernate forbids a null identifier,
+ * so the fallback is required rather than defensive.
  */
-@Component
 public class TenantIdentifierResolver
         implements CurrentTenantIdentifierResolver<String>, HibernatePropertiesCustomizer {
 

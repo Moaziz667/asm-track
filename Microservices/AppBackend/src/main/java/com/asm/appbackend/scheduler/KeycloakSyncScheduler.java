@@ -1,5 +1,8 @@
 package com.asm.appbackend.scheduler;
 
+import com.asm.tenant.TenantContext;
+import com.asm.tenant.jpa.TenantIterator;
+
 import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.entity.AdminUser;
 import com.asm.appbackend.repository.AdminUserRepository;
@@ -31,13 +34,13 @@ public class KeycloakSyncScheduler {
     private final AdminUserRepository adminUserRepo;
     private final KeycloakAdminClient keycloakAdminClient;
     private final MeterRegistry meters;
-    private final com.asm.appbackend.config.TenantIterator tenantIterator;
+    private final com.asm.tenant.jpa.TenantIterator tenantIterator;
     private final AtomicLong lastSuccessEpoch = new AtomicLong(0);
 
     public KeycloakSyncScheduler(AdminUserRepository adminUserRepo,
                                  KeycloakAdminClient keycloakAdminClient,
                                  MeterRegistry meters,
-                                 com.asm.appbackend.config.TenantIterator tenantIterator) {
+                                 com.asm.tenant.jpa.TenantIterator tenantIterator) {
         this.adminUserRepo = adminUserRepo;
         this.keycloakAdminClient = keycloakAdminClient;
         this.meters = meters;
@@ -145,12 +148,12 @@ public class KeycloakSyncScheduler {
 
     /**
      * Ensure the KC user is a member of the current tenant's Organization. The reconciler runs inside
-     * {@link com.asm.appbackend.config.TenantIterator#forEachActive}, which sets {@link TenantContext}
+     * {@link com.asm.tenant.jpa.TenantIterator#forEachActive}, which sets {@link TenantContext}
      * to the tenant being processed — so {@code TenantContext.get()} is the org id this user belongs to.
      * Idempotent (409 = already a member = ok); best-effort so it never aborts the rest of the reconcile.
      */
     private void ensureOrgMembership(String kcUserId, AdminUser dbUser) {
-        java.util.UUID companyId = com.asm.appbackend.security.TenantContext.get();
+        java.util.UUID companyId = com.asm.tenant.TenantContext.get();
         if (companyId == null || kcUserId == null) return;
         try {
             keycloakAdminClient.addOrganizationMember(companyId.toString(), kcUserId);
