@@ -27,6 +27,10 @@ Le parti pris central : **l'ERP du client reste maître de ses documents et de s
 
 **L'authentification n'est pas un service maison** : elle est déléguée à **Keycloak** (OIDC, JWT RS256, JWKS). Écrire un serveur d'authentification aurait été le plus sûr moyen de mal le faire.
 
+> 📖 **Documentation technique complète** dans [`docs/`](docs/index.md) — architecture, métier,
+> exploitation et décisions, avec 84 diagrammes.
+> Pour la consulter comme un site : `docker run --rm -p 8000:8000 -v "$PWD:/docs" squidfunk/mkdocs-material serve -a 0.0.0.0:8000`
+
 ### Décisions structurantes
 
 Chacune est détaillée dans un ADR — contexte, alternatives écartées et **ce qu'elle coûte** :

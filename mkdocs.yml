@@ -1,0 +1,101 @@
+site_name: ASM Track — Documentation technique
+site_description: Plateforme SaaS multi-tenant de gestion des livraisons — architecture, exploitation, décisions
+site_author: Mohamed Aziz Hadjkacem
+docs_dir: docs
+
+theme:
+  name: material
+  language: fr
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Passer au thème sombre
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Passer au thème clair
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+    - search.suggest
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/gitlab
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Mermaid : rendu natif par Material, sans JavaScript supplémentaire.
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search:
+      lang: fr
+
+nav:
+  - Accueil: index.md
+  - Le projet:
+      - Contexte métier: projet/contexte.md
+      - Objectifs et périmètre: projet/objectifs.md
+      - Exigences non fonctionnelles: projet/exigences.md
+  - Architecture:
+      - Vue d'ensemble: architecture/index.md
+      - Cycle de vie d'une requête: architecture/requete.md
+      - Multi-tenant: architecture/multi-tenant.md
+      - Authentification: architecture/authentification.md
+      - Autorisation: architecture/autorisation.md
+      - Messagerie et événements: architecture/messagerie.md
+      - Intégration ERP: architecture/erp.md
+      - Temps réel et notifications: architecture/temps-reel.md
+      - Stockage de fichiers: architecture/stockage.md
+      - Clients (web et mobile): architecture/clients.md
+  - Métier:
+      - Cycle de vie d'une livraison: metier/livraison.md
+      - Tournées: metier/tournees.md
+      - Retours (RMA): metier/retours.md
+      - Encaissement (COD): metier/encaissement.md
+  - Technique:
+      - Base de données: technique/base-de-donnees.md
+      - Référence de l'API: technique/api.md
+      - Tests: technique/tests.md
+  - Exploitation:
+      - Installation: exploitation/installation.md
+      - Développement local: exploitation/developpement.md
+      - Docker et déploiement: exploitation/deploiement.md
+      - Intégration continue: exploitation/ci-cd.md
+      - Dépannage: exploitation/depannage.md
+  - Décisions (ADR):
+      - Index: adr/index.md
+      - 001 — Multi-tenant par schéma: adr/001-multi-tenant-par-schema.md
+      - 002 — Politique RBAC unique: adr/002-politique-rbac-unique.md
+      - 003 — Ports & Adapters ERP: adr/003-ports-adapters-erp.md
+      - 004 — Outbox transactionnel: adr/004-outbox-transactionnel.md
+  - Limites connues: limites.md
