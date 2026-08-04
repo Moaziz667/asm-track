@@ -318,3 +318,33 @@ package-images:
         DOCKERFILE_DIR: Microservices/ErpAdapterService
       - NAME: admin-app
         CONTEXT: Apps/admin-app-react
+
+# ── 5. PAGES ─────────────────────────────────────────────────────────────────
+# La documentation technique publiée sur GitLab Pages, reconstruite à chaque commit sur la branche
+# par défaut. Elle vit dans le dépôt (docs/ + mkdocs.yml) : la publication n'est qu'un rendu, jamais
+# une source — l'ancienne documentation vivait dans un dossier ignoré par git, et se perdait à chaque
+# changement de machine.
+#
+# L'image squidfunk déclare `mkdocs` comme entrypoint ; il faut le neutraliser, sinon le `script`
+# devient `mkdocs mkdocs build`.
+#
+# --strict fait échouer le job sur un lien mort ou une référence orpheline : une documentation qui
+# ment sur ses propres liens n'a pas à être publiée.
+pages:
+  stage: package
+  tags: [docker]
+  image:
+    name: squidfunk/mkdocs-material:latest
+    entrypoint: [""]
+  variables:
+    # MkDocs lit site_url depuis cette variable (voir mkdocs.yml). CI_PAGES_URL est fournie par
+    # GitLab et porte le sous-chemin réel du projet.
+    SITE_URL: $CI_PAGES_URL
+  script:
+    - mkdocs build --strict --site-dir public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
