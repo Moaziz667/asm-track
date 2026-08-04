@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DriverDeliveryService {
 
+    private final DriverDeliveryMapper            mapper;
     private final DeliveryRepository              deliveryRepo;
     private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final DeliveryStatusHistoryRepository historyRepo;
@@ -87,7 +88,7 @@ public class DriverDeliveryService {
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getActive(UUID driverId) {
         List<DriverDeliveryResponse> active = deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
-                .map(this::toDriverDeliveryResponse)
+                .map(mapper::toDriverDeliveryResponse)
                 .collect(Collectors.toList());
 
         // Also include deliveries where this driver is the handoff SENDER (package still physically with them)
@@ -97,7 +98,7 @@ public class DriverDeliveryService {
         routeStopRepository.findPendingHandoffsByFromDriverWithRoute(driverId).stream()
                 .map(stop -> deliveryRepo.findByIdWithOrder(stop.getDeliveryId()).orElse(null))
                 .filter(d -> d != null && !activeIds.contains(d.getId()))
-                .map(this::toDriverDeliveryResponse)
+                .map(mapper::toDriverDeliveryResponse)
                 .forEach(active::add);
 
         return active;
@@ -118,7 +119,7 @@ public class DriverDeliveryService {
             if (!isSender) throw AppException.forbidden("Not your delivery");
         }
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     @Transactional
@@ -158,7 +159,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "DELIVERY_SCHEDULED_BY_DRIVER", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
     @Transactional
     public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId, UserPrincipal principal) {
@@ -177,7 +178,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "DELIVERY_PICKED_UP", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     // ── Transit ───────────────────────────────────────────────────────────────
@@ -224,7 +225,7 @@ public class DriverDeliveryService {
                 null
         );
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     // ── Complete ──────────────────────────────────────────────────────────────
@@ -344,7 +345,7 @@ public class DriverDeliveryService {
         statPayload.put("stat", "delivered");
         outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", statPayload);
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     private List<com.asm.delivery.dto.request.PartialDeliveryItem> normalizePartialItems(
@@ -612,7 +613,7 @@ public class DriverDeliveryService {
         // that is in fact DELIVERED/PARTIALLY_DELIVERED.
         if (podRepo.existsByDeliveryId(deliveryId)) {
             log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
-            return toDriverDeliveryResponse(delivery);
+            return mapper.toDriverDeliveryResponse(delivery);
         }
 
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
@@ -658,7 +659,7 @@ public class DriverDeliveryService {
         } catch (DataIntegrityViolationException ex) {
             log.warn("POD_DUPLICATE_RACE deliveryId={} driverId={} msg={}", deliveryId, driverId, ex.getMessage());
             Delivery latest = loadAndAuthorize(deliveryId, driverId);
-            return toDriverDeliveryResponse(latest);
+            return mapper.toDriverDeliveryResponse(latest);
         }
 
         // The money is recorded in the same transaction as the proof, because it changed hands in the
@@ -823,7 +824,7 @@ public class DriverDeliveryService {
             rmaService.onReturnCollectionFailed(delivery.getRmaId(), storedReason);
         }
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     // ── Cancel (driver cancels → back to UNSCHEDULED) ─────────────────────
@@ -863,7 +864,7 @@ public class DriverDeliveryService {
 
 
 
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     // ── Report ────────────────────────────────────────────────────────────────
@@ -951,10 +952,10 @@ public class DriverDeliveryService {
             // No open handoff — already confirmed or never required: return current state idempotently.
             Delivery current = deliveryRepo.findByIdWithOrder(deliveryId)
                     .orElseThrow(() -> AppException.notFound("Delivery not found"));
-            return toDriverDeliveryResponse(current);
+            return mapper.toDriverDeliveryResponse(current);
         }
         Delivery delivery = handoffService.confirm(handoff.getId(), driverId, token, lat, lng, null, notes);
-        return toDriverDeliveryResponse(delivery);
+        return mapper.toDriverDeliveryResponse(delivery);
     }
 
     // ── Location update ───────────────────────────────────────────────────────
@@ -1081,112 +1082,5 @@ public class DriverDeliveryService {
         slaStateService.refresh(delivery);
     }
 
-    public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
-        // Look up handoff info from the active route stop
-        RouteStop activeStop = routeStopRepository.findActiveByDeliveryId(delivery.getId()).orElse(null);
-        boolean requiresHandoff = activeStop != null && Boolean.TRUE.equals(activeStop.getRequiresHandoff());
-
-        Order order = delivery.getOrder();
-        String orderRef = order != null ? order.resolveRef() : null;
-
-        // ADR-033 — a return collection's manifest shows the RMA lines (what to collect), not the shared
-        // order's original ordered quantities.
-        boolean isReturnPickupManifest = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
-        List<com.asm.delivery.entity.OrderItem> manifestItems = isReturnPickupManifest
-                ? rmaService.collectionItems(delivery.getRmaId())
-                : (order != null ? order.getItems() : null);
-
-        // Fetch POD when delivery is terminal (completed/partial/failed with photos)
-        ProofOfDeliveryResponse podResponse = null;
-        if (delivery.getStatus() == DeliveryStatus.DELIVERED
-                || delivery.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED) {
-            ProofOfDelivery pod = podRepo.findByDeliveryId(delivery.getId()).orElse(null);
-            if (pod != null) {
-                podResponse = ProofOfDeliveryResponse.builder()
-                        .id(pod.getId())
-                        .deliveryId(pod.getDeliveryId())
-                        .photoUrl(mediaUrlResolver.toPublicUrl(pod.getPhotoUrl()))
-                        .signatureUrl(mediaUrlResolver.toPublicUrl(pod.getSignatureUrl()))
-                        .bonLivraisonPhotoUrl(mediaUrlResolver.toPublicUrl(pod.getBonLivraisonPhotoUrl()))
-                        .comment(pod.getComment())
-                        .collectedAt(pod.getCollectedAt())
-                        .lat(pod.getLat())
-                        .lng(pod.getLng())
-                        .build();
-            }
-        }
-
-        // Fetch status history timeline
-        List<StatusHistoryResponse> historyItems = historyRepo
-                .findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
-                .stream()
-                .map(h -> StatusHistoryResponse.builder()
-                        .id(h.getId().toString())
-                        .status(h.getStatus() != null ? h.getStatus().name() : null)
-                        .eventKey(h.getEventKey())
-                        .eventParams(parseEventParams(h.getEventParams()))
-                        .changedAt(h.getChangedAt())
-                        .changedBy(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                        .build())
-                .toList();
-
-        return DriverDeliveryResponse.builder()
-                .deliveryId(delivery.getId())
-                .orderId(order != null ? order.getId() : null)
-                .orderRef(orderRef)
-                .clientName(order != null ? order.getClientName() : null)
-                .clientPhone(order != null ? order.getClientPhone() : null)
-                .status(delivery.getStatus().name())
-                .dropoffAddress(order != null ? order.getDropoffAddress() : null)
-                .dropoffCity(order != null ? order.getDropoffCity() : null)
-                .dropoffLat(order != null ? order.getDropoffLat() : null)
-                .dropoffLng(order != null ? order.getDropoffLng() : null)
-                .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
-                .totalAmount(order != null ? order.getTotalAmount() : null)
-                .currency(order != null ? order.getCurrency() : null)
-                .codRequired(order != null && Boolean.TRUE.equals(order.getCodRequired()))
-                .codAmount(order != null && Boolean.TRUE.equals(order.getCodRequired())
-                        ? order.getCodAmount() : null)
-                .kind(delivery.getKind() != null ? delivery.getKind().name() : "FORWARD")
-                .rmaNumber(isReturnPickupManifest ? rmaService.collectionRef(delivery.getRmaId()) : null)
-                .items(manifestItems)
-                .totalQuantity(isReturnPickupManifest
-                        ? manifestItems.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum()
-                        : (order != null ? order.getTotalQuantity() : null))
-                .priority(order != null ? order.getPriority().name() : null)
-                .scheduledAt(order != null ? order.getScheduledAt() : null)
-                .assignedAt(delivery.getAssignedAt())
-                .pickedUpAt(delivery.getPickedUpAt())
-                .inTransitAt(delivery.getInTransitAt())
-                .routeGeometry(delivery.getRouteGeometry())
-                .routeDistanceKm(delivery.getRouteDistanceKm())
-                .routeDurationMinutes(delivery.getRouteDurationMinutes())
-                .transitSlaMinutesComputed(delivery.getTransitSlaMinutesComputed())
-                .routeEtaAt(delivery.getRouteEtaAt())
-                .routeProvider(delivery.getRouteProvider())
-                .completedAt(delivery.getCompletedAt())
-                .failedAt(delivery.getFailedAt())
-                .cancelledAt(delivery.getCancelledAt())
-                .failReason(delivery.getFailReason())
-                .cancelReason(delivery.getCancelReason())
-                .createdAt(delivery.getCreatedAt())
-                .requiresHandoff(requiresHandoff)
-                .handoffConfirmedAt(requiresHandoff && activeStop.getHandoffConfirmedAt() != null ? activeStop.getHandoffConfirmedAt() : null)
-                .handoffToDriverId(requiresHandoff && activeStop.getHandoffToDriverId() != null ? activeStop.getHandoffToDriverId().toString() : null)
-                .handoffFromDriverId(requiresHandoff && activeStop.getHandoffFromDriverId() != null ? activeStop.getHandoffFromDriverId().toString() : null)
-                .proofOfDelivery(podResponse)
-                .statusHistory(historyItems)
-                .build();
-    }
-
-    /** Best-effort parse of the JSON eventParams blob; null on absent/malformed (never fails the read). */
-    private Map<String, Object> parseEventParams(String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            return null;
-        }
-    }
 
 }
