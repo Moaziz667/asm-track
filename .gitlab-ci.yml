@@ -209,26 +209,50 @@ integration-test-erp-adapter-odoo:
       for host in odoo16 odoo19; do
         echo "waiting for $host"
         ready=""
-        for i in $(seq 1 120); do
-          # Authentication alone is not enough, and that mistake cost two runs: Odoo accepts a
-          # login as soon as `base` is in place, while `sale` and `stock` are still installing.
-          # The tests need those two modules — the first thing they touch is stock.move.line — so
-          # readiness is "both modules report installed", nothing weaker.
+        stable=0
+        for i in $(seq 1 60); do   # 60 × 10 s = 10 min de plafond
+          # Three gates, each added after the previous one proved insufficient.
+          #
+          # 1. Authentication. The port alone answers within seconds by serving the database-manager
+          #    screen, long before `-i base,sale,stock` has produced anything usable.
+          #
+          # 2. Both modules report `installed`. Odoo accepts a login as soon as `base` is in place,
+          #    while `sale` and `stock` are still installing — and the tests touch stock.move.line
+          #    first.
+          #
+          # 3. A real query on the model the tests use, succeeding CONSECUTIVELY. This is the gate
+          #    that was missing: once modules are marked installed, Odoo rebuilds its registry and
+          #    recycles its workers. During that window it accepts connections and drops them, which
+          #    reaches the tests as EOFException — an IO error, on Odoo 16 only, on the first calls
+          #    of the suite. "Marked installed" is a database state; being able to serve a business
+          #    model, twice in a row, is the thing the tests actually need.
           auth=$(rpc "$host" common authenticate "[\"$host\",\"admin\",\"admin\",{}]")
           uid=$(printf '%s' "$auth" | sed -n 's/.*"result":\([0-9][0-9]*\).*/\1/p')
           if [ -n "$uid" ]; then
             mods=$(rpc "$host" object execute_kw \
               "[\"$host\",$uid,\"admin\",\"ir.module.module\",\"search_count\",[[[\"name\",\"in\",[\"sale\",\"stock\"]],[\"state\",\"=\",\"installed\"]]]]")
             case "$mods" in
-              *'"result":2'*) ready="yes"; echo "  $host ready after $((i * 5))s (sale + stock installed)"; break ;;
+              *'"result":2'*)
+                probe=$(rpc "$host" object execute_kw \
+                  "[\"$host\",$uid,\"admin\",\"stock.move.line\",\"search_count\",[[]]]")
+                case "$probe" in
+                  *'"result":'*)
+                    stable=$((stable + 1))
+                    if [ "$stable" -ge 3 ]; then
+                      ready="yes"; echo "  $host ready after ${i}0s (registry stable)"; break
+                    fi
+                    ;;
+                  *) stable=0 ;;   # une coupure remet le compteur à zéro
+                esac
+                ;;
             esac
           fi
           if [ $((i % 12)) = 0 ]; then
-            echo "  $((i * 5))s — $host: auth=${auth:-none} modules=${mods:-none}"
+            echo "  ${i}0s — $host: auth=${auth:-none} modules=${mods:-none} stable=$stable"
           fi
-          sleep 5
+          sleep 10
         done
-        [ -n "$ready" ] || { echo "$host never finished installing — auth=${auth:-none} modules=${mods:-none}"; exit 1; }
+        [ -n "$ready" ] || { echo "$host never became stable — auth=${auth:-none} modules=${mods:-none} stable=$stable"; exit 1; }
       done
   script:
     # The whole suite, on both versions — 28 tests, no filter. They earn the two-version setup by
