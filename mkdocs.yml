@@ -7,6 +7,14 @@ docs_dir: docs
 # relatifs, qui fonctionnent aussi bien depuis le disque que sous un sous-chemin de GitLab Pages.
 site_url: !ENV [SITE_URL, '']
 
+# Génère « architecture/requete.html » plutôt que « architecture/requete/ ».
+#
+# Par défaut MkDocs produit des URL en dossier, qui exigent un serveur HTTP capable de servir
+# l'index d'un répertoire. Comme la documentation est aussi distribuée sous forme d'artefact ZIP,
+# elle doit s'ouvrir en double-cliquant index.html, sans rien installer. Le coût est cosmétique :
+# l'extension .html apparaît dans l'adresse.
+use_directory_urls: false
+
 theme:
   name: material
   language: fr

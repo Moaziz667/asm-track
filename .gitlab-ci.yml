@@ -353,8 +353,13 @@ pages:
     - mkdocs build --strict --site-dir public
     - echo "Documentation publiée sur $CI_PAGES_URL"
   artifacts:
+    # Nommé pour que le ZIP téléchargé soit identifiable une fois sur le disque.
+    name: "asm-track-documentation-$CI_COMMIT_SHORT_SHA"
     paths:
       - public
-    expire_in: 1 week
+    # Six mois, et non une semaine : tant que GitLab Pages n'est pas activé sur l'instance, cet
+    # artefact EST le mode de livraison. Une expiration à une semaine rendrait une pipeline
+    # ancienne inutilisable au moment où on en aurait besoin.
+    expire_in: 6 months
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
