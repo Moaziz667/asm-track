@@ -1,3 +1,20 @@
+-- V1 — Schéma de référence du service AppBackend, par client.
+--
+-- Reprend mot pour mot l'ancien schema.sql, qui était exécuté par TenantSchemaProvisioner en
+-- découpant le fichier sur « ; » et en avalant chaque erreur au niveau debug. Trois défauts dans
+-- cette approche :
+--
+--   1. aucun suivi de version — modifier ce fichier ne touchait que les NOUVEAUX clients ; les
+--      existants divergeaient en silence, sans moyen de le savoir ;
+--   2. un CREATE TABLE en échec passait inaperçu, et l'application démarrait sur un schéma
+--      incomplet ;
+--   3. le découpage sur « ; » casse dès qu'un point-virgule apparaît dans une chaîne ou un corps
+--      de fonction.
+--
+-- Flyway règle les trois. Les schémas déjà provisionnés sont adoptés via baseline-on-migrate :
+-- vérifié avant la bascule, les 6 clients portaient une signature de colonnes identique
+-- (98f84e7b89d4), donc cette référence décrit bien ce qu'ils contiennent.
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS clients (

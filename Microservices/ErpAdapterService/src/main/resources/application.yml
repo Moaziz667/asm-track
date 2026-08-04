@@ -48,9 +48,19 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: sa
+  # Flyway owns the schema, as in the three other services. It replaced ddl-auto: update, which
+  # never dropped or renamed anything and left no history on a persistent store holding each
+  # tenant's ERP field mappings and sync cursors.
+  #
+  # validate, not none: Hibernate no longer touches the schema but still refuses to start if the
+  # migration and the entities disagree — the one guarantee update was quietly providing.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
 
 # ── Odoo Connection ──────────────────────────────────────────────────────────
 odoo:

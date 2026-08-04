@@ -92,11 +92,6 @@ spring:
     show-sql: false
     open-in-view: false
 
-  sql:
-    init:
-      mode: never
-      schema-locations: classpath:schema.sql
-
 websocket:
   broker:
     relay:

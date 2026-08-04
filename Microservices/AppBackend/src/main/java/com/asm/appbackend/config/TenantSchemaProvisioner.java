@@ -3,7 +3,9 @@ package com.asm.appbackend.config;
 import com.asm.tenant.TenantSchema;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.Location;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -12,19 +14,48 @@ import java.sql.Statement;
 import java.util.UUID;
 
 /**
- * Provisions a new tenant schema in the app_backend database.
- * Creates the schema and runs schema.sql against it.
+ * Provisions a tenant schema in the app_backend database: creates it, then runs Flyway on it.
+ *
+ * <h2>What this replaced</h2>
+ * The previous version read {@code schema.sql}, split it on {@code ";"} and executed the pieces,
+ * logging every failure at debug level and continuing. Three problems came with that:
+ *
+ * <ul>
+ *   <li><b>No version tracking.</b> Editing the file only affected tenants provisioned afterwards.
+ *       Existing ones never received the change and diverged silently, with nothing recording that
+ *       they had.</li>
+ *   <li><b>Failures were invisible.</b> A {@code CREATE TABLE} that did not run left the tenant with
+ *       a schema missing a table, and provisioning reported success.</li>
+ *   <li><b>Splitting on {@code ";"} is not parsing.</b> It breaks on the first semicolon inside a
+ *       string literal or a function body.</li>
+ * </ul>
+ *
+ * <p>Flyway answers all three, and it is what {@code DeliveryMicroservice} already did — the two
+ * services now provision the same way rather than each having its own.
+ *
+ * <p>{@code baselineOnMigrate} lets an already-populated schema be adopted instead of rejected: the
+ * tenants that exist keep their tables and are recorded at the baseline version, while a fresh schema
+ * runs every migration from V1.
  */
 @Slf4j
 @Service
 public class TenantSchemaProvisioner {
 
     private final DataSource dataSource;
+    private final String migrationLocations;
 
-    public TenantSchemaProvisioner(DataSource dataSource) {
+    public TenantSchemaProvisioner(
+            DataSource dataSource,
+            @Value("${spring.flyway.locations:classpath:db/migration}") String migrationLocations) {
         this.dataSource = dataSource;
+        this.migrationLocations = migrationLocations;
     }
 
+    /**
+     * Creates a tenant schema and applies all migrations to it.
+     *
+     * @param companyId the company UUID (becomes the schema name: {@code company_<32hex>})
+     */
     public void provision(UUID companyId) {
         String schemaName = TenantSchema.schemaFor(companyId);
         log.info("Provisioning tenant schema: {}", schemaName);
@@ -33,39 +64,33 @@ public class TenantSchemaProvisioner {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
 
+            // Idempotent — company_<32hex> is a valid unquoted identifier (see TenantSchema).
             stmt.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
             schemaCreated = true;
             log.info("Created schema: {}", schemaName);
 
-            // Run schema.sql against the tenant schema
-            ClassPathResource schemaResource = new ClassPathResource("schema.sql");
-            String sql = schemaResource.getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            Flyway flyway = Flyway.configure()
+                    .dataSource(dataSource)
+                    .schemas(schemaName)
+                    .locations(new Location(migrationLocations))
+                    .baselineOnMigrate(true)
+                    .load();
 
-            conn.createStatement().execute("SET search_path TO \"" + schemaName + "\"");
+            flyway.migrate();
+            log.info("Flyway migrations completed for schema: {}", schemaName);
 
-            // Split and execute each statement
-            for (String statement : sql.split(";")) {
-                String trimmed = statement.trim();
-                if (!trimmed.isEmpty()) {
-                    try {
-                        conn.createStatement().execute(trimmed);
-                    } catch (Exception e) {
-                        // Continue on non-fatal errors (e.g., ALTER TABLE on column that exists)
-                        log.debug("Statement skipped (may already exist): {}", e.getMessage());
-                    }
-                }
+            // The tenant's ERP configuration is a singleton row the application expects to exist.
+            // Seeded here rather than in a migration: a migration that inserts rows would re-run on
+            // every new tenant schema anyway, and this keeps the schema definition free of data.
+            try (Statement seed = conn.createStatement()) {
+                seed.execute("SET search_path TO \"" + schemaName + "\"");
+                seed.execute("INSERT INTO system_settings (id, active_erp_provider, connection_status) "
+                        + "VALUES ('SINGLETON', 'ODOO', 'NOT_CONFIGURED') ON CONFLICT (id) DO NOTHING");
             }
-
-            // Seed system_settings singleton so the tenant has a default ERP config row.
-            conn.createStatement().execute(
-                "INSERT INTO system_settings (id, active_erp_provider, connection_status) "
-                + "VALUES ('SINGLETON', 'ODOO', 'NOT_CONFIGURED') ON CONFLICT (id) DO NOTHING");
-
-            log.info("Schema provisioning completed for: {}", schemaName);
 
         } catch (Exception e) {
             log.error("Failed to provision tenant schema {}: {}", schemaName, e.getMessage(), e);
-            // Rollback: never leave a half-provisioned schema behind. Only drop what we just created.
+            // Never leave a half-provisioned schema behind. Only drop what we just created.
             if (schemaCreated) {
                 try (Connection conn = dataSource.getConnection();
                      Statement stmt = conn.createStatement()) {
@@ -80,6 +105,7 @@ public class TenantSchemaProvisioner {
         }
     }
 
+    /** Drops a tenant schema. Use with caution — only for deprovisioning. */
     public void deprovision(UUID companyId) {
         String schemaName = TenantSchema.schemaFor(companyId);
         log.warn("Deprovisioning tenant schema: {}", schemaName);

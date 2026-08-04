@@ -43,17 +43,20 @@ spring:
     password: ${DB_PASS:app_backend}
     driver-class-name: org.postgresql.Driver
 
+  # Flyway owns the schema, as in DeliveryMicroservice and DriverService. It replaced a
+  # spring.sql.init block that ran schema.sql with continue-on-error: true — meaning a failed
+  # CREATE TABLE was swallowed and the service started on an incomplete schema.
+  #
+  # baseline-on-migrate lets Flyway adopt the schemas that already exist rather than refuse them.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
   jpa:
     hibernate:
       ddl-auto: none
     show-sql: false
     open-in-view: false
-
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
-      continue-on-error: true
 
 app:
   cookie:

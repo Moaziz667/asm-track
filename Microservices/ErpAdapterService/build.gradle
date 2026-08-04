@@ -34,6 +34,7 @@ dependencyManagement {
 }
 
 dependencies {
+    implementation 'org.flywaydb:flyway-core'
     // Schema-per-tenant plumbing, shared with the other services (see docs/adr/001).
     implementation 'com.asm:asm-tenant-core:1.0.0'
 

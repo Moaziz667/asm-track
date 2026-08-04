@@ -83,8 +83,16 @@ question dans le code métier, où on l'oublie.
 applicatif. Une requête sans filtre ne peut pas sortir du schéma courant. La sauvegarde et la
 restauration d'un client isolé deviennent des opérations naturelles (`pg_dump -n`).
 
-**Ce que ça coûte.** Les migrations doivent être rejouées sur chaque schéma — d'où
-`TenantMigrationRunner`.
+**Ce que ça coûte.** Les migrations doivent être rejouées sur chaque schéma, et pas seulement au
+moment où un client est créé — d'où `TenantMigrationRunner`, qui les applique à tous les schémas
+existants au démarrage. Sans lui, une migration atteindrait le schéma `public` et jamais les clients
+déjà en base : leurs tables resteraient celles de leur création pendant que les entités JPA
+attendraient les nouvelles colonnes.
+
+C'est exactement ce qui manquait à `AppBackend`, qui exécutait un `schema.sql` sans aucun suivi de
+version. Les quatre services provisionnent désormais de la même façon — Flyway, un script de
+référence par service, adoption des schémas existants par *baseline* — ce qui rend la question « comment
+rejouez-vous votre schéma sur un serveur neuf ? » vérifiable plutôt que théorique.
 
 **Où vit ce code.** Les huit classes ci-dessus sont dans un module partagé, `asm-tenant-core`,
 consommé par les quatre services via un *composite build* Gradle. Elles ont d'abord existé en trois
