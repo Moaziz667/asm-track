@@ -6,6 +6,7 @@ import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.DriverDeliveryService;
+import com.asm.delivery.service.DriverIncidentService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class DriverJourneyAcceptanceIT extends AbstractAcceptanceIT {
 
     @Autowired DriverDeliveryService driverDeliveryService;
+    // The failure and cancellation paths moved to their own service. Only the entry point
+    // changes here — every assertion below is the one that passed before the split.
+    @Autowired DriverIncidentService driverIncidentService;
 
     private static final UUID DRIVER = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID OTHER_DRIVER = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -146,7 +150,7 @@ class DriverJourneyAcceptanceIT extends AbstractAcceptanceIT {
         driverDeliveryService.transit(delivery.getId(), DRIVER,
                 BigDecimal.valueOf(34.74), BigDecimal.valueOf(10.76), principal);
 
-        driverDeliveryService.fail(delivery.getId(), DRIVER, "CLIENT_ABSENT", null,
+        driverIncidentService.fail(delivery.getId(), DRIVER, "CLIENT_ABSENT", null,
                 "Personne au domicile", principal);
 
         Delivery failed = deliveryRepository.findById(delivery.getId()).orElseThrow();
@@ -160,7 +164,7 @@ class DriverJourneyAcceptanceIT extends AbstractAcceptanceIT {
     void driverCancellationReleasesTheDelivery() {
         Delivery delivery = acceptedDelivery("90007");
 
-        driverDeliveryService.cancelByDriver(delivery.getId(), DRIVER, "Vehicule en panne",
+        driverIncidentService.cancelByDriver(delivery.getId(), DRIVER, "Vehicule en panne",
                 driverPrincipal(DRIVER));
 
         Delivery cancelled = deliveryRepository.findById(delivery.getId()).orElseThrow();

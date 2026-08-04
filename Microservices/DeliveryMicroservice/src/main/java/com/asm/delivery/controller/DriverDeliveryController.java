@@ -37,6 +37,8 @@ import java.util.UUID;
 public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
+    private final com.asm.delivery.service.DriverHandoffService handoffService;
+    private final com.asm.delivery.service.DriverIncidentService incidentService;
     private final ErpInvoiceService erpInvoiceService;
     private final com.asm.delivery.service.CashRemittanceService cashRemittanceService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
@@ -111,7 +113,7 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody FailDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.fail(
+        return ResponseEntity.ok(incidentService.fail(
             id,
             UUID.fromString(principal.getUserId()),
             req.getFailureReasonCode(),
@@ -135,7 +137,7 @@ public class DriverDeliveryController {
             @RequestBody(required = false) CancelDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         String reason = req != null ? req.getReason() : null;
-        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason, principal));
+        return ResponseEntity.ok(incidentService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason, principal));
     }
 
     @PostMapping("/{id}/report")
@@ -144,7 +146,7 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody ReportRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription(), principal);
+        incidentService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription(), principal);
         return ResponseEntity.ok(new MessageResponse("Report submitted"));
     }
 
@@ -153,7 +155,7 @@ public class DriverDeliveryController {
     public ResponseEntity<MessageResponse> reportIncident(
             @Valid @RequestBody IncidentReportRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        deliveryService.reportIncident(UUID.fromString(principal.getUserId()), req, principal);
+        incidentService.reportIncident(UUID.fromString(principal.getUserId()), req, principal);
         return ResponseEntity.ok(new MessageResponse("Incident report submitted"));
     }
 
@@ -172,7 +174,7 @@ public class DriverDeliveryController {
     public ResponseEntity<HandoffTokenResponse> generateHandoffToken(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.generateHandoffToken(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(handoffService.generateHandoffToken(id, UUID.fromString(principal.getUserId())));
     }
 
     @PostMapping("/{id}/handoff")
@@ -181,7 +183,7 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody HandoffConfirmRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()),
+        return ResponseEntity.ok(handoffService.confirmHandoff(id, UUID.fromString(principal.getUserId()),
                 req.getToken(), req.getLat(), req.getLng(), req.getNotes(), principal));
     }
 

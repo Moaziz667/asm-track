@@ -36,11 +36,10 @@ import java.util.stream.Collectors;
 public class DriverDeliveryService {
 
     private final DriverDeliveryMapper            mapper;
+    private final DeliveryTransitionSupport       transitions;
+    private final DriverIncidentService           incidentService;
     private final DeliveryRepository              deliveryRepo;
-    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
-    private final DeliveryStatusHistoryRepository historyRepo;
     private final TrackingRepository              trackingRepo;
-    private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
     private final ProofOfDeliveryRepository       podRepo;
     private final DriverCommandPublisher          driverCommandPublisher;
@@ -52,20 +51,11 @@ public class DriverDeliveryService {
     private final RouteStopRepository             routeStopRepository;
 
     private final OutboxProcessor                outboxProcessor;
-    private final ProcessedRequestRepository      idempotencyRepo;
-    private final ObjectMapper                    objectMapper;
-    private final HandoffService                  handoffService;
-    private final com.asm.delivery.repository.HandoffRepository handoffRepository;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final CashCollectionService           cashCollectionService;
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
-
-    /** Lazy to avoid any construction-time cycle; used to create a refused-defect replacement shipment. */
-    @org.springframework.context.annotation.Lazy
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.asm.delivery.service.dispatch.ExceptionResolutionService exceptionResolutionService;
 
     /** Lazy — ADR-033: advances the RMA to RECEIVED when a RETURN_PICKUP leg is completed at the depot. */
     @org.springframework.context.annotation.Lazy
@@ -156,15 +146,15 @@ public class DriverDeliveryService {
         auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
                 Map.of("driver", driverName, "client", clientName, "action", "DRIVER_ACCEPT"));
 
-        appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "DELIVERY_SCHEDULED_BY_DRIVER", Map.of("driverId", driverId.toString()));
+        transitions.appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "DELIVERY_SCHEDULED_BY_DRIVER", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
         return mapper.toDriverDeliveryResponse(delivery);
     }
     @Transactional
     public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, DeliveryStatus.SCHEDULED, "pickup");
+        Delivery delivery = transitions.loadAndAuthorize(deliveryId, driverId);
+        transitions.assertStatus(delivery, DeliveryStatus.SCHEDULED, "pickup");
 
         delivery.setStatus(DeliveryStatus.PICKED_UP);
         delivery.setPickedUpAt(LocalDateTime.now());
@@ -175,7 +165,7 @@ public class DriverDeliveryService {
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_PICKUP", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
-        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "DELIVERY_PICKED_UP", Map.of("driverId", driverId.toString()));
+        transitions.appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "DELIVERY_PICKED_UP", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
         return mapper.toDriverDeliveryResponse(delivery);
@@ -185,8 +175,8 @@ public class DriverDeliveryService {
 
     @Transactional
     public DriverDeliveryResponse transit(UUID deliveryId, UUID driverId, BigDecimal lat, BigDecimal lng, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
+        Delivery delivery = transitions.loadAndAuthorize(deliveryId, driverId);
+        transitions.assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
 
         LocalDateTime transitStartedAt = LocalDateTime.now();
         delivery.setStatus(DeliveryStatus.IN_TRANSIT);
@@ -212,7 +202,7 @@ public class DriverDeliveryService {
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_TRANSIT", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Debut du transit"));
-        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "DELIVERY_TRANSIT_STARTED", Map.of("driverId", driverId.toString()));
+        transitions.appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "DELIVERY_TRANSIT_STARTED", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
                 delivery,
@@ -237,7 +227,7 @@ public class DriverDeliveryService {
 
     @Transactional
     public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId, boolean isPartial, List<com.asm.delivery.dto.request.PartialDeliveryItem> partialItems, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+        Delivery delivery = transitions.loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
             throw AppException.badRequest("Cannot complete from status " + delivery.getStatus());
@@ -299,7 +289,10 @@ public class DriverDeliveryService {
                     && delivery.getOrder().getItems().stream()
                         .anyMatch(it -> it != null && "REFUSED".equalsIgnoreCase(it.getOutcome()));
             FailureCode code = anyRefused ? FailureCode.REFUSED : FailureCode.OTHER;
-            return fail(deliveryId, driverId, null, code, null, principal);
+            // Cross-class now that the failure paths live in their own service. fail() is
+            // @Transactional with the default REQUIRED propagation, so it joins this method's
+            // transaction — exactly what the former self-invocation did by bypassing the proxy.
+            return incidentService.fail(deliveryId, driverId, null, code, null, principal);
         }
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
@@ -331,7 +324,7 @@ public class DriverDeliveryService {
                    "action", treatedAsPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED"));
 
         String eventKey = treatedAsPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED";
-        appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, eventKey, Map.of("driverId", driverId.toString()));
+        transitions.appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, eventKey, Map.of("driverId", driverId.toString()));
         routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), eventKey);
         // Recompute the terminal SLA verdict NOW the stop's completedAt is stamped — otherwise the
         // earlier (in-transit) state stays, and since terminal statuses aren't reconciled it would
@@ -541,7 +534,6 @@ public class DriverDeliveryService {
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
 
-
     /**
      * Submits the proof of delivery.
      *
@@ -604,7 +596,7 @@ public class DriverDeliveryService {
             boolean hasBonLivraison,
             UserPrincipal principal, String bonLivraisonPhotoPath, String packagePhotoPath,
             com.asm.delivery.dto.request.ProofOfDeliveryRequest.CashCollectionEntry cash) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+        Delivery delivery = transitions.loadAndAuthorize(deliveryId, driverId);
 
         // Idempotency FIRST: if a POD already exists, this submit is a duplicate/replay (double-tap,
         // client retry after a slow response, or offline-queue replay) of one that already completed.
@@ -658,7 +650,7 @@ public class DriverDeliveryService {
             podRepo.save(pod);
         } catch (DataIntegrityViolationException ex) {
             log.warn("POD_DUPLICATE_RACE deliveryId={} driverId={} msg={}", deliveryId, driverId, ex.getMessage());
-            Delivery latest = loadAndAuthorize(deliveryId, driverId);
+            Delivery latest = transitions.loadAndAuthorize(deliveryId, driverId);
             return mapper.toDriverDeliveryResponse(latest);
         }
 
@@ -731,233 +723,6 @@ public class DriverDeliveryService {
         return R * c * 1000; // convert to meters
     }
 
-    // ── Fail ──────────────────────────────────────────────────────────────────
-
-    @Transactional
-    public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, String failureReasonCode,
-                                       FailureCode legacyCode, String failureComment, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-
-        // ADR-033 — A return collection SHARES the forward order, a completed+synced transaction. A failed
-        // collection must NEVER touch the forward order's ERP state (no PENDING_SYNC, no ERP failure sync,
-        // no replacement shipment — nothing exists in Odoo for the return until RESTOCKED). Its own RMA is
-        // closed instead so a fresh return can be raised.
-        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
-
-        // A forward delivery can only fail once in the field (PICKED_UP/IN_TRANSIT). A return collection can
-        // ALSO fail from SCHEDULED — the classic "client absent / colis pas prêt" happens BEFORE the driver
-        // ever gets the parcel in hand (there is no depot-load step for a reverse leg). ADR-033.
-        boolean failable = delivery.getStatus() == DeliveryStatus.PICKED_UP
-                || delivery.getStatus() == DeliveryStatus.IN_TRANSIT
-                || (isReturnPickup && delivery.getStatus() == DeliveryStatus.SCHEDULED);
-        if (!failable) {
-            throw AppException.badRequest(isReturnPickup
-                    ? "Can only fail a return collection from SCHEDULED, PICKED_UP or IN_TRANSIT state"
-                    : "Can only fail delivery from PICKED_UP or IN_TRANSIT state");
-        }
-
-        // Resolve the configurable reason → analytics category + human label.
-        final FailureCode failureCode;
-        final String reasonLabel;
-        if (failureReasonCode != null && !failureReasonCode.isBlank()) {
-            FailureReasonService.Resolved resolved = failureReasonService.resolve(failureReasonCode);
-            failureCode = resolved.category();
-            reasonLabel = resolved.label();
-        } else {
-            failureCode = legacyCode != null ? legacyCode : FailureCode.OTHER;
-            reasonLabel = failureCode.name();
-        }
-        // Persist a human-readable reason: label enriched with the free-text comment when present.
-        String storedReason = (failureComment != null && !failureComment.isBlank())
-                ? reasonLabel + " — " + failureComment.trim()
-                : reasonLabel;
-
-        delivery.setStatus(DeliveryStatus.FAILED);
-        delivery.setFailedAt(LocalDateTime.now());
-        delivery.setFailReason(storedReason);
-        // Keep the driver's words on their own field too, so the admin motif label and the driver
-        // comment can be shown separately (fail_reason stays flattened for ERP/analytics/tracking).
-        delivery.setFailureComment(failureComment != null && !failureComment.isBlank() ? failureComment.trim() : null);
-        delivery.setFailureCode(failureCode);
-        // B5 — A forward failure is pushed to the ERP, so the order must be PENDING_SYNC for the
-        // reconciliation sweep to recover it if the ERP result is ever lost. Return collections skip this.
-        if (!isReturnPickup && delivery.getOrder() != null) {
-            delivery.getOrder().setErpSyncStatus("PENDING_SYNC");
-        }
-        delivery = deliveryRepo.save(delivery);
-
-        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
-        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
-        auditLogService.logAction(principal, "DRIVER_FAIL", "DELIVERY", delivery.getId().toString(),
-            Map.of("driver", driverName, "client", clientName, "code", String.valueOf(failureCode),
-                   "reason", failureComment != null ? failureComment : "", "action", "DELIVERY_FAILED"));
-
-        // Release driver + increment stat (best-effort)
-        Map<String, Object> failedPayload = new HashMap<>();
-        failedPayload.put("driverId", driverId.toString());
-        failedPayload.put("stat", "failed");
-        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", failedPayload);
-
-        appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, "DELIVERY_FAILED",
-                Map.of("driverId", driverId.toString(), "reason", failureComment != null ? failureComment : "", "code", failureCode != null ? failureCode.name() : ""));
-        routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
-        slaStateService.refresh(delivery);
-        eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
-
-        // P1: Outbox Sync for failures — forward-only (see ADR-033 note above).
-        if (!isReturnPickup) {
-            outboxProcessor.enqueue("ERP_SYNC_FAILURE", Map.of(
-                "deliveryId", deliveryId.toString(),
-                "failureCode", failureCode != null ? failureCode.name() : "GENERAL",
-                "comment", failureComment != null ? failureComment : ""
-            ));
-
-            // Disposition-code re-delivery: if this failed visit was a refusal for a DEFECT (damaged /
-            // wrong item / postponed), the customer still wants the product — create a replacement shipment
-            // to re-deliver a good unit. No-op for a plain failure (client absent, outright refusal).
-            if (delivery.getOrder() != null) {
-                exceptionResolutionService.createReplacementShipment(delivery.getOrder().getId(), deliveryId);
-            }
-        } else if (delivery.getRmaId() != null) {
-            // ADR-033 — a failed collection closes its RMA (terminal) so the one-open-return guard is freed
-            // and a fresh return can be raised. No Odoo touch — nothing was created there yet.
-            rmaService.onReturnCollectionFailed(delivery.getRmaId(), storedReason);
-        }
-
-        return mapper.toDriverDeliveryResponse(delivery);
-    }
-
-    // ── Cancel (driver cancels → back to UNSCHEDULED) ─────────────────────
-
-    @Transactional
-    public DriverDeliveryResponse cancelByDriver(UUID deliveryId, UUID driverId, String reason, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-
-        if (delivery.getStatus() != DeliveryStatus.SCHEDULED) {
-            throw AppException.badRequest("Driver can only cancel from SCHEDULED state");
-        }
-
-        delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-        delivery.setDriverId(null);
-        delivery.setAssignedAt(null);
-        delivery.setWaitingSlaMinutes(null);
-        delivery.setAssignSlaMinutes(null);
-        delivery.setPickupSlaMinutes(null);
-        delivery = deliveryRepo.save(delivery);
-
-        // Release driver + increment stat (best-effort)
-        Map<String, Object> cancelPayload = new HashMap<>();
-        cancelPayload.put("driverId", driverId.toString());
-        cancelPayload.put("stat", "cancelled");
-        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", cancelPayload);
-
-        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
-        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
-        auditLogService.logAction(principal, "DRIVER_CANCEL", "DELIVERY", delivery.getId().toString(),
-                Map.of("chauffeur", driverName, "client", clientName, "motif", StringUtils.hasText(reason) ? reason : "aucun",
-                       "action", "Annulation par le chauffeur"));
-        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, driverId.toString(), Role.DRIVER,
-                "DELIVERY_CANCELLED_BY_DRIVER",
-                Map.of("driverId", driverId.toString(), "reason", StringUtils.hasText(reason) ? reason : ""));
-
-        eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
-
-
-
-        return mapper.toDriverDeliveryResponse(delivery);
-    }
-
-    // ── Report ────────────────────────────────────────────────────────────────
-
-    @Transactional
-    public void report(UUID deliveryId, UUID driverId, ReportType reportType, String description, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-
-        reportRepo.save(DeliveryReport.builder()
-                .deliveryId(delivery.getId())
-                .driverId(driverId)
-                .reportType(reportType)
-                .description(description)
-                .build());
-
-        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_REPORT", "DELIVERY", deliveryId.toString(),
-                Map.of("chauffeur", driverName, "type", String.valueOf(reportType), "details", description != null ? description : "",
-                       "action", "Signalement soumis"));
-    }
-
-    @Transactional
-    public void reportIncident(UUID driverId, IncidentReportRequest req, UserPrincipal principal) {
-        java.util.List<String> photoUrls = new java.util.ArrayList<>();
-        
-        if (req.getPhotosBase64() != null) {
-            for (int i = 0; i < req.getPhotosBase64().size(); i++) {
-                String objectPath = "reports/" + driverId + "/" + System.currentTimeMillis() + "-" + i + ".png";
-                photoUrls.add(minioStorageService.uploadBase64(req.getPhotosBase64().get(i), objectPath));
-            }
-        }
-
-        DeliveryReport report = DeliveryReport.builder()
-                .deliveryId(req.getDeliveryId())
-                .driverId(driverId)
-                .reportType(req.getReportType())
-                .description(req.getDescription())
-                .lat(req.getLat())
-                .lng(req.getLng())
-                .photoUrls(photoUrls)
-                .build();
-
-        reportRepo.save(report);
-
-        String targetId = req.getDeliveryId() != null ? req.getDeliveryId().toString() : "GENERAL";
-        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
-        
-        auditLogService.logAction(principal, "REPORT_INCIDENT", "INCIDENT", targetId,
-                java.util.Map.of(
-                    "chauffeur", driverName,
-                    "type", req.getReportType().name(), 
-                    "photos", photoUrls.size(), 
-                    "action", "Signalement d'incident pro"
-                ));
-    }
-
-    // ── Handoff confirmation (Driver B confirms physical receipt) ──────────────
-
-    /**
-     * Legacy delivery-id-keyed endpoints — thin adapters over {@link HandoffService},
-     * which owns the lifecycle, hardened token, evidence and real-time events.
-     */
-    @Transactional
-    public HandoffTokenResponse generateHandoffToken(UUID deliveryId, UUID driverId) {
-        Handoff handoff = handoffRepository.findActiveByDeliveryId(deliveryId)
-                .orElseThrow(() -> AppException.badRequest("This delivery is not awaiting a handoff"));
-        Handoff updated = handoffService.generateToken(handoff.getId(), driverId);
-        return HandoffTokenResponse.builder()
-                .token(updated.getToken())
-                .deliveryId(deliveryId.toString())
-                .expiresAt(updated.getTokenExpiresAt())
-                .build();
-    }
-
-    @Transactional
-    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token, UserPrincipal principal) {
-        return confirmHandoff(deliveryId, driverId, token, null, null, null, principal);
-    }
-
-    @Transactional
-    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token,
-            java.math.BigDecimal lat, java.math.BigDecimal lng, String notes, UserPrincipal principal) {
-        Handoff handoff = handoffRepository.findActiveByDeliveryId(deliveryId).orElse(null);
-        if (handoff == null) {
-            // No open handoff — already confirmed or never required: return current state idempotently.
-            Delivery current = deliveryRepo.findByIdWithOrder(deliveryId)
-                    .orElseThrow(() -> AppException.notFound("Delivery not found"));
-            return mapper.toDriverDeliveryResponse(current);
-        }
-        Delivery delivery = handoffService.confirm(handoff.getId(), driverId, token, lat, lng, null, notes);
-        return mapper.toDriverDeliveryResponse(delivery);
-    }
-
     // ── Location update ───────────────────────────────────────────────────────
 
     @Transactional
@@ -992,7 +757,7 @@ public class DriverDeliveryService {
                 delivery.setAssignSlaMinutes(null);
                 delivery.setPickupSlaMinutes(null);
                 deliveryRepo.save(delivery);
-                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM, "DELIVERY_TIMEOUT_RESET", Map.of());
+                transitions.appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM, "DELIVERY_TIMEOUT_RESET", Map.of());
             }
         });
     }
@@ -1007,7 +772,7 @@ public class DriverDeliveryService {
             delivery.setCancelledBy(Role.SYSTEM);
             delivery.setCancelReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, DeliveryStatus.CANCELLED, "SYSTEM", Role.SYSTEM, "DELIVERY_CANCELLED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
+            transitions.appendHistory(delivery, DeliveryStatus.CANCELLED, "SYSTEM", Role.SYSTEM, "DELIVERY_CANCELLED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
             eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, null);
         });
     }
@@ -1021,7 +786,7 @@ public class DriverDeliveryService {
             delivery.setFailedAt(LocalDateTime.now());
             delivery.setFailReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, "DELIVERY_FAILED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
+            transitions.appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, "DELIVERY_FAILED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
             routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), reason);
             eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, reason);
         });
@@ -1045,42 +810,5 @@ public class DriverDeliveryService {
         map.put("orderId", orderId);
         return map;
     }
-
-    private Delivery loadAndAuthorize(UUID deliveryId, UUID driverId) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
-
-        if (!driverId.equals(delivery.getDriverId())) {
-            throw AppException.forbidden("Not your delivery");
-        }
-        return delivery;
-    }
-
-    private void assertStatus(Delivery delivery, DeliveryStatus expected, String action) {
-        if (delivery.getStatus() != expected) {
-            throw AppException.badRequest("Cannot " + action + " from status " + delivery.getStatus());
-        }
-    }
-
-    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
-        String jsonParams = "{}";
-        try {
-            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
-        } catch (Exception ignored) {}
-        
-        historyRepo.save(DeliveryStatusHistory.builder()
-                .deliveryId(delivery.getId())
-                .status(status)
-                .changedBy(changedBy)
-                .changedByRole(role)
-                .eventKey(eventKey)
-                .eventParams(jsonParams)
-                .build());
-
-        // Single hook: every status transition in this service refreshes the SLA source of truth
-        // (covers accept/pickup/transit/complete/fail/cancel — incl. terminal states the tick skips).
-        slaStateService.refresh(delivery);
-    }
-
 
 }

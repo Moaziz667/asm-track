@@ -33,7 +33,11 @@ public class DriverDeliveryMapper {
     private final ProofOfDeliveryRepository podRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final MediaUrlResolver mediaUrlResolver;
-    private final RmaService rmaService;
+
+    /* Lazy for the same construction-time cycle the original guarded against. */
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private RmaService rmaService;
     private final ObjectMapper objectMapper;
 
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
