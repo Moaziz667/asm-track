@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { DRIVER_STATUS_COLOR } from '@/lib/ui/design-tokens';
-import RouteClosureReport from '@/features/routes/RouteClosureReport';
+import RouteClosureReport from './closure-report/RouteClosureReport';
 import { RouteHeader } from '@/components/route/RouteHeader';
 import { RouteStats } from '@/components/route/RouteStats';
 import { useRouteData } from './useRouteData';
