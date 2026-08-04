@@ -32,6 +32,25 @@ import java.util.Set;
  *       }
  *   }
  * </pre>
+ *
+ * <h2>Where these run</h2>
+ * They need a live Odoo, so they are not part of {@code gradle test}. The CI job
+ * {@code integration-test-erp-adapter-odoo} starts one Odoo 16 and one Odoo 19 as side-cars and runs
+ * the whole suite against both.
+ *
+ * <p>That job is <b>not</b> on every pipeline: installing {@code sale} and {@code stock} on two fresh
+ * instances costs minutes, so it is bound to changes under {@code Microservices/ErpAdapterService/}
+ * — it fires exactly when it can catch something. A commit that touches only the frontend will not
+ * show it, and that is not a failure. To run it on demand, use <b>Run pipeline</b> from the GitLab
+ * UI: the job's second rule matches {@code CI_PIPELINE_SOURCE == "web"}.
+ *
+ * <p>Locally, point the suite at any two running instances and run {@code gradle integrationTest}:
+ * <pre>
+ *   ODOO_V16_URL=http://localhost:8069/jsonrpc  ODOO_V16_DB=odoo16
+ *   ODOO_V19_URL=http://localhost:8070/jsonrpc  ODOO_V19_DB=odoo19
+ * </pre>
+ * Use throwaway databases. The suite creates partners, products and sale orders, and validates
+ * transfers — it is not something to aim at an instance whose data matters.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractOdooIntegrationTest {
