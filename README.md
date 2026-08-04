@@ -80,16 +80,32 @@ Chacune est détaillée dans un ADR — contexte, alternatives écartées et **c
 ## Démarrage
 
 ```bash
-# Toute la pile (bases, RabbitMQ, Keycloak, MinIO, OSRM, les 5 services)
 cd Microservices
+cp .env.example .env           # 20 variables : mots de passe, secrets Keycloak, clé Resend
+
+# Une seule fois par serveur — télécharge la carte OSM Tunisie et la prépare pour OSRM.
+# Plusieurs centaines de Mo et de longues minutes ; sans cette étape le service de
+# routage redémarre en boucle sur des fichiers absents.
+docker compose --profile init up osrm-download osrm-prepare
+
+# Toute la pile (bases, RabbitMQ, Keycloak, MinIO, OSRM, les 5 services)
 docker compose up -d
 
 # Interface d'administration
-cd Apps/admin-app-react
+cd ../Apps/admin-app-react
 npm ci && npm run dev          # http://localhost:5173
 ```
 
 La gateway répond sur `http://localhost`, Keycloak sur `http://localhost:8089`.
+
+**Aucun script SQL à lancer.** Les bases sont créées par leurs conteneurs, puis chaque service
+applique ses propres migrations Flyway au démarrage. Les schémas par client sont créés à
+l'onboarding, et `TenantMigrationRunner` rejoue les migrations en attente sur les schémas existants
+à chaque démarrage — voir [ADR-001](docs/adr/001-multi-tenant-par-schema.md).
+
+> Vérifié sur des volumes vides : les 4 bases se créent seules, Flyway applique 44 migrations sur
+> `delivery_db` et 1 sur chacune des autres, Keycloak importe le realm `asm`, et la gateway répond.
+> Seul OSRM exige l'étape `init` ci-dessus.
 
 ---
 
