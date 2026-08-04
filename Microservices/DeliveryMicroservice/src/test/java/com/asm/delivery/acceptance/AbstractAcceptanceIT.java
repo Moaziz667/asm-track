@@ -88,7 +88,7 @@ abstract class AbstractAcceptanceIT {
               + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration");
     }
 
-    private static final UUID TENANT_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    protected static final UUID TENANT_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     @Autowired TenantSchemaProvisioner provisioner;
     @Autowired OrderRepository orderRepository;
