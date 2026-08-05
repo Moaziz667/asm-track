@@ -125,7 +125,6 @@ export default function AlertBell() {
   const router = useRouter();
 
   const copy = t.notificationsDropdown;
-  const hasCritical = notifications.some(n => !n.read && n.severity === 'critical');
 
   const preview = notifications.slice(0, 10);
 
@@ -173,11 +172,12 @@ export default function AlertBell() {
               'flex items-center justify-center leading-none',
               'ring-2 ring-[var(--surface)] pointer-events-none',
               'font-mono tabular-nums select-none',
-              // A count is not an alert. Brand blue on an unread badge reads as "something new and
-              // important" for every routine notification, which spends the one signal the top bar
-              // has on noise — and leaves nothing louder for the ones that matter. Neutral ink for
-              // the tally, red kept for what genuinely needs someone now.
-              hasCritical ? 'bg-[var(--danger)]' : 'bg-[var(--text-primary)]',
+              // Red on any unread count, not only the critical ones. The neutral tally it replaces
+              // was the more disciplined choice on paper — it kept one loud colour in reserve — but
+              // in a dispatch room the bell is glanced at, not read, and a dark badge on a dark top
+              // bar was being missed. An alert nobody notices costs more than one that shades a
+              // routine notification too urgently.
+              'bg-[var(--danger)]',
             )}
           >
             {unreadCount > 9 ? '9+' : unreadCount}
