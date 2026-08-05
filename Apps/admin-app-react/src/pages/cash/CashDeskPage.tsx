@@ -8,6 +8,7 @@ import {
 import { useT } from '@/lib/i18n/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { formatAmount, formatDelta } from '@/lib/utils/money';
+import { formatDateTime, formatRelative, formatTime } from '@/lib/utils/date';
 import { receiveRemittance, reconcileRemittance, type CashRemittance, type CashRemittanceStatus } from '@/lib/api/cash';
 import {
   useRemittances, useCashCirculation, useRefreshCash,
@@ -38,6 +39,22 @@ const FILTERS: (CashRemittanceStatus | 'ALL')[] =
 
 /** Which states the unfiltered worklist actually covers — the tab's figure must say the same. */
 const PENDING_STATES: CashRemittanceStatus[] = ['DECLARED', 'DISPUTED'];
+
+/**
+ * When the handover last moved, and what moved.
+ *
+ * <p>The table carried no date at all, so this morning's handover and one from a fortnight ago read
+ * identically — on a desk whose whole job is "what is waiting on me today", that is the first
+ * column a cashier looks for. A bare timestamp would not have been enough either: on a settled row
+ * the date that matters is the settlement, on a declared one it is the declaration, and showing the
+ * same field for both would date half the table by an event that had not happened yet.
+ */
+function lastEvent(r: CashRemittance): { at?: string; key: string } {
+  if (r.reconciledAt) return { at: r.reconciledAt, key: 'RECONCILED' };
+  if (r.receivedAt)   return { at: r.receivedAt,   key: 'RECEIVED' };
+  if (r.declaredAt)   return { at: r.declaredAt,   key: 'DECLARED' };
+  return { at: r.openedAt, key: 'OPEN' };
+}
 
 export default function CashDeskPage() {
   const t = useT();
@@ -193,6 +210,7 @@ export default function CashDeskPage() {
                 <tr>
                   <th className="h-10 w-8 px-2" />
                   <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{c.colDriver}</th>
+                  <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{c.colDate}</th>
                   {/* Amounts right-aligned so decimal points line up down the column. */}
                   <th className="h-10 px-6 text-end text-xs font-[450] text-[var(--text-muted)]">{c.colExpected}</th>
                   <th className="h-10 px-6 text-end text-xs font-[450] text-[var(--text-muted)]">{c.colDeclared}</th>
@@ -206,14 +224,14 @@ export default function CashDeskPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)]">
-                      {Array.from({ length: 8 }).map((__, j) => (
+                      {Array.from({ length: 9 }).map((__, j) => (
                         <td key={j} className="px-6 py-3"><Skeleton className="h-4 w-full max-w-[110px]" /></td>
                       ))}
                     </tr>
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-0">
+                    <td colSpan={9} className="py-0">
                       <EmptyState
                         icon={<IconCashBanknote size={26} />}
                         message={c.emptyMessage}
@@ -244,6 +262,14 @@ export default function CashDeskPage() {
                         </td>
                         <td className="px-6 text-xs">
                           <span className="font-[600] text-[var(--text-primary)]">{r.driverName ?? '—'}</span>
+                        </td>
+                        {/* Relative first — "il y a 2 h" is what tells a cashier this is his,
+                            and the exact stamp is one hover away for the day it is disputed. */}
+                        <td className="px-6 text-xs" title={formatDateTime(lastEvent(r).at)}>
+                          <div className="text-[var(--text-secondary)]">{formatRelative(lastEvent(r).at)}</div>
+                          <div className="text-2xs text-[var(--text-soft)]">
+                            {(t.cashEvent as Record<string, string>)[lastEvent(r).key] ?? ''}
+                          </div>
                         </td>
                         <td className="px-6 text-end text-xs tabular-nums text-[var(--text-secondary)]">
                           {formatAmount(r.expectedTotal)}
@@ -309,7 +335,7 @@ export default function CashDeskPage() {
 
                       {open && (
                         <tr className="border-b border-[var(--border)]">
-                          <td colSpan={8} className="px-6 py-3" style={{ background: 'var(--surface-sunken)' }}>
+                          <td colSpan={9} className="px-6 py-3" style={{ background: 'var(--surface-sunken)' }}>
                             {/*
                               The explanation, at last shown.
 
@@ -351,6 +377,12 @@ export default function CashDeskPage() {
                                     </Link>
                                     <span className="text-[var(--text-secondary)] truncate flex-1 min-w-0">
                                       {line.clientName ?? '—'}
+                                    </span>
+                                    {/* The hour alone: every line in a handover is from the same
+                                        day, so repeating the date would push the amounts off. */}
+                                    <span className="tabular-nums text-[var(--text-soft)] shrink-0"
+                                          title={formatDateTime(line.collectedAt)}>
+                                      {formatTime(line.collectedAt)}
                                     </span>
                                     {/* Expected beside collected: a line short at the door is the
                                         reason the handover below is short, and reading them apart

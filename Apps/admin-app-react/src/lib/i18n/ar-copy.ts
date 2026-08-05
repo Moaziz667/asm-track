@@ -3797,7 +3797,14 @@ export const AR_COPY = {
     DISPUTED: 'فرق',
     RECONCILED: 'مُغلقة',
   } as Record<string, string>,
+  cashEvent: {
+    OPEN: 'مفتوحة',
+    DECLARED: 'مُصرّح بها',
+    RECEIVED: 'مُحصاة',
+    RECONCILED: 'مُغلقة',
+  } as Record<string, string>,
   cashPage: {
+    colDate: 'آخر إجراء',
     title: 'الصندوق',
     circulationLabel: 'الأموال المتداولة',
     circulationHint: 'محصّلة من طرف السائقين ولم تُسلّم بعد للمستودع.',

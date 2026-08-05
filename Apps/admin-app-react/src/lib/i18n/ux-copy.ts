@@ -3848,8 +3848,15 @@ export const FR_COPY = {
     DISPUTED: 'Écart',
     RECONCILED: 'Clôturée',
   } as Record<string, string>,
+  cashEvent: {
+    OPEN: 'ouverte',
+    DECLARED: 'déclarée',
+    RECEIVED: 'comptée',
+    RECONCILED: 'clôturée',
+  } as Record<string, string>,
   cashPage: {
     title: 'Caisse',
+    colDate: 'Dernière action',
     circulationLabel: 'Cash en circulation',
     circulationHint: 'Encaissé par les livreurs, pas encore remis au dépôt.',
     filterPending: 'À traiter',

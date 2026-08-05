@@ -3391,7 +3391,14 @@ export const EN_COPY = {
     DISPUTED: 'Discrepancy',
     RECONCILED: 'Closed',
   } as Record<string, string>,
+  cashEvent: {
+    OPEN: 'opened',
+    DECLARED: 'declared',
+    RECEIVED: 'counted',
+    RECONCILED: 'settled',
+  } as Record<string, string>,
   cashPage: {
+    colDate: 'Last action',
     title: 'Cash',
     circulationLabel: 'Cash in circulation',
     circulationHint: 'Collected by drivers, not yet handed over at the depot.',
