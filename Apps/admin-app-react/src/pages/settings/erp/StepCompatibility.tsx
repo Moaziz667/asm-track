@@ -6,7 +6,37 @@ import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/LocaleContext';
 import type { CapabilityCheck, ConformanceReport, Verdict } from '@/lib/api/erpIntegration';
+
+/**
+ * The sentence under a capability row, in the reader's language.
+ *
+ * Two parts, either of which may be absent: why the status is what it is (keyed by the probe, since
+ * "absent — and that is expected here" cannot be inferred from a green row), then what the capability
+ * is for (keyed by its name, which the row already carries).
+ *
+ * Falls back to the probe's English `detail` when neither is translated — that is what a provider
+ * whose probe is not keyed yet still shows, and it is better than a blank line.
+ */
+function useCheckText() {
+  const t = useT();
+  const text = (t.erpSetup as unknown as {
+    conformanceText?: { notes?: Record<string, string>; reasons?: Record<string, string> };
+  }).conformanceText;
+
+  return (check: CapabilityCheck): string | null => {
+    const note = text?.notes?.[check.capability];
+    const template = check.reasonKey ? text?.reasons?.[check.reasonKey] : undefined;
+    const reason = template
+      ? template.replace(/\{(\w+)\}/g, (m, k) => String(check.reasonParams?.[k] ?? m))
+      : undefined;
+
+    const parts = [reason, note].filter(Boolean);
+    if (parts.length > 0) return parts.join(' ');
+    return check.detail || null;
+  };
+}
 
 /**
  * The certification report, with the fix attached to the failing row.
@@ -182,6 +212,7 @@ function BlockingRow({
 }) {
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const checkText = useCheckText();
 
   // The report names the model.method it looked for; the override only needs the method name.
   const capability = check.capability.includes('.')
@@ -205,7 +236,7 @@ function BlockingRow({
         <IconCircleX size={15} className="mt-px shrink-0 text-[var(--danger)]" />
         <div className="min-w-0 flex-1">
           <p className="font-mono text-xs text-[var(--text-primary)] break-all">{check.capability}</p>
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{check.detail}</p>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{checkText(check)}</p>
         </div>
       </div>
       {canManage && (
@@ -228,6 +259,9 @@ function BlockingRow({
 }
 
 function PlainRow({ check }: { check: CapabilityCheck }) {
+  const checkText = useCheckText();
+  const detail = checkText(check);
+
   const icon =
     check.status === 'OK' ? <IconCircleCheck size={15} className="text-[var(--success)]" />
     : check.status === 'UNKNOWN' ? <IconHelpCircle size={15} className="text-[var(--text-muted)]" />
@@ -238,8 +272,13 @@ function PlainRow({ check }: { check: CapabilityCheck }) {
       <span className="mt-px shrink-0">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="font-mono text-xs text-[var(--text-primary)] break-all">{check.capability}</p>
-        {check.status !== 'OK' && (
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{check.detail}</p>
+        {/* Shown on passing rows too. The probe's most informative sentences sit on them — "absent
+            from Odoo 19 onward, expected on this version, the adapter's fallback covers it" is why
+            that row is green rather than a warning, and hiding it left a capability the ERP does not
+            actually have looking indistinguishable from one it does. This group is collapsed by
+            default, so anyone reading these lines opened them on purpose. */}
+        {detail && (
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">{detail}</p>
         )}
       </div>
     </li>

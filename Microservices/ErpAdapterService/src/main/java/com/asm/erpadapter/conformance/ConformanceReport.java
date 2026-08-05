@@ -54,19 +54,48 @@ public record ConformanceReport(
     /**
      * A single capability check.
      *
-     * @param capability human key, e.g. {@code "stock.move.line.qty_done"} or {@code "write:stock.picking"}
-     * @param kind       what was probed
-     * @param severity   REQUIRED (fails verdict) or RECOMMENDED (downgrades to DEGRADED)
-     * @param status     the outcome
-     * @param detail     human-readable note (why it failed, or the version-derived resolution)
+     * <h2>Why there is both a {@code detail} and a {@code reasonKey}</h2>
+     * {@code detail} is English prose assembled here, and the admin UI is served in French, English
+     * and Arabic. Prose cannot be translated downstream, so the UI needs something it can look up.
+     *
+     * <p>Only the <em>reason</em> is keyed, not the whole sentence. What a capability is for ("SKU
+     * matching for partial deliveries") the UI can derive from {@link #capability()}, which it already
+     * has. What its status <em>means</em> it cannot: an absence the vendor chose is reported
+     * {@link Status#OK}, and by name alone that row is indistinguishable from a capability the
+     * instance actually has — which is precisely the distinction this report exists to draw.
+     *
+     * <p>{@code detail} remains the authoritative English text: it is part of the API contract, it is
+     * what a non-UI consumer reads, and it is the fallback wherever a key has no translation yet.
+     *
+     * @param capability   human key, e.g. {@code "stock.move.line.qty_done"} or {@code "write:stock.picking"}
+     * @param kind         what was probed
+     * @param severity     REQUIRED (fails verdict) or RECOMMENDED (downgrades to DEGRADED)
+     * @param status       the outcome
+     * @param detail       human-readable note in English (why it failed, or the version-derived resolution)
+     * @param reasonKey    stable key naming why the status is what it is; {@code null} when the status
+     *                     speaks for itself (a field that is simply present)
+     * @param reasonParams values the translated reason interpolates, e.g. {@code {version: 19}}
      */
     public record CapabilityCheck(
             String capability,
             Kind kind,
             Severity severity,
             Status status,
-            String detail
-    ) {}
+            String detail,
+            String reasonKey,
+            java.util.Map<String, Object> reasonParams
+    ) {
+        /** Un-keyed check — nothing to explain beyond the capability name and its status. */
+        public CapabilityCheck(String capability, Kind kind, Severity severity, Status status, String detail) {
+            this(capability, kind, severity, status, detail, null, null);
+        }
+
+        /** Keyed check with no interpolated values. */
+        public CapabilityCheck(String capability, Kind kind, Severity severity, Status status,
+                               String detail, String reasonKey) {
+            this(capability, kind, severity, status, detail, reasonKey, null);
+        }
+    }
 
     /**
      * Derive the overall verdict from the individual checks:

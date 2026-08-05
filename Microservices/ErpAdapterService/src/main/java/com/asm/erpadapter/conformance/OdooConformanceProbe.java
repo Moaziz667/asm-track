@@ -101,6 +101,7 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         // either as a gap sends an integrator hunting for a repair no Odoo of that version can offer.
         checkMethod(checks, "SET_FULL_QUANTITY", Severity.RECOMMENDED,
                 "Full-delivery shortcut; falls back to marking the reserved lines picked.", 19, major);
+        checkFullDeliveryFallback(checks, major);
         checkMethod(checks, "FORCE_AVAILABILITY", Severity.RECOMMENDED,
                 "Nudge for unreservable stock; skipped when absent (quantities are written explicitly).",
                 16, major);
@@ -108,9 +109,13 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         // Probed like every other method rather than asserted from the version number. Reporting it
         // as UNKNOWN listed a capability this instance does have among the ones it lacks, which reads
         // as a defect in the integration rather than a gap in our own certification.
+        // The note differs by version and that difference is the finding: the same method is dead
+        // weight on 18 and load-bearing on 19. Keyed on the version so the UI can say so in the
+        // reader's language instead of falling back to whichever English sentence was chosen here.
         checkMethod(checks, "UNLOCK_SALE_ORDER", Severity.RECOMMENDED,
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
-                            : "No-op on Odoo ≤18 (orders are not auto-locked).");
+                            : "No-op on Odoo ≤18 (orders are not auto-locked).",
+                major >= 19 ? "unlockRequired" : "unlockNoop");
 
         // ── The delivery note now comes from Odoo, so its report must exist here ──────────────────
         checkDeliverySlipReport(checks);
@@ -134,7 +139,13 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
      * instance is not evidence of a missing method.
      */
     private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note) {
-        checkMethod(checks, capability, sev, note, 0, 0);
+        checkMethod(checks, capability, sev, note, 0, 0, null);
+    }
+
+    /** Same, carrying a reason key for a note the UI must be able to translate. */
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note,
+                             String okReasonKey) {
+        checkMethod(checks, capability, sev, note, 0, 0, okReasonKey);
     }
 
     /**
@@ -150,6 +161,11 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
      */
     private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note,
                              int absentFrom, int major) {
+        checkMethod(checks, capability, sev, note, absentFrom, major, null);
+    }
+
+    private void checkMethod(List<CapabilityCheck> checks, String capability, Severity sev, String note,
+                             int absentFrom, int major, String okReasonKey) {
         List<String> candidates;
         String model;
         try {
@@ -157,7 +173,7 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
             model = registry.getModel(capability);
         } catch (Exception e) {
             checks.add(new CapabilityCheck(capability, Kind.METHOD, sev, Status.UNKNOWN,
-                    "Not declared in the capability registry. " + note));
+                    "Not declared in the capability registry. " + note, "notDeclared"));
             return;
         }
 
@@ -165,7 +181,8 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         for (String candidate : candidates) {
             com.asm.erpadapter.adapter.odoo.MethodResolver.Probe p = methodResolver.probe(model, candidate);
             if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.EXISTS) {
-                checks.add(new CapabilityCheck(model + "." + candidate, Kind.METHOD, sev, Status.OK, note));
+                checks.add(new CapabilityCheck(model + "." + candidate, Kind.METHOD, sev, Status.OK,
+                        note, okReasonKey));
                 return;
             }
             if (p == com.asm.erpadapter.adapter.odoo.MethodResolver.Probe.INCONCLUSIVE) inconclusive = true;
@@ -173,17 +190,19 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         String name = model + "." + String.join("|", candidates);
         if (inconclusive) {
             checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.UNKNOWN,
-                    "Could not be probed (transport failure). " + note));
+                    "Could not be probed (transport failure). " + note, "transportFailure"));
             return;
         }
         if (absentFrom > 0 && major >= absentFrom) {
             checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.OK,
                     "Absent from Odoo " + absentFrom + " onward — expected on this version, not a gap "
-                            + "in this instance; the adapter's fallback covers it. " + note));
+                            + "in this instance; the adapter's fallback covers it. " + note,
+                    "expectedAbsent", Map.of("version", absentFrom)));
             return;
         }
         checks.add(new CapabilityCheck(name, Kind.METHOD, sev, Status.MISSING,
-                "No candidate exists on this instance: " + candidates + ". " + note));
+                "No candidate exists on this instance: " + candidates + ". " + note,
+                "noCandidate", Map.of("candidates", String.join(", ", candidates))));
     }
 
     /**
@@ -208,17 +227,19 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
                             List.of("report_type", "=", "qweb-pdf")))));
             if (resp == null || resp.containsKey("error")) {
                 checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
-                        "Could not be probed (transport or access failure). " + note));
+                        "Could not be probed (transport or access failure). " + note, "transportFailure"));
                 return;
             }
             Integer count = com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.asInt(resp.get("result"));
             boolean present = count != null && count > 0;
             checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED,
                     present ? Status.OK : Status.MISSING,
-                    present ? note : "No qweb-pdf report defined for stock.picking on this instance. " + note));
+                    present ? note : "No qweb-pdf report defined for stock.picking on this instance. " + note,
+                    present ? null : "noQwebReport"));
         } catch (Exception e) {
             checks.add(new CapabilityCheck(name, Kind.MODEL, Severity.RECOMMENDED, Status.UNKNOWN,
-                    "Probe failed: " + e.getMessage() + ". " + note));
+                    "Probe failed: " + e.getMessage() + ". " + note,
+                    "probeFailed", Map.of("error", String.valueOf(e.getMessage()))));
         }
     }
 
@@ -226,7 +247,8 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         Map<String, Object> fields = fieldsGet(model);
         Status status = fields != null ? Status.OK : Status.MISSING;
         checks.add(new CapabilityCheck(model, Kind.MODEL, sev, status,
-                fields != null ? note : "Model not found on this instance. " + note));
+                fields != null ? note : "Model not found on this instance. " + note,
+                fields != null ? null : "modelMissing"));
     }
 
     /** Verify several fields of a model in one fields_get round-trip. */
@@ -235,7 +257,7 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         if (fields == null) {
             for (String f : fieldNames) {
                 checks.add(new CapabilityCheck(model + "." + f, Kind.FIELD, sev, Status.MISSING,
-                        "Model " + model + " not found."));
+                        "Model " + model + " not found.", "modelMissing", Map.of("model", model)));
             }
             return;
         }
@@ -243,8 +265,42 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
             boolean present = fields.containsKey(f);
             checks.add(new CapabilityCheck(model + "." + f, Kind.FIELD, sev,
                     present ? Status.OK : Status.MISSING,
-                    present ? null : "Field absent on " + model + "."));
+                    present ? null : "Field absent on " + model + ".",
+                    present ? null : "fieldAbsent", present ? null : Map.of("model", model)));
         }
+    }
+
+    /**
+     * Which path a full delivery will actually take on this instance.
+     *
+     * <p>The fallback behind {@code SET_FULL_QUANTITY} was never probed at all, so on Odoo 19 — the
+     * one version where it is the <em>only</em> path — the report asserted "the adapter's fallback
+     * covers it" without ever checking that the fallback exists. A reassurance nobody verified is
+     * worse than no line.
+     *
+     * <p>It is never MISSING, and that is not leniency. Odoo 16 does not have {@code picked} and does
+     * not need it: it still has the button. And a version with neither still delivers, because
+     * reservation has already set each line's quantity — which is the adapter's third path. Reporting
+     * a gap here would drag a healthy instance to DEGRADED over a field it has no use for, the very
+     * false alarm this whole section exists to avoid. What the row reports is therefore not presence
+     * or absence but <b>which of the three paths applies here</b>.
+     */
+    private void checkFullDeliveryFallback(List<CapabilityCheck> checks, int major) {
+        Map<String, Object> fields = fieldsGet("stock.move.line");
+        boolean present = fields != null && fields.containsKey("picked");
+        boolean buttonExpected = major > 0 && major < 19;
+
+        String reasonKey = present ? "fallbackAvailable"
+                : buttonExpected ? "fallbackNotNeeded"
+                : "fallbackReservationOnly";
+        String detail = present
+                ? "Full delivery is marked with this flag when the set-quantities button is absent."
+                : buttonExpected
+                    ? "Absent, and not needed: this version still has the set-quantities button."
+                    : "Absent, and so is the set-quantities button — the reserved quantities alone "
+                      + "already describe a full delivery, which is the path validation will take.";
+        checks.add(new CapabilityCheck("stock.move.line.picked", Kind.FIELD, Severity.RECOMMENDED,
+                Status.OK, detail, reasonKey));
     }
 
     /** Single-field check with an explanatory note. */
@@ -253,7 +309,8 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
         boolean present = fields != null && fields.containsKey(field);
         checks.add(new CapabilityCheck(model + "." + field, Kind.FIELD, sev,
                 present ? Status.OK : Status.MISSING,
-                present ? note : "Field absent. " + note));
+                present ? note : "Field absent. " + note,
+                present ? null : "fieldAbsent", present ? null : Map.of("model", model)));
     }
 
     /**
@@ -264,27 +321,46 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
      * mismatch (the field the CapabilityMap picked is absent on the instance).
      */
     private void checkDoneQtyField(List<CapabilityCheck> checks, int major) {
-        String expected = registry.getCandidates("DONE_QUANTITY").get(0);
+        List<String> candidates = registry.getCandidates("DONE_QUANTITY");
         Map<String, Object> fields = fieldsGet("stock.move.line");
-        boolean present = fields != null && fields.containsKey(expected);
-        checks.add(new CapabilityCheck("stock.move.line." + expected, Kind.FIELD, Severity.REQUIRED,
-                present ? Status.OK : Status.MISSING,
-                present ? "Done-quantity field the adapter writes for Odoo " + (major > 0 ? major : "?") + "."
+
+        // Resolve the way the adapter does — first candidate the instance actually has — rather than
+        // asserting candidates.get(0). Taking only the head made this check declare NO_GO on every
+        // Odoo 16: the map lists ["quantity", "qty_done"], 16 has the second, and the adapter picks it
+        // and works (the integration suite is green on 16). The probe was contradicting the code it
+        // exists to describe, and telling an operator their healthy ERP could not be driven.
+        String resolved = fields == null ? null
+                : candidates.stream().filter(fields::containsKey).findFirst().orElse(null);
+
+        String label = "stock.move.line." + (resolved != null ? resolved : candidates.get(0));
+        checks.add(new CapabilityCheck(label, Kind.FIELD, Severity.REQUIRED,
+                resolved != null ? Status.OK : Status.MISSING,
+                resolved != null
+                        ? "Done-quantity field the adapter writes for Odoo " + (major > 0 ? major : "?") + "."
                         : (fields == null ? "Model stock.move.line not found."
-                          : "CapabilityMap picked '" + expected + "' for Odoo " + (major > 0 ? major : "?")
-                            + " but it is absent — version detection/boundary mismatch.")));
+                          : "None of " + candidates + " exists on stock.move.line — this Odoo names the "
+                            + "done-quantity field something the CapabilityMap does not know."),
+                resolved != null ? "doneQtyResolved" : (fields == null ? "modelMissing" : "doneQtyUnknown"),
+                resolved != null ? Map.of("version", major > 0 ? major : "?")
+                                 : Map.of("candidates", String.join(", ", candidates), "model", "stock.move.line")));
     }
 
     /** Verify the integration user actually has the given access right on a model. */
     private void checkAccess(List<CapabilityCheck> checks, String model, String op, Severity sev) {
         Boolean allowed = checkAccessRights(model, op);
         Status status = allowed == null ? Status.MISSING : (allowed ? Status.OK : Status.DENIED);
+        String reasonKey = switch (status) {
+            case DENIED -> "accessDenied";
+            case MISSING -> "accessUnverifiable";
+            default -> null;
+        };
         String detail = switch (status) {
             case DENIED -> "Integration user lacks '" + op + "' on " + model + ".";
             case MISSING -> "Could not verify (model missing or unreachable).";
             default -> null;
         };
-        checks.add(new CapabilityCheck(op + ":" + model, Kind.ACCESS, sev, status, detail));
+        checks.add(new CapabilityCheck(op + ":" + model, Kind.ACCESS, sev, status, detail,
+                reasonKey, reasonKey == null ? null : Map.of("op", op, "model", model)));
     }
 
     // ══════════════════════════════════════════════════════════════════════════════════════════════
