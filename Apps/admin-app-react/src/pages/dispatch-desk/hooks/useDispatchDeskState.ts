@@ -352,12 +352,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     return sortByRoute(filtered, r => r.severity === 'CRITICAL' ? 0 : r.severity === 'WARNING' ? 1 : 2);
   }, [rows, attentionOnly, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
 
-  /** How many rows the toggle is currently hiding — the desk says so rather than dropping them silently. */
-  const mutedCount = useMemo(
-    () => (attentionOnly ? rows.filter(r => !needsAttention(r)).length : 0),
-    [rows, attentionOnly],
-  );
-
   const routeOptions = useMemo(() => {
     const seen = new Map<string, string>();
     rows.forEach(r => { if (r.routeId && r.routeName) seen.set(r.routeId, r.routeName); });
@@ -394,8 +388,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   // assignment (ASSIGNABLE_STATUSES) or it carries an active ops alert — merged
   // and deduped so the same order never renders twice (the root cause of the
   // Assign/Action tab overlap).
-  const queueRows = useMemo((): QueueRow[] => {
+  const queue = useMemo((): { rows: QueueRow[]; hidden: number } => {
     const byId = new Map<string, QueueRow>();
+    let hidden = 0;
 
     allDeliveries.forEach(d => {
       const id = rowId(d);
@@ -412,15 +407,35 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       const d = deliveryMap.get(r.deliveryId);
       if (!d) return;
       if (d.status === 'CANCELLED') return; // annulées exclues du dispatch desk
+      // The toggle applies here too. It only ever filtered the "à traiter" tab, and the desk opens
+      // on the queue — so the button read as broken, because on the tab you land on it was.
+      // Deliveries awaiting assignment are left alone: they are the queue's own reason to exist,
+      // not exceptions, and hiding them would empty the list the toggle is supposed to tidy.
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return;
       if (!inList(driverId, r.driverId)) return;
       if (!inList(zoneFilter, r.zoneName, r.city)) return;
       if (!inList(depotFilter, r.depotName)) return;
+      if (attentionOnly && !needsAttention(r)) { hidden++; return; }
       byId.set(r.deliveryId, { id: r.deliveryId, delivery: d, alert: r, routeId: r.routeId ?? d.routeId, routeName: r.routeName ?? d.routeName });
     });
 
-    return sortQueue(Array.from(byId.values()), queueSort);
-  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, inList, driverId, zoneFilter, depotFilter, queueSort]);
+    return { rows: sortQueue(Array.from(byId.values()), queueSort), hidden };
+  }, [allDeliveries, rows, attentionOnly, alertMap, deliveryMap, matchSearch, inList, driverId, zoneFilter, depotFilter, queueSort]);
+
+  const queueRows = queue.rows;
+
+  /**
+   * How many rows the toggle is hiding on the tab you are looking at.
+   *
+   * <p>Per-tab because the two lists hide different things. On the queue, an exception that does not
+   * need action is only hidden if the delivery is not already there awaiting assignment — counting
+   * every muted exception would have promised rows the button cannot bring back.
+   */
+  const mutedCount = useMemo(() => {
+    if (!attentionOnly) return 0;
+    if (dispatchTab === 'action') return rows.filter(r => !needsAttention(r)).length;
+    return queue.hidden;
+  }, [attentionOnly, dispatchTab, rows, queue.hidden]);
 
   const selectedQueueRow = useMemo(
     () => queueRows.find(q => q.id === selectedQueueId) ?? null,
