@@ -38,11 +38,32 @@ public class PublicTrackingService {
     private final RmaRepository         rmaRepo;
     private final TransportPort         transportPort;
 
+    /**
+     * How long a finished delivery stays publicly readable.
+     *
+     * <p>The link carries no authentication — the UUID <i>is</i> the credential — and it used to work
+     * forever. A tracking URL forwarded once, or left in a browser history, kept returning a
+     * customer's name, phone and address indefinitely. Loi organique 2004-63 asks that personal data
+     * be kept no longer than the purpose requires, and the purpose here ends with the delivery.
+     *
+     * <p>Two weeks rather than two days: a customer chasing a partial delivery or a return comes
+     * back to this page days later, and a link that has gone dead is a support call.
+     */
+    private static final java.time.Duration PUBLIC_LINK_TTL = java.time.Duration.ofDays(14);
+
     @Transactional(readOnly = true)
     public TrackingResponse getTracking(UUID deliveryId) {
         TrackingData data = doGetTrackingData(deliveryId);
+        Delivery tracked = data.delivery();
+        boolean finished = isTerminal(tracked.getStatus());
 
-        // Driver info (name, phone, live position) - OUTSIDE transaction
+        if (finished && isPastRetention(tracked)) {
+            // Deliberately the same answer as an unknown id: telling a stranger "this one expired"
+            // confirms the delivery existed, which is the one bit the UUID was protecting.
+            throw AppException.notFound("Delivery not found");
+        }
+
+        // Driver info - OUTSIDE transaction
         String driverName = null;
         String driverPhone = null;
         Double driverLat = null;
@@ -53,8 +74,14 @@ public class PublicTrackingService {
                 if (driver != null) {
                     driverName  = driver.getName();
                     driverPhone = driver.getPhone();
-                    driverLat   = driver.getCurrentLat();
-                    driverLng   = driver.getCurrentLng();
+                    // The live position answers "where is my parcel", and once the parcel has
+                    // arrived that question is closed. Continuing to publish it would broadcast an
+                    // employee's whereabouts on his next rounds to whoever still holds the link —
+                    // the name and phone stay so the customer can still reach him about the drop.
+                    if (!finished) {
+                        driverLat = driver.getCurrentLat();
+                        driverLng = driver.getCurrentLng();
+                    }
                 }
             } catch (Exception e) {
                 log.debug("Could not fetch driver for tracking: {}", e.getMessage());
@@ -126,6 +153,29 @@ public class PublicTrackingService {
                 .totalAmount(order != null && order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : null)
                 .items(itemDtos)
                 .build();
+    }
+
+    private static boolean isTerminal(com.asm.delivery.entity.DeliveryStatus s) {
+        return s == com.asm.delivery.entity.DeliveryStatus.DELIVERED
+                || s == com.asm.delivery.entity.DeliveryStatus.PARTIALLY_DELIVERED
+                || s == com.asm.delivery.entity.DeliveryStatus.FAILED
+                || s == com.asm.delivery.entity.DeliveryStatus.CANCELLED;
+    }
+
+    /**
+     * Whether a finished delivery has outlived its public link.
+     *
+     * <p>Dated from whichever end-of-attempt timestamp exists, falling back to {@code updatedAt} — a
+     * cancellation writes neither of the first two. A row with no timestamp at all is kept readable
+     * rather than hidden: a missing date is a bug in our own writes, and expiring on it would take
+     * the page away from a customer whose parcel is still coming.
+     */
+    private static boolean isPastRetention(Delivery d) {
+        java.time.LocalDateTime finishedAt = d.getCompletedAt() != null ? d.getCompletedAt()
+                : d.getFailedAt() != null ? d.getFailedAt()
+                : d.getUpdatedAt();
+        return finishedAt != null
+                && finishedAt.isBefore(java.time.LocalDateTime.now().minus(PUBLIC_LINK_TTL));
     }
 
     @Transactional(readOnly = true)
