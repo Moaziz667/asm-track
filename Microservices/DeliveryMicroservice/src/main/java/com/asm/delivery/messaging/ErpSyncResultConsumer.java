@@ -73,6 +73,24 @@ public class ErpSyncResultConsumer {
             // healthy delivery still look broken to anything reading the column. The failed attempt
             // is not lost — it is in the journal.
             order.setLastSyncError(null);
+
+            // The delivery-note number, when the ERP only issued it on delivering.
+            //
+            // Odoo names its outgoing picking the moment the sale order is confirmed, so the number
+            // is already on the order and this is absent. ERPNext has no shipment until one happens,
+            // so its Delivery Note — and its number — come into existence here. Nothing kept it, and
+            // "télécharger le bon de livraison" addresses the document by that reference: on an
+            // ERPNext tenant the button could only fail, over a note the ERP was holding all along.
+            //
+            // Only ever fills a blank. A number already recorded at import is the one the operator
+            // has been reading, and a sync retry must not rewrite it underneath them.
+            String issuedBl = str(result.get("blNumber"));
+            if (issuedBl != null && !issuedBl.isBlank()
+                    && (order.getBlNumber() == null || order.getBlNumber().isBlank())) {
+                order.setBlNumber(issuedBl);
+                log.info("ERP issued delivery note — orderId={} blNumber={}", orderId, issuedBl);
+            }
+
             orderRepo.save(order);
             log.info("ERP sync SYNCED — orderId={} op={}", orderId, op);
             // Backorders are NOT auto-created as shipments. When a partial delivery syncs, Odoo creates

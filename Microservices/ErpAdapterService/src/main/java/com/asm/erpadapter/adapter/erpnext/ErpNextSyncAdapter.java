@@ -313,6 +313,26 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
     // ═══════════════════════════════════════════════════════════════════════════
 
     /**
+     * ERPNext only has a shipment once one has happened, so it is the one provider that has to be
+     * asked for its own delivery-note number.
+     *
+     * <p>Read back from the ERP rather than remembered from the insert: this sync is replayed from a
+     * queue and retried, and a value held in this bean would not survive the restart between the two
+     * — whereas the submitted note stays put.
+     */
+    @Override
+    public String deliveredBlNumber(String erpOrderId) {
+        try {
+            return findSubmittedDn(erpOrderId);
+        } catch (Exception e) {
+            // Best-effort by design: the goods are delivered and the note is written. Losing its
+            // number costs a download button; it must not fail a sync that already succeeded.
+            log.warn("[erpnext] could not resolve the delivery note for so={}: {}", erpOrderId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Find the submitted <b>forward</b> Delivery Note for a Sales Order via the child
      * {@code against_sales_order} link. Excludes return DNs ({@code is_return=1}) so POD / invoicing /
      * return-against always target the actual outbound shipment, never a prior credit-side return.

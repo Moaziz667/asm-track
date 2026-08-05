@@ -45,6 +45,23 @@ public interface ErpSyncPort {
     ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId, String pickingRef);
 
     /**
+     * The delivery-note number this provider ended up putting on the shipment, asked <em>after</em> a
+     * delivery has synced.
+     *
+     * <p>Most ERPs hand ASM that number at import: Odoo's outgoing picking exists, named, from the
+     * moment the sale order is confirmed, so it is stored on the order and nothing needs asking.
+     * ERPNext does not model a shipment until one happens — the Delivery Note is created at delivery
+     * time — so its number cannot exist at import, and without this the number the adapter had in
+     * hand went to the log and no further. The consequence was visible: "télécharger le bon de
+     * livraison" addressed a document by a reference ASM had never kept, so on an ERPNext tenant the
+     * button could only ever fail, on deliveries whose note the ERP was holding all along.
+     *
+     * <p>Default null — "I already told you at import". Only a provider that discovers the number
+     * late has anything to add here.
+     */
+    default String deliveredBlNumber(String erpOrderId) { return null; }
+
+    /**
      * Post a failure note on the ERP order when delivery could not be completed.
      */
     boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String pickingRef);

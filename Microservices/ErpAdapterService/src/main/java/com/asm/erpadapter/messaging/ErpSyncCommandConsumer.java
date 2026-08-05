@@ -75,7 +75,10 @@ public class ErpSyncCommandConsumer {
             case "STOCK_FULL" -> {
                 boolean ok = sync.syncFullDelivery(erpOrderId, asInt(cmd.get("backorderPickingId")), txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncFullDelivery returned false for erpOrderId=" + erpOrderId);
-                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+                // Asked after the fact, and only answered by an ERP that names its shipment at
+                // delivery time. Null everywhere else, where ASM stored the number at import.
+                resultPublisher.publishDeliveryResult(txId, deliveryId, orderId, op,
+                        null, null, null, sync.deliveredBlNumber(erpOrderId));
             }
             case "STOCK_PARTIAL" -> {
                 List<ErpPartialItemDTO> items = parseItems(cmd.get("partialItems"));
@@ -83,8 +86,9 @@ public class ErpSyncCommandConsumer {
                 if (res == null || !res.isSuccess()) {
                     throw new IllegalStateException("syncPartialDelivery returned false for erpOrderId=" + erpOrderId);
                 }
-                resultPublisher.publishResult(txId, deliveryId, orderId, op, true,
-                        res.getPickingId(), res.getBackorderPickingId(), res.getBackorderBlNumber(), null);
+                resultPublisher.publishDeliveryResult(txId, deliveryId, orderId, op,
+                        res.getPickingId(), res.getBackorderPickingId(), res.getBackorderBlNumber(),
+                        sync.deliveredBlNumber(erpOrderId));
             }
             case "FAILURE" -> {
                 boolean ok = sync.syncFailure(erpOrderId, str(cmd.get("failureCode")), str(cmd.get("comment")), txId, pickingRef);
