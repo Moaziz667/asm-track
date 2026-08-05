@@ -3854,7 +3854,17 @@ export const FR_COPY = {
     RECEIVED: 'comptée',
     RECONCILED: 'clôturée',
   } as Record<string, string>,
+  cashSort: {
+    'date-desc': 'Plus récentes',
+    'date-asc': 'Plus anciennes',
+    'driver': 'Livreur (A-Z)',
+    'amount-desc': 'Montant attendu',
+    'delta': 'Écart le plus grand',
+  } as Record<string, string>,
   cashPage: {
+    searchPlaceholder: 'Chercher un livreur',
+    sortLabel: 'Trier',
+    searchScopeHint: '{shown} sur les {loaded} remises chargées — la recherche ne porte que sur cette page.',
     title: 'Caisse',
     colDate: 'Dernière action',
     circulationLabel: 'Cash en circulation',

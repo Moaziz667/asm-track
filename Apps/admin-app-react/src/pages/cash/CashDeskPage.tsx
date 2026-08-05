@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   IconCashBanknote, IconAlertTriangle, IconCheck, IconScale, IconWallet,
   IconChevronRight, IconNote, IconExternalLink,
@@ -49,6 +49,10 @@ const PENDING_STATES: CashRemittanceStatus[] = ['DECLARED', 'DISPUTED'];
  * the date that matters is the settlement, on a declared one it is the declaration, and showing the
  * same field for both would date half the table by an event that had not happened yet.
  */
+type SortKey = 'date-desc' | 'date-asc' | 'driver' | 'amount-desc' | 'delta';
+
+const SORTS: SortKey[] = ['date-desc', 'date-asc', 'driver', 'amount-desc', 'delta'];
+
 function lastEvent(r: CashRemittance): { at?: string; key: string } {
   if (r.reconciledAt) return { at: r.reconciledAt, key: 'RECONCILED' };
   if (r.receivedAt)   return { at: r.receivedAt,   key: 'RECEIVED' };
@@ -77,11 +81,50 @@ export default function CashDeskPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const expandedLines = useRemittanceCollections(expandedId);
 
-  const rows = remittances.data?.content ?? [];
   const totalPages = Math.max(1, remittances.data?.totalPages ?? 1);
   const totalElements = remittances.data?.totalElements ?? 0;
   const circulation = circulationQuery.data?.amount ?? null;
   const loading = remittances.isPending;
+
+  /*
+    Search and sort are applied to the page in hand, not to the whole table.
+
+    The server pages before this code ever sees a row, so both only ever reach the twenty-five
+    handovers currently loaded — which is honest for a worklist a cashier works through, and would
+    be a lie on a year of history. The result count says so, so nobody reads a filtered page as a
+    filtered table.
+  */
+  // Arriving from a delivery's collection chip, which passes the driver it concerns.
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get('driver') ?? '');
+  const [sort, setSort] = useState<SortKey>('date-desc');
+
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const kept = term
+      ? (remittances.data?.content ?? []).filter(r =>
+          (r.driverName ?? '').toLowerCase().includes(term))
+      : (remittances.data?.content ?? []);
+
+    const num = (v?: number | null) => v ?? 0;
+    const time = (r: CashRemittance) => {
+      const at = lastEvent(r).at;
+      return at ? new Date(at).getTime() : 0;
+    };
+    return [...kept].sort((a, b) => {
+      switch (sort) {
+        case 'date-asc':    return time(a) - time(b);
+        case 'driver':      return (a.driverName ?? '').localeCompare(b.driverName ?? '', 'fr');
+        case 'amount-desc': return num(b.expectedTotal) - num(a.expectedTotal);
+        // The gap is what a cashier is hunting for, so it sorts by size regardless of sign:
+        // a driver 200 over is exactly as worth looking at as one 200 short.
+        case 'delta':       return Math.abs(num(b.discrepancy)) - Math.abs(num(a.discrepancy));
+        default:            return time(b) - time(a);
+      }
+    });
+  }, [remittances.data?.content, search, sort]);
+
+  const filtered = search.trim().length > 0;
 
   const [counting, setCounting] = useState<CashRemittance | null>(null);
   const [countedText, setCountedText] = useState('');
@@ -165,6 +208,16 @@ export default function CashDeskPage() {
   return (
     <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden bg-[var(--app-bg)] flex flex-col">
       <PageFilterBar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder={c.searchPlaceholder}
+        attributes={[{
+          key: 'sort',
+          label: c.sortLabel,
+          options: SORTS.map(s => ({ value: s, label: (t.cashSort as Record<string, string>)[s] ?? s })),
+        }]}
+        activeFilters={{ sort }}
+        onFilterChange={(_, v) => setSort((v as SortKey) ?? 'date-desc')}
         onRefresh={() => refreshCash()}
         refreshing={loading}
         quickFilters={quickFilters}
@@ -414,6 +467,22 @@ export default function CashDeskPage() {
             </table>
           </div>
         </div>
+
+        {/*
+          Said plainly, because the alternative is a silent lie.
+
+          The search runs on the page the server already sent, so a cashier who types a driver's
+          name and sees nothing must know he is looking at twenty-five rows, not at the whole desk.
+          Without this line an empty result reads as "this driver has handed nothing over".
+        */}
+        {filtered && (
+          <div className="px-4 py-1.5 text-2xs text-[var(--text-muted)] border-t border-[var(--border)]"
+               style={{ background: 'var(--surface-sunken)' }}>
+            {c.searchScopeHint
+              .replace('{shown}', String(rows.length))
+              .replace('{loaded}', String(remittances.data?.content?.length ?? 0))}
+          </div>
+        )}
 
         <TablePagination
           page={page}

@@ -3803,7 +3803,17 @@ export const AR_COPY = {
     RECEIVED: 'مُحصاة',
     RECONCILED: 'مُغلقة',
   } as Record<string, string>,
+  cashSort: {
+    'date-desc': 'الأحدث',
+    'date-asc': 'الأقدم',
+    'driver': 'السائق (أ-ي)',
+    'amount-desc': 'المبلغ المنتظر',
+    'delta': 'أكبر فرق',
+  } as Record<string, string>,
   cashPage: {
+    searchPlaceholder: 'ابحث عن سائق',
+    sortLabel: 'ترتيب',
+    searchScopeHint: '{shown} من {loaded} تسليمات محمّلة — البحث يشمل هذه الصفحة فقط.',
     colDate: 'آخر إجراء',
     title: 'الصندوق',
     circulationLabel: 'الأموال المتداولة',

@@ -3397,7 +3397,17 @@ export const EN_COPY = {
     RECEIVED: 'counted',
     RECONCILED: 'settled',
   } as Record<string, string>,
+  cashSort: {
+    'date-desc': 'Most recent',
+    'date-asc': 'Oldest',
+    'driver': 'Driver (A-Z)',
+    'amount-desc': 'Expected amount',
+    'delta': 'Largest gap',
+  } as Record<string, string>,
   cashPage: {
+    searchPlaceholder: 'Search a driver',
+    sortLabel: 'Sort',
+    searchScopeHint: '{shown} of the {loaded} loaded handovers — the search only covers this page.',
     colDate: 'Last action',
     title: 'Cash',
     circulationLabel: 'Cash in circulation',

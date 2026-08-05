@@ -6,7 +6,7 @@ import { AppModal } from '@/components/overlays/AppModal';
 import {
   IconRefresh, IconPackage, IconUser, IconRoute,
   IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
-  IconPhoto, IconWeight, IconCurrencyDollar, IconCash,
+  IconPhoto, IconWeight, IconCurrencyDollar, IconCash, IconChevronRight,
   IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport, IconReceipt,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
@@ -353,15 +353,22 @@ export default function DeliveryDetailPage() {
                   needs to know cash is involved. Here it carries the amount: this is the screen
                   someone opens when a driver rings about what to collect. */}
               {delivery.codRequired && (
-                <span
+                // Leads to the desk, filtered to this delivery's driver: the question that follows
+                // "combien encaisser" is "et l'a-t-il rendu", and that answer lives on another page.
+                <Link
+                  to={delivery.driverName ? `/cash?driver=${encodeURIComponent(delivery.driverName)}` : '/cash'}
+                  title={t.cashPage.title}
                   className="flex items-center gap-[6px] shrink-0 rounded-md px-2 py-1 text-2xs font-semibold
-                             text-[var(--success)] bg-[var(--success)]/10 ring-1 ring-[var(--success)]/25"
+                             text-[var(--success)] bg-[var(--success)]/10 ring-1 ring-[var(--success)]/25
+                             hover:bg-[var(--success)]/20 transition-colors"
+                  style={{ textDecoration: 'none' }}
                 >
                   <IconCash size={11} />
                   {delivery.codAmount != null
                     ? `${t.deliveriesPage.codBadge} · ${formatMoney(delivery.codAmount, delivery.currency)}`
                     : t.deliveriesPage.codBadge}
-                </span>
+                  <IconChevronRight size={11} aria-hidden />
+                </Link>
               )}
               {delivery.zoneName && (
                 <StatChip icon={<IconMapPin size={11} />} label={delivery.zoneName} />
