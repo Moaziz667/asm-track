@@ -2799,6 +2799,7 @@ export const AR_COPY = {
 
     // Table content
     unknownDriver: 'عنوان غير معروف',
+    codBadge: 'تحصيل',
     returnPickupBadge: 'إرجاع',
     notAssigned: 'غير معين',
     outOfZone: 'المنطقة غير محددة',

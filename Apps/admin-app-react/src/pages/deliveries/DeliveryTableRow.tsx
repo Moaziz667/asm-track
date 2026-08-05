@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { IconCash } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { STATUS_COLORS } from '@/components/data-display/StatusBadge';
@@ -88,6 +89,19 @@ export function DeliveryTableRow({
                 </span>
                 {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (
                   <StatusBadge status="RETURN_PICKUP" label={t.deliveriesPage.returnPickupBadge ?? 'Retour'} size="sm" />
+                )}
+                {/* Beside the customer, not in a money column: what this tells a dispatcher is that
+                    the stop involves cash — the exact sum matters at the depot, not while planning. */}
+                {item.codRequired && (
+                  <span
+                    title={item.codAmount != null
+                      ? `${t.deliveriesPage.codBadge} · ${item.codAmount}`
+                      : t.deliveriesPage.codBadge}
+                    className="inline-flex items-center gap-0.5 shrink-0 rounded px-1 py-px text-2xs font-semibold
+                               text-[var(--success)] bg-[var(--success)]/10 ring-1 ring-[var(--success)]/25"
+                  >
+                    <IconCash size={10} /> {t.deliveriesPage.codBadge}
+                  </span>
                 )}
               </span>
               <div className="flex items-center gap-1 flex-nowrap">

@@ -114,6 +114,16 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "ISO currency code", example = "TND")
     private String currency;
 
+    /**
+     * Whether the driver must collect at the door, and how much.
+     *
+     * <p>Carried on the summary, not only on the driver's own view, because it changes how a round is
+     * planned: a dispatcher assigning fifteen collections to someone on their first week is making a
+     * decision about cash they could not see they were making.
+     */
+    private Boolean codRequired;
+    private BigDecimal codAmount;
+
     @Schema(description = "Order total weight in kilograms")
     private BigDecimal totalWeightKg;
 

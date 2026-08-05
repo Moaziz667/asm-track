@@ -103,6 +103,9 @@ export interface Delivery {
   driverPhone?: string;
   items?: DeliveryItem[];
   totalAmount?: number;
+  /** Set when the driver must collect at the door; the amount is null otherwise. */
+  codRequired?: boolean;
+  codAmount?: number;
   totalWeightKg?: number;
   routeGeometry?: string;
   routeDistanceKm?: number;

@@ -2838,6 +2838,7 @@ export const FR_COPY = {
 
     // Table content
     unknownDriver: 'Adresse inconnue',
+    codBadge: 'Encaissement',
     returnPickupBadge: 'Retour',
     notAssigned: 'Non assigné',
     outOfZone: 'Zone non définie',
