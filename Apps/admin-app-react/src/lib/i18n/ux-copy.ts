@@ -3445,6 +3445,67 @@ export const FR_COPY = {
       retest: 'Retester',
       testing: 'Test…',
     },
+    /**
+     * What each capability is for, and what its status means.
+     *
+     * These sentences came from the probe, in English, inside an interface served in three languages.
+     * They live here because they address a human: the probe keeps its English `detail` as the API
+     * contract and as the fallback, and that fallback is what shows for a provider whose probe has
+     * not been keyed yet.
+     *
+     * `notes` is indexed by capability — with two entries for anything Odoo renamed, because the name
+     * IS the key and the name is precisely what changes between versions.
+     */
+    conformanceText: {
+      notes: {
+        'sale.order.commitment_date': "Nécessaire pour repousser une date de livraison dans l'ERP.",
+        'sale.order.invoice_ids': "Nécessaire au flux de création de facture.",
+        'stock.return.picking': "Assistant de mouvement de stock inverse, utilisé par les retours.",
+        'product.product.default_code': "Rapprochement par référence, pour les livraisons partielles et les retours.",
+        'ir.attachment': "Pièces jointes des photos de preuve de livraison.",
+        'stock.move.line.picked':
+          "Indicateur par lequel une livraison complète est marquée.",
+        'stock.move.line.qty_done': "Champ de quantité livrée que l'adaptateur écrit sur cette version.",
+        'stock.move.line.quantity': "Champ de quantité livrée que l'adaptateur écrit sur cette version.",
+        'stock.picking.button_validate': "Valide le transfert ; sans elle, rien ne peut être livré.",
+        'stock.picking.action_assign': "Réserve le stock avant la validation.",
+        'stock.return.picking.create_returns': "Mouvement de stock inverse pour les retours.",
+        'stock.return.picking.action_create_returns': "Mouvement de stock inverse pour les retours.",
+        'stock.picking.action_cancel': "Annule le bon de livraison quand la commande est annulée.",
+        'stock.backorder.confirmation.process': "Confirme l'assistant de reliquat après une livraison partielle.",
+        'stock.picking.action_set_quantities_to_reservation':
+          "Raccourci de livraison complète ; à défaut, l'adaptateur marque les lignes réservées comme prélevées.",
+        'stock.picking.action_force_availability':
+          "Coup de pouce pour un stock non réservable ; ignoré quand il est absent, les quantités étant écrites explicitement.",
+        'ir.actions.report[stock.picking]':
+          "Le bon de livraison PDF est récupéré depuis l'ERP ; sans rapport qweb-pdf sur les bons de livraison, aucun document ne peut être imprimé.",
+      },
+      reasons: {
+        expectedAbsent:
+          "Absente depuis Odoo {version} — attendue sur cette version, ce n'est pas une lacune de cette instance ; l'adaptateur a un repli.",
+        noCandidate: "Aucun des noms connus n'existe sur cette instance : {candidates}.",
+        notDeclared: "Non déclarée dans le registre des capacités.",
+        transportFailure: "N'a pas pu être vérifiée — échec de communication avec l'ERP.",
+        probeFailed: "La vérification a échoué : {error}.",
+        modelMissing: "Le document {model} est introuvable sur cette instance.",
+        fieldAbsent: "Ce champ n'existe pas sur {model}.",
+        accessDenied: "L'utilisateur d'intégration n'a pas le droit « {op} » sur {model}.",
+        accessUnverifiable: "Droit non vérifiable — document absent ou injoignable.",
+        noQwebReport: "Aucun rapport qweb-pdf n'est défini pour les bons de livraison sur cette instance.",
+        doneQtyResolved: "Version détectée : Odoo {version}.",
+        fallbackAvailable:
+          "Chemin de repli disponible, utilisé quand le bouton de mise à quantité est absent.",
+        fallbackNotNeeded:
+          "Absent, et inutile ici : cette version dispose encore du bouton de mise à quantité.",
+        fallbackReservationOnly:
+          "Absent, tout comme le bouton — les quantités réservées décrivent déjà une livraison complète, et c'est ce chemin que prendra la validation.",
+        unlockRequired:
+          "Odoo 19 verrouille les commandes confirmées : il faut les déverrouiller avant de pouvoir annuler.",
+        unlockNoop: "Sans effet sur Odoo 18 et antérieurs — les commandes n'y sont pas verrouillées.",
+        doneQtyUnknown:
+          "Aucun de ces noms n'existe sur {model} : {candidates}. Cet ERP nomme la quantité livrée autrement.",
+      },
+    },
   },
 
   // ── notifications ────────────────────────────────────────────────────────

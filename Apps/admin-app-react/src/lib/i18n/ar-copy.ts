@@ -3398,6 +3398,64 @@ export const AR_COPY = {
       retest: 'إعادة الاختبار',
       testing: 'اختبار…',
     },
+    /**
+     * What each capability is for, and what its status means.
+     *
+     * These sentences came from the probe, in English, inside an interface served in three languages.
+     * They live here because they address a human: the probe keeps its English `detail` as the API
+     * contract and as the fallback, and that fallback is what shows for a provider whose probe has
+     * not been keyed yet.
+     *
+     * `notes` is indexed by capability — with two entries for anything Odoo renamed, because the name
+     * IS the key and the name is precisely what changes between versions.
+     */
+    conformanceText: {
+      notes: {
+        'sale.order.commitment_date': 'مطلوب لإرسال تاريخ تسليم جديد إلى نظام تخطيط الموارد.',
+        'sale.order.invoice_ids': 'مطلوب لمسار إنشاء الفاتورة.',
+        'stock.return.picking': 'معالج حركة المخزون العكسية، تستخدمه المرتجعات.',
+        'product.product.default_code': 'مطابقة رمز المنتج، للتسليمات الجزئية والمرتجعات.',
+        'ir.attachment': 'مرفقات صور إثبات التسليم.',
+        'stock.move.line.picked':
+          'العلامة التي يُوسم بها التسليم الكامل.',
+        'stock.move.line.qty_done': 'حقل الكمية المسلَّمة الذي يكتبه المحوّل على هذا الإصدار.',
+        'stock.move.line.quantity': 'حقل الكمية المسلَّمة الذي يكتبه المحوّل على هذا الإصدار.',
+        'stock.picking.button_validate': 'يعتمد التحويل؛ بدونه لا يمكن تسليم أي شيء.',
+        'stock.picking.action_assign': 'يحجز المخزون قبل الاعتماد.',
+        'stock.return.picking.create_returns': 'حركة مخزون عكسية للمرتجعات.',
+        'stock.return.picking.action_create_returns': 'حركة مخزون عكسية للمرتجعات.',
+        'stock.picking.action_cancel': 'يلغي أمر التسليم عند إلغاء أمر البيع.',
+        'stock.backorder.confirmation.process': 'يؤكد معالج الكمية المتبقية بعد تسليم جزئي.',
+        'stock.picking.action_set_quantities_to_reservation':
+          'اختصار التسليم الكامل؛ وإن غاب، يضع المحوّل علامة «مُجهَّز» على السطور المحجوزة.',
+        'stock.picking.action_force_availability':
+          'دفعة للمخزون غير القابل للحجز؛ يُتجاوز عند غيابه لأن الكميات تُكتب صراحةً.',
+        'ir.actions.report[stock.picking]':
+          'يُجلب ملف سند التسليم من نظام تخطيط الموارد؛ وبدون تقرير qweb-pdf على أوامر التسليم لا يمكن طباعة أي مستند.',
+      },
+      reasons: {
+        expectedAbsent:
+          'غائبة منذ أودو {version} — متوقَّع في هذا الإصدار، وليست نقصًا في هذه النسخة؛ لدى المحوّل بديل.',
+        noCandidate: 'لا يوجد أي من الأسماء المعروفة في هذه النسخة: {candidates}.',
+        notDeclared: 'غير معرّفة في سجل القدرات.',
+        transportFailure: 'تعذّر التحقق — فشل الاتصال بنظام تخطيط الموارد.',
+        probeFailed: 'فشل التحقق: {error}.',
+        modelMissing: 'المستند {model} غير موجود في هذه النسخة.',
+        fieldAbsent: 'هذا الحقل غير موجود في {model}.',
+        accessDenied: 'مستخدم التكامل لا يملك صلاحية «{op}» على {model}.',
+        accessUnverifiable: 'الصلاحية غير قابلة للتحقق — المستند مفقود أو غير متاح.',
+        noQwebReport: 'لا يوجد تقرير qweb-pdf معرّف لأوامر التسليم في هذه النسخة.',
+        doneQtyResolved: 'الإصدار المكتشف: أودو {version}.',
+        fallbackAvailable: 'مسار بديل متاح، يُستخدم عند غياب زر ضبط الكميات.',
+        fallbackNotNeeded: 'غائب، وغير لازم هنا: هذا الإصدار ما زال يملك زر ضبط الكميات.',
+        fallbackReservationOnly:
+          'غائب، وكذلك الزر — الكميات المحجوزة تصف أصلًا تسليمًا كاملًا، وهو المسار الذي سيسلكه الاعتماد.',
+        unlockRequired: 'يقفل أودو 19 الأوامر المؤكدة: يجب فتحها قبل التمكن من إلغائها.',
+        unlockNoop: 'لا أثر له في أودو 18 وما قبله — الأوامر ليست مقفلة هناك.',
+        doneQtyUnknown:
+          'لا يوجد أي من هذه الأسماء في {model}: {candidates}. هذا النظام يسمّي الكمية المسلَّمة بشكل مختلف.',
+      },
+    },
   },
 
   // ── notifications ────────────────────────────────────────────────────────

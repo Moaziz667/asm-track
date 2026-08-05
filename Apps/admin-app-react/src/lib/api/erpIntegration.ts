@@ -61,7 +61,17 @@ export interface CapabilityCheck {
   kind: CheckKind;
   severity: Severity;
   status: CheckStatus;
+  /** English prose from the probe. Rendered only where `reasonKey` has no translation. */
   detail: string;
+  /**
+   * Why the status is what it is — `expectedAbsent`, `fieldAbsent`, `accessDenied`…
+   *
+   * Absent on rows whose status needs no explaining, and absent from any provider whose probe has not
+   * been keyed yet (ERPNext today), where `detail` remains the only text available.
+   */
+  reasonKey?: string | null;
+  /** Values the translated reason interpolates, e.g. `{ version: 19 }`. */
+  reasonParams?: Record<string, string | number> | null;
 }
 
 export interface ConformanceReport {

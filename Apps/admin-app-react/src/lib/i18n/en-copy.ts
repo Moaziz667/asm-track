@@ -3831,6 +3831,64 @@ export const EN_COPY = {
       retest: 'Re-test',
       testing: 'Testing…',
     },
+    /**
+     * What each capability is for, and what its status means.
+     *
+     * These sentences came from the probe, in English, inside an interface served in three languages.
+     * They live here because they address a human: the probe keeps its English `detail` as the API
+     * contract and as the fallback, and that fallback is what shows for a provider whose probe has
+     * not been keyed yet.
+     *
+     * `notes` is indexed by capability — with two entries for anything Odoo renamed, because the name
+     * IS the key and the name is precisely what changes between versions.
+     */
+    conformanceText: {
+      notes: {
+        'sale.order.commitment_date': 'Needed to push a new delivery date back to the ERP.',
+        'sale.order.invoice_ids': 'Needed by the create-invoice flow.',
+        'stock.return.picking': 'Reverse stock move wizard, used by returns.',
+        'product.product.default_code': 'SKU matching, for partial deliveries and returns.',
+        'ir.attachment': 'Proof-of-delivery photo attachments.',
+        'stock.move.line.picked':
+          'The flag a full delivery is marked with.',
+        'stock.move.line.qty_done': 'Done-quantity field the adapter writes on this version.',
+        'stock.move.line.quantity': 'Done-quantity field the adapter writes on this version.',
+        'stock.picking.button_validate': 'Validates the transfer; without it nothing can be delivered.',
+        'stock.picking.action_assign': 'Reserves stock before validation.',
+        'stock.return.picking.create_returns': 'Reverse stock move for returns.',
+        'stock.return.picking.action_create_returns': 'Reverse stock move for returns.',
+        'stock.picking.action_cancel': 'Cancels the delivery order when the sale order is cancelled.',
+        'stock.backorder.confirmation.process': 'Confirms the backorder wizard after a partial delivery.',
+        'stock.picking.action_set_quantities_to_reservation':
+          'Full-delivery shortcut; failing that, the adapter marks the reserved lines as picked.',
+        'stock.picking.action_force_availability':
+          'Nudge for unreservable stock; skipped when absent, since quantities are written explicitly.',
+        'ir.actions.report[stock.picking]':
+          'The delivery note PDF is fetched from the ERP; with no qweb-pdf report on delivery orders, no document can be printed.',
+      },
+      reasons: {
+        expectedAbsent:
+          'Absent from Odoo {version} onward — expected on this version, not a gap in this instance; the adapter has a fallback.',
+        noCandidate: 'None of the known names exists on this instance: {candidates}.',
+        notDeclared: 'Not declared in the capability registry.',
+        transportFailure: 'Could not be checked — communication with the ERP failed.',
+        probeFailed: 'The check failed: {error}.',
+        modelMissing: 'The {model} document does not exist on this instance.',
+        fieldAbsent: 'This field does not exist on {model}.',
+        accessDenied: 'The integration user lacks the "{op}" right on {model}.',
+        accessUnverifiable: 'Right not verifiable — document missing or unreachable.',
+        noQwebReport: 'No qweb-pdf report is defined for delivery orders on this instance.',
+        doneQtyResolved: 'Detected version: Odoo {version}.',
+        fallbackAvailable: 'Fallback path available, used when the set-quantities button is absent.',
+        fallbackNotNeeded: 'Absent, and not needed here: this version still has the set-quantities button.',
+        fallbackReservationOnly:
+          'Absent, and so is the button — the reserved quantities already describe a full delivery, and that is the path validation will take.',
+        unlockRequired: 'Odoo 19 locks confirmed orders: they must be unlocked before they can be cancelled.',
+        unlockNoop: 'A no-op on Odoo 18 and earlier — orders are not locked there.',
+        doneQtyUnknown:
+          'None of these names exists on {model}: {candidates}. This ERP names the done quantity differently.',
+      },
+    },
   },
 
   // ── errorBoundary ──────────────────────────────────────────────────
