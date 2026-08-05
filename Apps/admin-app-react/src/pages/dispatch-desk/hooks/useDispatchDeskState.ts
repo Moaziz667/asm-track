@@ -13,6 +13,7 @@ import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTa
 import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif } from '../formatters';
+import { needsAttention } from '@/lib/ops/needsAttention';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
@@ -32,6 +33,11 @@ export interface DispatchDeskContextProps {
   setNewSinceLoad: React.Dispatch<React.SetStateAction<number>>;
   
   // Filters State
+  /** On by default: the desk opens on the same set the menu badge counted. */
+  attentionOnly: boolean;
+  setAttentionOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  /** How many rows that toggle is hiding, so the desk can say so instead of dropping them silently. */
+  mutedCount: number;
   period: Period;
   setPeriod: React.Dispatch<React.SetStateAction<Period>>;
   customFrom: string;
@@ -140,6 +146,16 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [allDeliveries, setAllDeliveries] = useState<Delivery[]>([]);
 
   // ── Filters ───────────────────────────────────────────────────────────────
+  /**
+   * Open on the work, and let the rest be asked for.
+   *
+   * <p>The desk used to open on every exception the server knew of, monitoring rows included, while
+   * the menu badge beside it counted only what a dispatcher must act on. Clicking "3" and landing on
+   * forty rows teaches an operator that the number means nothing. One rule now governs both, from
+   * {@link needsAttention} — and this stays a toggle because "show me everything" is a fair
+   * question, just not the one the desk should answer before being asked.
+   */
+  const [attentionOnly, setAttentionOnly] = useState(true);
   const [period, setPeriod]           = useState<Period>('all');
   const [customFrom, setCustomFrom]   = useState('');
   const [customTo, setCustomTo]       = useState('');
@@ -325,6 +341,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   const actionRows = useMemo(() => {
     const filtered = rows.filter(r => {
+      if (attentionOnly && !needsAttention(r)) return false;
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return false;
       if (!inList(driverId, r.driverId)) return false;
       if (!inList(zoneFilter, r.zoneName, r.city)) return false;
@@ -333,7 +350,13 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       return true;
     });
     return sortByRoute(filtered, r => r.severity === 'CRITICAL' ? 0 : r.severity === 'WARNING' ? 1 : 2);
-  }, [rows, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
+  }, [rows, attentionOnly, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
+
+  /** How many rows the toggle is currently hiding — the desk says so rather than dropping them silently. */
+  const mutedCount = useMemo(
+    () => (attentionOnly ? rows.filter(r => !needsAttention(r)).length : 0),
+    [rows, attentionOnly],
+  );
 
   const routeOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -634,6 +657,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     batchType,
     alertMap,
     deliveryMap,
+    attentionOnly,
+    setAttentionOnly,
+    mutedCount,
     actionRows,
     deliveryRows,
     queueRows,
@@ -692,6 +718,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     batchType,
     alertMap,
     deliveryMap,
+    attentionOnly,
+    setAttentionOnly,
+    mutedCount,
     actionRows,
     deliveryRows,
     queueRows,

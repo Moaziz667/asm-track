@@ -31,6 +31,7 @@ function DispatchPageFilterBar() {
     depotFilter, setDepotFilter,
     statusFilter, setStatusFilter,
     period, setPeriod,
+    attentionOnly, setAttentionOnly, mutedCount,
     refreshing, doRefresh,
     clearFilters,
   } = useDispatchDeskContext();
@@ -123,15 +124,30 @@ function DispatchPageFilterBar() {
       onRefresh={doRefresh}
       refreshing={refreshing}
       extraActions={
-        hasAny ? (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
-          >
-            ✕ {t.common?.clear ?? 'Clear'}
-          </button>
-        ) : undefined
+        <>
+          {/* The way back to everything, carrying the number it is hiding — a dispatcher never has
+              to wonder whether the desk is showing him all of it. */}
+          {(!attentionOnly || mutedCount > 0) && (
+            <button
+              type="button"
+              onClick={() => setAttentionOnly(v => !v)}
+              className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+            >
+              {attentionOnly
+                ? t.dispatchDeskPage.showAllWithCount.replace('{n}', String(mutedCount))
+                : t.dispatchDeskPage.showAttentionOnly}
+            </button>
+          )}
+          {hasAny && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+            >
+              ✕ {t.common?.clear ?? 'Clear'}
+            </button>
+          )}
+        </>
       }
     />
   );

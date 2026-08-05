@@ -26,6 +26,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { api } from '@/lib/api';
 import s from './Sidebar.module.scss';
 import { cn } from '@/lib/utils';
+import { countNeedingAttention } from '@/lib/ops/needsAttention';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -174,7 +175,10 @@ export function AppSidebar() {
         const [erpRes, routesRes, exceptionsRes] = await Promise.all([
           api.get('/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] })),
           api.get('/admin/routes').catch(() => ({ data: [] })),
-          api.get('/admin/ops/exceptions', { params: { period: 'day', limit: 200 } }).catch(() => ({ data: { items: [] } }))
+          // 'all', not 'day'. A delivery that failed yesterday and is still waiting on a dispatcher
+          // is precisely what this badge is for, and asking only for today left it uncounted — the
+          // badge went quiet on the backlog it exists to surface.
+          api.get('/admin/ops/exceptions', { params: { period: 'all', limit: 200 } }).catch(() => ({ data: { items: [] } }))
         ]);
         if (!active) return;
 
@@ -184,13 +188,10 @@ export function AppSidebar() {
         const routesList = Array.isArray(routesRes.data) ? routesRes.data : [];
         const activeRoutes = routesList.filter((r: { status?: string }) => r.status === 'IN_PROGRESS').length;
 
+        // The rule lives in one file now, and the dispatch desk reads the same one — the badge and
+        // the page it opens can no longer drift apart.
         const exceptionsList = Array.isArray(exceptionsRes.data?.items) ? exceptionsRes.data.items : [];
-        const opsExceptions = exceptionsList.filter(
-          (x: { status?: string; severity?: string; motif?: string }) =>
-            x.status !== 'CANCELLED' &&
-            (x.severity === 'CRITICAL' || x.severity === 'WARNING') &&
-            x.motif !== 'SCHEDULED_MONITORING'
-        ).length;
+        const opsExceptions = countNeedingAttention(exceptionsList);
 
         setTelemetry({ erpPending, activeRoutes, opsExceptions });
       } catch (err) {

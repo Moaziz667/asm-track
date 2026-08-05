@@ -848,6 +848,8 @@ export const EN_COPY = {
 
   // ── Dispatch Desk Page ─────────────────────────────────────────────────────
   dispatchDeskPage: {
+    showAllWithCount: 'Show all (+{n})',
+    showAttentionOnly: 'Needing action only',
     // Mobile tabs
     tabFilters: 'Filters',
     tabDispatch: 'Dispatch',
