@@ -160,6 +160,12 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "ISO currency code", example = "TND")
     private String currency;
 
+    @Schema(description = "The order carries a collection instruction (cash on delivery)")
+    private Boolean codRequired;
+
+    @Schema(description = "Amount to collect at the door, taxes included", example = "2617.975")
+    private BigDecimal codAmount;
+
     @Schema(description = "ERP sync status")
     private String erpSyncStatus;
 

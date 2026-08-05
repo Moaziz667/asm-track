@@ -397,7 +397,14 @@ public class SettingsController {
                     if (!(o instanceof Map<?, ?> c)) continue;
                     if ("REQUIRED".equals(String.valueOf(c.get("severity")))
                             && "MISSING".equals(String.valueOf(c.get("status")))) {
-                        blocking.add(String.valueOf(c.get("name")));
+                        // The check names itself `capability`; reading `name` off it yielded null for
+                        // every row, so the admin was refused with "null, null, null, null" — and
+                        // since the list was full of them, the "voir le rapport" fallback below could
+                        // never fire either. Blanks are dropped so that fallback stays reachable.
+                        Object capability = c.get("capability");
+                        if (capability != null && !String.valueOf(capability).isBlank()) {
+                            blocking.add(String.valueOf(capability));
+                        }
                     }
                 }
             }

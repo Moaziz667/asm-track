@@ -6,7 +6,7 @@ import { AppModal } from '@/components/overlays/AppModal';
 import {
   IconRefresh, IconPackage, IconUser, IconRoute,
   IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
-  IconPhoto, IconWeight, IconCurrencyDollar,
+  IconPhoto, IconWeight, IconCurrencyDollar, IconCash,
   IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport, IconReceipt,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
@@ -348,6 +348,20 @@ export default function DeliveryDetailPage() {
               )}
               {delivery.totalAmount && (
                 <StatChip icon={<IconCurrencyDollar size={11} />} label={formatMoney(delivery.totalAmount, delivery.currency)} highlight />
+              )}
+              {/* The list badge stays wordless about the sum — a dispatcher planning a round only
+                  needs to know cash is involved. Here it carries the amount: this is the screen
+                  someone opens when a driver rings about what to collect. */}
+              {delivery.codRequired && (
+                <span
+                  className="flex items-center gap-[6px] shrink-0 rounded-md px-2 py-1 text-2xs font-semibold
+                             text-[var(--success)] bg-[var(--success)]/10 ring-1 ring-[var(--success)]/25"
+                >
+                  <IconCash size={11} />
+                  {delivery.codAmount != null
+                    ? `${t.deliveriesPage.codBadge} · ${formatMoney(delivery.codAmount, delivery.currency)}`
+                    : t.deliveriesPage.codBadge}
+                </span>
               )}
               {delivery.zoneName && (
                 <StatChip icon={<IconMapPin size={11} />} label={delivery.zoneName} />

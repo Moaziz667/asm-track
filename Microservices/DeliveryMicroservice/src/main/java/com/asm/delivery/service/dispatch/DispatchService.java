@@ -956,6 +956,8 @@ public class DispatchService {
                 .routeGeometry(d.getRouteGeometry())
                 .routeProvider(d.getRouteProvider())
                 .currency(order != null ? order.getCurrency() : null)
+                .codRequired(order != null ? order.getCodRequired() : null)
+                .codAmount(order != null ? order.getCodAmount() : null)
                 .erpSyncStatus(order != null ? order.getErpSyncStatus() : null)
                 .erpBackorderId(order != null ? order.getErpBackorderId() : null)
                 .scheduledAt(order != null ? order.effectiveScheduledAt() : null)

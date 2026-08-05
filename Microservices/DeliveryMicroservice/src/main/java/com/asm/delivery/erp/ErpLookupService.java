@@ -142,12 +142,39 @@ public class ErpLookupService {
         return dtos;
     }
 
+    @Transactional(readOnly = true)
     public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
         ErpPendingOrderPreviewDTO preview = erpPort.getPendingOrderPreview(erpOrderId);
         if (preview == null) {
             throw AppException.notFound("Pending order not found: " + erpOrderId);
         }
+        markIfAlreadyImported(preview);
         return preview;
+    }
+
+    /**
+     * Answer, on the preview, the question the import is about to be asked.
+     *
+     * <p>The DTO has always declared {@code alreadyImported} and {@code existingDeliveryId}; nothing
+     * ever filled them, so a delivery note that was already in ASM opened as if it were fresh and the
+     * import button below it returned a 400. The list endpoint knew — the screen you reach it from
+     * did not.
+     *
+     * <p>Deliberately the same two rules {@link #importPendingOrder} enforces, so the two cannot
+     * disagree: a BL-articulated ERP (Odoo) is keyed on the unique delivery-note number; an
+     * SO-articulated one (ERPNext) is "taken" only while a prior attempt is still running, since the
+     * remaining quantity is an importable reliquat once it is not.
+     */
+    private void markIfAlreadyImported(ErpPendingOrderPreviewDTO preview) {
+        Optional<Order> prior = StringUtils.hasText(preview.getBlNumber())
+                ? orderRepository.findByBlNumber(preview.getBlNumber())
+                : orderRepository.findByErpExternalRefOrderByCreatedAtAsc(preview.getErpOrderId())
+                        .stream().filter(this::hasActiveDelivery).findFirst();
+        if (prior.isEmpty()) return;
+
+        preview.setAlreadyImported(true);
+        deliveryRepository.findFirstByOrderIdOrderByCreatedAtDesc(prior.get().getId())
+                .ifPresent(d -> preview.setExistingDeliveryId(d.getId()));
     }
 
     @Transactional
