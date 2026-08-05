@@ -43,6 +43,37 @@ public class CashCollectionService {
     static final String REASON_NOT_REPORTED = "COD_NOT_REPORTED";
 
     /**
+     * What the customer owes for what he actually took.
+     *
+     * <p>The order's stored amount covers the delivery note as it left the depot. It is right until
+     * the customer refuses part of it at the door — then the driver hands over less, pays less, and
+     * the delivery is filed as a cash shortfall he has to justify, for money nobody was owed. The
+     * refusal is already recorded per line by then; this simply reads it.
+     *
+     * <p>Falls back to the stored amount whenever a single line lacks a taxed price: orders imported
+     * before that was carried, and ERPs that expose no taxed figure. Recomputing from the untaxed
+     * price instead would quietly under-state every expectation by the VAT — a wrong number that
+     * looks right, which is worse than an unadjusted one.
+     */
+    private BigDecimal expectedFor(Order order, UUID deliveryId) {
+        BigDecimal stored = order.getCodAmount() != null ? order.getCodAmount() : BigDecimal.ZERO;
+        if (order.getItems() == null || order.getItems().isEmpty()) return stored;
+
+        BigDecimal owed = BigDecimal.ZERO;
+        for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
+            if (item.getUnitPriceTtc() == null || item.getQuantityDone() == null) return stored;
+            owed = owed.add(item.getUnitPriceTtc().multiply(BigDecimal.valueOf(item.getQuantityDone())));
+        }
+        owed = owed.setScale(3, java.math.RoundingMode.HALF_UP);
+
+        if (owed.compareTo(stored) != 0) {
+            log.info("CASH_EXPECTED_ADJUSTED deliveryId={} stored={} owed={} — recomputed on the lines "
+                    + "actually handed over", deliveryId, stored, owed);
+        }
+        return owed;
+    }
+
+    /**
      * Create the collection for a delivery being proved. No-op when the order carries no instruction.
      *
      * @return the saved collection, or {@code null} when there was nothing to record
@@ -65,7 +96,7 @@ public class CashCollectionService {
         var existing = repo.findByDeliveryId(deliveryId);
         if (existing.isPresent()) return existing.get();
 
-        BigDecimal expected = order.getCodAmount() != null ? order.getCodAmount() : BigDecimal.ZERO;
+        BigDecimal expected = expectedFor(order, deliveryId);
         BigDecimal collected = entry != null && entry.getAmountCollected() != null
                 ? entry.getAmountCollected() : BigDecimal.ZERO;
         if (collected.signum() < 0) collected = BigDecimal.ZERO;

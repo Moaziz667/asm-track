@@ -21,6 +21,18 @@ public class OrderItem {
     private BigDecimal unitWeightKg;
     private BigDecimal unitPrice;
 
+    /**
+     * Unit price taxes included, carried from the ERP at import.
+     *
+     * <p>The line's untaxed price above cannot answer the only monetary question asked of this row —
+     * what the customer owes for the units actually handed over. Kept per line rather than as one
+     * order total so a refusal at the door recomputes correctly instead of showing up as a cash
+     * shortfall the driver has to justify.
+     *
+     * <p>Null on orders imported before this was carried, and on ERPs that expose no taxed figure.
+     */
+    private BigDecimal unitPriceTtc;
+
     /** Delivery outcome recorded by the driver: DELIVERED, REFUSED, or DAMAGED. */
     private String outcome;
 

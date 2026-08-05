@@ -310,6 +310,12 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         BigDecimal totalWeight = BigDecimal.ZERO;
         String firstWarehouse = null;
         Object rawItems = so.get("items");
+
+        // Frappe puts tax on the document, not on the line: a line has a rate, the order has a
+        // grand_total, and nothing in between. The taxed unit price is therefore derived by spreading
+        // the difference across the lines in proportion to their own value — exact whenever the tax is
+        // itself proportional, which covers VAT.
+        final BigDecimal taxFactor = taxFactorOf(so, rawItems);
         if (rawItems instanceof List<?> lines) {
             for (Object o : lines) {
                 if (!(o instanceof Map<?, ?> line)) continue;
@@ -339,6 +345,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                         .sku(mappedString(ITEM_SKU, lineRecords, () -> asString(li.get("item_code"))))
                         .quantity(quantity)                // what's left to deliver (handles partial/backorder)
                         .unitPrice(mappedDecimal(ITEM_UNIT_PRICE, lineRecords, () -> asBigDecimal(li.get("rate"))))
+                        .unitPriceTtc(taxFactor == null ? null
+                                : applyFactor(asBigDecimal(li.get("rate")), taxFactor))
                         .unitWeightKg(unitWeight)
                         .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> asString(li.get("item_group"))))
                         .build());
@@ -618,6 +626,35 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
 
     private static void add(List<String> parts, String v) {
         if (v != null && !v.isBlank()) parts.add(v);
+    }
+
+    /**
+     * By how much the taxed total exceeds the sum of the untaxed lines, as a multiplier.
+     *
+     * <p>Returns {@code null} — no taxed price at all — rather than 1 when the order gives nothing to
+     * work from. A factor of 1 would be a claim that this order carries no tax, which is a different
+     * statement from not knowing, and the difference is money a driver would fail to collect.
+     */
+    private static BigDecimal taxFactorOf(Map<String, Object> so, Object rawItems) {
+        BigDecimal grandTotal = asBigDecimal(so.get("grand_total"));
+        if (grandTotal == null || grandTotal.signum() <= 0 || !(rawItems instanceof List<?> lines)) return null;
+
+        BigDecimal untaxed = BigDecimal.ZERO;
+        for (Object o : lines) {
+            if (!(o instanceof Map<?, ?> line)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> li = (Map<String, Object>) line;
+            BigDecimal rate = asBigDecimal(li.get("rate"));
+            Integer qty = asInt(li.get("qty"));
+            if (rate == null || qty == null) return null;   // one unpriced line and the ratio is a guess
+            untaxed = untaxed.add(rate.multiply(BigDecimal.valueOf(qty)));
+        }
+        if (untaxed.signum() <= 0) return null;
+        return grandTotal.divide(untaxed, 8, java.math.RoundingMode.HALF_UP);
+    }
+
+    private static BigDecimal applyFactor(BigDecimal rate, BigDecimal factor) {
+        return rate == null ? null : rate.multiply(factor).setScale(6, java.math.RoundingMode.HALF_UP);
     }
 
     /** Flatten Frappe's HTML {@code address_display} (&lt;br&gt; lines) into a comma-separated string. */

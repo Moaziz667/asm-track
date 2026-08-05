@@ -654,16 +654,22 @@ public class DriverDeliveryService {
             return mapper.toDriverDeliveryResponse(latest);
         }
 
-        // The money is recorded in the same transaction as the proof, because it changed hands in the
-        // same moment. Never a gate: whatever is wrong or missing about the collection is written
-        // down and surfaced at the depot, not used to refuse a delivery that physically happened.
-        cashCollectionService.recordAtPod(delivery.getOrder(), deliveryId, driverId, cash);
-
         // C1 — Order matters in Odoo: the stock move (picking validation) must reach the ERP
         // BEFORE the proof of delivery, otherwise the POD attaches to a picking that is not yet
         // validated. The outbox processes events in insertion order, so we complete() first
         // (which enqueues ERP_SYNC_STOCK) and enqueue ERP_SYNC_POD only afterwards.
         DriverDeliveryResponse response = complete(deliveryId, driverId, partial, itemsDone, principal);
+
+        // The money is recorded in the same transaction as the proof, because it changed hands in the
+        // same moment. Never a gate: whatever is wrong or missing about the collection is written
+        // down and surfaced at the depot, not used to refuse a delivery that physically happened.
+        //
+        // After complete(), not before: that call is what writes each line's delivered quantity, and
+        // what the customer owes is computed from those. Run first, it read zeroes and expected
+        // nothing of everyone.
+        cashCollectionService.recordAtPod(
+                deliveryRepo.findByIdWithOrder(deliveryId).map(Delivery::getOrder).orElse(delivery.getOrder()),
+                deliveryId, driverId, cash);
 
         // C5 — The images are already in MinIO (uploaded before this transaction opened). The ERP
         // event carries their stable object keys, not the raw base64: the adapter fetches the bytes

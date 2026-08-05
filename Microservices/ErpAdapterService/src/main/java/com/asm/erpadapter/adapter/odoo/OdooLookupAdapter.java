@@ -589,6 +589,10 @@ public class OdooLookupAdapter implements ErpLookupPort {
             String sku  = productId != null ? pd.skus.get(productId)  : null;
             String type = productId != null ? pd.types.get(productId) : null;
             BigDecimal unitPrice = productId != null ? pricesByProduct.get(productId) : null;
+            // The taxed twin of the line above, and the only one any money question may be answered
+            // from. Not exposed as a mappable field: a tenant remapping ITEM_UNIT_PRICE is choosing
+            // which figure to display, not authorising a driver to collect it.
+            BigDecimal unitTtc = productId != null ? taxedUnitByProduct.get(productId) : null;
 
             Map<String, Map<String, Object>> lineRecords = lineScope(header, m,
                     productId != null ? pd.records.get(productId) : null,
@@ -599,6 +603,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                     .sku(mappedString(ITEM_SKU, lineRecords, () -> sku))
                     .quantity(mappedInt(ITEM_QUANTITY, lineRecords, () -> qty > 0 ? qty : 1))
                     .unitPrice(mappedDecimal(ITEM_UNIT_PRICE, lineRecords, () -> unitPrice))
+                    .unitPriceTtc(unitTtc)
                     .unitWeightKg(mappedDecimal(ITEM_UNIT_WEIGHT_KG, lineRecords, () -> unitWeight))
                     .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> type))
                     .build();
