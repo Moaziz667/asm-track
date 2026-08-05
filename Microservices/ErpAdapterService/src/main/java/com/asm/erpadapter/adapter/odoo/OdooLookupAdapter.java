@@ -311,8 +311,10 @@ public class OdooLookupAdapter implements ErpLookupPort {
         final Map<String, Object> partnerRef = partner;
 
         // Built before the totals: a mapped quantity or unit weight changes what they sum to.
-        List<ErpOrderItemDTO> items = pickingId != null
-                ? fetchItemsFromPicking(pickingId, saleId, records) : List.of();
+        PickingLines lines = pickingId != null
+                ? fetchItemsFromPicking(pickingId, saleId, records) : PickingLines.EMPTY;
+        List<ErpOrderItemDTO> items = lines.items();
+        final BigDecimal collectable = lines.taxedValue();
         int totalQty = items.stream().map(i -> i.getQuantity() != null ? i.getQuantity() : 0).reduce(0, Integer::sum);
         BigDecimal totalWeight = items.stream()
                 .map(i -> {
@@ -352,8 +354,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
                 // "collect nothing", and switching it on is a human decision.
                 .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
-                .codAmount(mappedDecimal(COD_AMOUNT, records,
-                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
+                // This delivery note's own taxed value, not the sale order's total — see taxedValueOf.
+                .codAmount(mappedDecimal(COD_AMOUNT, records, () -> collectable))
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
                 // Whatever the integrator mapped that ASM has no field for — carried through so the
                 // value is not silently read and dropped.
@@ -537,12 +539,12 @@ public class OdooLookupAdapter implements ErpLookupPort {
      * the row the integrator was looking at. Without that, a per-line mapping would be evaluated
      * against the delivery note and quietly return nothing on every row.
      */
-    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId, Integer saleId,
-                                                        Map<String, Map<String, Object>> header) {
+    private PickingLines fetchItemsFromPicking(int pickingId, Integer saleId,
+                                               Map<String, Map<String, Object>> header) {
         List<Map<String, Object>> moves = rpc.searchReadStrict("stock.move",
                 List.of(List.of("picking_id", "=", pickingId)),
                 withMappedFields("stock.move", List.of("id", "product_id", "product_uom_qty")), 0, "id asc");
-        if (moves.isEmpty()) return List.of();
+        if (moves.isEmpty()) return PickingLines.EMPTY;
 
         Set<Integer> productIds = moves.stream()
                 .map(m -> asRelId(m.get("product_id"))).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -550,21 +552,36 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
         Map<Integer, BigDecimal> pricesByProduct = new HashMap<>();
         Map<Integer, Map<String, Object>> saleLinesByProduct = new HashMap<>();
+        // Taxed value of one unit, kept apart from price_unit. price_unit is what the line displays;
+        // this is what the customer owes for it. Conflating the two is how a collection instruction
+        // ends up short by the VAT — and nobody notices until a driver comes back with too little.
+        Map<Integer, BigDecimal> taxedUnitByProduct = new HashMap<>();
         if (saleId != null) {
             List<Map<String, Object>> saleLines = rpc.searchReadStrict("sale.order.line",
                     List.of(List.of("order_id", "=", saleId)),
-                    withMappedFields("sale.order.line", List.of("product_id", "price_unit")), 100, "id asc");
+                    withMappedFields("sale.order.line",
+                            List.of("product_id", "price_unit", "price_total", "product_uom_qty")),
+                    100, "id asc");
             for (Map<String, Object> sl : saleLines) {
                 Integer pid = asRelId(sl.get("product_id"));
                 BigDecimal price = asBigDecimal(sl.get("price_unit"));
                 if (pid != null) {
                     saleLinesByProduct.putIfAbsent(pid, sl);
                     if (price != null) pricesByProduct.put(pid, price);
+
+                    BigDecimal lineTotal = asBigDecimal(sl.get("price_total"));
+                    Double lineQty = asDouble(sl.get("product_uom_qty"));
+                    if (lineTotal != null && lineQty != null && lineQty > 0) {
+                        taxedUnitByProduct.putIfAbsent(pid, lineTotal.divide(
+                                BigDecimal.valueOf(lineQty), 6, java.math.RoundingMode.HALF_UP));
+                    }
                 }
             }
         }
 
-        return moves.stream().map(m -> {
+        BigDecimal taxedValue = taxedValueOf(moves, taxedUnitByProduct);
+
+        List<ErpOrderItemDTO> items = moves.stream().map(m -> {
             Integer productId = asRelId(m.get("product_id"));
             String name = firstNonBlank(asRelName(m.get("product_id")), "ERP Item");
             int qty = (int) Math.round(asDouble(m.get("product_uom_qty")) != null ? asDouble(m.get("product_uom_qty")) : 1d);
@@ -586,6 +603,52 @@ public class OdooLookupAdapter implements ErpLookupPort {
                     .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> type))
                     .build();
         }).collect(Collectors.toList());
+
+        return new PickingLines(items, taxedValue);
+    }
+
+    /**
+     * The delivery note's lines, plus what those lines are worth taxed.
+     *
+     * <p>The value travels with the items rather than being recomputed from them: {@link ErpOrderItemDTO}
+     * carries {@code price_unit}, which is untaxed, so anything derived from the DTOs would silently be
+     * short by the VAT.
+     */
+    private record PickingLines(List<ErpOrderItemDTO> items, BigDecimal taxedValue) {
+        static final PickingLines EMPTY = new PickingLines(List.of(), null);
+    }
+
+    /**
+     * What this delivery note is worth, taxes included — the amount a driver would collect for it.
+     *
+     * <p>Computed from the note's own moves, prorated on each sale line: {@code price_total ÷ ordered
+     * qty × qty on this note}. The previous default was the sale order's {@code amount_total}, which is
+     * the whole order: on a partial delivery it instructed the driver to collect for goods still at the
+     * depot, and then to collect the same total again on the backorder.
+     *
+     * <p>Returns {@code null} — no collectable amount — as soon as one line cannot be priced, rather
+     * than summing what is known and passing off a partial figure as the total. A missing instruction
+     * is caught at import (it logs and imports without collection); an under-stated one is discovered
+     * by a driver at a customer's door.
+     *
+     * <p>Service lines that ship nothing (delivery charges) are not part of any move and so are not
+     * counted. A tenant whose collection includes them maps {@code COD_AMOUNT} to its own field —
+     * which is, in any case, what the mapping screen exists for.
+     */
+    // Package-private, not private: this is the only arithmetic in the adapter whose result is money a
+    // driver will ask a customer for, and it was shipping untested. A test needs to reach it.
+    static BigDecimal taxedValueOf(List<Map<String, Object>> moves,
+                                   Map<Integer, BigDecimal> taxedUnitByProduct) {
+        if (taxedUnitByProduct.isEmpty()) return null;
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Map<String, Object> m : moves) {
+            Integer pid = asRelId(m.get("product_id"));
+            BigDecimal unit = pid != null ? taxedUnitByProduct.get(pid) : null;
+            Double qty = asDouble(m.get("product_uom_qty"));
+            if (unit == null || qty == null) return null;
+            sum = sum.add(unit.multiply(BigDecimal.valueOf(qty)));
+        }
+        return sum.signum() > 0 ? sum.setScale(3, java.math.RoundingMode.HALF_UP) : null;
     }
 
     /**
@@ -657,8 +720,12 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 // Default false: see CanonicalField.COD_REQUIRED — with money the safe guess is
                 // "collect nothing", and switching it on is a human decision.
                 .codRequired(mappedBoolean(COD_REQUIRED, records, () -> false))
-                .codAmount(mappedDecimal(COD_AMOUNT, records,
-                        () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
+                // No default here. This is the import list, which reads delivery notes in bulk and does
+                // not load their lines, so the collectable value cannot be computed — and the sale
+                // order's amount_total, which used to stand in for it, would now contradict the figure
+                // the preview computes and the import stores. A blank cell is honest; a number that
+                // disagrees with the one imported a click later is not.
+                .codAmount(mappedDecimal(COD_AMOUNT, records, () -> null))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
                 .priority(mappedString(PRIORITY, records, () -> "NORMAL"))
