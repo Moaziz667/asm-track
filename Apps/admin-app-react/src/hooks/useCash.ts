@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  listRemittances, getCirculation,
+  listRemittances, getCirculation, getRemittanceCounts, getRemittanceCollections,
   type CashRemittance, type CashRemittanceStatus,
 } from '@/lib/api/cash';
 
@@ -34,6 +34,30 @@ export function useCashCirculation() {
     queryFn: getCirculation,
     retry: 1,
     staleTime: 30_000,
+  });
+}
+
+/** Figures for the filter tabs. Same freshness as the list they label. */
+export function useRemittanceCounts() {
+  return useQuery({
+    queryKey: [...CASH_QUERY_KEY, 'counts'],
+    queryFn: getRemittanceCounts,
+    retry: 1,
+  });
+}
+
+/**
+ * What one handover is made of. Fetched only when a row is opened.
+ *
+ * <p>A desk with twenty-five rows would otherwise issue twenty-five requests to render a table
+ * nobody has asked to look inside yet.
+ */
+export function useRemittanceCollections(remittanceId: string | null) {
+  return useQuery({
+    queryKey: [...CASH_QUERY_KEY, 'collections', remittanceId],
+    queryFn: () => getRemittanceCollections(remittanceId!),
+    enabled: remittanceId !== null,
+    retry: 1,
   });
 }
 

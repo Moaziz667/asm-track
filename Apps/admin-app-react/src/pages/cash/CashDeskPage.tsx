@@ -1,13 +1,18 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   IconCashBanknote, IconAlertTriangle, IconCheck, IconScale, IconWallet,
+  IconChevronRight, IconNote, IconExternalLink,
 } from '@tabler/icons-react';
 
 import { useT } from '@/lib/i18n/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { formatAmount, formatDelta } from '@/lib/utils/money';
 import { receiveRemittance, reconcileRemittance, type CashRemittance, type CashRemittanceStatus } from '@/lib/api/cash';
-import { useRemittances, useCashCirculation, useRefreshCash } from '@/hooks/useCash';
+import {
+  useRemittances, useCashCirculation, useRefreshCash,
+  useRemittanceCounts, useRemittanceCollections,
+} from '@/hooks/useCash';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -21,8 +26,18 @@ import { Input } from '@/components/ui/input';
 
 const CURRENCY = 'TND';
 
-/** Only the two states that need a human; everything else is history. */
-const FILTERS: (CashRemittanceStatus | 'ALL')[] = ['ALL', 'DECLARED', 'DISPUTED', 'RECONCILED'];
+/**
+ * The worklist first, then the individual states.
+ *
+ * <p>`ALL` is the desk's real job — declared but uncounted, plus counted and disputed. `OPEN` and
+ * `RECEIVED` were unreachable from this bar entirely: a handover a driver had opened but not yet
+ * declared existed in the database and nowhere on screen.
+ */
+const FILTERS: (CashRemittanceStatus | 'ALL')[] =
+  ['ALL', 'OPEN', 'DECLARED', 'DISPUTED', 'RECONCILED'];
+
+/** Which states the unfiltered worklist actually covers — the tab's figure must say the same. */
+const PENDING_STATES: CashRemittanceStatus[] = ['DECLARED', 'DISPUTED'];
 
 export default function CashDeskPage() {
   const t = useT();
@@ -38,7 +53,12 @@ export default function CashDeskPage() {
     size: pageSize,
   });
   const circulationQuery = useCashCirculation();
+  const countsQuery = useRemittanceCounts();
   const refreshCash = useRefreshCash();
+
+  /** Which handover is open. Its lines are fetched only once somebody asks for them. */
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const expandedLines = useRemittanceCollections(expandedId);
 
   const rows = remittances.data?.content ?? [];
   const totalPages = Math.max(1, remittances.data?.totalPages ?? 1);
@@ -53,14 +73,27 @@ export default function CashDeskPage() {
   const [settleNote, setSettleNote] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const quickFilters = useMemo(
-    () => FILTERS.map(f => ({
+  /*
+    Every tab carries its own figure.
+
+    It used to be `f === filter ? totalElements : undefined`: the only tab with a number was the one
+    already open, so the bar told a cashier what he was looking at and nothing about where the work
+    was. The point of a filter bar is the tab you are *not* on.
+  */
+  const quickFilters = useMemo(() => {
+    const counts = countsQuery.data;
+    const countFor = (f: CashRemittanceStatus | 'ALL') => {
+      if (!counts) return undefined;
+      return f === 'ALL'
+        ? PENDING_STATES.reduce((sum, s) => sum + (counts[s] ?? 0), 0)
+        : counts[f] ?? 0;
+    };
+    return FILTERS.map(f => ({
       value: f,
       label: f === 'ALL' ? c.filterPending : (t.cashStatus as Record<string, string>)[f] ?? f,
-      count: f === filter ? totalElements : undefined,
-    })),
-    [filter, totalElements, c.filterPending, t.cashStatus],
-  );
+      count: countFor(f),
+    }));
+  }, [countsQuery.data, c.filterPending, t.cashStatus]);
 
   /**
    * The count is parsed from text, not bound to a number input's value.
@@ -158,6 +191,7 @@ export default function CashDeskPage() {
               <thead className="sticky top-0 z-20 border-b border-[var(--border)]"
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                 <tr>
+                  <th className="h-10 w-8 px-2" />
                   <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{c.colDriver}</th>
                   {/* Amounts right-aligned so decimal points line up down the column. */}
                   <th className="h-10 px-6 text-end text-xs font-[450] text-[var(--text-muted)]">{c.colExpected}</th>
@@ -172,14 +206,14 @@ export default function CashDeskPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)]">
-                      {Array.from({ length: 7 }).map((__, j) => (
+                      {Array.from({ length: 8 }).map((__, j) => (
                         <td key={j} className="px-6 py-3"><Skeleton className="h-4 w-full max-w-[110px]" /></td>
                       ))}
                     </tr>
                   ))
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-0">
+                    <td colSpan={8} className="py-0">
                       <EmptyState
                         icon={<IconCashBanknote size={26} />}
                         message={c.emptyMessage}
@@ -191,8 +225,23 @@ export default function CashDeskPage() {
                   rows.map(r => {
                     const disputed = r.status === 'DISPUTED';
                     const delta = r.discrepancy;
+                    const open = expandedId === r.id;
                     return (
-                      <tr key={r.id} className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors">
+                      <Fragment key={r.id}>
+                      <tr
+                        onClick={() => setExpandedId(open ? null : r.id)}
+                        className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+                      >
+                        {/* Opening a handover is what answers "où est SFX/OUT/00306" — the desk's
+                            most common question, and one this page could not answer at all. */}
+                        <td className="px-2 text-center">
+                          <IconChevronRight
+                            size={14}
+                            aria-hidden
+                            className="text-[var(--text-soft)] transition-transform"
+                            style={{ transform: open ? 'rotate(90deg)' : undefined }}
+                          />
+                        </td>
                         <td className="px-6 text-xs">
                           <span className="font-[600] text-[var(--text-primary)]">{r.driverName ?? '—'}</span>
                         </td>
@@ -227,7 +276,7 @@ export default function CashDeskPage() {
                             size="sm"
                           />
                         </td>
-                        <td className="px-6 text-end">
+                        <td className="px-6 text-end" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
                             {r.status === 'DECLARED' && (
                               <Button
@@ -257,6 +306,75 @@ export default function CashDeskPage() {
                           </div>
                         </td>
                       </tr>
+
+                      {open && (
+                        <tr className="border-b border-[var(--border)]">
+                          <td colSpan={8} className="px-6 py-3" style={{ background: 'var(--surface-sunken)' }}>
+                            {/*
+                              The explanation, at last shown.
+
+                              Both dialogues on this page write a note and the API has always
+                              returned it; nothing rendered it. So the one sentence justifying a
+                              settled discrepancy — the only thing an audit has to go on — was
+                              write-only.
+                            */}
+                            {r.note && (
+                              <div className="flex items-start gap-2 mb-3 rounded-lg px-3 py-2"
+                                   style={{ background: 'var(--surface)' }}>
+                                <IconNote size={14} className="shrink-0 mt-0.5 text-[var(--text-muted)]" aria-hidden />
+                                <div className="min-w-0">
+                                  <div className="text-2xs font-medium text-[var(--text-muted)]">
+                                    {c.settleNoteLabel}
+                                  </div>
+                                  <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{r.note}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {expandedLines.isPending ? (
+                              <Skeleton className="h-16 w-full" />
+                            ) : (expandedLines.data?.length ?? 0) === 0 ? (
+                              <p className="text-xs text-[var(--text-soft)]">{c.noCollections}</p>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                {expandedLines.data!.map(line => (
+                                  <div key={line.id}
+                                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs"
+                                       style={{ background: 'var(--surface)' }}>
+                                    <Link
+                                      to={`/deliveries/${line.deliveryId}`}
+                                      className="font-mono font-[600] text-[var(--brand)] hover:underline
+                                                 inline-flex items-center gap-1 shrink-0"
+                                    >
+                                      {line.blNumber ?? '—'}
+                                      <IconExternalLink size={11} aria-hidden />
+                                    </Link>
+                                    <span className="text-[var(--text-secondary)] truncate flex-1 min-w-0">
+                                      {line.clientName ?? '—'}
+                                    </span>
+                                    {/* Expected beside collected: a line short at the door is the
+                                        reason the handover below is short, and reading them apart
+                                        is what turns a partial delivery into a suspected theft. */}
+                                    <span className="tabular-nums text-[var(--text-muted)] shrink-0">
+                                      {formatAmount(line.amountExpected)}
+                                    </span>
+                                    <span className="tabular-nums font-[600] text-[var(--text-primary)] shrink-0 w-24 text-end">
+                                      {formatAmount(line.amountCollected)} {CURRENCY}
+                                    </span>
+                                    {line.reasonLabel && (
+                                      <span className="text-[var(--warning)] shrink-0 max-w-[220px] truncate"
+                                            title={line.reasonLabel}>
+                                        {line.reasonLabel}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })
                 )}

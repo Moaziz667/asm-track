@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -98,9 +99,20 @@ public class AdminCashController {
                 "currency", "TND"));
     }
 
+    @GetMapping("/remittances/counts")
+    @Operation(summary = "How many handovers sit in each state",
+            description = "Labels the desk's filter tabs. Returns every state, zeros included, so a "
+                    + "tab never renders without a figure.")
+    public ResponseEntity<Map<String, Long>> counts() {
+        return ResponseEntity.ok(remittanceService.countsByStatus());
+    }
+
     @GetMapping("/remittances/{id}/collections")
-    @Operation(summary = "The collections included in one handover")
-    public ResponseEntity<?> collections(@PathVariable UUID id) {
-        return ResponseEntity.ok(remittanceService.collectionsOf(id));
+    @Operation(summary = "The collections included in one handover",
+            description = "Each line carries its delivery-note number and customer: an argument at "
+                    + "the counter is about a bon de livraison, not about a UUID.")
+    public ResponseEntity<List<com.asm.delivery.dto.response.CashCollectionRow>> collections(
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(remittanceService.collectionRowsOf(id));
     }
 }

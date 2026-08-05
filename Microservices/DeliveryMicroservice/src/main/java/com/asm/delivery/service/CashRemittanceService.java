@@ -3,9 +3,11 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.CashCollection;
 import com.asm.delivery.entity.CashRemittance;
 import com.asm.delivery.entity.CashRemittanceStatus;
+import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CashCollectionRepository;
 import com.asm.delivery.repository.CashRemittanceRepository;
+import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,7 @@ public class CashRemittanceService {
 
     private final CashRemittanceRepository remittanceRepo;
     private final CashCollectionRepository collectionRepo;
+    private final OrderRepository orderRepository;
     private final AuditLogService auditLogService;
 
     private static final List<CashRemittanceStatus> IN_FLIGHT =
@@ -228,6 +231,58 @@ public class CashRemittanceService {
                 ? List.of(status)
                 : List.of(CashRemittanceStatus.DECLARED, CashRemittanceStatus.DISPUTED);
         return remittanceRepo.findByStatusIn(wanted, pageable);
+    }
+
+    /**
+     * How many handovers sit in each state.
+     *
+     * <p>The desk's filter bar could only ever number the tab you were already on, so it answered
+     * the question you had just answered yourself and stayed silent on the one that matters —
+     * whether anything is waiting on a tab you are not looking at. States with nothing in them come
+     * back as zero rather than being omitted, so no tab renders without a figure.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> countsByStatus() {
+        Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (CashRemittanceStatus s : CashRemittanceStatus.values()) counts.put(s.name(), 0L);
+        for (Object[] row : remittanceRepo.countByStatus()) {
+            counts.put(((CashRemittanceStatus) row[0]).name(), (Long) row[1]);
+        }
+        return counts;
+    }
+
+    /**
+     * What one handover is actually made of, named the way the counter names it.
+     *
+     * <p>Returned the entity before, so a disagreement about one delivery note could only be
+     * followed by reading two UUIDs off the screen and looking them up elsewhere.
+     */
+    @Transactional(readOnly = true)
+    public List<com.asm.delivery.dto.response.CashCollectionRow> collectionRowsOf(UUID remittanceId) {
+        List<CashCollection> collections = collectionRepo.findByRemittanceId(remittanceId);
+        if (collections.isEmpty()) return List.of();
+
+        Map<UUID, Order> orders = orderRepository
+                .findAllById(collections.stream().map(CashCollection::getOrderId).distinct().toList())
+                .stream().collect(java.util.stream.Collectors.toMap(Order::getId, o -> o));
+
+        return collections.stream().map(c -> {
+            Order o = orders.get(c.getOrderId());
+            return com.asm.delivery.dto.response.CashCollectionRow.builder()
+                    .id(c.getId())
+                    .deliveryId(c.getDeliveryId())
+                    .blNumber(o != null ? o.resolveRef() : null)
+                    .clientName(o != null ? o.getClientName() : null)
+                    .amountExpected(c.getAmountExpected())
+                    .amountCollected(c.getAmountCollected())
+                    .method(c.getMethod() != null ? c.getMethod().name() : null)
+                    .chequeNumber(c.getChequeNumber())
+                    .chequeBank(c.getChequeBank())
+                    .status(c.getStatus() != null ? c.getStatus().name() : null)
+                    .reasonLabel(c.getReasonLabel())
+                    .collectedAt(c.getCollectedAt())
+                    .build();
+        }).toList();
     }
 
     /** Per-driver outstanding cash, for the desk's "who is holding what" panel. */

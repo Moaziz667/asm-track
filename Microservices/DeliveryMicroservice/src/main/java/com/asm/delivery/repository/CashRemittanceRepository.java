@@ -19,5 +19,14 @@ public interface CashRemittanceRepository extends JpaRepository<CashRemittance, 
 
     Page<CashRemittance> findByDriverId(UUID driverId, Pageable pageable);
 
-    long countByStatus(CashRemittanceStatus status);
+    /**
+     * How many handovers sit in each state, in one pass.
+     *
+     * <p>Replaces a per-status {@code countByStatus} that nothing ever called. The desk needs all
+     * five figures at once to label its tabs, and asking five times for a bar that renders once is
+     * five round trips for one answer.
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT r.status, COUNT(r) FROM CashRemittance r GROUP BY r.status")
+    List<Object[]> countByStatus();
 }

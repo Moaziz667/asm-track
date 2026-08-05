@@ -28,6 +28,9 @@ export interface CashRemittance {
 export interface CashCollectionRow {
   id: string;
   deliveryId: string;
+  /** The number the counter argues about — "SFX/OUT/00306, il manque 200 dinars". */
+  blNumber?: string;
+  clientName?: string;
   amountExpected: number;
   amountCollected: number;
   method: 'CASH' | 'CHEQUE' | 'NONE';
@@ -54,6 +57,10 @@ interface Page<T> { content: T[]; totalPages: number; totalElements: number }
  */
 export const listRemittances = (params: { status?: CashRemittanceStatus; page?: number; size?: number }) =>
   api.get<Page<CashRemittance>>('/admin/cash/remittances', { params }).then(r => r.data);
+
+/** How many handovers sit in each state — every state, zeros included. */
+export const getRemittanceCounts = () =>
+  api.get<Record<CashRemittanceStatus, number>>('/admin/cash/remittances/counts').then(r => r.data);
 
 /** The headline figure: everything collected and not yet handed over. */
 export const getCirculation = () =>

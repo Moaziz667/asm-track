@@ -3425,6 +3425,7 @@ export const EN_COPY = {
     emptyMessage: 'No handover to handle',
     emptyHint: 'Handovers appear here when a driver declares his cash at the depot.',
     loadError: 'Failed to load handovers',
+    noCollections: 'No collection attached to this handover.',
   },
 
   // ── Public Tracking Page ───────────────────────────────────────────────────

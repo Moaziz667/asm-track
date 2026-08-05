@@ -38,6 +38,7 @@ class CashRemittanceServiceTest {
 
     @Mock CashRemittanceRepository remittanceRepo;
     @Mock CashCollectionRepository collectionRepo;
+    @Mock com.asm.delivery.repository.OrderRepository orderRepository;
     @Mock AuditLogService auditLogService;
 
     CashRemittanceService service;
@@ -47,7 +48,7 @@ class CashRemittanceServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CashRemittanceService(remittanceRepo, collectionRepo, auditLogService);
+        service = new CashRemittanceService(remittanceRepo, collectionRepo, orderRepository, auditLogService);
         when(remittanceRepo.save(any(CashRemittance.class))).thenAnswer(i -> {
             CashRemittance r = i.getArgument(0);
             if (r.getId() == null) r.setId(UUID.randomUUID());

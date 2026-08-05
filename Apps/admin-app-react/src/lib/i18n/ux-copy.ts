@@ -3882,6 +3882,7 @@ export const FR_COPY = {
     emptyMessage: 'Aucune remise à traiter',
     emptyHint: 'Les remises apparaissent ici quand un livreur déclare sa caisse au dépôt.',
     loadError: 'Échec du chargement des remises',
+    noCollections: 'Aucun encaissement rattaché à cette remise.',
   },
   trackingPage: {
     statusEnAttente: 'En attente',
