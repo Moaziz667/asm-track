@@ -50,7 +50,21 @@ public class SettingsClient {
         try {
             SystemSettingsDto settings = settingsInternalClient.getErpSettings();
             if (settings != null) {
-                cacheByTenant.put(tenantKey, new Entry(settings, now));
+                // Only a verified connection is worth caching. CONFIGURED and ERROR are transient by
+                // nature — they mean a test is in flight or has just failed — so holding one for the
+                // full TTL creates a window where the connection is CONNECTED in AppBackend and this
+                // service still refuses it. That window is exactly what an integrator hits: they save,
+                // the test passes, they open the compatibility step, and the probe answers "no report"
+                // for the next thirty seconds.
+                //
+                // The cost is a Feign call per request for a tenant that is not connected — bounded,
+                // and those requests were doing no ERP work anyway. It also makes the fallback below
+                // true to its comment: what is cached is now, by construction, last-known-GOOD.
+                if (usable(settings)) {
+                    cacheByTenant.put(tenantKey, new Entry(settings, now));
+                } else {
+                    cacheByTenant.remove(tenantKey);
+                }
                 return gate(settings);
             }
         } catch (Exception e) {
@@ -74,10 +88,16 @@ public class SettingsClient {
      * that doesn't send it yet) is treated as usable so we don't break existing deployments.
      */
     private SystemSettingsDto gate(SystemSettingsDto s) {
-        if (s == null) return NONE;
-        String status = s.getConnectionStatus();
-        if (status == null || "CONNECTED".equalsIgnoreCase(status)) return s;
-        log.warn("ERP connection status is '{}' (not CONNECTED) — refusing to use these credentials.", status);
+        if (usable(s)) return s;
+        log.warn("ERP connection status is '{}' (not CONNECTED) — refusing to use these credentials.",
+                s == null ? "null" : s.getConnectionStatus());
         return NONE;
+    }
+
+    /** Whether these settings may be used — and, therefore, whether they are worth caching. */
+    private static boolean usable(SystemSettingsDto s) {
+        if (s == null) return false;
+        String status = s.getConnectionStatus();
+        return status == null || "CONNECTED".equalsIgnoreCase(status);
     }
 }

@@ -55,6 +55,19 @@ export default function ErpIntegrationPage() {
   const [loadingReport, setLoadingReport] = useState(false);
   /** Set when the configured instance changed, so the next probe ignores the adapter's cache. */
   const forceNextReport = useRef(false);
+  /**
+   * Whether the report has been fetched for the current connection — regardless of the outcome.
+   *
+   * A null report means three different things: never asked, asked and the ERP has nothing to
+   * certify (204), asked and the call failed. The auto-fetch below keys on `!report`, so the last
+   * two used to re-arm it on every render: the probe reran forever, each round hitting the
+   * customer's ERP, and the progress panel restarted before any result could be read. This ref is
+   * the missing distinction — it is cleared only when the connection changes, which is the one
+   * event that makes a previous answer worth discarding.
+   */
+  const reportAttempted = useRef(false);
+  /** Same distinction for the field catalogue, which is empty both before and after a failed load. */
+  const mappingAttempted = useRef(false);
   const [loadingMapping, setLoadingMapping] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -81,6 +94,7 @@ export default function ErpIntegrationPage() {
   // forceRefresh only from the re-check button: everything else is happy with the adapter's
   // short-lived cache, which is what stops a page visit costing seconds against the customer's ERP.
   const loadReport = useCallback(async (forceRefresh = false) => {
+    reportAttempted.current = true;
     setLoadingReport(true);
     try { setReport(await getConformance(forceRefresh)); }
     catch { setReport(null); }
@@ -88,6 +102,7 @@ export default function ErpIntegrationPage() {
   }, []);
 
   const loadMapping = useCallback(async () => {
+    mappingAttempted.current = true;
     setLoadingMapping(true);
     try {
       const [fields, current] = await Promise.all([getCanonicalFields(), getFieldMappings()]);
@@ -118,12 +133,19 @@ export default function ErpIntegrationPage() {
   // Each step fetches what it needs when first opened, so the page is fast to land on — except the
   // report, which the rail itself depends on and so is fetched as soon as a connection exists.
   useEffect(() => {
-    const needsReport = connected || step === 'compatibility';
-    if (needsReport && !report && !loadingReport) {
+    // Only once the connection is verified. The adapter refuses to use credentials that are merely
+    // CONFIGURED ("refusing to use these credentials"), so probing before then can only come back
+    // empty — and an empty answer is what used to re-arm this effect. The rail locks the step until
+    // then anyway, so requiring CONNECTED here removes a request that never had an answer to give.
+    const needsReport = connected;
+    if (needsReport && !report && !loadingReport && !reportAttempted.current) {
       loadReport(forceNextReport.current);
       forceNextReport.current = false;
     }
-    if ((step === 'mapping' || step === 'preview') && canonicalFields.length === 0 && !loadingMapping) loadMapping();
+    if ((step === 'mapping' || step === 'preview')
+        && canonicalFields.length === 0 && !loadingMapping && !mappingAttempted.current) {
+      loadMapping();
+    }
   }, [step, connected, report, loadingReport, loadReport, canonicalFields.length, loadingMapping, loadMapping]);
 
 
@@ -147,6 +169,12 @@ export default function ErpIntegrationPage() {
   /** A passing test invalidates the report: the instance it certified may not be the one now configured. */
   const afterConnectionChange = async () => {
     setReport(null);
+    // The previous answer certified an instance we may no longer be pointing at, so the auto-fetch
+    // is re-armed here — the only place it is. The field catalogue too: it is read from the ERP now
+    // being pointed at, so a different instance means a different set of fields.
+    reportAttempted.current = false;
+    mappingAttempted.current = false;
+    setCanonicalFields([]);
     // Dropping the local copy is no longer enough now that the adapter caches per tenant: the
     // refetch below would be handed the report for the instance we just stopped pointing at. A ref
     // rather than a second fetch here, so the reload stays a single request with no race over which

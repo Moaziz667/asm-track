@@ -133,11 +133,17 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
                       <p className="text-2xs text-[var(--text-soft)] truncate">{canonical}</p>
                     </div>
                     <div className="flex items-baseline gap-1.5 min-w-0">
-                      <IconArrowRight size={12} className="shrink-0 text-[var(--text-soft)] self-center" />
+                      {/* Pinned to the first line: on a value that now wraps to three, a vertically
+                          centred arrow drifts away from the row it belongs to. */}
+                      <IconArrowRight size={12} className="shrink-0 text-[var(--text-soft)] self-start mt-1.5" />
                       {empty ? (
                         <span className="text-xs italic text-[var(--warning)]">{copy.emptyValue}</span>
                       ) : (
-                        <span className="text-base text-[var(--text-primary)] truncate">{String(raw)}</span>
+                        // Wraps rather than truncates: this column is the whole point of the screen.
+                        // A delivery instruction cut at "entrée p…" hides exactly the part an
+                        // integrator opened the preview to check, and the source path next to it —
+                        // which stays truncated — is a technical path nobody reads to the end.
+                        <span className="text-base text-[var(--text-primary)] break-words">{String(raw)}</span>
                       )}
                     </div>
                   </li>
@@ -156,8 +162,8 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
               <ul className="divide-y divide-[var(--border)]">
                 {Object.entries(preview.customFields).map(([k, v]) => (
                   <li key={k} className="flex items-baseline gap-2 px-4 py-2">
-                    <span className="text-base text-[var(--text-secondary)] min-w-[160px] truncate">{k}</span>
-                    <span className="text-base text-[var(--text-primary)] truncate">{String(v)}</span>
+                    <span className="text-base text-[var(--text-secondary)] min-w-[160px] shrink-0 truncate">{k}</span>
+                    <span className="text-base text-[var(--text-primary)] min-w-0 break-words">{String(v)}</span>
                   </li>
                 ))}
               </ul>

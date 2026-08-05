@@ -698,7 +698,12 @@ public class SettingsController {
             Map<String, String> body = Map.of("provider", provider.toLowerCase());
 
             restClientBuilder.build()
-                .post()
+                // PUT, not POST — the receiving endpoint is @PutMapping. This call had never once
+                // succeeded: every save logged "Failed to push ERP provider" and carried on, the push
+                // being best-effort. It escaped notice for the same reason it did no damage —
+                // TenantErpProviderResolver asks AppBackend directly before falling back to the copy
+                // this call was meant to write, so a redundant path was covering a broken one.
+                .put()
                 .uri(deliveryUrl + "/internal/erp/provider")
                 .headers(h -> {
                     h.setContentType(MediaType.APPLICATION_JSON);
