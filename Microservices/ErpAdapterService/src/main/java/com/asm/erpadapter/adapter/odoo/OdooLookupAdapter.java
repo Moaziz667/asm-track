@@ -92,7 +92,12 @@ public class OdooLookupAdapter implements ErpLookupPort {
                                      Map<String, Map<String, Object>> records,
                                      java.util.function.Supplier<BigDecimal> builtIn) {
         Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        return asBigDecimal(v);
+        // "Absent" must survive as absent. The shared asBigDecimal coerces both null and Odoo's
+        // `false` (its empty marker) to ZERO, which is right when summing a column and wrong here:
+        // the import list deliberately passes a null default for COD_AMOUNT so the cell stays blank,
+        // and ZERO turned that into a printed "0" beside a badge saying money is due. Zero to
+        // collect and nothing known are opposite instructions to a driver.
+        return v == null || Boolean.FALSE.equals(v) ? null : asBigDecimal(v);
     }
 
     private Integer mappedInt(com.asm.erpadapter.mapping.CanonicalField field,
