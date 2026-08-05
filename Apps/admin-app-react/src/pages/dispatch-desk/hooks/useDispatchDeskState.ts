@@ -13,7 +13,7 @@ import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTa
 import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif } from '../formatters';
-import { needsAttention } from '@/lib/ops/needsAttention';
+import { needsAttention, countNeedingAttention } from '@/lib/ops/needsAttention';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
@@ -430,7 +430,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const tabCounts = useMemo(() => ({
     queue:  queueRows.length,
     assign: allDeliveries.filter(d => (ASSIGNABLE_STATUSES as string[]).includes(d.status)).length,
-    action: rows.length,
+    // Same rule as the menu badge, so the tab and the number that sent you to it agree.
+    action: countNeedingAttention(rows),
     failed: allDeliveries.filter(d => d.status === 'FAILED').length,
     gps:    allDeliveries.filter(d => (!d.dropoffLat || !d.dropoffLng) && d.status !== 'CANCELLED').length,
   }), [allDeliveries, rows, queueRows]);

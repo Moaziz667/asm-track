@@ -176,6 +176,22 @@ public class ExceptionClassifier {
                                                                     Map<UUID, RouteInfo> routeInfoByDeliveryId,
                                                                     Map<UUID, String> zoneNameById,
                                                                     LocalDateTime now) {
+        return toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now, Map.of());
+    }
+
+    /**
+     * @param latestOrderPerRef newest order created under each sale-order reference, used to retire
+     *        an attempt whose follow-up already exists. Empty means "don't retire anything".
+     */
+    public AdminOpsExceptionsResponse.ExceptionItem toExceptionItem(Delivery delivery,
+                                                                    Map<String, DriverDTO> driverMap,
+                                                                    Map<UUID, RouteInfo> routeInfoByDeliveryId,
+                                                                    Map<UUID, String> zoneNameById,
+                                                                    LocalDateTime now,
+                                                                    Map<String, LocalDateTime> latestOrderPerRef) {
+        if (isSuperseded(delivery, latestOrderPerRef)) {
+            return null;
+        }
         RouteInfo routeInfo = routeInfoByDeliveryId.get(delivery.getId());
         ExceptionClassification classification = classifyException(delivery, routeInfo, now);
         if (classification == null) {
@@ -210,6 +226,36 @@ public class ExceptionClassifier {
                         .dropoffLat(order != null ? order.getDropoffLat() : null)
                         .dropoffLng(order != null ? order.getDropoffLng() : null)
                         .build();
+    }
+
+    /**
+     * True when this attempt is over and its successor is already in the pipeline.
+     *
+     * <p>A partial delivery and a failure both stayed on the desk for good: nothing in the
+     * classification could ever retire them, so the exception count could only climb, and a number
+     * that only climbs stops being read. But the platform already knows when the work moved on — the
+     * reliquat of a partial, or a re-attempt after a failure, is imported as its own order sharing
+     * the sale-order reference.
+     *
+     * <p>The comparison is against the moment <em>this</em> attempt ended, which is what separates a
+     * follow-up from a sibling: the shipments of a multi-depot order are all created before anyone
+     * sets off, an order created after the van came back is a second try. Deliveries still in the
+     * field are never retired — only a finished attempt can have a successor.
+     */
+    private boolean isSuperseded(Delivery delivery, Map<String, LocalDateTime> latestOrderPerRef) {
+        if (latestOrderPerRef.isEmpty()) return false;
+        DeliveryStatus status = delivery.getStatus();
+        if (status != DeliveryStatus.PARTIALLY_DELIVERED && status != DeliveryStatus.FAILED) return false;
+
+        Order order = delivery.getOrder();
+        String ref = order != null ? order.getErpExternalRef() : null;
+        if (!StringUtils.hasText(ref)) return false;
+
+        LocalDateTime endedAt = delivery.getCompletedAt() != null ? delivery.getCompletedAt() : delivery.getFailedAt();
+        if (endedAt == null) return false;      // no end recorded — say nothing rather than guess
+
+        LocalDateTime newest = latestOrderPerRef.get(ref);
+        return newest != null && newest.isAfter(endedAt);
     }
 
     private ExceptionClassification classifyException(Delivery delivery, RouteInfo routeInfo, LocalDateTime now) {
@@ -247,8 +293,11 @@ public class ExceptionClassifier {
             return new ExceptionClassification("WARNING", motif, comment);
         }
         if (status == DeliveryStatus.CANCELLED) {
-            String comment = StringUtils.hasText(delivery.getCancelReason()) ? delivery.getCancelReason() : "Delivery cancelled: manual review required";
-            return new ExceptionClassification("CRITICAL", "CANCELLED", comment);
+            // Terminal: nobody can act on it, which is exactly what this class's own contract says a
+            // hundred lines up — "CANCELLED is terminal (no action) → never surfaced". It was
+            // surfaced, as CRITICAL no less, and the admin app quietly filtered it back out in the
+            // browser. A rule enforced on the client is a rule the API does not have.
+            return null;
         }
         if (status == DeliveryStatus.PARTIALLY_DELIVERED) {
             return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Partial delivery reported");

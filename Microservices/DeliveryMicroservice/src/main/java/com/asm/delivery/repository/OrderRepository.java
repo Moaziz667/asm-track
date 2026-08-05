@@ -31,6 +31,26 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      *  oldest first — used to group shipments and pick the group root for parentOrderId linkage. */
     List<Order> findByErpExternalRefOrderByCreatedAtAsc(String erpExternalRef);
 
+    /**
+     * The most recent order created under each sale-order reference asked about.
+     *
+     * <p>Answers "has the remainder gone back into the pipeline" for a whole page of exceptions in
+     * one query. A partial delivery stops being a dispatcher's problem the moment its reliquat has
+     * been re-imported as its own order: the work moved on, and an alert still pointing at the
+     * finished attempt is pointing at the past.
+     *
+     * <p>Returns the timestamp rather than a yes/no, because the caller has the only reference that
+     * settles it — when this attempt ended. An order created after that is a follow-up; the siblings
+     * of a multi-depot split were all created before the attempt even started, and comparing counts
+     * would have mistaken one for the other.
+     */
+    @Query("""
+           SELECT o.erpExternalRef, MAX(o.createdAt) FROM Order o
+           WHERE o.erpExternalRef IN :refs
+           GROUP BY o.erpExternalRef
+           """)
+    List<Object[]> latestOrderPerRef(@Param("refs") java.util.Collection<String> refs);
+
     boolean existsByErpOrderId(String erpOrderId);
 
     /** Idempotency key for per-delivery-note (bon de livraison) imports. */

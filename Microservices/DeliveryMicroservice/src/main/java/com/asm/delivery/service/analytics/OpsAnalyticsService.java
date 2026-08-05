@@ -62,6 +62,7 @@ public class OpsAnalyticsService {
     private final com.asm.delivery.service.analytics.filter.PeriodResolver periodResolver;
     private final com.asm.delivery.repository.AuditLogRepository auditLogRepository;
     private final com.asm.delivery.repository.DepotRepository depotRepository;
+    private final com.asm.delivery.repository.OrderRepository orderRepository;
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
@@ -243,8 +244,11 @@ public class OpsAnalyticsService {
         String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
         String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
 
+        Map<String, LocalDateTime> latestOrderPerRef = loadLatestOrderPerRef(deliveries);
+
         List<AdminOpsExceptionsResponse.ExceptionItem> filteredItems = deliveries.stream()
-                .map(delivery -> exceptionClassifier.toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
+                .map(delivery -> exceptionClassifier.toExceptionItem(delivery, driverMap, routeInfoByDeliveryId,
+                        zoneNameById, now, latestOrderPerRef))
                 .filter(Objects::nonNull)
                 .filter(item -> {
                     if (motifQuery == null) return true;
@@ -319,6 +323,32 @@ public class OpsAnalyticsService {
             log.warn("doFetchAllDeliveries truncated to 1000 results — some deliveries may be missing from analytics");
         }
         return results;
+    }
+
+    /**
+     * When each sale-order reference last produced an order, for the finished attempts on this page.
+     *
+     * <p>Lets a partial delivery or a failure retire itself once its follow-up exists, instead of
+     * sitting on the desk for good. Asked only about the terminal ones — a delivery still in the
+     * field cannot have been superseded — and in a single query, because this runs on every poll of
+     * the dispatch desk.
+     */
+    private Map<String, LocalDateTime> loadLatestOrderPerRef(List<Delivery> deliveries) {
+        Set<String> refs = deliveries.stream()
+                .filter(d -> d.getStatus() == com.asm.delivery.entity.DeliveryStatus.PARTIALLY_DELIVERED
+                        || d.getStatus() == com.asm.delivery.entity.DeliveryStatus.FAILED)
+                .map(Delivery::getOrder)
+                .filter(Objects::nonNull)
+                .map(com.asm.delivery.entity.Order::getErpExternalRef)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toSet());
+        if (refs.isEmpty()) return Map.of();
+
+        Map<String, LocalDateTime> byRef = new java.util.HashMap<>();
+        for (Object[] row : orderRepository.latestOrderPerRef(refs)) {
+            if (row[0] instanceof String ref && row[1] instanceof LocalDateTime at) byRef.put(ref, at);
+        }
+        return byRef;
     }
 
     @Transactional(readOnly = true)
