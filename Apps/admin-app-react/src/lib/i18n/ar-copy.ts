@@ -908,6 +908,7 @@ export const AR_COPY = {
 
   // ── Dispatch Desk Page ─────────────────────────────────────────────────────
   dispatchDeskPage: {
+    showAll: 'عرض الكل',
     showAllWithCount: 'عرض الكل (+{n})',
     showAttentionOnly: 'ما يتطلّب إجراءً فقط',
     // Mobile tabs

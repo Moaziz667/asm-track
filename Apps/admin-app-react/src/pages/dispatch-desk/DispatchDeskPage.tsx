@@ -125,19 +125,30 @@ function DispatchPageFilterBar() {
       refreshing={refreshing}
       extraActions={
         <>
-          {/* The way back to everything, carrying the number it is hiding — a dispatcher never has
-              to wonder whether the desk is showing him all of it. */}
-          {(!attentionOnly || mutedCount > 0) && (
-            <button
-              type="button"
-              onClick={() => setAttentionOnly(v => !v)}
-              className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
-            >
-              {attentionOnly
-                ? t.dispatchDeskPage.showAllWithCount.replace('{n}', String(mutedCount))
-                : t.dispatchDeskPage.showAttentionOnly}
-            </button>
-          )}
+          {/*
+            Always rendered, and pressed-looking when it is filtering.
+
+            It was hidden whenever nothing was being masked, so on a tab with nothing to hide it
+            vanished the instant you pressed it — the control disappearing under the cursor, with no
+            visible change to explain it. This is a mode a dispatcher is in, not an action that
+            sometimes applies; it says which mode, and adds the count only when there is one to add.
+          */}
+          <button
+            type="button"
+            aria-pressed={attentionOnly}
+            onClick={() => setAttentionOnly(v => !v)}
+            className={`h-8 px-2.5 flex items-center gap-1 border rounded text-sm font-[500] transition-colors ${
+              attentionOnly
+                ? 'border-[var(--brand)]/40 text-[var(--brand)] bg-[var(--brand)]/10'
+                : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+            }`}
+          >
+            {attentionOnly
+              ? (mutedCount > 0
+                  ? t.dispatchDeskPage.showAllWithCount.replace('{n}', String(mutedCount))
+                  : t.dispatchDeskPage.showAttentionOnly)
+              : t.dispatchDeskPage.showAll}
+          </button>
           {hasAny && (
             <button
               type="button"
