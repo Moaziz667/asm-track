@@ -17,6 +17,7 @@ import {
 } from '@/hooks/useCash';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { TablePagination } from '@/components/data-display/TablePagination';
 import { Button } from '@/components/ui/button';
@@ -224,30 +225,22 @@ export default function CashDeskPage() {
         searchPlaceholder={c.searchPlaceholder}
         extraActions={
           /*
-            The sort is its own control, not an "attribute".
+            The sort is its own control, not an "attribute" of the filter dropdown.
 
-            Passing it as one buried it behind a button reading "Filtrer par", where a cashier had
-            to hunt for it among filters. Worse, a sort always holds a value, so the bar showed a
-            permanent active-filter chip with a ✕ that cleared nothing — pressing it silently
-            reverted to the default. A screen where "filtered" means something cannot claim to be
-            filtered at all times.
+            Passed as one it sat behind a button reading "Filtrer par", where a cashier had to hunt
+            for it among filters. And a sort always holds a value, so the bar showed a permanent
+            active-filter chip whose ✕ cleared nothing — pressing it silently reverted to the
+            default. A screen where "filtered" means something cannot claim to be filtered always.
+
+            SegmentedControl because the dispatch desk already sorts its queue with it: two screens
+            doing the same thing should not teach two different gestures.
           */
-          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            {c.sortLabel}
-            <select
-              value={sort}
-              onChange={e => { setSort(e.target.value as SortKey); setPage(0); }}
-              className="h-8 px-2 rounded border border-[var(--border)] bg-[var(--surface)]
-                         text-xs font-[500] text-[var(--text-primary)]
-                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-            >
-              {SORTS.map(s => (
-                <option key={s} value={s}>
-                  {(t.cashSort as Record<string, string>)[s] ?? s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SegmentedControl
+            value={sort}
+            onChange={v => { setSort(v as SortKey); setPage(0); }}
+            options={SORTS.map(k => ({ value: k, label: (t.cashSort as Record<string, string>)[k] ?? k }))}
+            ariaLabel={c.sortLabel}
+          />
         }
         onRefresh={() => refreshCash()}
         refreshing={refreshing}
