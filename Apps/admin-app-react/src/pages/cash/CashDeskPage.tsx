@@ -222,13 +222,33 @@ export default function CashDeskPage() {
         search={search}
         onSearch={setSearch}
         searchPlaceholder={c.searchPlaceholder}
-        attributes={[{
-          key: 'sort',
-          label: c.sortLabel,
-          options: SORTS.map(s => ({ value: s, label: (t.cashSort as Record<string, string>)[s] ?? s })),
-        }]}
-        activeFilters={{ sort }}
-        onFilterChange={(_, v) => setSort((v as SortKey) ?? 'date-desc')}
+        extraActions={
+          /*
+            The sort is its own control, not an "attribute".
+
+            Passing it as one buried it behind a button reading "Filtrer par", where a cashier had
+            to hunt for it among filters. Worse, a sort always holds a value, so the bar showed a
+            permanent active-filter chip with a ✕ that cleared nothing — pressing it silently
+            reverted to the default. A screen where "filtered" means something cannot claim to be
+            filtered at all times.
+          */
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            {c.sortLabel}
+            <select
+              value={sort}
+              onChange={e => { setSort(e.target.value as SortKey); setPage(0); }}
+              className="h-8 px-2 rounded border border-[var(--border)] bg-[var(--surface)]
+                         text-xs font-[500] text-[var(--text-primary)]
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+            >
+              {SORTS.map(s => (
+                <option key={s} value={s}>
+                  {(t.cashSort as Record<string, string>)[s] ?? s}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
         onRefresh={() => refreshCash()}
         refreshing={refreshing}
         quickFilters={quickFilters}
