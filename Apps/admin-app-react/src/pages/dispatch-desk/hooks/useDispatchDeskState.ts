@@ -14,6 +14,7 @@ import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif } from '../formatters';
 import { countNeedingAttention } from '@/lib/ops/needsAttention';
+import { announceOpsChanged } from '@/lib/ops/opsTelemetry';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
@@ -221,6 +222,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       const items = Array.isArray(res.data?.items) ? res.data.items : [];
       setRows(items);
       setLastUpdated(new Date());
+      // Said once here rather than by each action: acknowledge, cancel, reassign and replan all
+      // refetch through this, so the badge follows whatever the desk just did.
+      announceOpsChanged();
       if (silent && prevCountRef.current !== null && items.length > prevCountRef.current)
         setNewSinceLoad(n => n + (items.length - prevCountRef.current!));
       prevCountRef.current = items.length;

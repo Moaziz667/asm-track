@@ -294,23 +294,6 @@ export function QueueDetail() {
               {t.dispatchDeskPage.buttonReplan}
             </Button>
           )}
-          {/*
-            Offered only on a finished attempt, the one place nothing else can close the exception:
-            a customer who cancelled by telephone, refused the remainder for good, an address that
-            does not exist. On a delivery still in the field the exception *is* the work — plan it,
-            call the driver — and a "handled" button there would hide the job instead of doing it.
-          */}
-          {(d.status === 'FAILED' || d.status === 'PARTIALLY_DELIVERED') && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"
-              onClick={() => setAckTarget(alert ?? exceptionFromDelivery())}
-            >
-              <IconCheck size={14} />
-              {t.dispatchDeskPage.buttonAcknowledge}
-            </Button>
-          )}
           {needsClientContact(motif) && d.clientPhone && (
             <a
               href={`tel:${d.clientPhone}`}
@@ -326,6 +309,34 @@ export function QueueDetail() {
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>
+          )}
+
+          {/*
+            Pushed to the far end, behind a divider, and deliberately not dressed like its
+            neighbours.
+
+            Everything to its left moves the delivery forward — assign, replan, call. This one
+            closes the file: it is the last resort, taken once the others have failed, and sitting it
+            shoulder to shoulder with them invites a tired dispatcher to reach for it first. Solid
+            slate rather than the brand colour for the same reason — it must read as deliberate, not
+            as the obvious next click.
+
+            Only on a finished attempt: while a delivery is still in the field the exception *is* the
+            work, and a "handled" button there would offer to hide the job instead of doing it.
+          */}
+          {(d.status === 'FAILED' || d.status === 'PARTIALLY_DELIVERED') && (
+            <div className="ml-auto flex items-center gap-2 pl-3 border-l border-[var(--border)]">
+              <Button
+                size="sm"
+                className="h-8 px-3 text-xs font-bold rounded-md gap-1.5 shadow-none
+                           bg-[var(--text-secondary)] text-[var(--surface)]
+                           hover:bg-[var(--text-primary)]"
+                onClick={() => setAckTarget(alert ?? exceptionFromDelivery())}
+              >
+                <IconCheck size={14} />
+                {t.dispatchDeskPage.buttonAcknowledge}
+              </Button>
+            </div>
           )}
         </div>
       )}

@@ -27,6 +27,7 @@ import { api } from '@/lib/api';
 import s from './Sidebar.module.scss';
 import { cn } from '@/lib/utils';
 import { countNeedingAttention } from '@/lib/ops/needsAttention';
+import { OPS_TELEMETRY_EVENT } from '@/lib/ops/opsTelemetry';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -201,9 +202,14 @@ export function AppSidebar() {
 
     fetchTelemetry();
     const timer = setInterval(fetchTelemetry, 30000);
+    // Thirty seconds is right for a figure that drifts on its own, and wrong the moment a dispatcher
+    // acts: the row leaves the desk in front of him while the badge keeps the old total for half a
+    // minute. Two numbers on one screen disagreeing about what he just did.
+    window.addEventListener(OPS_TELEMETRY_EVENT, fetchTelemetry);
     return () => {
       active = false;
       clearInterval(timer);
+      window.removeEventListener(OPS_TELEMETRY_EVENT, fetchTelemetry);
     };
   }, [isClient]);
 
