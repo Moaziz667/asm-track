@@ -31,7 +31,7 @@ function DispatchPageFilterBar() {
     depotFilter, setDepotFilter,
     statusFilter, setStatusFilter,
     period, setPeriod,
-    attentionOnly, setAttentionOnly, mutedCount,
+    attentionOnly, setAttentionOnly, mutedCount, dispatchTab,
     refreshing, doRefresh,
     clearFilters,
   } = useDispatchDeskContext();
@@ -126,14 +126,20 @@ function DispatchPageFilterBar() {
       extraActions={
         <>
           {/*
-            Always rendered, and pressed-looking when it is filtering.
+            Only on the tab it can act upon.
 
-            It was hidden whenever nothing was being masked, so on a tab with nothing to hide it
-            vanished the instant you pressed it — the control disappearing under the cursor, with no
-            visible change to explain it. This is a mode a dispatcher is in, not an action that
-            sometimes applies; it says which mode, and adds the count only when there is one to add.
+            The queue lists every delivery in an assignable status — UNSCHEDULED, SCHEDULED,
+            PICKED_UP, IN_TRANSIT — and every exception that does *not* need action sits on a
+            delivery in one of those. So the queue was already showing them for their own sake, and
+            filtering the exceptions out of it removed nothing: the button was inert there by
+            construction, not by accident, and no amount of counting was going to make it work.
+
+            On "à traiter", where a row exists only because an exception does, it is the whole
+            question. It stays rendered rather than appearing with the count, and looks pressed while
+            filtering: hiding it whenever there was nothing to hide made it vanish under the cursor
+            the moment it was clicked.
           */}
-          <button
+          {dispatchTab === 'action' && <button
             type="button"
             aria-pressed={attentionOnly}
             onClick={() => setAttentionOnly(v => !v)}
@@ -148,7 +154,7 @@ function DispatchPageFilterBar() {
                   ? t.dispatchDeskPage.showAllWithCount.replace('{n}', String(mutedCount))
                   : t.dispatchDeskPage.showAttentionOnly)
               : t.dispatchDeskPage.showAll}
-          </button>
+          </button>}
           {hasAny && (
             <button
               type="button"
