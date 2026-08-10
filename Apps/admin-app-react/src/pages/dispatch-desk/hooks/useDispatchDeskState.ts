@@ -13,7 +13,7 @@ import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTa
 import type { ReassignTarget } from '@/components/overlays/reassign';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif } from '../formatters';
-import { needsAttention, countNeedingAttention } from '@/lib/ops/needsAttention';
+import { countNeedingAttention } from '@/lib/ops/needsAttention';
 import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
@@ -33,11 +33,6 @@ export interface DispatchDeskContextProps {
   setNewSinceLoad: React.Dispatch<React.SetStateAction<number>>;
   
   // Filters State
-  /** On by default: the desk opens on the same set the menu badge counted. */
-  attentionOnly: boolean;
-  setAttentionOnly: React.Dispatch<React.SetStateAction<boolean>>;
-  /** How many rows that toggle is hiding, so the desk can say so instead of dropping them silently. */
-  mutedCount: number;
   period: Period;
   setPeriod: React.Dispatch<React.SetStateAction<Period>>;
   customFrom: string;
@@ -146,16 +141,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [allDeliveries, setAllDeliveries] = useState<Delivery[]>([]);
 
   // ── Filters ───────────────────────────────────────────────────────────────
-  /**
-   * Open on the work, and let the rest be asked for.
-   *
-   * <p>The desk used to open on every exception the server knew of, monitoring rows included, while
-   * the menu badge beside it counted only what a dispatcher must act on. Clicking "3" and landing on
-   * forty rows teaches an operator that the number means nothing. One rule now governs both, from
-   * {@link needsAttention} — and this stays a toggle because "show me everything" is a fair
-   * question, just not the one the desk should answer before being asked.
-   */
-  const [attentionOnly, setAttentionOnly] = useState(true);
   const [period, setPeriod]           = useState<Period>('all');
   const [customFrom, setCustomFrom]   = useState('');
   const [customTo, setCustomTo]       = useState('');
@@ -341,7 +326,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   const actionRows = useMemo(() => {
     const filtered = rows.filter(r => {
-      if (attentionOnly && !needsAttention(r)) return false;
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return false;
       if (!inList(driverId, r.driverId)) return false;
       if (!inList(zoneFilter, r.zoneName, r.city)) return false;
@@ -350,7 +334,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       return true;
     });
     return sortByRoute(filtered, r => r.severity === 'CRITICAL' ? 0 : r.severity === 'WARNING' ? 1 : 2);
-  }, [rows, attentionOnly, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
+  }, [rows, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
 
   const routeOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -388,7 +372,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   // assignment (ASSIGNABLE_STATUSES) or it carries an active ops alert — merged
   // and deduped so the same order never renders twice (the root cause of the
   // Assign/Action tab overlap).
-  const queueAll = useMemo((): QueueRow[] => {
+  const queueRows = useMemo((): QueueRow[] => {
     const byId = new Map<string, QueueRow>();
 
     allDeliveries.forEach(d => {
@@ -424,25 +408,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     return sortQueue(Array.from(byId.values()), queueSort);
   }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, inList, driverId, zoneFilter, depotFilter, queueSort]);
 
-  /*
-    Applied to the assembled list, not to one of the two passes that build it.
 
-    The queue merges deliveries awaiting assignment with deliveries carrying an alert, and I first
-    filtered only the second pass — which removes nothing, because every quiet alert sits on a
-    delivery the first pass had already added for its own sake. The rows worth hiding are the calm
-    ones: awaiting assignment, on time, nobody waiting on them. What is left is what is on fire.
-  */
-  const queueRows = useMemo(
-    () => (attentionOnly ? queueAll.filter(q => q.alert != null && needsAttention(q.alert)) : queueAll),
-    [queueAll, attentionOnly],
-  );
-
-  /**
-   * How many rows the toggle is hiding — derived from the two lists, so it cannot disagree with
-   * what is on screen. Every previous version counted from a different set than the one displayed,
-   * and each time the button promised rows it could not produce.
-   */
-  const mutedCount = queueAll.length - queueRows.length;
 
   const selectedQueueRow = useMemo(
     () => queueRows.find(q => q.id === selectedQueueId) ?? null,
@@ -680,9 +646,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     batchType,
     alertMap,
     deliveryMap,
-    attentionOnly,
-    setAttentionOnly,
-    mutedCount,
     actionRows,
     deliveryRows,
     queueRows,
@@ -741,9 +704,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     batchType,
     alertMap,
     deliveryMap,
-    attentionOnly,
-    setAttentionOnly,
-    mutedCount,
     actionRows,
     deliveryRows,
     queueRows,

@@ -31,7 +31,6 @@ function DispatchPageFilterBar() {
     depotFilter, setDepotFilter,
     statusFilter, setStatusFilter,
     period, setPeriod,
-    attentionOnly, setAttentionOnly, mutedCount, dispatchTab,
     refreshing, doRefresh,
     clearFilters,
   } = useDispatchDeskContext();
@@ -125,29 +124,6 @@ function DispatchPageFilterBar() {
       refreshing={refreshing}
       extraActions={
         <>
-          {/*
-            On the queue, which is the only list there is — there has been no separate exceptions
-            tab for a while, and scoping this to one killed the button outright.
-
-            Always rendered and pressed-looking while it filters: hiding it whenever nothing was
-            masked made it vanish under the cursor the moment it was clicked.
-          */}
-          {dispatchTab === 'queue' && <button
-            type="button"
-            aria-pressed={attentionOnly}
-            onClick={() => setAttentionOnly(v => !v)}
-            className={`h-8 px-2.5 flex items-center gap-1 border rounded text-sm font-[500] transition-colors ${
-              attentionOnly
-                ? 'border-[var(--brand)]/40 text-[var(--brand)] bg-[var(--brand)]/10'
-                : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]'
-            }`}
-          >
-            {attentionOnly
-              ? (mutedCount > 0
-                  ? t.dispatchDeskPage.showAllWithCount.replace('{n}', String(mutedCount))
-                  : t.dispatchDeskPage.showAttentionOnly)
-              : t.dispatchDeskPage.showAll}
-          </button>}
           {hasAny && (
             <button
               type="button"
