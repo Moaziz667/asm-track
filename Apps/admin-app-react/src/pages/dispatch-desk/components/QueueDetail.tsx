@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Delivery, DeliveryItem } from '@/types';
 import { Link } from 'react-router-dom';
-import { IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone } from '@tabler/icons-react';
+import { IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone, IconCheck } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
