@@ -388,7 +388,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   // assignment (ASSIGNABLE_STATUSES) or it carries an active ops alert — merged
   // and deduped so the same order never renders twice (the root cause of the
   // Assign/Action tab overlap).
-  const queueRows = useMemo((): QueueRow[] => {
+  const queueAll = useMemo((): QueueRow[] => {
     const byId = new Map<string, QueueRow>();
 
     allDeliveries.forEach(d => {
@@ -406,10 +406,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       const d = deliveryMap.get(r.deliveryId);
       if (!d) return;
       if (d.status === 'CANCELLED') return; // annulées exclues du dispatch desk
-      // The toggle applies here too. It only ever filtered the "à traiter" tab, and the desk opens
-      // on the queue — so the button read as broken, because on the tab you land on it was.
-      // Deliveries awaiting assignment are left alone: they are the queue's own reason to exist,
-      // not exceptions, and hiding them would empty the list the toggle is supposed to tidy.
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return;
       if (!inList(driverId, r.driverId)) return;
       if (!inList(zoneFilter, r.zoneName, r.city)) return;
@@ -417,20 +413,36 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       byId.set(r.deliveryId, { id: r.deliveryId, delivery: d, alert: r, routeId: r.routeId ?? d.routeId, routeName: r.routeName ?? d.routeName });
     });
 
+    /*
+      Applied to the assembled list, not to one of the two passes that build it.
+
+      The queue merges deliveries awaiting assignment with deliveries carrying an alert, and I first
+      filtered only the second pass — which removes nothing, because every quiet alert sits on a
+      delivery the first pass had already added for its own sake. The rows worth hiding are the calm
+      ones: awaiting assignment, on time, nobody waiting on them. What is left is what is on fire.
+    */
     return sortQueue(Array.from(byId.values()), queueSort);
   }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, inList, driverId, zoneFilter, depotFilter, queueSort]);
 
-  /**
-   * How many exception rows the toggle is hiding, so the button can say so.
-   *
-   * <p>Only ever asked on the "à traiter" tab, the one place the toggle acts: the queue lists every
-   * assignable delivery for its own sake, and a non-actionable exception always sits on one of
-   * those — filtering it there would have removed nothing.
-   */
-  const mutedCount = useMemo(
-    () => (attentionOnly ? rows.filter(r => !needsAttention(r)).length : 0),
-    [attentionOnly, rows],
+  /*
+    Applied to the assembled list, not to one of the two passes that build it.
+
+    The queue merges deliveries awaiting assignment with deliveries carrying an alert, and I first
+    filtered only the second pass — which removes nothing, because every quiet alert sits on a
+    delivery the first pass had already added for its own sake. The rows worth hiding are the calm
+    ones: awaiting assignment, on time, nobody waiting on them. What is left is what is on fire.
+  */
+  const queueRows = useMemo(
+    () => (attentionOnly ? queueAll.filter(q => q.alert != null && needsAttention(q.alert)) : queueAll),
+    [queueAll, attentionOnly],
   );
+
+  /**
+   * How many rows the toggle is hiding — derived from the two lists, so it cannot disagree with
+   * what is on screen. Every previous version counted from a different set than the one displayed,
+   * and each time the button promised rows it could not produce.
+   */
+  const mutedCount = queueAll.length - queueRows.length;
 
   const selectedQueueRow = useMemo(
     () => queueRows.find(q => q.id === selectedQueueId) ?? null,

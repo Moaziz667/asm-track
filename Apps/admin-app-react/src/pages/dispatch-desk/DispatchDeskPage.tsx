@@ -126,20 +126,13 @@ function DispatchPageFilterBar() {
       extraActions={
         <>
           {/*
-            Only on the tab it can act upon.
+            On the queue, which is the only list there is — there has been no separate exceptions
+            tab for a while, and scoping this to one killed the button outright.
 
-            The queue lists every delivery in an assignable status — UNSCHEDULED, SCHEDULED,
-            PICKED_UP, IN_TRANSIT — and every exception that does *not* need action sits on a
-            delivery in one of those. So the queue was already showing them for their own sake, and
-            filtering the exceptions out of it removed nothing: the button was inert there by
-            construction, not by accident, and no amount of counting was going to make it work.
-
-            On "à traiter", where a row exists only because an exception does, it is the whole
-            question. It stays rendered rather than appearing with the count, and looks pressed while
-            filtering: hiding it whenever there was nothing to hide made it vanish under the cursor
-            the moment it was clicked.
+            Always rendered and pressed-looking while it filters: hiding it whenever nothing was
+            masked made it vanish under the cursor the moment it was clicked.
           */}
-          {dispatchTab === 'action' && <button
+          {dispatchTab === 'queue' && <button
             type="button"
             aria-pressed={attentionOnly}
             onClick={() => setAttentionOnly(v => !v)}
