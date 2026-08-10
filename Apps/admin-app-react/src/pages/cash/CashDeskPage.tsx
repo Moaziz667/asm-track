@@ -30,18 +30,18 @@ import { Input } from '@/components/ui/input';
 const FALLBACK_CURRENCY = 'TND';
 
 /*
-  The worklist first, then the individual states.
+  Three tabs that do not overlap: what is waiting, what is stuck, what is finished.
 
-  `ALL` is the desk's real job — declared but uncounted, plus counted and disputed.
+  There were four, and the first was the sum of the next two — `ALL` is declared-but-uncounted plus
+  disputed, so "À compter" repeated half of it. A bar where one tab contains another asks a cashier
+  to work out the relationship before he can trust either count.
 
-  OPEN and RECEIVED are deliberately absent: neither is ever written.
-
-  A handover row is created by the declaration itself, so it is born DECLARED — OPEN is only the
-  field default the entity carries for the instant before that save. And a count either balances,
-  closing straight to RECONCILED, or it does not and becomes DISPUTED; RECEIVED is a state the code
-  has never taken. Offering them as tabs promised a cashier two lists that could only ever be empty.
+  OPEN and RECEIVED are absent because neither is ever written. A handover row is created by the
+  declaration itself, so it is born DECLARED; OPEN is only the field default the entity carries for
+  the instant before that save. And a count either balances — closing straight to RECONCILED — or it
+  does not, and becomes DISPUTED. Offering those two as tabs promised lists that could only be empty.
 */
-const FILTERS: (CashRemittanceStatus | 'ALL')[] = ['ALL', 'DECLARED', 'DISPUTED', 'RECONCILED'];
+const FILTERS: (CashRemittanceStatus | 'ALL')[] = ['ALL', 'DISPUTED', 'RECONCILED'];
 
 /** Which states the unfiltered worklist actually covers — the tab's figure must say the same. */
 const PENDING_STATES: CashRemittanceStatus[] = ['DECLARED', 'DISPUTED'];
