@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { formatAmount, formatDelta } from '@/lib/utils/money';
 import { formatDateTime, formatRelative, formatTime } from '@/lib/utils/date';
+import { useLocaleStore } from '@/lib/i18n';
 import { receiveRemittance, reconcileRemittance, type CashRemittance, type CashRemittanceStatus } from '@/lib/api/cash';
 import {
   useRemittances, useCashCirculation, useRefreshCash,
@@ -25,34 +26,59 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { Input } from '@/components/ui/input';
 
-const CURRENCY = 'TND';
+/** Only used until the platform has answered. The live value comes from /cash/circulation. */
+const FALLBACK_CURRENCY = 'TND';
 
-/**
- * The worklist first, then the individual states.
- *
- * <p>`ALL` is the desk's real job — declared but uncounted, plus counted and disputed. `OPEN` and
- * `RECEIVED` were unreachable from this bar entirely: a handover a driver had opened but not yet
- * declared existed in the database and nowhere on screen.
- */
-const FILTERS: (CashRemittanceStatus | 'ALL')[] =
-  ['ALL', 'OPEN', 'DECLARED', 'DISPUTED', 'RECONCILED'];
+/*
+  The worklist first, then the individual states.
+
+  `ALL` is the desk's real job — declared but uncounted, plus counted and disputed.
+
+  OPEN and RECEIVED are deliberately absent: neither is ever written.
+
+  A handover row is created by the declaration itself, so it is born DECLARED — OPEN is only the
+  field default the entity carries for the instant before that save. And a count either balances,
+  closing straight to RECONCILED, or it does not and becomes DISPUTED; RECEIVED is a state the code
+  has never taken. Offering them as tabs promised a cashier two lists that could only ever be empty.
+*/
+const FILTERS: (CashRemittanceStatus | 'ALL')[] = ['ALL', 'DECLARED', 'DISPUTED', 'RECONCILED'];
 
 /** Which states the unfiltered worklist actually covers — the tab's figure must say the same. */
 const PENDING_STATES: CashRemittanceStatus[] = ['DECLARED', 'DISPUTED'];
 
-/**
- * When the handover last moved, and what moved.
- *
- * <p>The table carried no date at all, so this morning's handover and one from a fortnight ago read
- * identically — on a desk whose whole job is "what is waiting on me today", that is the first
- * column a cashier looks for. A bare timestamp would not have been enough either: on a settled row
- * the date that matters is the settlement, on a declared one it is the declaration, and showing the
- * same field for both would date half the table by an event that had not happened yet.
- */
+/*
+  Sorting happens on the server, on real columns.
+
+  It used to reorder the twenty-five rows already in the browser, which made "largest gap" mean
+  "largest gap on page one". A search that only covers the loaded page can be labelled as such; a
+  sort cannot, because a sorted list reads as complete by its very nature — that is what sorting is
+  for. Every key below maps to a persisted field, so the order holds across the whole table.
+
+  The date sorts on the declaration, not on the "last action" the column displays: the latter is
+  whichever of three timestamps is set, which no database can order by. They agree in practice — a
+  handover is settled after it is declared — and the label says "déclaration" rather than implying
+  otherwise.
+*/
 type SortKey = 'date-desc' | 'date-asc' | 'driver' | 'amount-desc' | 'delta';
 
 const SORTS: SortKey[] = ['date-desc', 'date-asc', 'driver', 'amount-desc', 'delta'];
 
+const SORT_PARAM: Record<SortKey, string> = {
+  'date-desc':   'declaredAt,desc',
+  'date-asc':    'declaredAt,asc',
+  'driver':      'driverName,asc',
+  'amount-desc': 'expectedTotal,desc',
+  // Ascending: the most negative first, which is money missing — what a cashier is hunting.
+  'delta':       'discrepancy,asc',
+};
+
+/**
+ * When the handover last moved, and what moved.
+ *
+ * <p>On a settled row the date that matters is the settlement, on a declared one it is the
+ * declaration. Showing one field for both would date half the table by an event that had not
+ * happened yet.
+ */
 function lastEvent(r: CashRemittance): { at?: string; key: string } {
   if (r.reconciledAt) return { at: r.reconciledAt, key: 'RECONCILED' };
   if (r.receivedAt)   return { at: r.receivedAt,   key: 'RECEIVED' };
@@ -63,15 +89,21 @@ function lastEvent(r: CashRemittance): { at?: string; key: string } {
 export default function CashDeskPage() {
   const t = useT();
   const c = t.cashPage;
+  const { locale } = useLocaleStore();
 
   const [filter, setFilter] = useState<CashRemittanceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
+  // Arriving from a delivery's collection chip, which passes the driver it concerns.
+  const [params] = useSearchParams();
+  const [search, setSearch] = useState(params.get('driver') ?? '');
+  const [sort, setSort] = useState<SortKey>('date-desc');
 
   const remittances = useRemittances({
     status: filter === 'ALL' ? undefined : filter,
     page,
     size: pageSize,
+    sort: SORT_PARAM[sort],
   });
   const circulationQuery = useCashCirculation();
   const countsQuery = useRemittanceCounts();
@@ -84,45 +116,24 @@ export default function CashDeskPage() {
   const totalPages = Math.max(1, remittances.data?.totalPages ?? 1);
   const totalElements = remittances.data?.totalElements ?? 0;
   const circulation = circulationQuery.data?.amount ?? null;
+  // The currency the platform actually reports, not a constant. `TND` was hardcoded while the
+  // endpoint returned one and it was thrown away.
+  const currency = circulationQuery.data?.currency ?? FALLBACK_CURRENCY;
+  // `isPending` is false while a cached page refetches, so the refresh button never span when
+  // pressed. `isFetching` is the one that means "a request is in flight".
   const loading = remittances.isPending;
+  const refreshing = remittances.isFetching;
 
   /*
-    Search and sort are applied to the page in hand, not to the whole table.
-
-    The server pages before this code ever sees a row, so both only ever reach the twenty-five
-    handovers currently loaded — which is honest for a worklist a cashier works through, and would
-    be a lie on a year of history. The result count says so, so nobody reads a filtered page as a
-    filtered table.
+    The search still runs on the page in hand — the server has no filter for it, and adding one for
+    a name a cashier is already looking at would be a round trip to re-read the screen. The sort no
+    longer does: see SORT_PARAM.
   */
-  // Arriving from a delivery's collection chip, which passes the driver it concerns.
-  const [params] = useSearchParams();
-  const [search, setSearch] = useState(params.get('driver') ?? '');
-  const [sort, setSort] = useState<SortKey>('date-desc');
-
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const kept = term
-      ? (remittances.data?.content ?? []).filter(r =>
-          (r.driverName ?? '').toLowerCase().includes(term))
-      : (remittances.data?.content ?? []);
-
-    const num = (v?: number | null) => v ?? 0;
-    const time = (r: CashRemittance) => {
-      const at = lastEvent(r).at;
-      return at ? new Date(at).getTime() : 0;
-    };
-    return [...kept].sort((a, b) => {
-      switch (sort) {
-        case 'date-asc':    return time(a) - time(b);
-        case 'driver':      return (a.driverName ?? '').localeCompare(b.driverName ?? '', 'fr');
-        case 'amount-desc': return num(b.expectedTotal) - num(a.expectedTotal);
-        // The gap is what a cashier is hunting for, so it sorts by size regardless of sign:
-        // a driver 200 over is exactly as worth looking at as one 200 short.
-        case 'delta':       return Math.abs(num(b.discrepancy)) - Math.abs(num(a.discrepancy));
-        default:            return time(b) - time(a);
-      }
-    });
-  }, [remittances.data?.content, search, sort]);
+    const all = remittances.data?.content ?? [];
+    return term ? all.filter(r => (r.driverName ?? '').toLowerCase().includes(term)) : all;
+  }, [remittances.data?.content, search]);
 
   const filtered = search.trim().length > 0;
 
@@ -219,7 +230,7 @@ export default function CashDeskPage() {
         activeFilters={{ sort }}
         onFilterChange={(_, v) => setSort((v as SortKey) ?? 'date-desc')}
         onRefresh={() => refreshCash()}
-        refreshing={loading}
+        refreshing={refreshing}
         quickFilters={quickFilters}
         activeQuickFilter={filter}
         onQuickFilterChange={v => { setFilter(v as CashRemittanceStatus | 'ALL'); setPage(0); }}
@@ -246,7 +257,7 @@ export default function CashDeskPage() {
                 <span className="text-xl font-[700] tabular-nums text-[var(--text-primary)]">
                   {circulation === null ? '—' : formatAmount(circulation)}
                 </span>
-                <span className="text-xs font-medium text-[var(--text-muted)]">{CURRENCY}</span>
+                <span className="text-xs font-medium text-[var(--text-muted)]">{currency}</span>
               </div>
             </div>
           </div>
@@ -282,6 +293,25 @@ export default function CashDeskPage() {
                       ))}
                     </tr>
                   ))
+                ) : remittances.isError ? (
+                  /*
+                    A failed request is not an empty desk.
+
+                    Without this branch the list fell through to "aucune remise a traiter", so a
+                    dropped connection told a cashier his evening was over. The retry is here
+                    because the message is useless without it — knowing it broke does not get the
+                    money counted.
+                  */
+                  <tr>
+                    <td colSpan={9} className="py-0">
+                      <EmptyState
+                        icon={<IconAlertTriangle size={26} />}
+                        message={c.loadError}
+                        hint={c.loadErrorHint}
+                        action={{ label: c.retry, onClick: () => void remittances.refetch() }}
+                      />
+                    </td>
+                  </tr>
                 ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-0">
@@ -303,15 +333,32 @@ export default function CashDeskPage() {
                         onClick={() => setExpandedId(open ? null : r.id)}
                         className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
                       >
-                        {/* Opening a handover is what answers "où est SFX/OUT/00306" — the desk's
-                            most common question, and one this page could not answer at all. */}
+                        {/*
+                          A real button, not a decorative chevron on a clickable row.
+
+                          Opening a handover is what answers "où est SFX/OUT/00306" — the desk's most
+                          common question. It was reachable by mouse only: the row carried the
+                          handler and nothing in it could take focus, so a cashier working the
+                          keyboard could not see a single delivery line. The row keeps its click for
+                          the pointer; this is what the keyboard and a screen reader get.
+                        */}
                         <td className="px-2 text-center">
-                          <IconChevronRight
-                            size={14}
-                            aria-hidden
-                            className="text-[var(--text-soft)] transition-transform"
-                            style={{ transform: open ? 'rotate(90deg)' : undefined }}
-                          />
+                          <button
+                            type="button"
+                            aria-expanded={open}
+                            aria-label={c.toggleLines}
+                            onClick={e => { e.stopPropagation(); setExpandedId(open ? null : r.id); }}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded
+                                       text-[var(--text-soft)] hover:text-[var(--text-primary)]
+                                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                          >
+                            <IconChevronRight
+                              size={14}
+                              aria-hidden
+                              className="transition-transform"
+                              style={{ transform: open ? 'rotate(90deg)' : undefined }}
+                            />
+                          </button>
                         </td>
                         <td className="px-6 text-xs">
                           <span className="font-[600] text-[var(--text-primary)]">{r.driverName ?? '—'}</span>
@@ -319,7 +366,7 @@ export default function CashDeskPage() {
                         {/* Relative first — "il y a 2 h" is what tells a cashier this is his,
                             and the exact stamp is one hover away for the day it is disputed. */}
                         <td className="px-6 text-xs" title={formatDateTime(lastEvent(r).at)}>
-                          <div className="text-[var(--text-secondary)]">{formatRelative(lastEvent(r).at)}</div>
+                          <div className="text-[var(--text-secondary)]">{formatRelative(lastEvent(r).at, locale)}</div>
                           <div className="text-2xs text-[var(--text-soft)]">
                             {(t.cashEvent as Record<string, string>)[lastEvent(r).key] ?? ''}
                           </div>
@@ -402,8 +449,10 @@ export default function CashDeskPage() {
                                    style={{ background: 'var(--surface)' }}>
                                 <IconNote size={14} className="shrink-0 mt-0.5 text-[var(--text-muted)]" aria-hidden />
                                 <div className="min-w-0">
+                                  {/* Neutral: this field is written both when counting and when
+                                      settling, and "Explication" only describes the second. */}
                                   <div className="text-2xs font-medium text-[var(--text-muted)]">
-                                    {c.settleNoteLabel}
+                                    {c.noteLabel}
                                   </div>
                                   <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{r.note}</p>
                                 </div>
@@ -444,7 +493,7 @@ export default function CashDeskPage() {
                                       {formatAmount(line.amountExpected)}
                                     </span>
                                     <span className="tabular-nums font-[600] text-[var(--text-primary)] shrink-0 w-24 text-end">
-                                      {formatAmount(line.amountCollected)} {CURRENCY}
+                                      {formatAmount(line.amountCollected)} {currency}
                                     </span>
                                     {line.reasonLabel && (
                                       <span className="text-[var(--warning)] shrink-0 max-w-[220px] truncate"
@@ -528,9 +577,9 @@ export default function CashDeskPage() {
           */}
           <div className="grid grid-cols-2 gap-3">
             <Figure label={c.colExpected} hint={c.expectedFrom}
-                    value={`${formatAmount(counting?.expectedTotal)} ${CURRENCY}`} />
+                    value={`${formatAmount(counting?.expectedTotal)} ${currency}`} />
             <Figure label={c.colDeclared} hint={c.declaredFrom}
-                    value={`${formatAmount(counting?.declaredTotal)} ${CURRENCY}`} />
+                    value={`${formatAmount(counting?.declaredTotal)} ${currency}`} />
           </div>
 
           {/* A driver whose own two numbers already disagree is worth knowing about before counting. */}
@@ -563,9 +612,28 @@ export default function CashDeskPage() {
                 placeholder={c.countedPlaceholder}
                 className="tabular-nums text-end text-lg font-[700] h-12"
               />
-              <span className="text-sm font-medium text-[var(--text-muted)]">{CURRENCY}</span>
+              <span className="text-sm font-medium text-[var(--text-muted)]">{currency}</span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">{c.countedHint}</p>
+          </div>
+
+          {/*
+            Optional, and it was already plumbed: the dialog held this value in state, reset it on
+            open and sent it to an endpoint that stores it — with no field to type it in. So the
+            note was always empty and the API parameter dead. A cashier noting "billet de 50 déchiré"
+            at the moment of counting is exactly what the expanded row later shows.
+          */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="count-note" className="text-xs font-medium text-[var(--text-muted)]">
+              {c.countNoteLabel}
+            </label>
+            <Input
+              id="count-note"
+              value={countNote}
+              onChange={e => setCountNote(e.target.value)}
+              placeholder={c.countNotePlaceholder}
+              className="text-sm"
+            />
           </div>
 
           {/*
@@ -587,7 +655,7 @@ export default function CashDeskPage() {
                     color: liveDelta === null ? 'var(--text-soft)'
                       : liveDelta === 0 ? 'var(--success)' : 'var(--danger)',
                   }}>
-              {liveDelta === null ? '—' : `${formatDelta(liveDelta)} ${CURRENCY}`}
+              {liveDelta === null ? '—' : `${formatDelta(liveDelta)} ${currency}`}
             </span>
           </div>
         </div>
@@ -597,7 +665,7 @@ export default function CashDeskPage() {
       <ConfirmModal
         open={settling !== null}
         title={`${c.settleTitle} — ${settling?.driverName ?? ''}`}
-        description={`${c.colDelta} : ${formatDelta(settling?.discrepancy)} ${CURRENCY}`}
+        description={`${c.colDelta} : ${formatDelta(settling?.discrepancy)} ${currency}`}
         variant="danger"
         reasonLabel={c.settleNoteLabel}
         reasonPlaceholder={c.settleNotePlaceholder}

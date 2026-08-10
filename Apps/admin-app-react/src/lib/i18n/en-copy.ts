@@ -3411,6 +3411,12 @@ export const EN_COPY = {
     'delta': 'Largest gap',
   } as Record<string, string>,
   cashPage: {
+    loadErrorHint: 'The cash service did not answer. Try again — no handover is lost.',
+    retry: 'Retry',
+    toggleLines: 'Show the collections in this handover',
+    noteLabel: 'Note',
+    countNoteLabel: 'Note (optional)',
+    countNotePlaceholder: 'Torn note, missing change…',
     searchPlaceholder: 'Search a driver',
     sortLabel: 'Sort',
     searchScopeHint: '{shown} of the {loaded} loaded handovers — the search only covers this page.',

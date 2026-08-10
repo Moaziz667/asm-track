@@ -3817,6 +3817,12 @@ export const AR_COPY = {
     'delta': 'أكبر فرق',
   } as Record<string, string>,
   cashPage: {
+    loadErrorHint: 'لم يستجب نظام الصندوق. أعد المحاولة — لم يضع أي تسليم.',
+    retry: 'أعد المحاولة',
+    toggleLines: 'عرض مقبوضات هذا التسليم',
+    noteLabel: 'ملاحظة',
+    countNoteLabel: 'ملاحظة (اختياري)',
+    countNotePlaceholder: 'ورقة ممزقة، نقص في الصرف…',
     searchPlaceholder: 'ابحث عن سائق',
     sortLabel: 'ترتيب',
     searchScopeHint: '{shown} من {loaded} تسليمات محمّلة — البحث يشمل هذه الصفحة فقط.',

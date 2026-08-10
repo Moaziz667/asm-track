@@ -61,6 +61,11 @@ class CashRemittanceServiceTest {
         return new UserPrincipal(id.toString(), "DISPATCHER", "Someone", null, UUID.randomUUID());
     }
 
+    /** Settling a gap is a manager's act, so the tests that reach that step need one. */
+    private static UserPrincipal manager(UUID id) {
+        return new UserPrincipal(id.toString(), "MANAGER", "Responsable", null, UUID.randomUUID());
+    }
+
     private static CashCollection collected(String amount) {
         return CashCollection.builder()
                 .id(UUID.randomUUID())
@@ -202,6 +207,22 @@ class CashRemittanceServiceTest {
     // ── Settling ─────────────────────────────────────────────────────────────
 
     @Test
+    @DisplayName("a dispatcher cannot close the gap his own count produced")
+    void reconcileIsAManagersAct() {
+        // The chain held the driver and the counter apart, then let whoever could reach the desk
+        // sign off the difference that count had just produced. By role rather than by identity: a
+        // depot with one cashier on duty must still be able to count — what it may not do is close
+        // its own discrepancy with nobody above it.
+        CashRemittance r = declared(UUID.randomUUID());
+        r.setStatus(CashRemittanceStatus.DISPUTED);
+        r.setDiscrepancy(new BigDecimal("-50.000"));
+
+        assertThatThrownBy(() -> service.reconcile(r.getId(), "erreur de rendu", user(dispatcherId)))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("responsable");
+    }
+
+    @Test
     @DisplayName("a discrepancy cannot be closed without an explanation")
     void reconcileNeedsANote() {
         CashRemittance r = declared(UUID.randomUUID());
@@ -219,7 +240,7 @@ class CashRemittanceServiceTest {
         r.setStatus(CashRemittanceStatus.DISPUTED);
         r.setDiscrepancy(new BigDecimal("-50.000"));
 
-        CashRemittance out = service.reconcile(r.getId(), "erreur de rendu de monnaie", user(dispatcherId));
+        CashRemittance out = service.reconcile(r.getId(), "erreur de rendu de monnaie", manager(dispatcherId));
 
         assertThat(out.getStatus()).isEqualTo(CashRemittanceStatus.RECONCILED);
         assertThat(out.getReconciledBy()).isEqualTo(dispatcherId);

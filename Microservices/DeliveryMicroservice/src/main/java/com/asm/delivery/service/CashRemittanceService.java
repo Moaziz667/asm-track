@@ -12,6 +12,7 @@ import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -178,6 +179,21 @@ public class CashRemittanceService {
                     "Seule une remise en écart peut être justifiée (état actuel : " + r.getStatus() + ").");
         }
 
+        // The last step of the chain was the only one with no separation on it.
+        //
+        // Declaring and counting are held apart by identity — a driver cannot confirm his own
+        // handover — and then anyone who could reach the desk could close the gap that count had
+        // just produced. The person who counted 900 against 902,750 could sign off the 2,750 alone,
+        // which is precisely the arrangement the two-party count exists to prevent.
+        //
+        // By role rather than by identity: this class has always said "a manager settles it", and a
+        // depot with one cashier on duty must still be able to count. What it may not do is close
+        // its own discrepancy without anyone above it.
+        if (!isManager(actor)) {
+            throw AppException.forbidden("CASH_RECONCILE_FORBIDDEN",
+                    "Seul un responsable peut justifier un écart de caisse.");
+        }
+
         r.setNote(explanation);
         r.setReconciledBy(actorId(actor));
         r.setReconciledAt(LocalDateTime.now());
@@ -329,5 +345,18 @@ public class CashRemittanceService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    /**
+     * Whether this actor may close a discrepancy.
+     *
+     * <p>Absent role is refused rather than waved through: the whole point of the check is that
+     * money does not leave the books on the strength of something the platform could not read.
+     */
+    private static boolean isManager(UserPrincipal actor) {
+        if (actor == null || !StringUtils.hasText(actor.getRole())) return false;
+        String role = actor.getRole().trim().toUpperCase(java.util.Locale.ROOT);
+        return role.equals(com.asm.delivery.entity.Role.MANAGER.name())
+                || role.equals(com.asm.delivery.entity.Role.ADMIN.name());
     }
 }

@@ -19,19 +19,30 @@ export function formatDateTime(value?: string | Date | null): string {
   return `${formatDate(date)} ${formatTime(date)}`;
 }
 
-export function formatRelative(value?: string | Date | null): string {
+/**
+ * "il y a 2 h" — in the language the screen is being read in.
+ *
+ * <p>These were French literals, so an English or Arabic page carried a French date column.
+ * {@link Intl.RelativeTimeFormat} knows all three, with their plurals and their right-to-left forms,
+ * which a hand-written table of suffixes would have to relearn for every language added.
+ *
+ * <p>`locale` defaults to French so existing callers keep their behaviour; a screen that knows which
+ * language it is in passes its own.
+ */
+export function formatRelative(value?: string | Date | null, locale: string = 'fr'): string {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
 
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'à l\'instant';
-  if (diffMin < 60) return `il y a ${diffMin} min`;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+  // Negative, because these are minutes already elapsed: RelativeTimeFormat reads the past as a
+  // negative offset, and the positive value would date every row into the future.
+  if (diffMin < 1) return rtf.format(0, 'minute');
+  if (diffMin < 60) return rtf.format(-diffMin, 'minute');
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `il y a ${diffH} h`;
-  const diffD = Math.floor(diffH / 24);
-  return `il y a ${diffD} j`;
+  if (diffH < 24) return rtf.format(-diffH, 'hour');
+  return rtf.format(-Math.floor(diffH / 24), 'day');
 }
 
 export function formatDateFile(value?: string | Date | null): string {

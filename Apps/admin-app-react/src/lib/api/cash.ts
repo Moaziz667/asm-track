@@ -55,8 +55,9 @@ interface Page<T> { content: T[]; totalPages: number; totalElements: number }
  * Omitting `status` returns DECLARED + DISPUTED, which is the desk's real job. Asking for
  * everything is possible but is a report, not a worklist.
  */
-export const listRemittances = (params: { status?: CashRemittanceStatus; page?: number; size?: number }) =>
-  api.get<Page<CashRemittance>>('/admin/cash/remittances', { params }).then(r => r.data);
+export const listRemittances = (
+  params: { status?: CashRemittanceStatus; page?: number; size?: number; sort?: string },
+) => api.get<Page<CashRemittance>>('/admin/cash/remittances', { params }).then(r => r.data);
 
 /** How many handovers sit in each state — every state, zeros included. */
 export const getRemittanceCounts = () =>

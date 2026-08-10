@@ -3868,6 +3868,12 @@ export const FR_COPY = {
     'delta': 'Écart le plus grand',
   } as Record<string, string>,
   cashPage: {
+    loadErrorHint: 'Le service caisse n’a pas répondu. Réessayez ; les remises ne sont pas perdues.',
+    retry: 'Réessayer',
+    toggleLines: 'Afficher les encaissements de cette remise',
+    noteLabel: 'Note',
+    countNoteLabel: 'Note (facultatif)',
+    countNotePlaceholder: 'Billet abîmé, appoint manquant…',
     searchPlaceholder: 'Chercher un livreur',
     sortLabel: 'Trier',
     searchScopeHint: '{shown} sur les {loaded} remises chargées — la recherche ne porte que sur cette page.',

@@ -10,6 +10,8 @@ interface RemittanceQuery {
   status?: CashRemittanceStatus;
   page: number;
   size: number;
+  /** Spring's `property,direction`. Sorting on the server so it reaches past the current page. */
+  sort: string;
 }
 
 /**
@@ -21,8 +23,8 @@ interface RemittanceQuery {
  */
 export function useRemittances(q: RemittanceQuery) {
   return useQuery({
-    queryKey: [...CASH_QUERY_KEY, 'remittances', q.status ?? 'PENDING', q.page, q.size],
-    queryFn: () => listRemittances({ status: q.status, page: q.page, size: q.size }),
+    queryKey: [...CASH_QUERY_KEY, 'remittances', q.status ?? 'PENDING', q.page, q.size, q.sort],
+    queryFn: () => listRemittances({ status: q.status, page: q.page, size: q.size, sort: q.sort }),
     retry: 1,
   });
 }
