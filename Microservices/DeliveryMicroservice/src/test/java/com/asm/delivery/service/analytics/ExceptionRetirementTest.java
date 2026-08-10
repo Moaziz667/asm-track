@@ -113,6 +113,38 @@ class ExceptionRetirementTest {
     }
 
     @Test
+    @DisplayName("acknowledged by a dispatcher: it leaves the desk")
+    void acknowledgedIsSilenced() {
+        Delivery failed = attempt(DeliveryStatus.FAILED, "S00340");
+        failed.setOpsAcknowledgedAt(ATTEMPT_ENDED.plusMinutes(5));
+
+        assertThat(classify(failed, Map.of())).isNull();
+    }
+
+    @Test
+    @DisplayName("it fails again after being acknowledged: the desk hears about it")
+    void acknowledgementDoesNotOutliveItsSubject() {
+        // A silence granted over one attempt must not cover the next one. Otherwise closing today's
+        // problem quietly closes every future problem on the same shipment.
+        Delivery failed = attempt(DeliveryStatus.FAILED, "S00340");
+        failed.setOpsAcknowledgedAt(ATTEMPT_ENDED.minusDays(1));   // acquitté, puis re-échec
+
+        assertThat(classify(failed, Map.of())).isNotNull();
+    }
+
+    @Test
+    @DisplayName("reassigned after being acknowledged: it answers to the ordinary rules again")
+    void acknowledgementDoesNotFollowARevivedDelivery() {
+        // Recording the acknowledgement is itself an update, so comparing against updatedAt would
+        // have revoked every acknowledgement the instant it was made — and carrying it across a
+        // reassignment would mute a live delivery over a failure it no longer has.
+        Delivery revived = attempt(DeliveryStatus.SCHEDULED, "S00340");
+        revived.setOpsAcknowledgedAt(ATTEMPT_ENDED.plusMinutes(5));
+
+        assertThat(classify(revived, Map.of())).isNotNull();
+    }
+
+    @Test
     @DisplayName("a cancelled delivery is not an exception — as this class always claimed")
     void cancelledIsNotSurfaced() {
         // The contract said "CANCELLED is terminal (no action) → never surfaced"; the code returned

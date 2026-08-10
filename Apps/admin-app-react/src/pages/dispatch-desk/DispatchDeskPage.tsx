@@ -164,6 +164,10 @@ function DispatchDeskContentInner() {
     setCancelReason,
     cancelling,
     runCancel,
+    ackTarget,
+    setAckTarget,
+    acknowledging,
+    runAcknowledge,
     failedModalRow,
     setFailedModalRow,
     alertMap,
@@ -220,6 +224,24 @@ function DispatchDeskContentInner() {
           onCancel={resetActionState}
           loading={!!runningAction}
           formatMotif={formatMotif}
+        />
+
+        {/*
+          A confirmation, not a form. No reason is asked for: who and when are recorded server-side,
+          and that is what an audit needs to reconstruct a desk that went quiet. The dialog says what
+          will bring the row back, so nobody reads "handled" as "closed for good".
+        */}
+        <ConfirmModal
+          open={ackTarget !== null}
+          title={t.dispatchDeskPage.acknowledgeTitle}
+          description={t.dispatchDeskPage.acknowledgeDescription.replace(
+            '{client}', ackTarget?.clientName ?? ackTarget?.orderRef ?? '',
+          )}
+          confirmLabel={t.dispatchDeskPage.acknowledgeConfirmLabel}
+          cancelLabel={t.actions?.cancel ?? 'Annuler'}
+          loading={acknowledging}
+          onConfirm={() => void runAcknowledge()}
+          onCancel={() => setAckTarget(null)}
         />
 
         <ConfirmModal

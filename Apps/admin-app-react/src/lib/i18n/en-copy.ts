@@ -848,6 +848,12 @@ export const EN_COPY = {
 
   // ── Dispatch Desk Page ─────────────────────────────────────────────────────
   dispatchDeskPage: {
+    buttonAcknowledge: 'Mark handled',
+    acknowledgeTitle: 'Mark as handled',
+    acknowledgeDescription: '{client} — the row leaves the desk. It comes back on its own if the shipment goes out again and fails.',
+    acknowledgeConfirmLabel: 'Mark handled',
+    successAcknowledged: 'Exception marked as handled',
+    errorAcknowledge: 'Could not mark as handled',
     // Mobile tabs
     tabFilters: 'Filters',
     tabDispatch: 'Dispatch',

@@ -36,7 +36,7 @@ const driverStatusTone = (status?: string) => {
 export function QueueDetail() {
   const {
     t, isReadOnly, drivers, selectedQueueRow,
-    setDrawerTargets, openActionModal,
+    setDrawerTargets, openActionModal, setAckTarget,
   } = useDispatchDeskContext();
 
   const selectedId = selectedQueueRow ? rowId(selectedQueueRow.delivery) : '';
@@ -292,6 +292,23 @@ export function QueueDetail() {
             >
               <IconReplan size={14} />
               {t.dispatchDeskPage.buttonReplan}
+            </Button>
+          )}
+          {/*
+            Offered only on a finished attempt, the one place nothing else can close the exception:
+            a customer who cancelled by telephone, refused the remainder for good, an address that
+            does not exist. On a delivery still in the field the exception *is* the work — plan it,
+            call the driver — and a "handled" button there would hide the job instead of doing it.
+          */}
+          {(d.status === 'FAILED' || d.status === 'PARTIALLY_DELIVERED') && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"
+              onClick={() => setAckTarget(alert ?? exceptionFromDelivery())}
+            >
+              <IconCheck size={14} />
+              {t.dispatchDeskPage.buttonAcknowledge}
             </Button>
           )}
           {needsClientContact(motif) && d.clientPhone && (

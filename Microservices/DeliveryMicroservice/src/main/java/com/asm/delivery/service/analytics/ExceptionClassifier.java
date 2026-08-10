@@ -189,7 +189,7 @@ public class ExceptionClassifier {
                                                                     Map<UUID, String> zoneNameById,
                                                                     LocalDateTime now,
                                                                     Map<String, LocalDateTime> latestOrderPerRef) {
-        if (isSuperseded(delivery, latestOrderPerRef)) {
+        if (isSuperseded(delivery, latestOrderPerRef) || isAcknowledged(delivery)) {
             return null;
         }
         RouteInfo routeInfo = routeInfoByDeliveryId.get(delivery.getId());
@@ -226,6 +226,31 @@ public class ExceptionClassifier {
                         .dropoffLat(order != null ? order.getDropoffLat() : null)
                         .dropoffLng(order != null ? order.getDropoffLng() : null)
                         .build();
+    }
+
+    /**
+     * True when a dispatcher has declared this one handled, and nothing has happened since.
+     *
+     * <p>Deliberately not a permanent mute, and deliberately not compared against {@code updatedAt}
+     * — recording the acknowledgement is itself an update, so that comparison would have revoked
+     * every acknowledgement the instant it was made.
+     *
+     * <p>It is compared against the end of the attempt instead. A shipment that fails again moves
+     * {@code failedAt} past the acknowledgement and comes straight back to the desk: what was closed
+     * was one attempt, not the shipment for good. And the acknowledgement only applies to the two
+     * states it can be granted in — reassigned, the delivery is a live one again and answers to the
+     * ordinary rules, not to a silence granted over a previous failure.
+     */
+    private boolean isAcknowledged(Delivery delivery) {
+        LocalDateTime ack = delivery.getOpsAcknowledgedAt();
+        if (ack == null) return false;
+
+        DeliveryStatus status = delivery.getStatus();
+        if (status != DeliveryStatus.FAILED && status != DeliveryStatus.PARTIALLY_DELIVERED) return false;
+
+        LocalDateTime endedAt = delivery.getCompletedAt() != null
+                ? delivery.getCompletedAt() : delivery.getFailedAt();
+        return endedAt != null && !endedAt.isAfter(ack);
     }
 
     /**

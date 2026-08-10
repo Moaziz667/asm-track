@@ -74,6 +74,48 @@ public class ExceptionResolutionService {
         this.self = self;
     }
 
+	/**
+	 * Declare an exception handled, for the ones the platform cannot close by itself.
+	 *
+	 * <p>Almost every exception retires on its own — a partial whose reliquat has been re-imported, a
+	 * failure that has been re-attempted. What is left is what nothing can deduce: a customer who
+	 * cancelled by telephone, refused the remainder for good, an address that does not exist. Those
+	 * used to sit on the desk for good, and a count that only climbs is a count nobody reads.
+	 *
+	 * <p>Only on a finished attempt. On anything still in the field the exception <em>is</em> the
+	 * work — an unplanned order gets planned, a late driver gets called — and offering to close it
+	 * would be offering to hide the job instead of doing it.
+	 */
+	@Transactional
+	public AdminOpsExceptionsResponse.ExceptionItem acknowledgeException(UUID deliveryId, UserPrincipal principal) {
+		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+				.orElseThrow(() -> AppException.notFound("Delivery not found"));
+
+		DeliveryStatus status = delivery.getStatus();
+		if (status != DeliveryStatus.FAILED && status != DeliveryStatus.PARTIALLY_DELIVERED) {
+			throw AppException.badRequest(
+					"Seule une livraison en echec ou partielle peut etre marquee comme traitee.");
+		}
+
+		delivery.setOpsAcknowledgedAt(LocalDateTime.now());
+		delivery.setOpsAcknowledgedBy(principal != null && principal.getUserId() != null
+				? UUID.fromString(principal.getUserId()) : null);
+		deliveryRepo.save(delivery);
+
+		// Logged even though the acknowledgement carries no reason: who and when is what an audit
+		// needs to reconstruct a desk that went quiet.
+		try {
+			auditLogService.logAction(principal, "OPS_EXCEPTION_ACKNOWLEDGED", "DELIVERY",
+					deliveryId.toString(), java.util.Map.of("status", status.name()));
+		} catch (Exception e) {
+			log.warn("OPS_ACK_AUDIT_FAILED deliveryId={} reason={}", deliveryId, e.getMessage());
+		}
+
+		log.info("OPS_EXCEPTION_ACKNOWLEDGED deliveryId={} status={} by={}",
+				deliveryId, status, principal != null ? principal.getUserId() : null);
+		return mapActionResult(delivery, "INFO", "ACKNOWLEDGED", "Exception marked as handled");
+	}
+
 	public AdminOpsExceptionsResponse.ExceptionItem reassignException(UUID deliveryId,
 																							  AdminExceptionReassignRequest request,
 																							  UserPrincipal principal) {

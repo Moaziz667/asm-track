@@ -88,6 +88,11 @@ export interface DispatchDeskContextProps {
   cancelReason: string;
   setCancelReason: React.Dispatch<React.SetStateAction<string>>;
   cancelling: boolean;
+  /** The exception a dispatcher is about to declare handled — null when the dialog is closed. */
+  ackTarget: OpsException | null;
+  setAckTarget: React.Dispatch<React.SetStateAction<OpsException | null>>;
+  acknowledging: boolean;
+  runAcknowledge: () => Promise<void>;
 
   // Selection / Batch State
   selectedIds: Set<string>;
@@ -180,6 +185,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [cancelTarget, setCancelTarget]       = useState<OpsException | null>(null);
   const [cancelReason, setCancelReason]       = useState('');
   const [cancelling, setCancelling]           = useState(false);
+  const [ackTarget, setAckTarget]             = useState<OpsException | null>(null);
+  const [acknowledging, setAcknowledging]     = useState(false);
 
   // ── Batch ─────────────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -569,6 +576,33 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     }
   }, [cancelTarget, cancelReason, fetchExceptions, fetchAllDeliveries, t]);
 
+  /**
+   * Declare an exception handled.
+   *
+   * <p>No reason asked for — the desk confirms and moves on. Who and when are recorded server-side,
+   * which is what an audit needs to reconstruct why a desk went quiet.
+   *
+   * <p>Both lists are refetched rather than the row removed locally: the server decides whether an
+   * acknowledgement still holds, and a row hidden here that the API would still return is exactly
+   * the kind of disagreement this screen has been full of.
+   */
+  const runAcknowledge = useCallback(async () => {
+    const target = ackTarget;
+    if (!target) return;
+    setAcknowledging(true);
+    try {
+      await api.post(`/admin/ops/exceptions/${target.deliveryId}/acknowledge`);
+      showSuccessToast(t.dispatchDeskPage.successAcknowledged, { clientName: target.clientName });
+      setAckTarget(null);
+      await fetchExceptions(true);
+      await fetchAllDeliveries();
+    } catch (err) {
+      showErrorToast(err, t.dispatchDeskPage.errorAcknowledge, { clientName: target.clientName });
+    } finally {
+      setAcknowledging(false);
+    }
+  }, [ackTarget, fetchExceptions, fetchAllDeliveries, t]);
+
   const doRefresh = useCallback(() => {
     void fetchExceptions(true);
     void fetchAllDeliveries();
@@ -636,6 +670,10 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     cancelReason,
     setCancelReason,
     cancelling,
+    ackTarget,
+    setAckTarget,
+    acknowledging,
+    runAcknowledge,
     selectedIds,
     setSelectedIds,
     toggleRow,
@@ -695,6 +733,10 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     cancelTarget,
     cancelReason,
     cancelling,
+    ackTarget,
+    setAckTarget,
+    acknowledging,
+    runAcknowledge,
     selectedIds,
     toggleRow,
     toggleAll,

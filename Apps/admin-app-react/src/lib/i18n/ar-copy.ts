@@ -908,6 +908,12 @@ export const AR_COPY = {
 
   // ── Dispatch Desk Page ─────────────────────────────────────────────────────
   dispatchDeskPage: {
+    buttonAcknowledge: 'تمّت المعالجة',
+    acknowledgeTitle: 'وضع علامة تمّت المعالجة',
+    acknowledgeDescription: '{client} — يغادر السطر المكتب، ويعود تلقائيًا إذا خرجت الشحنة مجدّدًا وفشلت.',
+    acknowledgeConfirmLabel: 'تمّت المعالجة',
+    successAcknowledged: 'تمّ وضع علامة على الاستثناء',
+    errorAcknowledge: 'تعذّر وضع العلامة',
     // Mobile tabs
     tabFilters: 'المرشحات',
     tabDispatch: 'التوزيع',

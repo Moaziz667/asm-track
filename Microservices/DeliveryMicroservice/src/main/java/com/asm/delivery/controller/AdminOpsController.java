@@ -110,6 +110,28 @@ public class AdminOpsController {
         return ResponseEntity.ok(opsAnalyticsService.getOpsExceptions(period, from, to, limit, motif, driverId, zone));
     }
 
+    @PostMapping("/exceptions/{deliveryId}/acknowledge")
+    @Operation(
+        summary = "Mark an exception as handled",
+        description = "For the exceptions the platform cannot close by itself — a customer who "
+                + "cancelled by telephone, refused the remainder for good, an address that turns out "
+                + "not to exist. Accepted only on a finished attempt (FAILED, PARTIALLY_DELIVERED): "
+                + "while a delivery is still in the field the exception *is* the work, and closing it "
+                + "would hide the job instead of doing it. Reversed on its own if the shipment fails again."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Exception acknowledged"),
+        @ApiResponse(responseCode = "400", description = "Delivery is not in a state that can be acknowledged", content = @Content),
+        @ApiResponse(responseCode = "404", description = "Delivery not found", content = @Content)
+    })
+    @com.asm.delivery.idempotency.IdempotentOperation
+    public ResponseEntity<AdminOpsExceptionsResponse.ExceptionItem> acknowledgeException(
+            @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID deliveryId,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.ok(exceptionResolutionService.acknowledgeException(deliveryId, principal));
+    }
+
     @PostMapping("/exceptions/{deliveryId}/reassign")
     @Operation(
         summary = "Reassign exception to another driver",

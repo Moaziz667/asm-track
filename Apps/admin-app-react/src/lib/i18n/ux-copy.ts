@@ -935,6 +935,12 @@ export const FR_COPY = {
 
   // ── Dispatch Desk Page ─────────────────────────────────────────────────────
   dispatchDeskPage: {
+    buttonAcknowledge: 'Marquer traité',
+    acknowledgeTitle: 'Marquer comme traité',
+    acknowledgeDescription: '{client} — la ligne quitte le bureau. Elle reviendra seule si la livraison repart et échoue à nouveau.',
+    acknowledgeConfirmLabel: 'Marquer traité',
+    successAcknowledged: 'Exception marquée comme traitée',
+    errorAcknowledge: 'Impossible de marquer comme traité',
     // Mobile tabs
     tabFilters: 'Filtres',
     tabDispatch: 'Dispatch',

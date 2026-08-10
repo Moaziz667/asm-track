@@ -124,6 +124,23 @@ public class Delivery {
     @Column(name = "cancelled_by", length = 10)
     private Role cancelledBy;
 
+    /**
+     * When a dispatcher declared this delivery's exception handled.
+     *
+     * <p>For the handful nothing can deduce — a customer who cancelled by telephone, refused the
+     * remainder for good, or an address that turned out not to exist. Everything else retires
+     * itself once its follow-up appears.
+     *
+     * <p>Never final: it is compared against {@link #updatedAt}, so the moment the delivery moves
+     * again the exception comes back. Silencing today's problem must not silence tomorrow's on the
+     * same shipment.
+     */
+    @Column(name = "ops_acknowledged_at")
+    private LocalDateTime opsAcknowledgedAt;
+
+    @Column(name = "ops_acknowledged_by")
+    private UUID opsAcknowledgedBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
