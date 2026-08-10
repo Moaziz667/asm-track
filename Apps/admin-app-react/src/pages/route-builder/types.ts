@@ -19,6 +19,14 @@ export type RouteStop = {
   sourceDepotName?: string | null;
   sourceDepotLat?: number | null;
   sourceDepotLng?: number | null;
+  /**
+   * The road path of the drive ending at this stop, as the optimiser computed it.
+   *
+   * <p>The API has always sent it; it was simply never declared here, so the builder's map had
+   * nothing to draw a loading leg with and joined the two points in a straight line instead.
+   * Absent until the route has been optimised.
+   */
+  routeGeometry?: string;
 };
 
 export type RouteItem = {

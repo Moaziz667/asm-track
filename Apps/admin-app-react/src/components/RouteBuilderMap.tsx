@@ -429,9 +429,19 @@ function RouteBuilderMapInner({
     return Array.from(byId.values());
   }, [routes, highlightedRouteId]);
 
-  // Phase-colored legs for the highlighted route: a straight "spine" from the home depot
-  // through each stop, where pickup legs (→ a source depot) are cyan and delivery legs use
-  // the route colour. Makes the loading phase visually distinct from the delivery phase.
+  /*
+    The loading legs of the highlighted route — the drives to a source depot, drawn cyan so the
+    loading phase reads apart from the delivery phase.
+
+    They used to be two-point segments: depot → stop, in a straight line by construction. Once the
+    route had been optimised that produced two strokes for one drive, the real one following the
+    roads and a cyan diagonal cutting across the map beside it. The cue was right and the shape was
+    a lie, which on a map is the worst of both — it looks like a road nobody can take.
+
+    Each stop carries the geometry of its own leg, so the same cue can follow the same tarmac. A
+    stop with no geometry yet — the route is drawn while it is still being built — falls back to the
+    straight segment, which is honest there: nothing has been computed to contradict it.
+  */
   const phaseLegs = useMemo(() => {
     if (!highlightedRouteId) return [] as { id: string; points: [number, number][]; pickup: boolean }[];
     const route = routes.find((r) => r.id === highlightedRouteId);
@@ -450,7 +460,10 @@ function RouteBuilderMapInner({
       ? [depot.latitude, depot.longitude] : null;
     for (const s of ordered) {
       const c = coordOf(s);
-      if (prev && c) segs.push({ id: s.id, points: [prev, c], pickup: s.stopType === 'PICKUP' });
+      if (prev && c) {
+        const leg = parseGeometry(s.routeGeometry);
+        segs.push({ id: s.id, points: leg.length > 1 ? leg : [prev, c], pickup: s.stopType === 'PICKUP' });
+      }
       if (c) prev = c;
     }
     return segs;
