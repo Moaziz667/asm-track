@@ -43,6 +43,18 @@ const CELL_PADDING: Record<'compact' | 'comfortable' | 'spacious', string> = {
 
 const ITEMS_PER_PAGE = 25;
 
+/**
+ * How many delivery notes the page pulls in one go — the server's own ceiling for this endpoint.
+ *
+ * <p>Everything below (search, the three tabs, their counts) runs on whatever this call returned,
+ * so the window is not merely a page size: it is the entire world the screen knows about. The ERP
+ * answers newest-first, so with more ready notes than this the oldest simply vanish — and, worse,
+ * the counters kept their confident tone about it. A tenant that had just seeded two hundred fresh
+ * notes read "Total 200 · Prêt 200 · Déjà importé 0" and had every reason to believe its earlier
+ * imports had been lost.
+ */
+const FETCH_LIMIT = 300;
+
 const money = (value: number | null | undefined, currency = 'TND') => formatMoney(value, currency);
 
 function formatDate(value: string | null | undefined) {
@@ -126,7 +138,7 @@ function ImportErpPageContent() {
       if (silent) setRefreshing(true);
       else setLoading(true);
 
-      const res = await api.get('/admin/erp/pending-orders', { params: { limit: 200, forceRefresh } });
+      const res = await api.get('/admin/erp/pending-orders', { params: { limit: FETCH_LIMIT, forceRefresh } });
       const data = Array.isArray(res.data) ? res.data : [];
       setRows(data);
     } catch (err) {
@@ -201,6 +213,15 @@ function ImportErpPageContent() {
     const alreadyImported = rows.filter((x) => x.alreadyImported).length;
     return { total, importable, alreadyImported };
   }, [rows]);
+
+  /**
+   * A full page means the ERP had at least this much — say so instead of implying a total.
+   *
+   * <p>Reaching the limit exactly is indistinguishable from "that is all there is", so this errs
+   * towards warning: a needless banner costs a line of text, while a silent truncation costs the
+   * dispatcher their belief that the screen shows the backlog.
+   */
+  const listTruncated = rows.length >= FETCH_LIMIT;
 
   const openPreview = useCallback(async (erpOrderId: string) => {
     setPreviewOpen(true);
@@ -298,6 +319,19 @@ function ImportErpPageContent() {
         activeQuickFilter={activeTab}
         onQuickFilterChange={v => setActiveTab(v as 'all' | 'ready' | 'done')}
       />
+
+      {listTruncated && (
+        <div
+          className="flex items-center gap-2.5 px-4 py-2 shrink-0 text-xs"
+          style={{ background: 'color-mix(in srgb, var(--warning) 8%, transparent)', color: 'var(--warning)', borderBottom: '1px solid color-mix(in srgb, var(--warning) 20%, transparent)' }}
+        >
+          <IconAlertCircle size={14} className="shrink-0" />
+          <span className="font-[600] min-w-0">
+            {(t.importPage.truncatedWarning ?? 'Seuls les {count} bons les plus récents sont affichés — l’ERP en a davantage. Affinez la recherche pour atteindre les plus anciens.')
+              .replace('{count}', String(FETCH_LIMIT))}
+          </span>
+        </div>
+      )}
 
       {/* ERP connection health banner — the active source's creds aren't verified, so this
           list may be empty or stale. Sends the admin straight to the config page to fix it. */}

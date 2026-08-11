@@ -1606,6 +1606,7 @@ export const FR_COPY = {
 
   // ── Import Page ────────────────────────────────────────────────────────
   importPage: {
+    truncatedWarning: 'Seuls les {count} bons les plus récents sont affichés — l’ERP en a davantage. Affinez la recherche pour atteindre les plus anciens.',
     // Page structure
     pageSubtitle: 'Flux de données',
     pageTitle: 'Importation',

@@ -1578,6 +1578,7 @@ export const AR_COPY = {
 
   // ── صفحة الاستيراد ────────────────────────────────────────────────────
   importPage: {
+    truncatedWarning: 'يتم عرض أحدث {count} إشعار فقط — لدى النظام المزيد. ضيّق البحث للوصول إلى الأقدم.',
     // Page structure
     pageSubtitle: 'تدفق البيانات',
     pageTitle: 'استيراد',

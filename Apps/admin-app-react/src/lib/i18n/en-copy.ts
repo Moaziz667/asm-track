@@ -1519,6 +1519,7 @@ export const EN_COPY = {
 
   // ── Import Page ────────────────────────────────────────────────────────
   importPage: {
+    truncatedWarning: 'Showing only the {count} most recent notes — the ERP holds more. Narrow the search to reach older ones.',
     // Page structure
     pageSubtitle: 'Data Flow',
     pageTitle: 'ERP',
