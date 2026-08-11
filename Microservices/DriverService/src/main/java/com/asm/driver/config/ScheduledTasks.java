@@ -44,8 +44,7 @@ public class ScheduledTasks {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
 
         // Load before update so we can audit and publish events per driver
-        List<Driver> stale = driverRepo.findByOnlineStatusNotAndLastLocationAtBefore(
-                DriverOnlineStatus.OFFLINE, threshold);
+        List<Driver> stale = driverRepo.findStaleForAutoOffline(DriverOnlineStatus.OFFLINE, threshold);
 
         if (stale.isEmpty()) return;
 
