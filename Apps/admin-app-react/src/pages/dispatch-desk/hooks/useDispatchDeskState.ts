@@ -273,6 +273,27 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     return () => { clearInterval(id); if (rtTimer.current != null) window.clearTimeout(rtTimer.current); };
   }, [refetchBoth]);
 
+  /**
+   * Keep the availability dot beside each driver honest.
+   *
+   * <p>The fleet is fetched once at mount and the lifecycle refetch above covers deliveries, not
+   * drivers — so the dot was fixed at page load. A dispatcher deciding who to hand a parcel to was
+   * reading a colour that could be an hour old, on the one screen where that decision is made.
+   *
+   * <p>Patched in place from the event rather than refetching the fleet: the payload carries the
+   * new status, and re-pulling every driver each time one goes on break would be a request per
+   * toggle for a single field. A driver the desk has never loaded is ignored — he arrives with the
+   * next fetch, already correct.
+   */
+  useRealtimeEvent(['driver.status_changed'], evt => {
+    const id = evt.payload?.driverId;
+    const status = evt.payload?.status;
+    if (!id || typeof status !== 'string') return;
+    setDrivers(prev => prev.some(d => d.id === id)
+      ? prev.map(d => (d.id === id ? { ...d, onlineStatus: status as Driver['onlineStatus'] } : d))
+      : prev);
+  });
+
   // Reset on leave: dispatch filters are per-visit. Clearing the shared operational-filter store on
   // unmount means returning to the desk — or arriving via a notification deep-link (?search=…) —
   // always starts from a clean state, and a notification's search never lingers as a stale filter.

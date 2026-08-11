@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import { jwtDecode } from 'jwt-decode';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/i18n/LocaleContext';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { showSuccessToast, showErrorToast, showInfoToast } from '@/lib/ui/toast-service';
 import { Delivery, DeliverySource, ProofOfDelivery, TimelineEvent } from '@/types';
 import { normalizeTimeline, normalizePod } from './helpers';
@@ -98,15 +96,38 @@ export function useRouteData(routeId: string | undefined) {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
-  useEffect(() => {
-    if (!route?.driver?.id) return;
-    api.get(`/admin/fleet/drivers/${route.driver.id}`)
+  const driverId = route?.driver?.id;
+
+  const fetchDriverStatus = useCallback(() => {
+    if (!driverId) return;
+    api.get(`/admin/fleet/drivers/${driverId}`)
       .then(res => {
         setDriverOnlineStatus(res.data?.onlineStatus ?? null);
         setDriverLastSeen(res.data?.lastLocationAt ?? null);
       })
       .catch(() => {});
-  }, [route?.driver?.id]);
+  }, [driverId]);
+
+  useEffect(() => { fetchDriverStatus(); }, [fetchDriverStatus]);
+
+  /**
+   * Follow the driver's availability live instead of freezing it at page load.
+   *
+   * <p>This was fetched once, keyed on the driver id, and never again — so a dispatcher watching a
+   * running route saw "hors service" for a driver who had gone on duty minutes earlier, and had no
+   * way to tell a stale reading from a real one. The sixty-second poll next to it refreshes the
+   * route, not the driver.
+   *
+   * <p>The status is taken from the event rather than refetched: the payload already carries it,
+   * and a round-trip per event would put the page's freshness at the mercy of a request it does not
+   * need to make. {@code lastSeen} is left alone — availability is not a location sighting, and
+   * overwriting it here would make an idle driver look like he had just reported in.
+   */
+  useRealtimeEvent(['driver.status_changed'], evt => {
+    if (!driverId || evt.payload?.driverId !== driverId) return;
+    const status = evt.payload?.status;
+    if (typeof status === 'string' && status) setDriverOnlineStatus(status);
+  });
 
   useEffect(() => {
     const checkFlag = () => {
@@ -127,56 +148,79 @@ export function useRouteData(routeId: string | undefined) {
     return () => clearInterval(id);
   }, [route?.status, fetchData]);
 
-  useEffect(() => {
-    if (!route || route.status !== 'IN_PROGRESS') return;
-    const driverId = route.driver?.id;
-    if (!driverId) return;
+  /**
+   * Follow the driver's marker on the route map.
+   *
+   * <p>This opened its own SockJS connection to the tenant's admin.routes topic — the very topic
+   * {@link RealtimeProvider} is already subscribed to — decoded the JWT again to build the
+   * destination, and then read `data.event` and `data.lat` straight off the message. The server
+   * sends a CloudEvent, so the coordinates sit under `data` and both reads returned undefined: a
+   * second socket, opened per visit, delivering nothing. The marker sat wherever the initial fetch
+   * had put it for the whole round.
+   *
+   * <p>Going through the shared provider fixes the shape and removes the duplicate connection; it
+   * unwraps the envelope and exposes the payload with `.event` already set.
+   */
+  useRealtimeEvent(['driver.location_updated'], evt => {
+    if (route?.status !== 'IN_PROGRESS' || !driverId) return;
+    const { driverId: movedId, lat, lng, timestamp } = evt.payload ?? {};
+    if (movedId !== driverId || lat == null || lng == null) return;
+    setRoute(prev => prev?.driver
+      ? { ...prev, driver: { ...prev.driver, currentLat: Number(lat), currentLng: Number(lng) } }
+      : prev);
+    setDriverLastSeen(typeof timestamp === 'string' ? timestamp : new Date().toISOString());
+  });
 
-    const baseUrl = import.meta.env.VITE_WS_BASE_URL
-      ?? import.meta.env.VITE_API_BASE_URL
-      ?? `${window.location.protocol}//${window.location.host}`;
+  /**
+   * Refresh the round when one of its stops moves.
+   *
+   * <p>Stop and delivery statuses arrived only on the sixty-second poll above, so a parcel handed
+   * over in the field could sit as "en transit" for a full minute on the dispatcher's screen — and
+   * the poll only runs while the route is IN_PROGRESS or VALIDATED, leaving every other state with
+   * no refresh at all.
+   *
+   * <p>Filtered to this route. Delivery events carry the route they belong to, and the payload's
+   * deliveryId is matched against the stops as a fallback for the moment a parcel is being detached
+   * (reassigned away), when the server-side lookup no longer resolves a route. Without the filter
+   * every delivery event in the tenant would refetch a page it has nothing to do with.
+   *
+   * <p>A full refetch rather than a local patch: the page shows the stop's timeline, its proof of
+   * delivery and its nested order, none of which travel on the event. Debounced, because a POD
+   * submission emits several events in a row and they describe a single change.
+   */
+  const stopRtTimer = useRef<number | null>(null);
+  useRealtimeEvent(
+    ['delivery.picked_up', 'delivery.in_transit', 'delivery.completed', 'delivery.failed',
+     'delivery.cancelled', 'delivery.reassigned', 'delivery.reassigned_away', 'delivery.replanned',
+     'delivery.handoff_required', 'delivery.handoff_confirmed', 'delivery.scheduled',
+     'route.validated', 'route.cancelled', 'route.stop_added', 'route.stop_removed',
+     'route.schedule_changed',
+     // Route-execution events are SCREAMING_CASE, not the delivery.* convention — subscribing by
+     // name means the two spellings have to be listed side by side or half the lifecycle is missed.
+     //
+     // PICKUP_CONFIRMED is the one that matters most here: loading at the depot flips every parcel
+     // of that depot from SCHEDULED to PICKED_UP in one sweep, inside RouteExecutionService, which
+     // emits this single route-level event instead of one delivery.picked_up per parcel. So the
+     // per-parcel pickup refreshed the page live while the depot swipe — the normal way a round
+     // starts — did not, which is exactly the "planifié → chargé" gap.
+     'PICKUP_CONFIRMED', 'ROUTE_STARTED', 'ROUTE_UPDATED', 'STOP_ADDED', 'STOP_REMOVED'],
+    evt => {
+      if (!routeId) return;
+      const p = evt.payload ?? {};
+      const mine = p.routeId === routeId
+        || (p.deliveryId != null && (route?.stops ?? []).some(s => s.deliveryId === p.deliveryId));
+      if (!mine) return;
+      if (stopRtTimer.current != null) return;
+      stopRtTimer.current = window.setTimeout(() => {
+        stopRtTimer.current = null;
+        void fetchData();
+      }, 1200);
+    },
+  );
 
-    // Tenant-scoped topic only. The backend no longer allows the legacy non-tenant /topic/admin.routes,
-    // so with no resolvable tenant we simply don't open a live driver-location feed (fail closed).
-    let topic: string | null = null;
-    try {
-      const token = safeStorage.getItem('access_token');
-      if (token) {
-        const decoded = jwtDecode<{ org_id?: string; organization?: Record<string, { id?: string }> }>(token);
-        const orgId = decoded.org_id ?? (() => { const o = decoded.organization; return o ? Object.values(o)[0]?.id : undefined; })();
-        // DOT notation — the RabbitMQ STOMP relay rejects '/' inside a routing key.
-        if (orgId) topic = `/topic/company.${orgId}.admin.routes`;
-      }
-    } catch { /* no tenant → no subscription */ }
-    if (!topic) return;
-    const destination = topic;
-
-    const client = new Client({
-      webSocketFactory: () => new SockJS(`${baseUrl}/ws`),
-      reconnectDelay: 5000,
-      onConnect: () => {
-        client.subscribe(destination, msg => {
-          try {
-            const data = JSON.parse(msg.body);
-            if (data.event === 'driver.location_updated' && data.driverId === driverId) {
-              setRoute(prev => prev ? {
-                ...prev,
-                driver: { ...prev.driver!, currentLat: data.lat, currentLng: data.lng },
-              } : prev);
-              setDriverLastSeen(data.timestamp ?? new Date().toISOString());
-            }
-          } catch {
-      // Best-effort enrichment: the page still renders without it.
-    }
-        });
-      },
-      onStompError: () => {},
-      onWebSocketClose: () => {},
-    });
-
-    client.activate();
-    return () => { void client.deactivate(); };
-  }, [route?.status, route?.driver?.id]);
+  useEffect(() => () => {
+    if (stopRtTimer.current != null) window.clearTimeout(stopRtTimer.current);
+  }, []);
 
   const orderedStops = useMemo(
     () => [...(route?.stops ?? [])].sort((a, b) => a.stopOrder - b.stopOrder),

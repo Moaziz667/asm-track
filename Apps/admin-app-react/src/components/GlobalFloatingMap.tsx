@@ -147,6 +147,32 @@ export default function GlobalFloatingMap() {
     queryClient.invalidateQueries({ queryKey: ['global-map-drivers'] });
   });
 
+  /**
+   * Move the pucks as the vans move.
+   *
+   * <p>Positions came only from the poll above — every 15s floating, every 45s expanded — so the
+   * live map was a slideshow, and the further it was opened the staler it got. A van on the ring
+   * road covers most of a kilometre between two frames of the expanded view.
+   *
+   * <p>The cache is written directly instead of invalidated. {@code driver.location_updated} is the
+   * highest-frequency event on the bus; invalidating on each one would put a full fleet request
+   * behind every GPS ping from every driver — which is exactly why this event is kept out of
+   * {@code DASHBOARD_EVENTS}. Patching costs nothing and leaves the poll as the reconciler.
+   *
+   * <p>{@code lastLocationAt} moves with the fix: the map dims a marker whose GPS has gone stale,
+   * and a puck that keeps moving while being greyed out as unreachable would be worse than one
+   * that lags.
+   */
+  useRealtimeEvent(['driver.location_updated'], evt => {
+    const { driverId, lat, lng } = evt.payload ?? {};
+    if (!driverId || lat == null || lng == null) return;
+    queryClient.setQueryData<LiveDriver[]>(['global-map-drivers'], prev =>
+      prev?.map(d => (d.id === driverId
+        ? { ...d, currentLat: Number(lat), currentLng: Number(lng), lastLocationAt: new Date().toISOString() }
+        : d)),
+    );
+  });
+
   useEffect(() => {
     if (mapMode === 'floating') {
       const timer = setTimeout(() => {

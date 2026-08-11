@@ -12,7 +12,7 @@ import { extractCompanyIdFromToken } from '@/lib/tenant';
 // useRealtimeEvent instead of each opening their own socket. Events nudge; the
 // REST/React-Query cache stays the source of truth.
 
-export type RealtimeCategory = 'delivery' | 'route' | 'erp' | 'security';
+export type RealtimeCategory = 'delivery' | 'route' | 'erp' | 'security' | 'driver';
 
 export interface RealtimeEvent {
   /** CloudEvent type, e.g. 'delivery.completed'. */
@@ -50,6 +50,11 @@ const TOPICS: { sub: string; category: RealtimeCategory }[] = [
   { sub: 'admin.routes', category: 'route' },
   { sub: 'admin.erp', category: 'erp' },
   { sub: 'admin.security', category: 'security' },
+  // The backend has published driver.status_changed here since multi-depot landed — a driver going
+  // on or off duty crossed the whole chain (driver-service → RabbitMQ → delivery-service → STOMP)
+  // and then stopped, because no client subscribed. Every screen showing a driver's availability
+  // was reading a value fixed at page load.
+  { sub: 'admin.drivers', category: 'driver' },
 ];
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {

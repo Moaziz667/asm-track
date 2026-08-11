@@ -139,7 +139,16 @@ export default function TrackingPage() {
       onConnect: () => {
         client.subscribe(`/topic/public.${deliveryId}`, msg => {
           try {
-            const { lat, lng } = JSON.parse(msg.body);
+            // The server sends a CloudEvent — {specversion, id, source, type, time, data} — and the
+            // coordinates live under `data`. Destructuring lat/lng off the envelope read undefined
+            // every time, so the customer's map never moved: the van sat at its first reported
+            // position for the whole delivery, and the page looked live while being frozen.
+            // Both shapes are accepted so a raw payload from an older publisher still works.
+            const body = JSON.parse(msg.body);
+            const point = body?.data ?? body;
+            const lat = point?.lat;
+            const lng = point?.lng;
+            if (typeof lat !== 'number' || typeof lng !== 'number') return;
             setData(prev => prev ? { ...prev, driverLat: lat, driverLng: lng } : prev);
           } catch { /* ignore */ }
         });
