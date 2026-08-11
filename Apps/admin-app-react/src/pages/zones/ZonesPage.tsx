@@ -244,15 +244,27 @@ export default function ZonesPage() {
           {!readOnly && (
             <AddButton label={t.zonesPage.newZoneButton} onClick={openCreate} />
           )}
+          {/*
+            Re-zone every delivery against the current zone definitions.
+
+            <p>Carries its label rather than an icon alone. A zone's postal codes are read once,
+            when the order is imported; editing a zone afterwards changes nothing until this runs.
+            So this is the button that makes a freshly-drawn zone mean something — and it used to
+            be a bare refresh glyph sitting immediately left of the list's own refresh glyph, the
+            same icon at the same size. Two identical controls, one of which silently rewrites
+            every delivery's zone: the dispatcher who needed it could not find it, and the one who
+            wanted a refresh had even odds of triggering a full re-zone instead.
+          */}
           <button
             type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            className="h-7 px-2.5 flex items-center gap-1.5 rounded border border-[var(--border)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-50"
             onClick={() => syncZones()}
             disabled={syncing}
             title={t.zonesPage.syncTooltip}
             style={{ background: 'var(--app-bg)' }}
           >
-            <IconRefresh size={14} style={{ color: 'var(--brand)' }} className={syncing ? 'animate-spin' : ''} />
+            <IconScan size={14} style={{ color: 'var(--brand)' }} className={syncing ? 'animate-pulse' : ''} />
+            {syncing ? t.zonesPage.syncingLabel : t.zonesPage.syncButton}
           </button>
           <button
             type="button"
