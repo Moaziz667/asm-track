@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { useRealtimeEvent } from '@/components/RealtimeProvider';
+import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
 import { showSuccessToast, showErrorToast, showInfoToast } from '@/lib/ui/toast-service';
 import { Delivery, DeliverySource, ProofOfDelivery, TimelineEvent } from '@/types';
 import { normalizeTimeline, normalizePod } from './helpers';
@@ -97,6 +97,8 @@ export function useRouteData(routeId: string | undefined) {
   useEffect(() => { void fetchData(); }, [fetchData]);
 
   const driverId = route?.driver?.id;
+  /** Distinguishes the first socket connect (the mount fetch covers it) from a reconnect. */
+  const everConnected = useRef(false);
 
   const fetchDriverStatus = useCallback(() => {
     if (!driverId) return;
@@ -109,6 +111,34 @@ export function useRouteData(routeId: string | undefined) {
   }, [driverId]);
 
   useEffect(() => { fetchDriverStatus(); }, [fetchDriverStatus]);
+
+  /**
+   * Re-read the round whenever the socket comes back.
+   *
+   * <p>A realtime event is delivered once and only to whoever is listening at that instant. The
+   * socket reconnects — a tab waking, a dev reload, a relay hiccup — and anything published during
+   * the gap is simply gone, with nothing on screen to say so.
+   *
+   * <p>That is survivable for repeated signals like GPS, where the next fix corrects the display a
+   * second later. It is not survivable for one-shot ones: a driver goes on duty exactly once, so a
+   * missed driver.status_changed left the availability pill wrong until the page was left and
+   * reopened — which is precisely the symptom that sent me looking.
+   *
+   * <p>Resyncing on reconnect closes the hole for every event at once, rather than one workaround
+   * per screen. Skipped on the first connect, where the mount fetch has already run.
+   */
+  const socketConnected = useRealtimeStatus();
+  const hadSocket = useRef(false);
+  useEffect(() => {
+    if (!socketConnected) { hadSocket.current = false; return; }
+    if (hadSocket.current) return;
+    const first = !everConnected.current;
+    everConnected.current = true;
+    hadSocket.current = true;
+    if (first) return;
+    void fetchData();
+    fetchDriverStatus();
+  }, [socketConnected, fetchData, fetchDriverStatus]);
 
   /**
    * Follow the driver's availability live instead of freezing it at page load.
