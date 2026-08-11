@@ -29,6 +29,8 @@ public class ErpPendingOrderPreviewDTO {
     private String customerPhone;
     private String deliveryAddress;
     private String deliveryCity;
+    /** Postal code as the ERP holds it — what ASM resolves the delivery's zone from. */
+    private String deliveryPostalCode;
     private String deliveryInstructions;
     private BigDecimal totalAmount;
     private String currency;

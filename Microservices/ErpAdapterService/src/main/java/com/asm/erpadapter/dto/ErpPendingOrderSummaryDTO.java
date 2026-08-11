@@ -23,6 +23,8 @@ public class ErpPendingOrderSummaryDTO {
     private String customerPhone;
     private String deliveryAddress;
     private String deliveryCity;
+    /** Postal code as the ERP holds it — what ASM resolves the delivery's zone from. */
+    private String deliveryPostalCode;
     private BigDecimal totalAmount;
     private String currency;
     /** Carried on the list too, so the operator sees which orders come with a collection before importing. */

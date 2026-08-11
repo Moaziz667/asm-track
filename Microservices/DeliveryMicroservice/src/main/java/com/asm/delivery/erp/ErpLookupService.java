@@ -241,6 +241,10 @@ public class ErpLookupService {
                 .clientPhone(preview.getCustomerPhone())
                 .dropoffAddress(StringUtils.hasText(preview.getDeliveryAddress()) ? preview.getDeliveryAddress() : "Address not provided")
                 .dropoffCity(preview.getDeliveryCity())
+                // The ERP's own postal code, which is what zone resolution keys on. Without it the
+                // zone could only come from reverse-geocoding, and that runs solely for orders that
+                // arrive unpinned — so the better the ERP's data, the less likely a delivery got a zone.
+                .dropoffPostalCode(preview.getDeliveryPostalCode())
                 .dropoffCountryCode("TN")
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)

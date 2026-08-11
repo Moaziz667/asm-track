@@ -33,6 +33,15 @@ public enum CanonicalField {
     CUSTOMER_PHONE(Scope.HEADER),
     DELIVERY_ADDRESS(Scope.HEADER),
     DELIVERY_CITY(Scope.HEADER),
+    /**
+     * The recipient's postal code — the key ASM resolves a delivery's zone from.
+     *
+     * <p>Every ERP carries it and none of it reached ASM: the code was read only to be
+     * concatenated into the address string, so zoning fell back to reverse-geocoding, which
+     * runs solely for orders that arrive without coordinates. An integration that supplies
+     * exact coordinates — the good case — therefore produced deliveries with no zone at all.
+     */
+    DELIVERY_POSTAL_CODE(Scope.HEADER),
     /** Free text the driver sees on arrival (door code, floor, "call before"). */
     DELIVERY_INSTRUCTIONS(Scope.HEADER),
 

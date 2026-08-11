@@ -39,6 +39,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
     private static final com.asm.erpadapter.mapping.CanonicalField
             CUSTOMER_NAME = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_NAME,
             CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
+            DELIVERY_POSTAL_CODE = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_POSTAL_CODE,
             DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
             DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
             DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
@@ -351,6 +352,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
                 .deliveryCity(mappedString(DELIVERY_CITY, records,
                         () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
+                .deliveryPostalCode(mappedString(DELIVERY_POSTAL_CODE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("zip")) : null))
                 .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records,
                         () -> saleRef != null ? asString(saleRef.get("note")) : null))
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
@@ -724,6 +727,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> buildAddress(partnerRef)))
                 .deliveryCity(mappedString(DELIVERY_CITY, records,
                         () -> partnerRef != null ? asString(partnerRef.get("city")) : null))
+                .deliveryPostalCode(mappedString(DELIVERY_POSTAL_CODE, records,
+                        () -> partnerRef != null ? asString(partnerRef.get("zip")) : null))
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records,
                         () -> saleRef != null ? asBigDecimal(saleRef.get("amount_total")) : null))
                 .currency(mappedString(CURRENCY, records, () -> resolveCurrency(saleRef)))

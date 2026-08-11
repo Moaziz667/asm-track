@@ -34,6 +34,8 @@ public class ErpPendingOrderSummaryDTO {
 
     @Schema(description = "Delivery city", example = "Tunis")
     private String deliveryCity;
+    /** Postal code as the ERP holds it — what ASM resolves the delivery's zone from. */
+    private String deliveryPostalCode;
 
     @Schema(description = "Order total amount", example = "150.500")
     private BigDecimal totalAmount;

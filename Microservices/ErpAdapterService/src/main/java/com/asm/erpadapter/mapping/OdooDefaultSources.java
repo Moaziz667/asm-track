@@ -44,6 +44,7 @@ public final class OdooDefaultSources {
             // street + street2 + city + zip + country, assembled.
             Map.entry(CanonicalField.DELIVERY_ADDRESS, DERIVED),
             Map.entry(CanonicalField.DELIVERY_CITY, "res.partner.city"),
+            Map.entry(CanonicalField.DELIVERY_POSTAL_CODE, "res.partner.zip"),
             Map.entry(CanonicalField.DELIVERY_INSTRUCTIONS, "sale.order.note"),
 
             // ── Commercial ────────────────────────────────────────────────────────────────────────

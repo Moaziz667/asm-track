@@ -35,6 +35,7 @@ public final class ErpNextDefaultSources {
             // address_line1 + address_line2 + pincode of the shipping Address, assembled.
             Map.entry(CanonicalField.DELIVERY_ADDRESS, FieldMappingResolver.DERIVED),
             Map.entry(CanonicalField.DELIVERY_CITY, "Address.city"),
+            Map.entry(CanonicalField.DELIVERY_POSTAL_CODE, "Address.pincode"),
             // What the adapter reads — but `instructions` is not a field of Sales Order on ERPNext 16,
             // so this default is always empty and the value only ever arrives once someone maps it.
             // Reported as-is rather than hidden: the hint's job is to say what the code does, and an

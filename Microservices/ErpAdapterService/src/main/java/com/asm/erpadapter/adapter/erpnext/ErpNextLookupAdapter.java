@@ -60,6 +60,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             CUSTOMER_PHONE = com.asm.erpadapter.mapping.CanonicalField.CUSTOMER_PHONE,
             DELIVERY_ADDRESS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_ADDRESS,
             DELIVERY_CITY = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_CITY,
+            DELIVERY_POSTAL_CODE = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_POSTAL_CODE,
             DELIVERY_INSTRUCTIONS = com.asm.erpadapter.mapping.CanonicalField.DELIVERY_INSTRUCTIONS,
             TOTAL_AMOUNT = com.asm.erpadapter.mapping.CanonicalField.TOTAL_AMOUNT,
             CURRENCY = com.asm.erpadapter.mapping.CanonicalField.CURRENCY,
@@ -281,6 +282,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                             () -> addr != null ? buildAddress(addr) : null))
                     .deliveryCity(mappedString(DELIVERY_CITY, records,
                             () -> addr != null ? asString(addr.get("city")) : null))
+                    .deliveryPostalCode(mappedString(DELIVERY_POSTAL_CODE, records,
+                            () -> addr != null ? asString(addr.get("pincode")) : null))
                     .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(r.get("grand_total"))))
                     .currency(mappedString(CURRENCY, records, () -> asString(r.get("currency"))))
                     // Default false: see CanonicalField.COD_REQUIRED.
@@ -382,6 +385,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
         Map<String, Map<String, Object>> records = headerRecords(so, customer, addr);
         final String builtAddress = address;
         final String builtCity = city;
+        final String builtPostalCode = addr != null ? asString(addr.get("pincode")) : null;
         final String builtWarehouse = firstNonBlank(asString(so.get("set_warehouse")), firstWarehouse);
 
         return ErpPendingOrderPreviewDTO.builder()
@@ -396,6 +400,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                 .customerPhone(mappedString(CUSTOMER_PHONE, records, () -> asString(so.get("contact_mobile"))))
                 .deliveryAddress(mappedString(DELIVERY_ADDRESS, records, () -> builtAddress))
                 .deliveryCity(mappedString(DELIVERY_CITY, records, () -> builtCity))
+                .deliveryPostalCode(mappedString(DELIVERY_POSTAL_CODE, records, () -> builtPostalCode))
                 .deliveryInstructions(mappedString(DELIVERY_INSTRUCTIONS, records, () -> asString(so.get("instructions"))))
                 .totalAmount(mappedDecimal(TOTAL_AMOUNT, records, () -> asBigDecimal(so.get("grand_total"))))
                 .currency(mappedString(CURRENCY, records, () -> asString(so.get("currency"))))

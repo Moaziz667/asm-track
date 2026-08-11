@@ -42,6 +42,8 @@ public class ErpPendingOrderPreviewDTO {
 
     @Schema(description = "Delivery city", example = "Tunis")
     private String deliveryCity;
+    /** Postal code as the ERP holds it — what ASM resolves the delivery's zone from. */
+    private String deliveryPostalCode;
 
     @Schema(description = "Delivery instructions from the ERP", example = "Call before delivery")
     private String deliveryInstructions;
