@@ -310,6 +310,8 @@ public class RouteReportService {
 
         int completed = 0, partial = 0, failed = 0, failedAttempt = 0, replanned = 0, cancelled = 0;
         int onTime = 0, late = 0, early = 0;
+        // Punctuality is judged on every stop the driver actually reached — see below.
+        int punctualOnTime = 0, punctualTotal = 0;
 
         for (RouteReportResponse.StopRow r : stopRows) {
             // Pickup (multi-depot load) stops carry no deliveryId — they're logistics steps, not
@@ -324,11 +326,19 @@ public class RouteReportService {
                 case "REMOVED_CANCELLED"  -> cancelled++;
                 default -> {}
             }
+            // Donut / timeline classification. Deliberately unchanged: PARTIAL and FAILED keep their
+            // own slices there rather than being folded into ON_TIME / LATE.
             switch (r.getClassification() == null ? "" : r.getClassification()) {
                 case "ON_TIME" -> onTime++;
                 case "LATE"    -> late++;
                 case "EARLY"   -> early++;
                 default -> {}
+            }
+            // A stop with a timestamp and a window can be judged for punctuality, whatever came of
+            // the parcel. A partial delivery still happened, at a measurable hour.
+            if (r.getCompletedAt() != null && r.getDelayMinutes() != null) {
+                punctualTotal++;
+                if (r.getDelayMinutes() <= 0) punctualOnTime++;
             }
         }
 
@@ -338,8 +348,22 @@ public class RouteReportService {
         BigDecimal completionRate = attempted > 0
                 ? BigDecimal.valueOf((completed + partial) * 100.0 / attempted).setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
-        BigDecimal onTimeRate = completed > 0
-                ? BigDecimal.valueOf(onTime * 100.0 / completed).setScale(2, RoundingMode.HALF_UP)
+        /*
+         * Punctuality over every stop that has an hour and a window, not just the fully completed
+         * ones.
+         *
+         * <p>The numerator counted ON_TIME classifications while the denominator counted COMPLETED
+         * stops — two different populations, because a partial or a failed attempt is classified
+         * PARTIAL / FAILED and never ON_TIME or LATE. A round with one punctual delivery, one
+         * partial twenty minutes late and one failure ten minutes late reported "Ponctualité
+         * 100 %" directly beside "Retard cumulé +30 min", the thirty minutes being precisely the
+         * two stops the rate had excluded.
+         *
+         * <p>It also disagreed with the figure on the route itself, which has always judged every
+         * timestamped stop: the same round read 100 % here and 33 % there.
+         */
+        BigDecimal onTimeRate = punctualTotal > 0
+                ? BigDecimal.valueOf(punctualOnTime * 100.0 / punctualTotal).setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
         BigDecimal distanceKm = route.getTotalDistanceMeters() != null
