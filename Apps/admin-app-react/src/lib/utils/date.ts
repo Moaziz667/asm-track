@@ -28,17 +28,33 @@ export function formatDateTime(value?: string | Date | null): string {
  *
  * <p>`locale` defaults to French so existing callers keep their behaviour; a screen that knows which
  * language it is in passes its own.
+ *
+ * <p>Short style on purpose: this fills a column in dense tables, where "il y a 15 minutes" wraps
+ * and "il y a 15 min" does not.
  */
+
+/**
+ * Under a minute has no {@link Intl.RelativeTimeFormat} equivalent worth showing: the API offers
+ * "cette minute-ci" (a calendar minute, not an elapsed one) and "maintenant" (a point in time, not
+ * a recency). Both read as noise in a "last seen" column, so the three languages the product ships
+ * carry their own phrase and anything else falls back to the API.
+ */
+const JUST_NOW: Record<string, string> = {
+  fr: "à l'instant",
+  en: 'just now',
+  ar: 'الآن',
+};
+
 export function formatRelative(value?: string | Date | null, locale: string = 'fr'): string {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
 
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'always', style: 'short' });
   const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
   // Negative, because these are minutes already elapsed: RelativeTimeFormat reads the past as a
   // negative offset, and the positive value would date every row into the future.
-  if (diffMin < 1) return rtf.format(0, 'minute');
+  if (diffMin < 1) return JUST_NOW[locale.split('-')[0]] ?? rtf.format(0, 'second');
   if (diffMin < 60) return rtf.format(-diffMin, 'minute');
   const diffH = Math.floor(diffMin / 60);
   if (diffH < 24) return rtf.format(-diffH, 'hour');
