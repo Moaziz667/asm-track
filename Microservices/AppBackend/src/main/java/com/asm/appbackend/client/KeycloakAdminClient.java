@@ -127,6 +127,20 @@ public class KeycloakAdminClient {
             log.info("User already exists in Keycloak (idempotency): appUserId={}", appUserId);
             // Keep the display name in sync even on the idempotent path (older users had none).
             applyName(kcUserId, name, token);
+            // Heal a missing email. The username is the opaque appUserId, so an account without an
+            // email has no credential a human can type — it is locked out however healthy it looks.
+            // Restoring it here means a re-provision (reconciler, or an admin re-inviting) is enough
+            // to recover, rather than requiring a Keycloak console visit.
+            Object currentEmail = existing.get(0).get("email");
+            boolean emailMissing = currentEmail == null || currentEmail.toString().isBlank();
+            if (emailMissing && email != null && !email.isBlank()) {
+                try {
+                    patchUser(kcUserId, token, body -> body.put("email", email));
+                    log.info("Restored missing email in Keycloak: appUserId={}", appUserId);
+                } catch (RestClientResponseException | AppException e) {
+                    log.warn("Could not restore missing email (appUserId={}): {}", appUserId, e.getMessage());
+                }
+            }
         } else {
             // Username is appUserId (stable, immutable), email is an attribute (changeable).
             // firstName/lastName populate the JWT `name` claim → attributable audit/history downstream.
@@ -234,32 +248,64 @@ public class KeycloakAdminClient {
             return;
         }
         String kcUserId = (String) users.get(0).get("id");
-        Map<String, Object> attrs = new HashMap<>();
         try {
-            Map<String, Object> full = restClient.get()
+            patchUser(kcUserId, token, body -> {
+                Map<String, Object> attrs = new HashMap<>();
+                if (body.get("attributes") instanceof Map<?, ?> m) {
+                    for (Map.Entry<?, ?> e : m.entrySet()) attrs.put(String.valueOf(e.getKey()), e.getValue());
+                }
+                attrs.put("picture", List.of(pictureUrl));
+                body.put("attributes", attrs);
+            });
+        } catch (RestClientResponseException e) {
+            log.error("Failed to set picture in Keycloak (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+        } catch (AppException e) {
+            log.error("Failed to set picture in Keycloak (kcUserId={}): {}", kcUserId, e.getMessage());
+        }
+    }
+
+    /**
+     * Read-modify-write a Keycloak user, sending the <em>whole</em> representation back.
+     *
+     * <p>Keycloak's declarative user profile (on by default since 24) treats the body of
+     * {@code PUT /users/{id}} as authoritative: a managed attribute the representation omits is
+     * taken to have been removed, not left alone. A body of {@code {"attributes": {...}}} therefore
+     * does not patch the attributes — it patches them and silently clears {@code email},
+     * {@code firstName} and {@code lastName}.
+     *
+     * <p>That is how five drivers lost the ability to sign in. Their username is the opaque
+     * appUserId, so email is the only credential a human can type; uploading a profile photo
+     * blanked it and the next login attempt — after a reinstall, once the stored token was gone —
+     * answered "invalid username or password" with the account otherwise perfectly healthy:
+     * enabled, correct role, password set.
+     *
+     * <p>Callers mutate the fetched map and this sends all of it back, so a field nobody touched
+     * survives by default instead of by remembering to re-send it.
+     */
+    private void patchUser(String kcUserId, String token, java.util.function.Consumer<Map<String, Object>> mutator) {
+        Map<String, Object> full;
+        try {
+            full = restClient.get()
                     .uri(getAdminUrl() + "/users/" + kcUserId)
                     .header("Authorization", "Bearer " + token)
                     .retrieve()
                     .body(MAP_TYPE);
-            Object existing = full != null ? full.get("attributes") : null;
-            if (existing instanceof Map<?, ?> m) {
-                for (Map.Entry<?, ?> e : m.entrySet()) attrs.put(String.valueOf(e.getKey()), e.getValue());
-            }
         } catch (RestClientResponseException e) {
-            log.warn("Could not read existing attributes for picture merge (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+            log.error("Failed to read user before update (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read user from Keycloak");
         }
-        attrs.put("picture", List.of(pictureUrl));
-        try {
-            restClient.put()
-                    .uri(getAdminUrl() + "/users/" + kcUserId)
-                    .header("Authorization", "Bearer " + token)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("attributes", attrs))
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientResponseException e) {
-            log.error("Failed to set picture in Keycloak (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+        if (full == null) {
+            throw new AppException(HttpStatus.NOT_FOUND, "User not found in Keycloak");
         }
+        Map<String, Object> body = new HashMap<>(full);
+        mutator.accept(body);
+        restClient.put()
+                .uri(getAdminUrl() + "/users/" + kcUserId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     private void assignRole(String kcUserId, String role, String token) {
@@ -315,16 +361,12 @@ public class KeycloakAdminClient {
         if (users.isEmpty()) return;
         String kcUserId = (String) users.get(0).get("id");
         try {
-            restClient.put()
-                    .uri(getAdminUrl() + "/users/" + kcUserId)
-                    .header("Authorization", "Bearer " + token)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("enabled", enabled))
-                    .retrieve()
-                    .toBodilessEntity();
+            patchUser(kcUserId, token, body -> body.put("enabled", enabled));
             log.info("Updated enabled={} in Keycloak for appUserId: {}", enabled, appUserId);
         } catch (RestClientResponseException e) {
             log.error("Failed to update enabled status in Keycloak: {}", e.getResponseBodyAsString());
+        } catch (AppException e) {
+            log.error("Failed to update enabled status in Keycloak: {}", e.getMessage());
         }
     }
 
@@ -341,14 +383,8 @@ public class KeycloakAdminClient {
         }
         String kcUserId = (String) users.get(0).get("id");
         try {
-            // Only update email (username is immutable, remains appUserId)
-            restClient.put()
-                    .uri(getAdminUrl() + "/users/" + kcUserId)
-                    .header("Authorization", "Bearer " + token)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("email", newEmail))
-                    .retrieve()
-                    .toBodilessEntity();
+            // Username is immutable and remains appUserId — only the email moves.
+            patchUser(kcUserId, token, body -> body.put("email", newEmail));
             log.info("Updated email → {} in Keycloak for appUserId: {}", newEmail, appUserId);
         } catch (RestClientResponseException e) {
             log.error("Failed to update email in Keycloak: {}", e.getResponseBodyAsString());
