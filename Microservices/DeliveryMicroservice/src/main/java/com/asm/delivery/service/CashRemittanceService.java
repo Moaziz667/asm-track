@@ -114,7 +114,7 @@ public class CashRemittanceService {
      * becomes decoration.
      */
     @Transactional
-    public CashRemittance receive(UUID remittanceId, BigDecimal receivedTotal, String note, UserPrincipal actor) {
+    public CashRemittance receive(UUID remittanceId, BigDecimal receivedTotal, UserPrincipal actor) {
         if (receivedTotal == null || receivedTotal.signum() < 0) {
             throw AppException.badRequest("Le montant compté doit être positif.");
         }
@@ -142,9 +142,6 @@ public class CashRemittanceService {
         r.setReceivedBy(counter);
         r.setReceivedByName(actorName(actor));
         r.setReceivedAt(LocalDateTime.now());
-        // Its own column: settling writes `note`, and sharing one meant the manager's explanation
-        // erased whatever the counter had observed.
-        r.setCountNote(trimToNull(note));
         r.setStatus(balanced ? CashRemittanceStatus.RECONCILED : CashRemittanceStatus.DISPUTED);
         if (balanced) {
             r.setReconciledBy(counter);

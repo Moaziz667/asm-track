@@ -20,8 +20,6 @@ export interface CashRemittance {
   receivedAt?: string;
   receivedByName?: string;
   reconciledAt?: string;
-  /** What the cashier observed while counting. Distinct from [note], which settles a discrepancy. */
-  countNote?: string;
   note?: string;
   openedAt?: string;
   closedAt?: string;
@@ -76,8 +74,8 @@ export const getRemittanceCollections = (id: string) =>
   api.get<CashCollectionRow[]>(`/admin/cash/remittances/${id}/collections`).then(r => r.data);
 
 /** Record what was counted. The backend rejects the driver and the declaring party. */
-export const receiveRemittance = (id: string, receivedTotal: number, note?: string) =>
-  api.post<CashRemittance>(`/admin/cash/remittances/${id}/receive`, { receivedTotal, note }).then(r => r.data);
+export const receiveRemittance = (id: string, receivedTotal: number) =>
+  api.post<CashRemittance>(`/admin/cash/remittances/${id}/receive`, { receivedTotal }).then(r => r.data);
 
 /** Close a handover whose figures disagreed. The note is mandatory server-side too. */
 export const reconcileRemittance = (id: string, note: string) =>

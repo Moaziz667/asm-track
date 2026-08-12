@@ -38,7 +38,6 @@ public class AdminCashController {
     public static class ReceiveRequest {
         /** What was actually counted at the depot. */
         private BigDecimal receivedTotal;
-        private String note;
     }
 
     @Data
@@ -57,7 +56,7 @@ public class AdminCashController {
             @RequestBody ReceiveRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(
-                remittanceService.receive(id, req.getReceivedTotal(), req.getNote(), principal));
+                remittanceService.receive(id, req.getReceivedTotal(), principal));
     }
 
     @PostMapping("/remittances/{id}/reconcile")

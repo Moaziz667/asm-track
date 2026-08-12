@@ -92,16 +92,11 @@ public class CashRemittance {
     private LocalDateTime reconciledAt;
 
     /**
-     * What the cashier observed while counting — "billet de 50 déchiré", "un chèque non signé".
-     *
-     * <p>Separate from {@link #note} because both steps write a note and they used to share one
-     * column: settling overwrote the counter's observation, destroying the only first-hand account
-     * of the discrepancy at the very moment somebody was trying to explain it.
+     * The manager's explanation for a discrepancy — the audit trail's payload, and the only note on
+     * this row. The count step used to write one too; it was optional, nobody filled it, and nothing
+     * aggregated it. Two free-text fields where one is mandatory and the other decorative teach a
+     * cashier that notes are decorative.
      */
-    @Column(name = "count_note", columnDefinition = "TEXT")
-    private String countNote;
-
-    /** The manager's explanation for a discrepancy — the audit trail's payload. */
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
 

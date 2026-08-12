@@ -153,7 +153,6 @@ export default function CashDeskPage() {
 
   const [counting, setCounting] = useState<CashRemittance | null>(null);
   const [countedText, setCountedText] = useState('');
-  const [countNote, setCountNote] = useState('');
   const [settling, setSettling] = useState<CashRemittance | null>(null);
   const [settleNote, setSettleNote] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -204,7 +203,7 @@ export default function CashDeskPage() {
     if (!counting || countedValue === null) return;
     setBusyId(counting.id);
     try {
-      const updated = await receiveRemittance(counting.id, countedValue, countNote || undefined);
+      const updated = await receiveRemittance(counting.id, countedValue);
       showSuccessToast(updated.discrepancy === 0 ? c.countMatched : c.countDisputed);
       setCounting(null);
       refreshCash();
@@ -464,7 +463,7 @@ export default function CashDeskPage() {
                               <Button
                                 size="sm"
                                 disabled={busyId === r.id}
-                                onClick={() => { setCounting(r); setCountedText(''); setCountNote(''); }}
+                                onClick={() => { setCounting(r); setCountedText(''); }}
                                 className="h-7 gap-1 px-2 text-xs font-semibold"
                               >
                                 <IconScale size={12} /> {c.actionCount}
@@ -500,22 +499,20 @@ export default function CashDeskPage() {
                               settled discrepancy — the only thing an audit has to go on — was
                               write-only.
                             */}
-                            {[
-                              { text: r.countNote, label: c.countNoteHeading },
-                              { text: r.note, label: c.settleNoteHeading },
-                            ].filter(n => n.text).map(n => (
-                              <div key={n.label} className="flex items-start gap-2 mb-3 rounded-lg px-3 py-2"
+                            {r.note && (
+                              <div className="flex items-start gap-2 mb-3 rounded-lg px-3 py-2"
                                    style={{ background: 'var(--surface)' }}>
                                 <IconNote size={14} className="shrink-0 mt-0.5 text-[var(--text-muted)]" aria-hidden />
                                 <div className="min-w-0">
-                                  {/* Each step is named now that they no longer share a column: the
-                                      counter's observation and the manager's explanation answer two
-                                      different questions, and reading them as one sentence misled. */}
-                                  <div className="text-2xs font-medium text-[var(--text-muted)]">{n.label}</div>
-                                  <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{n.text}</p>
+                                  {/* Named for the one step that writes it. The count used to write
+                                      here too, which is why this heading used to be a vague "Note". */}
+                                  <div className="text-2xs font-medium text-[var(--text-muted)]">
+                                    {c.settleNoteHeading}
+                                  </div>
+                                  <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{r.note}</p>
                                 </div>
                               </div>
-                            ))}
+                            )}
 
                             {expandedLines.isPending ? (
                               <Skeleton className="h-16 w-full" />
@@ -673,25 +670,6 @@ export default function CashDeskPage() {
               <span className="text-sm font-medium text-[var(--text-muted)]">{currency}</span>
             </div>
             <p className="text-xs text-[var(--text-muted)]">{c.countedHint}</p>
-          </div>
-
-          {/*
-            Optional, and it was already plumbed: the dialog held this value in state, reset it on
-            open and sent it to an endpoint that stores it — with no field to type it in. So the
-            note was always empty and the API parameter dead. A cashier noting "billet de 50 déchiré"
-            at the moment of counting is exactly what the expanded row later shows.
-          */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="count-note" className="text-xs font-medium text-[var(--text-muted)]">
-              {c.countNoteLabel}
-            </label>
-            <Input
-              id="count-note"
-              value={countNote}
-              onChange={e => setCountNote(e.target.value)}
-              placeholder={c.countNotePlaceholder}
-              className="text-sm"
-            />
           </div>
 
           {/*
