@@ -91,6 +91,7 @@ public class InternalDriverService {
                 .fcmToken(d.getFcmToken())
                 .active(d.getAccountStatus() == DriverAccountStatus.ACTIVE)
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
+                .photoUrl(d.getPhotoUrl())
                 .build();
     }
 }

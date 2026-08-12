@@ -66,6 +66,7 @@ public class PublicTrackingService {
         // Driver info - OUTSIDE transaction
         String driverName = null;
         String driverPhone = null;
+        String driverPhotoUrl = null;
         Double driverLat = null;
         Double driverLng = null;
         if (data.driverId() != null) {
@@ -81,6 +82,9 @@ public class PublicTrackingService {
                     if (!finished) {
                         driverLat = driver.getCurrentLat();
                         driverLng = driver.getCurrentLng();
+                        // Same reasoning as the position: the face belongs to the doorstep moment.
+                        // Once delivered, a held link should not keep serving an employee's photo.
+                        driverPhotoUrl = driver.getPhotoUrl();
                     }
                 }
             } catch (Exception e) {
@@ -139,6 +143,7 @@ public class PublicTrackingService {
                 .dropoffCity(order != null ? order.getDropoffCity() : null)
                 .driverName(driverName)
                 .driverPhone(driverPhone)
+                .driverPhotoUrl(driverPhotoUrl)
                 .driverLat(driverLat)
                 .driverLng(driverLng)
                 .depotLat(data.depotLat())

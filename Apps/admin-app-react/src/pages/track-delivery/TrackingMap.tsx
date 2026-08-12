@@ -8,7 +8,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 interface TrackingData {
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   depotLat?: number;   depotLng?: number;   depotName?: string
-  driverLat?: number;  driverLng?: number;  driverName?: string
+  driverLat?: number;  driverLng?: number;  driverName?: string;  driverPhotoUrl?: string
   routeGeometry?: string
   kind?: string  // FORWARD | RETURN_PICKUP — flips pickup/destination roles (ADR-033)
 }
@@ -17,17 +17,26 @@ interface TrackingData {
 // language: an avatar puck for the driver, a dark warehouse puck for the depot, a red teardrop for the
 // destination. A subtle live-pulse ring is layered under the driver only (it's the moving actor).
 
-/** Driver puck — brand-ringed avatar (initials) with an online status dot + live pulse. */
-function driverIcon(name?: string) {
+/** Driver puck — brand-ringed avatar with an online status dot + live pulse. */
+function driverIcon(name?: string, photoUrl?: string) {
   const size = 40, wrap = size + 8, dot = 12;
   const initials = (name || '').split(/\s+/).map(p => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '—';
+  // The photo when there is one, the initials otherwise — and the initials again if the image fails
+  // to load, because a broken-image glyph on the map reads as a broken app.
+  const inner = photoUrl
+    ? `<img src="${photoUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"`
+      + ` onerror="this.replaceWith(Object.assign(document.createElement('span'),`
+      + `{textContent:'${initials}',style:'font-family:var(--font-sans),system-ui;font-weight:700;`
+      + `font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary,#0f172a)'}))" />`
+    : `<span style="font-family:var(--font-sans),system-ui;font-weight:700;`
+      + `font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary,#0f172a);">${initials}</span>`;
   return L.divIcon({
     className: '',
     iconSize: [wrap, wrap], iconAnchor: [wrap / 2, wrap / 2], popupAnchor: [0, -(size / 2) - 6],
     html: `<div style="position:relative;width:${wrap}px;height:${wrap}px;">
   <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--brand);opacity:0.18;animation:mPulse 1.6s ease-out infinite;"></div>
   <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--surface,#fff);border:2.5px solid var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 22%, transparent),0 2px 8px rgba(0,0,0,0.22);overflow:hidden;display:flex;align-items:center;justify-content:center;">
-    <span style="font-family:var(--font-sans),system-ui;font-weight:700;font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary,#0f172a);">${initials}</span>
+    ${inner}
   </div>
   <span style="position:absolute;bottom:3px;right:3px;width:${dot}px;height:${dot}px;border-radius:50%;background:var(--success,#16a34a);border:2px solid var(--surface,#fff);"></span>
   <style>@keyframes mPulse{0%{transform:scale(1);opacity:0.22}100%{transform:scale(2.4);opacity:0}}</style>
@@ -135,7 +144,7 @@ function TrackingMapInner({ data }: { data: TrackingData }) {
       </>; })()}
 
       {data.driverLat && data.driverLng && (
-        <Marker position={[data.driverLat, data.driverLng]} icon={driverIcon(data.driverName)}>
+        <Marker position={[data.driverLat, data.driverLng]} icon={driverIcon(data.driverName, data.driverPhotoUrl)}>
           <Popup><strong>{data.driverName ?? 'Livreur'}</strong><br />Position actuelle</Popup>
         </Marker>
       )}

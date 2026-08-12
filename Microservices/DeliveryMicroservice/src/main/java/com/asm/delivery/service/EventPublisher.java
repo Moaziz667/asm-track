@@ -147,6 +147,29 @@ public class EventPublisher {
             .data(payload)
             .build();
         notificationGateway.broadcast(tenantTopic("admin.deliveries"), envelope);
+        nudgePublicTracking(eventType, payload);
+    }
+
+    /**
+     * Tell the customer's tracking page that something changed — without telling it what.
+     *
+     * <p>The public channel used to carry the driver's coordinates and nothing else, so a status
+     * transition ("picked up", "on the way", "delivered") only surfaced on the page's own 60-second
+     * poll: the parcel could be at the door while the page still said it was at the depot.
+     *
+     * <p>The payload is deliberately a bare delivery id. The admin envelope beside it carries the
+     * driver id, the route, the client name; republishing that on a channel anyone holding the link
+     * can subscribe to would hand out more than the page itself shows. The page reacts by re-reading
+     * {@code /public/track/{id}}, which is the one view that has been curated for a customer's eyes.
+     */
+    private void nudgePublicTracking(String eventType, DeliveryEventPayload payload) {
+        if (payload == null || payload.getDeliveryId() == null) return;
+        CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+            .source("/delivery-service")
+            .type(eventType)
+            .data(Map.of("deliveryId", payload.getDeliveryId()))
+            .build();
+        notificationGateway.broadcast("/topic/public." + payload.getDeliveryId(), envelope);
     }
 
     private void sendRoute(String eventType, Object payload) {

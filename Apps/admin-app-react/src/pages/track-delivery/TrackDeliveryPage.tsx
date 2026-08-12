@@ -16,7 +16,7 @@ interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
   deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string; customerRef?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
-  driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
+  driverName?: string; driverPhone?: string; driverPhotoUrl?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
   startWindow?: string; endWindow?: string; etaAt?: string
   routeGeometry?: string; companyName?: string; companyLogoUrl?: string
@@ -110,6 +110,8 @@ export default function TrackingPage() {
   const [error, setError]       = useState(false);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(false);
+  // A broken-image glyph next to a stranger's name reads worse than no photo at all.
+  const [driverPhotoFailed, setDriverPhotoFailed] = useState(false);
   const [copied, setCopied]     = useState(false);
   const stompRef                = useRef<Client | null>(null);
   const t = useT();
@@ -130,7 +132,7 @@ export default function TrackingPage() {
   useEffect(() => {
     const controller = new AbortController();
     fetchData(controller.signal);
-    const t = setInterval(() => fetchData(), 60_000);
+    const t = setInterval(() => fetchData(), 20_000);
     const baseUrl = import.meta.env.VITE_WS_BASE_URL ?? import.meta.env.VITE_API_BASE_URL
       ?? (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
     const client = new Client({
@@ -148,8 +150,16 @@ export default function TrackingPage() {
             const point = body?.data ?? body;
             const lat = point?.lat;
             const lng = point?.lng;
-            if (typeof lat !== 'number' || typeof lng !== 'number') return;
-            setData(prev => prev ? { ...prev, driverLat: lat, driverLng: lng } : prev);
+            if (typeof lat === 'number' && typeof lng === 'number') {
+              setData(prev => prev ? { ...prev, driverLat: lat, driverLng: lng } : prev);
+              return;
+            }
+            // Anything else on this channel is a lifecycle change, and it arrives as a bare id: the
+            // server refuses to put a status payload on an unauthenticated topic. Re-read the public
+            // view instead — it is the one shaped for a customer. Before this, a transition only
+            // showed up on the 60-second poll, so the parcel could be handed over while the page
+            // still said "at the depot".
+            void fetchData();
           } catch { /* ignore */ }
         });
       },
@@ -418,12 +428,21 @@ export default function TrackingPage() {
           {(data.driverName || data.driverPhone) && (
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {/* The face the recipient is about to open the door to, when we have it. */}
                 <div style={{
                   width: 42, height: 42, borderRadius: '50%', background: '#f8fafc',
                   border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#334155', flexShrink: 0,
+                  justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#334155',
+                  flexShrink: 0, overflow: 'hidden',
                 }}>
-                  {data.driverName?.[0] ?? '?'}
+                  {data.driverPhotoUrl && !driverPhotoFailed ? (
+                    <img
+                      src={data.driverPhotoUrl}
+                      alt={data.driverName ?? ''}
+                      onError={() => setDriverPhotoFailed(true)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (data.driverName?.[0] ?? '?')}
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: INK.muted, fontWeight: 600 }}>{t.trackingPage.labelDriver}</div>

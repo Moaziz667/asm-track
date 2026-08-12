@@ -15,4 +15,6 @@ public class InternalDriverResponse {
     private String fcmToken;
     private Boolean active;
     private String onlineStatus;
+    /** Public thumbnail URL, already resolved. Null until the driver has uploaded one. */
+    private String photoUrl;
 }

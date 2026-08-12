@@ -34,8 +34,27 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                log.warn("WS Connection rejected: Missing or invalid Authorization header");
+
+            // An anonymous CONNECT is allowed, and carries no principal.
+            //
+            // The public tracking page holds no token — that is the whole point of a shareable link —
+            // so rejecting it here meant it never reached SUBSCRIBE, where "/topic/public." is
+            // explicitly whitelisted a few lines below. That whitelist was unreachable code: the
+            // customer's map only ever moved on the 60-second poll, while the socket retried every
+            // five seconds and filled the log with rejections.
+            //
+            // Nothing is loosened by letting the frame through. Authorisation is decided at
+            // SUBSCRIBE, where a session without a principal can reach "/topic/public.{deliveryId}"
+            // and nothing else — and that destination carries only a pair of coordinates for a
+            // delivery whose unguessable id the subscriber already holds. There are no
+            // @MessageMapping handlers in this service, so an anonymous session has nothing to SEND
+            // to either.
+            if (authHeader == null) {
+                log.debug("WS Connection accepted anonymously (public tracking)");
+                return message;
+            }
+            if (!authHeader.startsWith("Bearer ")) {
+                log.warn("WS Connection rejected: malformed Authorization header");
                 throw new MessageDeliveryException("Missing or invalid Authorization header");
             }
 

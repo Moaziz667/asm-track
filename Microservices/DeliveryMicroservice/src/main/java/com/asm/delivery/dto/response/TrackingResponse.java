@@ -34,6 +34,14 @@ public class TrackingResponse {
     private String dropoffCity;
     private String driverName;
     private String driverPhone;
+    /**
+     * The driver's thumbnail, when he has one.
+     *
+     * <p>Published on the same footing as his name and phone, which this response already carried:
+     * a recipient about to open his door to a stranger is better served by a face than by two
+     * initials. Like the live position, it is withheld once the delivery is finished — see below.
+     */
+    private String driverPhotoUrl;
     private Double driverLat;
     private Double driverLng;
     private Double depotLat;

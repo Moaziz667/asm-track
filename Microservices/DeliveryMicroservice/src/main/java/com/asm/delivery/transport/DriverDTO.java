@@ -20,6 +20,8 @@ public class DriverDTO {
     private String  fcmToken;
     private Boolean active;
     private String  onlineStatus;
+    /** Public thumbnail URL. Carried so a recipient sees a face, not two letters. */
+    private String  photoUrl;
     /** Id of the driver's active route today (VALIDATED/IN_PROGRESS), if any. Populated by the
      *  fleet-drivers endpoint (the driver service doesn't own routes); null when the driver is free. */
     private String  activeRouteId;
