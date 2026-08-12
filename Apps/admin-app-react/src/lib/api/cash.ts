@@ -20,6 +20,8 @@ export interface CashRemittance {
   receivedAt?: string;
   receivedByName?: string;
   reconciledAt?: string;
+  /** What the cashier observed while counting. Distinct from [note], which settles a discrepancy. */
+  countNote?: string;
   note?: string;
   openedAt?: string;
   closedAt?: string;

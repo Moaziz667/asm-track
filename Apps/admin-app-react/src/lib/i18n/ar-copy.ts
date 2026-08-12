@@ -3849,6 +3849,8 @@ export const AR_COPY = {
     circulationHint: 'محصّلة من طرف السائقين ولم تُسلّم بعد للمستودع.',
     holdersLabel: 'بحوزة',
     holdersCollections: '{count} تحصيل',
+    countNoteHeading: 'ملاحظة عند العدّ',
+    settleNoteHeading: 'تفسير الفارق',
     filterPending: 'قيد المعالجة',
     colDriver: 'السائق',
     colExpected: 'المتوقّع',

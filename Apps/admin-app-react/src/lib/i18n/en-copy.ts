@@ -3443,6 +3443,8 @@ export const EN_COPY = {
     circulationHint: 'Collected by drivers, not yet handed over at the depot.',
     holdersLabel: 'Held by',
     holdersCollections: '{count} collection{plural}',
+    countNoteHeading: 'Observed while counting',
+    settleNoteHeading: 'Explanation of the gap',
     filterPending: 'To handle',
     colDriver: 'Driver',
     colExpected: 'Expected',

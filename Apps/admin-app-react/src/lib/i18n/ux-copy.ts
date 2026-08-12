@@ -3902,6 +3902,8 @@ export const FR_COPY = {
     circulationHint: 'Encaissé par les livreurs, pas encore remis au dépôt.',
     holdersLabel: 'Détenu par',
     holdersCollections: '{count} encaissement{plural}',
+    countNoteHeading: 'Observation au comptage',
+    settleNoteHeading: 'Explication de l’écart',
     filterPending: 'À traiter',
     colDriver: 'Livreur',
     colExpected: 'Attendu',

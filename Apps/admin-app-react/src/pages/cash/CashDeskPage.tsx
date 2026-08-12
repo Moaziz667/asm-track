@@ -500,20 +500,22 @@ export default function CashDeskPage() {
                               settled discrepancy — the only thing an audit has to go on — was
                               write-only.
                             */}
-                            {r.note && (
-                              <div className="flex items-start gap-2 mb-3 rounded-lg px-3 py-2"
+                            {[
+                              { text: r.countNote, label: c.countNoteHeading },
+                              { text: r.note, label: c.settleNoteHeading },
+                            ].filter(n => n.text).map(n => (
+                              <div key={n.label} className="flex items-start gap-2 mb-3 rounded-lg px-3 py-2"
                                    style={{ background: 'var(--surface)' }}>
                                 <IconNote size={14} className="shrink-0 mt-0.5 text-[var(--text-muted)]" aria-hidden />
                                 <div className="min-w-0">
-                                  {/* Neutral: this field is written both when counting and when
-                                      settling, and "Explication" only describes the second. */}
-                                  <div className="text-2xs font-medium text-[var(--text-muted)]">
-                                    {c.noteLabel}
-                                  </div>
-                                  <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{r.note}</p>
+                                  {/* Each step is named now that they no longer share a column: the
+                                      counter's observation and the manager's explanation answer two
+                                      different questions, and reading them as one sentence misled. */}
+                                  <div className="text-2xs font-medium text-[var(--text-muted)]">{n.label}</div>
+                                  <p className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{n.text}</p>
                                 </div>
                               </div>
-                            )}
+                            ))}
 
                             {expandedLines.isPending ? (
                               <Skeleton className="h-16 w-full" />

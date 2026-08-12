@@ -91,6 +91,16 @@ public class CashRemittance {
     @Column(name = "reconciled_at")
     private LocalDateTime reconciledAt;
 
+    /**
+     * What the cashier observed while counting — "billet de 50 déchiré", "un chèque non signé".
+     *
+     * <p>Separate from {@link #note} because both steps write a note and they used to share one
+     * column: settling overwrote the counter's observation, destroying the only first-hand account
+     * of the discrepancy at the very moment somebody was trying to explain it.
+     */
+    @Column(name = "count_note", columnDefinition = "TEXT")
+    private String countNote;
+
     /** The manager's explanation for a discrepancy — the audit trail's payload. */
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
