@@ -2393,6 +2393,8 @@ export const AR_COPY = {
 
   // ── صفحة المرتجعات (RMA) ──────────────────────────────────────────────
   returnsPage: {
+    drawerPhotos: 'صور العميل',
+    drawerPhotoOpen: 'فتح بالحجم الكامل',
     confirmTitleCancel: 'إلغاء هذا الإرجاع',
     confirmTitleReject: 'رفض هذا الإرجاع',
     confirmTitleReceive: 'تسجيل الاستلام',
@@ -3896,6 +3898,7 @@ export const AR_COPY = {
     conditionResellable: 'قابل لإعادة البيع',
     conditionDamaged: 'تالف',
     returnFormReason: 'سبب الإرجاع',
+    returnPhotoRemove: 'إزالة هذه الصورة',
     returnFormPhotos: 'صور (اختياري)',
     returnFormSubmit: 'إرسال الطلب',
     returnFormCancel: 'إلغاء',

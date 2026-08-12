@@ -15,6 +15,20 @@ spring:
   application:
     name: delivery-service
 
+  # Uploads: match the limits the code actually advertises.
+  #
+  # Spring defaults to 1 MB per file, while RmaPhotoStorageService accepts up to 5 MB and five
+  # files, and the company-logo endpoint has its own rule. The two never met: Tomcat rejects the
+  # request while parsing the multipart body, long before any handler runs, so the caller got a
+  # dropped connection (ERR_CONNECTION_ABORTED) instead of the friendly "5 Mo maximum" the service
+  # was ready to return — and a phone camera clears 1 MB without trying.
+  #
+  # 30 MB for the whole request = five photos at the per-file ceiling, plus multipart overhead.
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 30MB
+
   # Global pagination guardrails: cap any `Pageable` controller argument so a client can never
   # request an unbounded page (e.g. ?size=100000). Endpoints with stricter explicit clamps keep them.
   data:

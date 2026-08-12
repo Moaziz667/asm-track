@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -126,6 +127,22 @@ export default function ReturnsPage() {
   const [reasonText, setReasonText] = useState('');
   // Detail drawer — opens on row click; shows items, value, timeline, sync triage.
   const [selected, setSelected] = useState<Rma | null>(null);
+
+  /*
+   * Open straight onto the return a notification points at.
+   *
+   * <p>Landing on the list and leaving the operator to hunt for the row defeats the alert: the
+   * whole point of "a client asked for a return" is that one particular return needs a decision.
+   * Runs once per id — reopening it on every refetch would fight the operator closing the drawer.
+   */
+  const [searchParams] = useSearchParams();
+  const deepLinkId = searchParams.get('rma');
+  const [deepLinked, setDeepLinked] = useState<string | null>(null);
+  useEffect(() => {
+    if (!deepLinkId || deepLinked === deepLinkId) return;
+    const hit = rmas.find(r => r.id === deepLinkId);
+    if (hit) { setSelected(hit); setDeepLinked(deepLinkId); }
+  }, [deepLinkId, deepLinked, rmas]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -501,7 +518,7 @@ export default function ReturnsPage() {
         open={reasonModal !== null}
         title={reasonModal ? `${confirmCopy(reasonModal.target).title} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
         description={t.returnsPage?.reasonRequiredDesc ?? 'A reason is required for this action.'}
-        variant="danger"
+        variant={reasonModal?.target === 'RECEIVED' ? 'primary' : 'danger'}
         reasonLabel={t.returnsPage?.reasonLabel ?? 'Reason'}
         reasonPlaceholder={t.returnsPage?.reasonPlaceholder ?? 'Explain the reason…'}
         reason={reasonText}

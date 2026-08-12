@@ -33,8 +33,24 @@ export function notifDestination(n: {
   orderId?: string | null;
   routeId?: string | null;
   category?: string;
+  eventParams?: Record<string, string> | null;
 }): string {
   if (n.event === 'erp.orders_ready') return '/import?tab=ready';
+  /*
+   * A return belongs on the returns desk, not the dispatch queue.
+   *
+   * <p>The alert carries a deliveryId, so it fell through to the generic branch below and opened
+   * the dispatch desk — a screen whose actions (reassign, replan, acknowledge) are all about a
+   * shipment still to be made. The shipment is over; what is waiting is a decision to approve or
+   * reject, and it lives on /returns.
+   *
+   * <p>The rma id travels in the notification payload, so the row can be opened directly instead of
+   * leaving the operator to find it in a list.
+   */
+  if (n.event?.startsWith('return.')) {
+    const rmaId = n.eventParams?.rmaId;
+    return rmaId ? `/returns?rma=${encodeURIComponent(rmaId)}` : '/returns';
+  }
   // A delivered / partially-delivered shipment has no queue action — open the per-delivery page.
   // (Both DELIVERED and PARTIALLY_DELIVERED are published as `delivery.completed`.)
   if (n.deliveryId && n.event && NOTIF_DETAIL_EVENTS.has(n.event)) {

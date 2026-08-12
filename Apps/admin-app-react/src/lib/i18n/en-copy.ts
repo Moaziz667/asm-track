@@ -2334,6 +2334,8 @@ export const EN_COPY = {
 
   // ── Returns (RMA) Page ────────────────────────────────────────────────
   returnsPage: {
+    drawerPhotos: 'Customer photos',
+    drawerPhotoOpen: 'Open full size',
     confirmTitleCancel: 'Cancel this return',
     confirmTitleReject: 'Reject this return',
     confirmTitleReceive: 'Record the collection',
@@ -3490,6 +3492,7 @@ export const EN_COPY = {
     conditionResellable: 'Resellable',
     conditionDamaged: 'Damaged',
     returnFormReason: 'Reason for return',
+    returnPhotoRemove: 'Remove this photo',
     returnFormPhotos: 'Photos (optional)',
     returnFormSubmit: 'Submit request',
     returnFormCancel: 'Cancel',

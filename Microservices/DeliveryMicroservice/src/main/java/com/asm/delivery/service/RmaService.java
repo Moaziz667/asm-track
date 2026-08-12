@@ -35,6 +35,7 @@ public class RmaService {
 
     private final RmaRepository rmaRepository;
     private final RmaPhotoRepository rmaPhotoRepository;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
     private final RmaStatusHistoryRepository rmaStatusHistoryRepository;
     private final DeliveryRepository deliveryRepository;
     private final OutboxProcessor outboxProcessor;
@@ -150,8 +151,12 @@ public class RmaService {
     @Transactional(readOnly = true)
     public RmaResponse get(UUID id) {
         RmaResponse resp = RmaResponse.from(load(id));
+        // Stored as storage keys so the database never freezes a host; resolved here, per request,
+        // into signed URLs the caller's own browser can actually fetch.
         resp.setPhotoUrls(rmaPhotoRepository.findByRmaIdOrderByCreatedAtAsc(id).stream()
-                .map(com.asm.delivery.entity.RmaPhoto::getUrl).toList());
+                .map(com.asm.delivery.entity.RmaPhoto::getUrl)
+                .map(mediaUrlResolver::toPublicUrl)
+                .toList());
         return resp;
     }
 

@@ -40,7 +40,17 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
   const [panel, setPanel] = useState<ReturnableResponse | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [qty, setQty] = useState<Record<string, number>>({});
-  const [condition, setCondition] = useState<Condition>('RESELLABLE');
+  /*
+   * The condition belongs to the line, not to the form.
+   *
+   * <p>A single global toggle forced one verdict onto every item returned together, so a customer
+   * sending back one crushed box and one untouched one had to lie about one of them. And the lie is
+   * not cosmetic: DAMAGED makes the ERP scrap the goods on restock, so a resellable item declared
+   * damaged is written off for real, while damaged goods declared resellable go back on sale.
+   *
+   * <p>The API and the ERP have always taken the condition per item — only this form flattened it.
+   */
+  const [conditions, setConditions] = useState<Record<string, Condition>>({});
   const [reason, setReason] = useState('');
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -94,7 +104,8 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
     try {
       const body = {
         items: selected.map(i => ({
-          sku: i.sku, name: i.name, quantity: qty[i.sku], unitPrice: i.unitPrice, condition, reason: reason.trim() || undefined,
+          sku: i.sku, name: i.name, quantity: qty[i.sku], unitPrice: i.unitPrice,
+          condition: conditions[i.sku] ?? 'RESELLABLE', reason: reason.trim() || undefined,
         })),
         photoUrls,
       };
@@ -104,7 +115,7 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
       if (res.status === 429) { setErrorMsg(tr('rateLimitExceeded', 'Trop de demandes. Réessayez demain.')); return; }
       if (!res.ok) { setErrorMsg(tr('returnSubmitError', 'Échec de la demande de retour.')); return; }
       // Reset + refresh both this panel and the parent tracking banner.
-      setFormOpen(false); setQty({}); setReason(''); setPhotoUrls([]); setCondition('RESELLABLE');
+      setFormOpen(false); setQty({}); setReason(''); setPhotoUrls([]); setConditions({});
       await loadPanel();
       onChanged?.();
     } catch { setErrorMsg(tr('returnSubmitError', 'Échec de la demande de retour.')); }
@@ -189,8 +200,8 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
           return (
             <div key={it.sku} style={{
               border: `1px solid ${active ? '#0f172a' : '#e2e8f0'}`, borderRadius: 10, padding: 10,
-              display: 'flex', alignItems: 'center', gap: 10,
             }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input type="checkbox" checked={active} onChange={() => toggleItem(it.sku, it.returnableQty)} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -207,23 +218,28 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
                   style={{ width: 56, height: 34, borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center', fontSize: 13 }}
                 />
               )}
+              </div>
+              {active && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  {(['RESELLABLE', 'DAMAGED'] as Condition[]).map(c => {
+                    const on = (conditions[it.sku] ?? 'RESELLABLE') === c;
+                    return (
+                      <button key={c}
+                        onClick={() => setConditions(prev => ({ ...prev, [it.sku]: c }))}
+                        style={{
+                          flex: 1, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${on ? '#0f172a' : '#e2e8f0'}`,
+                          background: on ? '#0f172a' : '#fff', color: on ? '#fff' : '#475569',
+                        }}>
+                        {c === 'RESELLABLE' ? tr('conditionResellable', 'Revendable') : tr('conditionDamaged', 'Endommagé')}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
-      </div>
-
-      {/* Condition */}
-      <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: '#475569' }}>{tr('returnFormCondition', 'État de l’article')}</div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-        {(['RESELLABLE', 'DAMAGED'] as Condition[]).map(c => (
-          <button key={c} onClick={() => setCondition(c)} style={{
-            flex: 1, height: 38, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600,
-            border: `1px solid ${condition === c ? '#0f172a' : '#e2e8f0'}`,
-            background: condition === c ? '#0f172a' : '#fff', color: condition === c ? '#fff' : '#475569',
-          }}>
-            {c === 'RESELLABLE' ? tr('conditionResellable', 'Revendable') : tr('conditionDamaged', 'Endommagé')}
-          </button>
-        ))}
       </div>
 
       {/* Reason */}
@@ -236,11 +252,41 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
       {/* Photos */}
       <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, color: '#475569' }}>{tr('returnFormPhotos', 'Photos (optionnel)')}</div>
       <div style={{ display: 'flex', gap: 8, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/*
+            Big enough to check before sending. At 48 px a customer could not tell whether the
+            damage was even in frame, and this photo is the whole substance of the claim — the
+            depot approves or rejects on it. Opens full size in a new tab on tap.
+        */}
+        {/*
+            Each photo can be taken back. Five could be added and none removed — including the one
+            picked by mistake a second earlier — so the only way out was to abandon the form and
+            start the request again.
+
+            Removing drops it from the request; the uploaded object is simply never referenced,
+            exactly as it would be if the form were closed. Nothing is deleted from storage on a
+            public, unauthenticated screen.
+        */}
         {photoUrls.map((u, i) => (
-          <img key={i} src={u} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+          <div key={i} style={{ position: 'relative' }}>
+            <a href={u} target="_blank" rel="noreferrer">
+              <img src={u} alt="" style={{ width: 88, height: 88, borderRadius: 8, objectFit: 'cover', border: '1px solid #e2e8f0', display: 'block' }} />
+            </a>
+            <button
+              type="button"
+              aria-label={tr('returnPhotoRemove', 'Retirer cette photo')}
+              title={tr('returnPhotoRemove', 'Retirer cette photo')}
+              onClick={() => setPhotoUrls(prev => prev.filter((_, k) => k !== i))}
+              style={{
+                position: 'absolute', top: -6, right: -6, width: 24, height: 24,
+                borderRadius: '50%', border: '1px solid #e2e8f0', background: '#fff',
+                color: '#b91c1c', fontSize: 15, lineHeight: '22px', padding: 0,
+                cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+              }}
+            >×</button>
+          </div>
         ))}
         {canReach && (
-          <button style={{ ...ghostBtn, height: 48, width: 48, padding: 0, fontSize: 22 }}
+          <button style={{ ...ghostBtn, height: 88, width: 88, padding: 0, fontSize: 26 }}
                   onClick={() => fileRef.current?.click()} disabled={uploading}>
             {uploading ? '…' : '+'}
           </button>

@@ -50,6 +50,7 @@ public class PublicRmaService {
     private final RmaService rmaService;
     private final RmaPhotoStorageService photoService;
     private final PublicTrackingService publicTrackingService;
+    private final com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
 
     @Transactional(readOnly = true)
     public PublicReturnableItemsResponse getReturnableItems(UUID deliveryId) {
@@ -109,8 +110,15 @@ public class PublicRmaService {
         if (urls != null) {
             urls.stream()
                     .filter(u -> u != null && !u.isBlank())
+                    // Store the key, never the absolute URL the browser was shown: a persisted host
+                    // dies the next time the server moves, which is exactly what MediaUrlResolver
+                    // exists to prevent. toKey is idempotent and leaves a foreign URL untouched.
+                    .map(u -> {
+                        String key = mediaUrlResolver.toKey(u.trim());
+                        return key != null ? key : u.trim();
+                    })
                     .forEach(u -> rmaPhotoRepository.save(
-                            RmaPhoto.builder().rmaId(created.getId()).url(u.trim()).build()));
+                            RmaPhoto.builder().rmaId(created.getId()).url(u).build()));
         }
         return publicTrackingService.getTracking(deliveryId);
     }
@@ -133,7 +141,17 @@ public class PublicRmaService {
         if (!deliveryRepository.existsById(deliveryId)) {
             throw AppException.notFound("DELIVERY_NOT_FOUND", "Livraison introuvable.");
         }
-        return photoService.uploadPhotos(deliveryId, files);
+        /*
+         * Hand back displayable URLs, not storage keys.
+         *
+         * <p>uploadFile returns the object key by design — the database must never freeze a host.
+         * But this value goes straight to a browser, which put it in an <img src> unchanged: a bare
+         * key is a relative path with no host and no signature, so the customer's thumbnail rendered
+         * as a broken image the moment the photo uploaded successfully.
+         */
+        return photoService.uploadPhotos(deliveryId, files).stream()
+                .map(mediaUrlResolver::toPublicUrl)
+                .toList();
     }
 
     private Optional<Rma> openReturn(UUID deliveryId) {

@@ -87,6 +87,15 @@ public class MediaUrlResolver {
      */
     public String toKey(String keyOrLegacyUrl) {
         if (!StringUtils.hasText(keyOrLegacyUrl)) return null;
+        // A presigned URL carries its signature in the query string, and the signature is not part
+        // of the object's name. Keeping it turned "…/photo.png?X-Amz-Algorithm=…" into the key, and
+        // the next toPublicUrl appended a second query to the first — a URL with two '?' that MinIO
+        // answers 400. Harmless while values only ever travelled outwards; the moment a signed URL
+        // was handed to a browser and posted back to be stored, it became the stored key.
+        int q = keyOrLegacyUrl.indexOf('?');
+        if (q >= 0) keyOrLegacyUrl = keyOrLegacyUrl.substring(0, q);
+        if (!StringUtils.hasText(keyOrLegacyUrl)) return null;
+
         String key;
         if (!keyOrLegacyUrl.startsWith("http://") && !keyOrLegacyUrl.startsWith("https://")) {
             key = stripLeadingSlash(keyOrLegacyUrl);

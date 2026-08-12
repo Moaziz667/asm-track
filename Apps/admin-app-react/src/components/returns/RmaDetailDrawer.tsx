@@ -112,6 +112,24 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, actionLabel, 
     return () => { cancelled = true; };
   }, [open, rma?.id]);
 
+  /**
+   * The customer's evidence photos.
+   *
+   * <p>Fetched separately because the list endpoint leaves {@code photoUrls} null by design — the
+   * URLs are signed per request, and minting them for every row of a table nobody has opened would
+   * be wasted work. So a return could be approved or rejected on this screen while the photographs
+   * the customer took of the damage were never shown at all.
+   */
+  const [photos, setPhotos] = useState<string[]>([]);
+  useEffect(() => {
+    if (!open || !rma?.id) { setPhotos([]); return; }
+    let cancelled = false;
+    api.get<{ photoUrls?: string[] }>(`/admin/returns/${rma.id}`)
+      .then(res => { if (!cancelled) setPhotos(Array.isArray(res.data?.photoUrls) ? res.data.photoUrls : []); })
+      .catch(() => { if (!cancelled) setPhotos([]); });
+    return () => { cancelled = true; };
+  }, [open, rma?.id]);
+
   const steps = rma
     ? (history.length > 0 ? historySteps(history, statusLabel) : lifecycleSteps(rma, t))
     : [];
@@ -255,6 +273,29 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, actionLabel, 
               </tbody>
             </table>
           </div>
+
+          {/* Client evidence photos — what the return is actually being judged on */}
+          {photos.length > 0 && (
+            <div className="px-5 py-4 border-b flex flex-col gap-2" style={{ borderColor: 'var(--border)' }}>
+              <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
+                {tlabel(t.returnsPage, 'drawerPhotos') ?? 'Photos du client'}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {photos.map((u, i) => (
+                  <a key={i} href={u} target="_blank" rel="noreferrer"
+                     title={tlabel(t.returnsPage, 'drawerPhotoOpen') ?? 'Ouvrir en grand'}>
+                    <img
+                      src={u}
+                      alt=""
+                      loading="lazy"
+                      className="rounded-sm border transition-opacity hover:opacity-80"
+                      style={{ width: 104, height: 104, objectFit: 'cover', borderColor: 'var(--border)' }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Reason + resolution */}
           {(rma.reason || rma.resolutionNote) && (

@@ -231,8 +231,17 @@ export default function TrackingPage() {
         padding: '0 16px', gap: 10,
         boxShadow: '0 1px 8px rgba(0,0,0,0.08)',
       }}>
+        {/*
+            `contain` inside a free width, not `cover` inside a 30×30 square.
+
+            A logo's shape is the information. Cropping it to a circle-ish tile is an avatar's
+            treatment — fine for a face, destructive for a wordmark: this tenant's logo is 595×267,
+            so a square frame with `cover` threw away 55 % of its width and left an unreadable
+            middle slice on the one page customers actually see.
+        */}
         {data.companyLogoUrl
-          ? <img src={data.companyLogoUrl} alt="" style={{ height: 30, width: 30, borderRadius: 6, objectFit: 'cover', border: '1px solid #f1f5f9' }} />
+          ? <img src={data.companyLogoUrl} alt={data.companyName ?? ''}
+                 style={{ height: 30, maxWidth: 110, objectFit: 'contain', flexShrink: 0 }} />
           : <div style={{ height: 30, width: 30, borderRadius: 6, background: '#f1f5f9', flexShrink: 0 }} />
         }
         <div style={{ flex: 1, minWidth: 0 }}>

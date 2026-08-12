@@ -90,6 +90,9 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
   'erp.sync_failed':       { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
   'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import?tab=ready' },
+  // Absent from this table, so it was dropped by addNotification's unknown-event filter and the
+  // client's return never rang the bell at all.
+  'return.requested':      { category: 'delivery', severity: 'warning',  navigateTo: p => p.rmaId ? `/returns?rma=${p.rmaId}` : '/returns' },
   // Was absent from this table, so it fell to the 'delivery' default and drew a truck — an icon
   // that says "a shipment moved" for an event that says "the ERP and the shipment disagree".
   'erp.conflict':          { category: 'erp',      severity: 'warning',  navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
