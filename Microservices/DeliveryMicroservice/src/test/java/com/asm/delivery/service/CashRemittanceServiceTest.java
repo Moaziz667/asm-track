@@ -151,7 +151,7 @@ class CashRemittanceServiceTest {
     void declarerCannotCount() {
         CashRemittance r = declared(dispatcherId);
 
-        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), null, user(dispatcherId)))
+        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), user(dispatcherId)))
                 .isInstanceOf(AppException.class)
                 .hasMessageContaining("déclaré");
     }
@@ -161,7 +161,7 @@ class CashRemittanceServiceTest {
     void driverCannotCountOwnHandover() {
         CashRemittance r = declared(UUID.randomUUID());
 
-        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), null, user(driverId)))
+        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), user(driverId)))
                 .isInstanceOf(AppException.class)
                 .hasMessageContaining("livreur");
     }
@@ -173,7 +173,7 @@ class CashRemittanceServiceTest {
     void matchingCountReconciles() {
         CashRemittance r = declared(UUID.randomUUID());
 
-        CashRemittance out = service.receive(r.getId(), new BigDecimal("3400.000"), null, user(dispatcherId));
+        CashRemittance out = service.receive(r.getId(), new BigDecimal("3400.000"), user(dispatcherId));
 
         assertThat(out.getStatus()).isEqualTo(CashRemittanceStatus.RECONCILED);
         assertThat(out.getDiscrepancy()).isEqualByComparingTo("0");
@@ -187,7 +187,7 @@ class CashRemittanceServiceTest {
         // lost 50, and comparing his own two numbers would show nothing.
         CashRemittance r = declared(UUID.randomUUID());
 
-        CashRemittance out = service.receive(r.getId(), new BigDecimal("3350.000"), null, user(dispatcherId));
+        CashRemittance out = service.receive(r.getId(), new BigDecimal("3350.000"), user(dispatcherId));
 
         assertThat(out.getStatus()).isEqualTo(CashRemittanceStatus.DISPUTED);
         assertThat(out.getDiscrepancy()).isEqualByComparingTo("-50.000");
@@ -200,7 +200,7 @@ class CashRemittanceServiceTest {
         CashRemittance r = declared(UUID.randomUUID());
         r.setStatus(CashRemittanceStatus.RECONCILED);
 
-        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), null, user(dispatcherId)))
+        assertThatThrownBy(() -> service.receive(r.getId(), new BigDecimal("3400.000"), user(dispatcherId)))
                 .isInstanceOf(AppException.class);
     }
 
@@ -264,7 +264,7 @@ class CashRemittanceServiceTest {
                 .when(auditLogService).logAction(any(), any(), any(), any(), any());
         CashRemittance r = declared(UUID.randomUUID());
 
-        assertThat(service.receive(r.getId(), new BigDecimal("3400.000"), null, user(dispatcherId)).getStatus())
+        assertThat(service.receive(r.getId(), new BigDecimal("3400.000"), user(dispatcherId)).getStatus())
                 .isEqualTo(CashRemittanceStatus.RECONCILED);
     }
 }

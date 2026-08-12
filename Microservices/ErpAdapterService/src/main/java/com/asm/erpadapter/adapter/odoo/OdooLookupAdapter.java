@@ -320,6 +320,13 @@ public class OdooLookupAdapter implements ErpLookupPort {
         PickingLines lines = pickingId != null
                 ? fetchItemsFromPicking(pickingId, saleId, records) : PickingLines.EMPTY;
         List<ErpOrderItemDTO> items = lines.items();
+        // A picking belongs to one warehouse in Odoo, so every line ships from it. Stamping the value
+        // here rather than leaving it null keeps the per-line depot resolution uniform across ERPs:
+        // downstream never has to ask which provider it is talking to.
+        final String pickingWarehouse = wh != null ? wh.code() : null;
+        if (pickingWarehouse != null) {
+            items.forEach(it -> { if (it.getWarehouseCode() == null) it.setWarehouseCode(pickingWarehouse); });
+        }
         final BigDecimal collectable = lines.taxedValue();
         int totalQty = items.stream().map(i -> i.getQuantity() != null ? i.getQuantity() : 0).reduce(0, Integer::sum);
         BigDecimal totalWeight = items.stream()

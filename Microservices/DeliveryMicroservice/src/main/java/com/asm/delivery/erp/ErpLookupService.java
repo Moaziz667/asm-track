@@ -268,8 +268,26 @@ public class ErpLookupService {
                 .build();
 
         if (preview.getItems() != null) {
+            // Each line keeps the warehouse the ERP gave it, resolved to a depot here so the routing
+            // side never has to know how a given ERP spells its warehouses. Lines that carry none —
+            // every ERP with a single warehouse per document, and everything imported before this —
+            // resolve to null and fall back to the order's depot.
+            java.util.Map<String, UUID> depotByWarehouse = new java.util.HashMap<>();
             for (OrderItem previewItem : preview.getItems()) {
+                String lineWarehouse = StringUtils.hasText(previewItem.getWarehouseCode())
+                        ? previewItem.getWarehouseCode() : warehouseCode;
+                UUID lineDepot = !StringUtils.hasText(lineWarehouse) ? null
+                        : depotByWarehouse.computeIfAbsent(lineWarehouse, code ->
+                                depotRepository.findByWarehouseCode(code)
+                                        .map(com.asm.delivery.entity.Depot::getId).orElse(null));
+                if (lineDepot == null && StringUtils.hasText(lineWarehouse)
+                        && !lineWarehouse.equals(warehouseCode)) {
+                    log.warn("Import bl={} : line warehouse '{}' has no synced depot — the line falls back "
+                            + "to the note's depot", blNumber, lineWarehouse);
+                }
                 OrderItem item = OrderItem.builder()
+                        .warehouseCode(lineWarehouse)
+                        .sourceDepotId(lineDepot)
                         .sku(previewItem.getSku())
                         .name(previewItem.getName())
                         .quantity(previewItem.getQuantity())

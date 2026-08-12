@@ -62,6 +62,7 @@ public final class OdooDefaultSources {
             Map.entry(CanonicalField.PRIORITY, DERIVED),
 
             // ── Fulfilment source ─────────────────────────────────────────────────────────────────
+            Map.entry(CanonicalField.ITEM_WAREHOUSE_CODE, "stock.warehouse.code"),
             Map.entry(CanonicalField.WAREHOUSE_CODE, "stock.warehouse.code"),
             Map.entry(CanonicalField.WAREHOUSE_NAME, "stock.warehouse.name"),
             // state == "assigned".

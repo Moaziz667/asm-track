@@ -82,7 +82,21 @@ public enum CanonicalField {
     ITEM_QUANTITY(Scope.LINE),
     ITEM_UNIT_PRICE(Scope.LINE),
     ITEM_UNIT_WEIGHT_KG(Scope.LINE),
-    ITEM_PRODUCT_TYPE(Scope.LINE);
+    ITEM_PRODUCT_TYPE(Scope.LINE),
+    /**
+     * Which warehouse this particular line ships from.
+     *
+     * <p>{@link #WAREHOUSE_CODE} answers the same question for the note as a whole, and for a long
+     * while that was taken to be the whole truth — because it is, in Odoo, where a picking belongs to
+     * one warehouse and every line follows. ERPNext puts a {@code warehouse} on each Delivery Note
+     * Item, so one note can legitimately draw from two places; reading only the header attached the
+     * lot to the first, and a driver would load in Sousse goods that sit in Monastir.
+     *
+     * <p>Line scope is what makes the model portable: an adapter is never asked to reshape its ERP,
+     * only to answer, per line, where the goods are. An ERP with a single warehouse per document
+     * simply repeats the header value, and the route ends up with one pickup as before.
+     */
+    ITEM_WAREHOUSE_CODE(Scope.LINE);
 
     /** Whether the field belongs to the order header (once) or to each order line (N times). */
     public enum Scope { HEADER, LINE }

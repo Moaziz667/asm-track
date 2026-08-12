@@ -77,7 +77,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             ITEM_QUANTITY = com.asm.erpadapter.mapping.CanonicalField.ITEM_QUANTITY,
             ITEM_UNIT_PRICE = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_PRICE,
             ITEM_UNIT_WEIGHT_KG = com.asm.erpadapter.mapping.CanonicalField.ITEM_UNIT_WEIGHT_KG,
-            ITEM_PRODUCT_TYPE = com.asm.erpadapter.mapping.CanonicalField.ITEM_PRODUCT_TYPE;
+            ITEM_PRODUCT_TYPE = com.asm.erpadapter.mapping.CanonicalField.ITEM_PRODUCT_TYPE,
+            ITEM_WAREHOUSE_CODE = com.asm.erpadapter.mapping.CanonicalField.ITEM_WAREHOUSE_CODE;
 
     private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
                                 Map<String, Map<String, Object>> records,
@@ -352,6 +353,11 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                                 : applyFactor(asBigDecimal(li.get("rate")), taxFactor))
                         .unitWeightKg(unitWeight)
                         .productType(mappedString(ITEM_PRODUCT_TYPE, lineRecords, () -> asString(li.get("item_group"))))
+                        // ERPNext holds a warehouse on the line itself, and it need not match the
+                        // note's: one document can legitimately draw from two places. Falling back to
+                        // the header keeps single-warehouse notes behaving exactly as before.
+                        .warehouseCode(mappedString(ITEM_WAREHOUSE_CODE, lineRecords,
+                                () -> firstNonBlank(asString(li.get("warehouse")), asString(so.get("set_warehouse")))))
                         .build());
                 totalQty += quantity;
                 if (unitWeight != null) totalWeight = totalWeight.add(unitWeight.multiply(BigDecimal.valueOf(quantity)));

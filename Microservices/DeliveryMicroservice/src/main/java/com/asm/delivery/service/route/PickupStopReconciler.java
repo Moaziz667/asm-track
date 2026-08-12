@@ -1,6 +1,7 @@
 package com.asm.delivery.service.route;
 
 import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -131,15 +133,14 @@ public class PickupStopReconciler {
         List<UUID> ids = deliveryStops.stream().map(RouteStop::getDeliveryId).filter(Objects::nonNull).toList();
         if (ids.isEmpty()) return Set.of();
         return deliveryRepository.findAllByIdInWithOrder(ids).stream()
-                .filter(d -> d.getSourceDepotId() != null
-                        // Home depot only needs a pickup once the route has departed (start-load is gone).
-                        && (afterDeparture || !d.getSourceDepotId().equals(route.getDepotId()))
-                        && (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED)
+                .filter(d -> (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED)
                         // pickedUpAt != null ⇒ the parcel is already in a driver's hands. An in-field
                         // reassign downgrades it to SCHEDULED but keeps pickedUpAt, and it changes hands
                         // by driver-to-driver handoff, not a depot load — so it must NOT pull a PICKUP.
                         && d.getPickedUpAt() == null)
-                .map(Delivery::getSourceDepotId)
+                .flatMap(d -> depotsOf(d).stream())
+                // Home depot only needs a pickup once the route has departed (start-load is gone).
+                .filter(depotId -> afterDeparture || !depotId.equals(route.getDepotId()))
                 .collect(Collectors.toSet());
     }
 
@@ -149,7 +150,7 @@ public class PickupStopReconciler {
     public void normalizeStopOrder(Route route) {
         RouteStops stops = loadActiveStops(route);
         List<RouteStop> ordered = groupPickupsBeforeDeliveries(
-                stops.deliveries(), stops.pickups(), depotByDelivery(stops.deliveries()));
+                stops.deliveries(), stops.pickups(), depotsByDelivery(stops.deliveries()));
         for (int i = 0; i < ordered.size(); i++) {
             ordered.get(i).setStopOrder(i + 1);
         }
@@ -168,7 +169,7 @@ public class PickupStopReconciler {
         List<RouteStop> tailPickups = stops.pickups().stream().filter(PickupStopReconciler::isReorderable).toList();
 
         List<RouteStop> orderedTail = groupPickupsBeforeDeliveries(
-                tailDeliveries, tailPickups, depotByDelivery(tailDeliveries));
+                tailDeliveries, tailPickups, depotsByDelivery(tailDeliveries));
 
         int order = settled.stream().mapToInt(RouteStop::getStopOrder).max().orElse(0);
         for (RouteStop stop : orderedTail) {
@@ -184,9 +185,13 @@ public class PickupStopReconciler {
                 .filter(s -> s.getStopType() == RouteStopType.DELIVERY && s.getDeliveryId() != null)
                 .map(RouteStop::getDeliveryId)
                 .toList();
-        Map<UUID, UUID> deliveryToDepot = deliveryIds.isEmpty() ? Map.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                .filter(d -> d.getSourceDepotId() != null)
-                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
+        Map<UUID, Set<UUID>> deliveryToDepots = new HashMap<>();
+        if (!deliveryIds.isEmpty()) {
+            for (Delivery d : deliveryRepository.findAllByIdInWithOrder(deliveryIds)) {
+                Set<UUID> depots = depotsOf(d);
+                if (!depots.isEmpty()) deliveryToDepots.put(d.getId(), depots);
+            }
+        }
 
         for (RouteStop stop : orderedStops) {
             if (stop.getStopType() == RouteStopType.PICKUP && stop.getSourceDepotId() != null) {
@@ -196,9 +201,9 @@ public class PickupStopReconciler {
 
         for (RouteStop stop : orderedStops) {
             if (stop.getStopType() == RouteStopType.DELIVERY && stop.getDeliveryId() != null) {
-                UUID depotId = deliveryToDepot.get(stop.getDeliveryId());
-                if (depotId != null && pickupOrder.containsKey(depotId)) {
-                    if (pickupOrder.get(depotId) > stop.getStopOrder()) {
+                for (UUID depotId : deliveryToDepots.getOrDefault(stop.getDeliveryId(), Set.of())) {
+                    Integer loadedAt = pickupOrder.get(depotId);
+                    if (loadedAt != null && loadedAt > stop.getStopOrder()) {
                         throw AppException.badRequest("La livraison ne peut pas être planifiée avant le chargement de son dépôt");
                     }
                 }
@@ -208,20 +213,21 @@ public class PickupStopReconciler {
 
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
-    /** Pure ordering: emit each depot's (single) pickup immediately before its first delivery,
-     *  then any pickup whose deliveries all fell away. */
+    /** Pure ordering: emit each depot's pickup before the first delivery that needs it, then any
+     *  pickup whose deliveries all fell away. A parcel drawn from two depots waits for both. */
     private static List<RouteStop> groupPickupsBeforeDeliveries(List<RouteStop> deliveryStops,
                                                                 List<RouteStop> pickupStops,
-                                                                Map<UUID, UUID> deliveryToDepot) {
+                                                                Map<UUID, Set<UUID>> deliveryToDepots) {
         Map<UUID, RouteStop> pickupByDepot = pickupStops.stream()
                 .collect(Collectors.toMap(RouteStop::getSourceDepotId, Function.identity(), (a, b) -> a));
         Set<UUID> emitted = new HashSet<>();
         List<RouteStop> ordered = new ArrayList<>();
 
         for (RouteStop delivery : deliveryStops) {
-            UUID depotId = deliveryToDepot.get(delivery.getDeliveryId());
-            if (depotId != null && pickupByDepot.containsKey(depotId) && emitted.add(depotId)) {
-                ordered.add(pickupByDepot.get(depotId));
+            for (UUID depotId : deliveryToDepots.getOrDefault(delivery.getDeliveryId(), Set.of())) {
+                if (pickupByDepot.containsKey(depotId) && emitted.add(depotId)) {
+                    ordered.add(pickupByDepot.get(depotId));
+                }
             }
             ordered.add(delivery);
         }
@@ -233,12 +239,38 @@ public class PickupStopReconciler {
         return ordered;
     }
 
-    private Map<UUID, UUID> depotByDelivery(List<RouteStop> deliveryStops) {
+    private Map<UUID, Set<UUID>> depotsByDelivery(List<RouteStop> deliveryStops) {
         List<UUID> ids = deliveryStops.stream().map(RouteStop::getDeliveryId).filter(Objects::nonNull).toList();
         if (ids.isEmpty()) return Map.of();
-        return deliveryRepository.findAllByIdInWithOrder(ids).stream()
-                .filter(d -> d.getSourceDepotId() != null)
-                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
+        Map<UUID, Set<UUID>> out = new HashMap<>();
+        for (Delivery d : deliveryRepository.findAllByIdInWithOrder(ids)) {
+            Set<UUID> depots = depotsOf(d);
+            if (!depots.isEmpty()) out.put(d.getId(), depots);
+        }
+        return out;
+    }
+
+    /**
+     * Every depot this parcel must be loaded from.
+     *
+     * <p>A shipment used to have one, and the field on the order still says so. It holds wherever an
+     * ERP issues a delivery note per warehouse — Odoo does. ERPNext puts a warehouse on each line, so
+     * one note can legitimately need two loads, and answering with the header alone sent a driver to
+     * fetch in Sousse goods that sit in Monastir.
+     *
+     * <p>Lines win when they carry a depot; the order's own depot answers for everything imported
+     * before they did, which is what this method used to return outright.
+     */
+    private static Set<UUID> depotsOf(Delivery delivery) {
+        Order order = delivery.getOrder();
+        if (order != null && order.getItems() != null) {
+            Set<UUID> fromLines = order.getItems().stream()
+                    .map(com.asm.delivery.entity.OrderItem::getSourceDepotId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            if (!fromLines.isEmpty()) return fromLines;
+        }
+        return delivery.getSourceDepotId() != null ? Set.of(delivery.getSourceDepotId()) : Set.of();
     }
 
     private RouteStops loadActiveStops(Route route) {

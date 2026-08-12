@@ -39,6 +39,9 @@ class PublicRmaServiceTest {
     @Mock RmaService rmaService;
     @Mock RmaPhotoStorageService photoService;
     @Mock PublicTrackingService publicTrackingService;
+    // Added to the service when photo keys stopped being stored with their presigned signature; the
+    // test kept passing locally only because the image build skips tests.
+    @Mock com.asm.delivery.storage.MediaUrlResolver mediaUrlResolver;
 
     @InjectMocks PublicRmaService service;
 
@@ -48,6 +51,9 @@ class PublicRmaServiceTest {
     @BeforeEach
     void setUp() {
         deliveryId = UUID.randomUUID();
+        // Identity by default: these tests are about what gets stored, not about how a URL is signed.
+        when(mediaUrlResolver.toKey(anyString())).thenAnswer(inv -> inv.getArgument(0));
+        when(mediaUrlResolver.toPublicUrl(anyString())).thenAnswer(inv -> inv.getArgument(0));
         Order order = Order.builder()
                 .id(UUID.randomUUID())
                 .clientName("Client Test")

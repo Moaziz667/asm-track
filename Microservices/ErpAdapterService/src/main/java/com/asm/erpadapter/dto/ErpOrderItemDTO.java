@@ -29,4 +29,10 @@ public class ErpOrderItemDTO {
     private BigDecimal unitWeightKg;
     /** Canonical product type (vendor-neutral): STORABLE, CONSUMABLE, or SERVICE. */
     private String productType;
+
+    /**
+     * Warehouse this line ships from. Equal to the note's warehouse in ERPs that hold one per
+     * document; distinct when the ERP allows a line to draw from elsewhere.
+     */
+    private String warehouseCode;
 }

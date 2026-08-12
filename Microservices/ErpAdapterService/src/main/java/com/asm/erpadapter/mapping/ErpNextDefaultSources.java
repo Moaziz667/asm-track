@@ -57,6 +57,7 @@ public final class ErpNextDefaultSources {
 
             // ── Fulfilment source ─────────────────────────────────────────────────────────────────
             // set_warehouse when the order names one, otherwise the first line's warehouse.
+            Map.entry(CanonicalField.ITEM_WAREHOUSE_CODE, "Delivery Note Item.warehouse"),
             Map.entry(CanonicalField.WAREHOUSE_CODE, FieldMappingResolver.DERIVED),
             Map.entry(CanonicalField.WAREHOUSE_NAME, FieldMappingResolver.DERIVED),
             // An order in a to-deliver status is ready by definition; nothing is read.

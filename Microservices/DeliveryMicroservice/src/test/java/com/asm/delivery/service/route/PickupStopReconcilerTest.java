@@ -277,4 +277,66 @@ class PickupStopReconcilerTest {
                 .findFirst()
                 .orElse(null);
     }
+
+    @Test
+    void execution_addsOnePickupPerWarehouseWhenOneNoteDrawsFromTwo() {
+        // ERPNext puts a warehouse on each Delivery Note line, so a single note can legitimately draw
+        // from two places. Reading the order's depot alone attached the lot to one of them, and the
+        // driver would arrive at the customer missing whatever sat in the other.
+        Route route = route(RouteStatus.IN_PROGRESS);
+        RouteStop deliveryStop = deliveryStop(1);
+        Delivery d = delivery(deliveryStop.getDeliveryId(), wh2, DeliveryStatus.SCHEDULED, null);
+        d.setOrder(orderWithLineDepots(wh2, remoteDepot));
+        stubStops(deliveryStop);
+        stubDeliveries(d);
+
+        reconciler.reconcile(route);
+
+        ArgumentCaptor<RouteStop> captor = ArgumentCaptor.forClass(RouteStop.class);
+        verify(routeStopRepository, atLeast(0)).save(captor.capture());
+        assertThat(captor.getAllValues().stream()
+                .filter(x -> x.getStopType() == RouteStopType.PICKUP && x.getId() == null)
+                .map(RouteStop::getSourceDepotId))
+                .containsExactlyInAnyOrder(wh2, remoteDepot);
+    }
+
+    @Test
+    void execution_linesWithoutADepotFallBackToTheOrderDepot() {
+        // Everything imported before lines carried a warehouse, and every ERP that issues one note per
+        // warehouse. The answer must be exactly what it was before: the order's own depot, once.
+        Route route = route(RouteStatus.IN_PROGRESS);
+        RouteStop deliveryStop = deliveryStop(1);
+        Delivery d = delivery(deliveryStop.getDeliveryId(), wh2, DeliveryStatus.SCHEDULED, null);
+        d.setOrder(orderWithLineDepots());   // lines present, none carrying a depot
+        stubStops(deliveryStop);
+        stubDeliveries(d);
+
+        reconciler.reconcile(route);
+
+        ArgumentCaptor<RouteStop> captor = ArgumentCaptor.forClass(RouteStop.class);
+        verify(routeStopRepository, atLeast(0)).save(captor.capture());
+        assertThat(captor.getAllValues().stream()
+                .filter(x -> x.getStopType() == RouteStopType.PICKUP && x.getId() == null)
+                .map(RouteStop::getSourceDepotId))
+                .containsExactly(wh2);
+    }
+
+    private final UUID remoteDepot = UUID.randomUUID();
+
+    /** An order whose lines each declare where they ship from; no argument means none declares one. */
+    private com.asm.delivery.entity.Order orderWithLineDepots(UUID... lineDepots) {
+        com.asm.delivery.entity.Order o = new com.asm.delivery.entity.Order();
+        java.util.List<com.asm.delivery.entity.OrderItem> items = new java.util.ArrayList<>();
+        if (lineDepots.length == 0) {
+            items.add(com.asm.delivery.entity.OrderItem.builder().sku("NO-WAREHOUSE").build());
+        }
+        for (UUID depot : lineDepots) {
+            items.add(com.asm.delivery.entity.OrderItem.builder()
+                    .sku("SKU-" + depot.toString().substring(0, 4))
+                    .sourceDepotId(depot)
+                    .build());
+        }
+        o.setItems(items);
+        return o;
+    }
 }

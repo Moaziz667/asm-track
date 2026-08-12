@@ -53,6 +53,22 @@ public class OrderItem {
     private String productType;
 
     /**
+     * Warehouse this line ships from, as the ERP names it.
+     *
+     * <p>The order carries one too, and for a long time that was assumed to settle it — because it
+     * does in Odoo, where a picking belongs to a single warehouse. ERPNext puts a warehouse on each
+     * line, so one delivery note can legitimately draw from two places, and reading only the header
+     * sent a driver to load in Sousse goods that sit in Monastir.
+     *
+     * <p>Null on everything imported before this was carried; the route falls back to the order's
+     * depot in that case, which is exactly what it used to do.
+     */
+    private String warehouseCode;
+
+    /** The ASM depot behind {@link #warehouseCode}, resolved once at import. Null when unresolved. */
+    private java.util.UUID sourceDepotId;
+
+    /**
      * Per-unit disposition breakdown (WMS-grade). A line can split into DELIVERED / REFUSED / DAMAGED /
      * MISSING segments, each with its own motif. Null/empty for a clean full delivery. The single fields
      * above ({@code quantityDone}, {@code outcome}, {@code reason}…) are derived from this and remain the
