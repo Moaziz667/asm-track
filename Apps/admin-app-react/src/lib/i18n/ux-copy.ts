@@ -65,6 +65,10 @@ export const notifHelpers = {
 };
 
 export const FR_COPY = {
+  // Suffixe de pluriel injecte dans les gabarits {plural} (voir tcount). Vide en arabe: la langue
+  // ne pluralise pas par suffixe.
+  pluralMark: 's',
+
   // ── Actions (libellés boutons) ────────────────────────────────────────
   actions: {
     exportCsv: 'Export CSV',
@@ -475,7 +479,8 @@ export const FR_COPY = {
     DELIVERY: 'Livraison',
     ITEM:     'Article',
     BOTH:     'Livraison et article',
-  } as Record<string, string>,
+      PAYMENT:  'Encaissement',
+} as Record<string, string>,
 
   // ── Source de la commande ─────────────────────────────────────────────
   sources: {
@@ -3895,6 +3900,8 @@ export const FR_COPY = {
     colDate: 'Dernière action',
     circulationLabel: 'Cash en circulation',
     circulationHint: 'Encaissé par les livreurs, pas encore remis au dépôt.',
+    holdersLabel: 'Détenu par',
+    holdersCollections: '{count} encaissement{plural}',
     filterPending: 'À traiter',
     colDriver: 'Livreur',
     colExpected: 'Attendu',

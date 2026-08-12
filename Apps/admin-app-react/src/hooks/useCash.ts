@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listRemittances, getCirculation, getRemittanceCounts, getRemittanceCollections,
+  getOutstandingByDriver,
   type CashRemittance, type CashRemittanceStatus,
 } from '@/lib/api/cash';
 
@@ -34,6 +35,23 @@ export function useCashCirculation() {
   return useQuery({
     queryKey: [...CASH_QUERY_KEY, 'circulation'],
     queryFn: getCirculation,
+    retry: 1,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Who is holding how much, right now.
+ *
+ * <p>The endpoint has existed since the module shipped and no screen called it, so a collection was
+ * invisible between the customer's door and the driver's declaration: a cashier looking for the
+ * 108 DT a driver had just taken found an empty desk, because the desk only ever listed handovers.
+ * Same freshness as the headline figure it breaks down.
+ */
+export function useOutstandingByDriver() {
+  return useQuery({
+    queryKey: [...CASH_QUERY_KEY, 'outstanding-by-driver'],
+    queryFn: getOutstandingByDriver,
     retry: 1,
     staleTime: 30_000,
   });

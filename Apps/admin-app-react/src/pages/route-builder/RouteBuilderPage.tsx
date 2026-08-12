@@ -1,5 +1,6 @@
 
 import { useT } from '@/lib/i18n/LocaleContext';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { lazy as dynamic } from 'react';
 import { useBreakpoint } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -762,7 +763,7 @@ function RouteBuilderPageInner() {
                     )}
                     {(delivery.totalQuantity ?? 0) > 0 && (
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {t.routeBuilderPage.dragCardArticleCount.replace('{count}', String(delivery.totalQuantity)).replace('{plural}', delivery.totalQuantity! > 1 ? 's' : '')}
+                        {tcount(t.routeBuilderPage.dragCardArticleCount, delivery.totalQuantity!, t.pluralMark)}
                       </span>
                     )}
                   </div>

@@ -20,14 +20,24 @@ const CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'MIS
 type Category = typeof CATEGORIES[number];
 
 // Scope (mirror backend ReasonScope enum). Category drives the disposition; scope only says WHERE the
-// reason is usable. DELIVERY = failure sheet, ITEM = per-line disposition, BOTH = both.
-const SCOPES = ['DELIVERY', 'ITEM', 'BOTH'] as const;
+// reason is usable. DELIVERY = failure sheet, ITEM = per-line disposition, BOTH = both of those,
+// PAYMENT = the driver's cash-collection card. PAYMENT stands apart from BOTH deliberately: a cash
+// shortfall is not a delivery failure, and letting the two share a surface is what made a driver
+// reporting 108 DT of 140 choose between "adresse introuvable" and "conditions météo".
+const SCOPES = ['DELIVERY', 'ITEM', 'BOTH', 'PAYMENT'] as const;
 type Scope = typeof SCOPES[number];
 
 // Only these categories are per-item dispositions — so ITEM / BOTH scope is only valid for them.
 const ITEM_CATEGORIES: readonly Category[] = ['REFUSED', 'DAMAGED', 'MISSING'];
 const isItemCategory = (c: Category) => ITEM_CATEGORIES.includes(c);
-const allowedScopes = (c: Category): Scope[] => (isItemCategory(c) ? ['DELIVERY', 'ITEM', 'BOTH'] : ['DELIVERY']);
+// A money reason is a refusal to pay, so PAYMENT is offered on REFUSED (and on OTHER, for the
+// awkward cases: a cheque the driver would not take, a transfer the customer claims to have made).
+const PAYMENT_CATEGORIES: readonly Category[] = ['REFUSED', 'OTHER'];
+const allowedScopes = (c: Category): Scope[] => [
+  'DELIVERY' as Scope,
+  ...(isItemCategory(c) ? (['ITEM', 'BOTH'] as Scope[]) : []),
+  ...(PAYMENT_CATEGORIES.includes(c) ? (['PAYMENT'] as Scope[]) : []),
+];
 
 interface FailureReason {
   id: string;
@@ -58,7 +68,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const s = t.failureReasonsSettings;
   const catLabel = (c: string) => (t.failureCodes as Record<string, string>)[c] ?? c;
   const scopeLabel = (sc: string) =>
-    (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Delivery', ITEM: 'Item', BOTH: 'Both' } as Record<string, string>)[sc] ?? sc;
+    (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Delivery', ITEM: 'Item', BOTH: 'Both', PAYMENT: 'Payment' } as Record<string, string>)[sc] ?? sc;
 
   const REASON_COLUMNS = useMemo<ColumnDef[]>(() => [
     // The code is the backend's key, not the operator's. They recognise "Client absent", never

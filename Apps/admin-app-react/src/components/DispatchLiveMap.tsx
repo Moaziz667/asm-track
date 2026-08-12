@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/ui/theme';
 import { useLocaleContext, useT } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { routeColorFromMap } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
                 <div style={{ fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{route.name}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
                 {stop.deliveryCity && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{stop.deliveryCity}</div>}
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, fontWeight: 600, textTransform: 'uppercase' }}>{stop.status}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, fontWeight: 600 }}>{tlabel(t.statusLabels, stop.status) ?? stop.status}</div>
               </div>
             </Popup>
           </Marker>

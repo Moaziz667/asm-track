@@ -14,7 +14,7 @@ import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
-import { tlabel } from '@/lib/i18n/i18n-dict';
+import { tlabel, tcount } from '@/lib/i18n/i18n-dict';
 import { DRIVER_STATUS_COLOR } from '@/lib/ui/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -481,7 +481,7 @@ export default function DeliveryDetailPage() {
 
               {/* Items table */}
               {items.length > 0 && (
-                <Section title={t.deliveryPage.itemsCount.replace('{count}', String(items.length)).replace('{plural}', items.length > 1 ? 's' : '')} icon={<IconPackage size={12} />}>
+                <Section title={tcount(t.deliveryPage.itemsCount, items.length, t.pluralMark)} icon={<IconPackage size={12} />}>
                   <ArticlesTable
                     items={items}
                     status={delivery.status}

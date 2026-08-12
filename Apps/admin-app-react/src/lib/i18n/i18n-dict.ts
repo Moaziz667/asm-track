@@ -38,3 +38,20 @@ export function dget<V = unknown>(dict: unknown, key: string | null | undefined)
   if (dict == null || key == null) return undefined;
   return (dict as Record<string, V>)[key];
 }
+
+/**
+ * Fill a counted copy template: `{count}` becomes the number, every `{plural}` the plural mark.
+ *
+ * Call sites used to chain `.replace('{count}', …).replace('{plural}', …)`, and a string pattern
+ * replaces only the FIRST match — so French copy that agrees twice ("commande{plural}
+ * sélectionnée{plural}") shipped the raw token on screen. Replacing globally, in one place, is the
+ * only way that class of bug stops coming back.
+ *
+ * Arabic doesn't pluralise by suffix: its templates pass an empty mark and simply drop the token.
+ */
+export function tcount(template: string | undefined, count: number, mark = 's'): string {
+  if (!template) return String(count);
+  return template
+    .replace(/\{count\}/g, String(count))
+    .replace(/\{plural\}/g, count > 1 ? mark : '');
+}

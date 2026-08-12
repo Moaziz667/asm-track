@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconPlus,
@@ -211,7 +212,7 @@ export function RouteSidebar() {
         <div className="flex justify-between items-center gap-3 px-3 py-1.5 bg-[var(--surface-2)] border-b border-[var(--border)] shrink-0">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-xs font-semibold text-[var(--brand-orange)] truncate">
-              {t.routeBuilderPage.selectedRoutes.replace('{count}', String(selectionCount)).replace('{plural}', selectionCount > 1 ? 's' : '')}
+              {tcount(t.routeBuilderPage.selectedRoutes, selectionCount, t.pluralMark)}
             </span>
             {eligibleSelectionCount < selectionCount && (
               <Tooltip>

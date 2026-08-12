@@ -86,7 +86,9 @@ public class FailureReasonService {
         FailureReason reason = getOrThrow(id);
         if (!reason.isActive()) return;
         // Guard: never empty a picker. The failure sheet needs ≥1 active DELIVERY motif; each item
-        // disposition (a category) needs ≥1 active ITEM motif of that same category.
+        // disposition (a category) needs ≥1 active ITEM motif of that same category; the cash card
+        // needs ≥1 active PAYMENT motif, or a driver reporting a shortfall has nothing to select and
+        // the collection is filed as unexplained.
         List<FailureReason> active = repository.findByActiveTrueOrderBySortOrderAscLabelAsc();
         if (reason.getScope().coversDelivery()) {
             boolean another = active.stream()
@@ -106,6 +108,14 @@ public class FailureReasonService {
                                 + reason.getCategory().getLabel() + ".");
             }
         }
+        if (reason.getScope().coversPayment()) {
+            boolean another = active.stream()
+                    .anyMatch(r -> !r.getId().equals(id) && r.getScope().coversPayment());
+            if (!another) {
+                throw AppException.conflict("FAILURE_REASON_LAST_PAYMENT",
+                        "Impossible de désactiver le dernier motif d'encaissement.");
+            }
+        }
         reason.setActive(false);
         repository.save(reason);
     }
@@ -115,12 +125,21 @@ public class FailureReasonService {
                 .orElseThrow(() -> AppException.notFound("FAILURE_REASON_NOT_FOUND", "Motif introuvable."));
     }
 
-    /** Resolve + validate the scope. ITEM/BOTH is only valid for a per-item disposition category. */
+    /**
+     * Resolve + validate the scope. ITEM/BOTH is only valid for a per-item disposition category, and
+     * PAYMENT only for a refusal (or OTHER, for the awkward money cases: a cheque the driver would
+     * not take, a transfer the customer claims to have already made).
+     */
     private ReasonScope resolveScope(FailureReasonRequest req) {
         ReasonScope scope = req.getScope() == null ? ReasonScope.DELIVERY : req.getScope();
         if (scope.coversItem() && (req.getCategory() == null || !req.getCategory().isItemDisposition())) {
             throw AppException.badRequest(
                     "La portée « Article » n'est possible que pour les catégories Refusé, Endommagé ou Manquant.");
+        }
+        if (scope.coversPayment() && req.getCategory() != FailureCode.REFUSED
+                && req.getCategory() != FailureCode.OTHER) {
+            throw AppException.badRequest(
+                    "La portée « Encaissement » n'est possible que pour les catégories Refusé ou Autre.");
         }
         return scope;
     }

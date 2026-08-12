@@ -36,6 +36,8 @@ const _en_window = (start: unknown, end: unknown): string => {
 };
 
 export const EN_COPY = {
+  pluralMark: 's',
+
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
     exportCsv: 'Export CSV',
@@ -445,7 +447,8 @@ export const EN_COPY = {
     DELIVERY: 'Delivery',
     ITEM:     'Item',
     BOTH:     'Delivery and item',
-  } as Record<string, string>,
+      PAYMENT:  'Payment',
+} as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────
   sources: {
@@ -3438,6 +3441,8 @@ export const EN_COPY = {
     title: 'Cash',
     circulationLabel: 'Cash in circulation',
     circulationHint: 'Collected by drivers, not yet handed over at the depot.',
+    holdersLabel: 'Held by',
+    holdersCollections: '{count} collection{plural}',
     filterPending: 'To handle',
     colDriver: 'Driver',
     colExpected: 'Expected',

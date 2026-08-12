@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { useSearchParams } from 'react-router-dom';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
@@ -696,9 +697,9 @@ export function useRouteBuilder() {
       const ok = settled.filter((s) => s.status === 'fulfilled').length;
       const ko = settled.length - ok;
       if (ok > 0 && ko === 0) {
-        showSuccessToast(t.routeBuilderPage.toastBatchOptimizeOk.replace('{count}', String(ok)).replace('{plural}', ok > 1 ? 's' : ''));
+        showSuccessToast(tcount(t.routeBuilderPage.toastBatchOptimizeOk, ok, t.pluralMark));
       } else if (ok > 0 && ko > 0) {
-        showSuccessToast(t.routeBuilderPage.toastBatchOptimizePartial.replace('{ok}', String(ok)).replace('{ko}', String(ko)).replace('{plural}', ok > 1 ? 's' : ''));
+        showSuccessToast(tcount(t.routeBuilderPage.toastBatchOptimizePartial.replace('{ok}', String(ok)).replace('{ko}', String(ko)), ok, t.pluralMark));
       } else {
         showErrorToast(null, t.routeBuilderPage.toastBatchOptimizeFailed);
       }

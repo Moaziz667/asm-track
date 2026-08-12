@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 
 import { useT } from '@/lib/i18n/LocaleContext';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { formatAmount, formatDelta } from '@/lib/utils/money';
 import { formatDateTime, formatRelative, formatTime } from '@/lib/utils/date';
@@ -13,8 +14,10 @@ import { useLocaleStore } from '@/lib/i18n';
 import { receiveRemittance, reconcileRemittance, type CashRemittance, type CashRemittanceStatus } from '@/lib/api/cash';
 import {
   useRemittances, useCashCirculation, useRefreshCash,
-  useRemittanceCounts, useRemittanceCollections,
+  useRemittanceCounts, useRemittanceCollections, useOutstandingByDriver,
 } from '@/hooks/useCash';
+import { useDrivers } from '@/hooks/useDrivers';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -107,6 +110,16 @@ export default function CashDeskPage() {
     sort: SORT_PARAM[sort],
   });
   const circulationQuery = useCashCirculation();
+  // Breaks the headline figure down per driver. Without it the money a driver has just taken is
+  // nowhere on this page until he declares a handover — which can be hours later, or never.
+  const outstandingQuery = useOutstandingByDriver();
+  const driversQuery = useDrivers();
+  const driverNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    (driversQuery.data ?? []).forEach(d => m.set(d.id, d.name));
+    return m;
+  }, [driversQuery.data]);
+  const holders = outstandingQuery.data ?? [];
   const countsQuery = useRemittanceCounts();
   const refreshCash = useRefreshCash();
 
@@ -278,6 +291,36 @@ export default function CashDeskPage() {
             {c.circulationHint}
           </span>
         </div>
+
+        {/*
+          Who is actually holding the money above.
+
+          The headline total answers "how much is out there"; a depot manager's next question is
+          always "with whom". Rendered only when somebody holds something, so a settled fleet does
+          not carry an empty band across the page.
+        */}
+        {holders.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 shrink-0 overflow-x-auto border-b border-[var(--border)]"
+               style={{ background: 'var(--surface-sunken)', scrollbarWidth: 'thin' }}>
+            <span className="text-xs font-medium text-[var(--text-muted)] shrink-0 me-1">{c.holdersLabel}</span>
+            {holders.map(h => (
+              <span key={h.driverId}
+                    className="inline-flex items-center gap-2 shrink-0 rounded-full ps-1 pe-3 py-1"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <DriverAvatarById driverId={h.driverId} name={driverNameById.get(h.driverId)} size={22} />
+                <span className="text-xs font-[600] text-[var(--text-primary)]">
+                  {driverNameById.get(h.driverId) ?? '—'}
+                </span>
+                <span className="text-xs font-[700] tabular-nums" style={{ color: 'var(--brand)' }}>
+                  {formatAmount(h.amount)}
+                </span>
+                <span className="text-2xs text-[var(--text-muted)] tabular-nums">
+                  {tcount(c.holdersCollections, h.collections, t.pluralMark)}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin' }}>
           <div className="min-w-[900px] lg:min-w-0">

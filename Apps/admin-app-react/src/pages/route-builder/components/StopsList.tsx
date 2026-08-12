@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { IconMapPin, IconTrash, IconX } from '@tabler/icons-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { StopRow } from './StopRow';
@@ -111,7 +112,7 @@ export function StopsList({
         />
         <span className="text-xs text-[var(--text-muted)] flex-1 select-none">
           {someSelected
-            ? t.routeBuilderPage.selectedStops.replace('{count}', String(selectedStopIds.length)).replace(/{plural}/g, selectedStopIds.length > 1 ? 's' : '')
+            ? tcount(t.routeBuilderPage.selectedStops, selectedStopIds.length, t.pluralMark)
             : (stops.length === 1
                 ? t.routeBuilderPage.stopsCountLabelSingular.replace('{count}', '1')
                 : t.routeBuilderPage.stopsCountLabelPlural.replace('{count}', String(stops.length)))}

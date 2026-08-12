@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
 import { formatDateTime } from '@/lib/utils/date';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
@@ -684,7 +685,7 @@ function ImportErpPageContent() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border)]" style={{ background: 'var(--text-primary)' }}>
               <span className="text-xs font-semibold text-[var(--surface)] flex-1">
-                {selectedIds.size} {t.importPage.selectedMessage.replace('{plural}', selectedIds.size > 1 ? 's' : '')}
+                {selectedIds.size} {tcount(t.importPage.selectedMessage, selectedIds.size, t.pluralMark)}
               </span>
               <button
                 type="button"

@@ -44,6 +44,8 @@ const _ar_window = (start: unknown, end: unknown): string => {
 };
 
 export const AR_COPY = {
+  pluralMark: '',
+
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
     exportCsv: 'تصدير CSV',
@@ -453,7 +455,8 @@ export const AR_COPY = {
     DELIVERY: 'التوصيل',
     ITEM:     'صنف',
     BOTH:     'التوصيل والصنف',
-  } as Record<string, string>,
+      PAYMENT:  'التحصيل',
+} as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────
   sources: {
@@ -3844,6 +3847,8 @@ export const AR_COPY = {
     title: 'الصندوق',
     circulationLabel: 'الأموال المتداولة',
     circulationHint: 'محصّلة من طرف السائقين ولم تُسلّم بعد للمستودع.',
+    holdersLabel: 'بحوزة',
+    holdersCollections: '{count} تحصيل',
     filterPending: 'قيد المعالجة',
     colDriver: 'السائق',
     colExpected: 'المتوقّع',

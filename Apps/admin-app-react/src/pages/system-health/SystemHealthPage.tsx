@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { RefreshButton } from '@/components/ui/RefreshButton';
@@ -325,7 +326,7 @@ export default function SystemHealthPage() {
     : 'ok';
   const headline = overall === 'ok' ? dd.allGoodTitle
     : actionCount > 0
-      ? dd.pointsAttentionTitle.replace('{count}', String(actionCount)).replace('{plural}', actionCount > 1 ? 's' : '')
+      ? tcount(dd.pointsAttentionTitle, actionCount, t.pluralMark)
       : dd.recoveringTitle;
   const headlineSub = overall === 'ok' ? dd.allGoodSub
     : actionCount > 0 ? dd.pointsAttentionSub

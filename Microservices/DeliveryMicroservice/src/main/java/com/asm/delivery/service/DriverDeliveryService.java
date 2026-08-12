@@ -54,6 +54,7 @@ public class DriverDeliveryService {
     private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final CashCollectionService           cashCollectionService;
     private final FailureReasonService            failureReasonService;
+    private final SystemSettingsService           systemSettingsService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
@@ -203,6 +204,12 @@ public class DriverDeliveryService {
         auditLogService.logAction(principal, "DRIVER_TRANSIT", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Debut du transit"));
         transitions.appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "DELIVERY_TRANSIT_STARTED", Map.of("driverId", driverId.toString()));
+        // Every other transition (pickup, completion, failure, handoff) mirrors itself onto the route
+        // stop; transit was the one that didn't. The stop therefore sat at PICKED_UP for the whole
+        // drive, and the dispatch map showed a parcel still loaded at the depot while the driver was
+        // already on his way to the client. IN_TRANSIT was already in the mapping table, unused.
+        routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.IN_TRANSIT,
+                transitStartedAt, transitNote);
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
                 delivery,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { tcount } from '@/lib/i18n/i18n-dict';
 import { IconX, IconAlertCircle } from '@tabler/icons-react';
 import { IconAssign, IconReassign } from '@/components/icons/DispatchIcons';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
@@ -105,7 +106,7 @@ export function DispatchTabs() {
       {!isHandoffTab && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 h-10 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
           <span className="text-sm font-[500]" style={{ color: 'var(--text-primary)' }}>
-            {t.dispatchDeskPage.batchCount.replace('{count}', String(selectedIds.size)).replace('{plural}', selectedIds.size > 1 ? 's' : '')}
+            {tcount(t.dispatchDeskPage.batchCount, selectedIds.size, t.pluralMark)}
           </span>
           {batchType === 'mixed' ? (
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
