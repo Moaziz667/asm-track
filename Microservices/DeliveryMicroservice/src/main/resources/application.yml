@@ -220,6 +220,8 @@ handoff:
     max-attempts: ${HANDOFF_TOKEN_MAX_ATTEMPTS:5}
   sla:
     check-interval-ms: ${HANDOFF_SLA_CHECK_INTERVAL_MS:30000}
+    # The two thresholds below are FALLBACKS: the live values are per-tenant settings edited in
+    # Settings → SLA (ops.handoff.pending-minutes, ops.handoff.auto-cancel-minutes).
     # Push a one-time overdue alert to dispatch + both drivers after this long unconfirmed.
     pending-minutes: ${HANDOFF_SLA_PENDING_MINUTES:15}
     # Auto-expire a stuck handoff and return the parcel to dispatch resolution.

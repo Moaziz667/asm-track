@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -8,6 +9,7 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { useDensity } from '@/hooks/useDensity';
+import { useOpsSettings, HANDOFF_PENDING_KEY, HANDOFF_PENDING_DEFAULT, HANDOFF_AUTO_CANCEL_KEY, HANDOFF_AUTO_CANCEL_DEFAULT } from '@/hooks/useOpsSettings';
 import { cardView, phaseOf } from './HandoffCards';
 import { HandoffDetailModal } from './HandoffDetailModal';
 import type { HandoffItem } from '../types';
@@ -21,25 +23,29 @@ interface Props {
   onCancel: (h: HandoffItem) => void;
 }
 
+// Declaration order IS render order — see `activeColumns` below. `actions` stays last because its
+// track doubles as the header's settings-gear slot, which keeps labels over their own cells.
 const OPEN_COLUMNS: ColumnDef[] = [
+  { id: 'status',   label: 'Statut',   pinned: true },
   { id: 'client',   label: 'Client',   pinned: true },
   { id: 'transfer', label: 'De → Vers' },
   { id: 'ref',      label: 'Réf' },
   { id: 'sla',      label: 'SLA' },
-  { id: 'actions',  label: '',  pinned: true },
+  { id: 'actions',  label: '',         pinned: true },
 ];
 
+// The SLA track is fixed: a countdown that stretches with the viewport becomes the loudest thing
+// on screen while carrying the least text. Everything readable takes the fluid space instead.
 const COL_TRACKS: Record<string, string> = {
-  client:   'minmax(120px, 1.4fr)',
-  transfer: 'minmax(200px, 2fr)',
-  ref:      'minmax(120px, 1fr)',
-  sla:      'minmax(160px, 1.4fr)',
-  actions:  '48px',
+  status:   'minmax(140px, 1.1fr)',
+  client:   'minmax(150px, 1.6fr)',
+  transfer: 'minmax(230px, 2fr)',
+  ref:      'minmax(110px, 1fr)',
+  sla:      '176px',
+  actions:  '44px',
 };
 
-const ROW_H: Record<string, number> = { compact: 40, comfortable: 52, spacious: 64 };
-
-const SLA_MS = 60 * 60 * 1000; // 60 min auto-cancel
+const ROW_H: Record<string, number> = { compact: 40, comfortable: 56, spacious: 68 };
 
 function fmtTs(iso?: string): string {
   if (!iso) return '—';
@@ -48,16 +54,17 @@ function fmtTs(iso?: string): string {
   return d.toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function slaColor(elapsed: number): string {
-  const remaining = SLA_MS - elapsed;
-  if (remaining <= 0) return 'var(--danger)';
-  if (remaining <= 5 * 60 * 1000) return 'var(--danger)';
-  if (remaining <= 20 * 60 * 1000) return 'var(--warning)';
+// Warn at the last third, alarm at the last twelfth — proportional, so shortening the window to
+// 12 minutes still leaves a usable amber phase instead of jumping straight from green to red.
+function slaColor(elapsed: number, slaMs: number): string {
+  const remaining = slaMs - elapsed;
+  if (remaining <= slaMs / 12) return 'var(--danger)';
+  if (remaining <= slaMs / 3) return 'var(--warning)';
   return 'var(--success)';
 }
 
-function slaLabel(elapsed: number, expiredLabel: string): string {
-  const remaining = Math.max(0, SLA_MS - elapsed);
+function slaLabel(elapsed: number, slaMs: number, expiredLabel: string): string {
+  const remaining = Math.max(0, slaMs - elapsed);
   const totalSec = Math.floor(remaining / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
@@ -65,8 +72,8 @@ function slaLabel(elapsed: number, expiredLabel: string): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Live SLA countdown — updates every second, color-coded. */
-function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
+/** Live countdown to the tenant's auto-cancel deadline — updates every second, color-coded. */
+function SlaCountdown({ requestedAt, slaMinutes }: { requestedAt?: string; slaMinutes: number }) {
   const t = useT();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -76,25 +83,24 @@ function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
 
   if (!requestedAt) return <span style={{ color: 'var(--text-soft)' }}>—</span>;
 
+  const slaMs = slaMinutes * 60 * 1000;
   const elapsed = now - new Date(requestedAt).getTime();
-  const progress = Math.min(1, Math.max(0, elapsed / SLA_MS));
-  const color = slaColor(elapsed);
+  const progress = Math.min(1, Math.max(0, elapsed / slaMs));
+  const color = slaColor(elapsed, slaMs);
   const expiredLabel = (t.common?.expired as string) ?? 'Expiré';
-  const label = slaLabel(elapsed, expiredLabel);
+  const label = slaLabel(elapsed, slaMs, expiredLabel);
 
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      {/* Progress bar */}
-      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+    <div className="flex items-center gap-2">
+      <div className="h-1 rounded-full overflow-hidden shrink-0" style={{ width: 96, background: 'var(--border)' }}>
         <div
           className="h-full rounded-full transition-[width] duration-1000"
           style={{ width: `${progress * 100}%`, background: color }}
         />
       </div>
-      {/* Countdown */}
       <span
-        className="text-2xs font-mono font-[600] shrink-0 tabular-nums"
-        style={{ color, minWidth: 48, textAlign: 'right' }}
+        className="text-xs font-mono font-[600] shrink-0 tabular-nums"
+        style={{ color, minWidth: 56, textAlign: 'end' }}
       >
         {label}
       </span>
@@ -102,9 +108,31 @@ function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
   );
 }
 
+/** The two drivers a parcel travels between — overlapping avatars, then the names in full. */
+function CustodyPair({ h }: { h: HandoffItem }) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="flex items-center shrink-0">
+        <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={22} />
+        <span
+          className="flex items-center rounded-full"
+          style={{ marginInlineStart: -7, boxShadow: '0 0 0 2px var(--surface)', borderRadius: '50%' }}
+        >
+          <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={22} />
+        </span>
+      </span>
+      <span className="flex items-center gap-1.5 min-w-0 text-xs">
+        <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{h.fromDriverName ?? '—'}</span>
+        <IconArrowRight size={12} stroke={2.5} className="shrink-0" style={{ color: 'var(--text-soft)' }} />
+        <span className="truncate font-[600]" style={{ color: 'var(--text-primary)' }}>{h.toDriverName ?? '—'}</span>
+      </span>
+    </div>
+  );
+}
+
 /** Floating tooltip shown on row hover — quick preview without clicking. */
-function HoverTooltip({ h, t, rect }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect }) {
-  const view = cardView(h, t);
+function HoverTooltip({ h, t, rect, pendingMinutes }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect; pendingMinutes: number }) {
+  const view = cardView(h, t, pendingMinutes);
   const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'par';
 
   return (
@@ -149,15 +177,24 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
   const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { density, setDensity } = useDensity('handoff-open', 'comfortable');
+  // Tenant thresholds — the countdown must expire when the backend actually expires the handoff.
+  const { getInt } = useOpsSettings();
+  const pendingMinutes = getInt(HANDOFF_PENDING_KEY, HANDOFF_PENDING_DEFAULT);
+  const autoCancelMinutes = getInt(HANDOFF_AUTO_CANCEL_KEY, HANDOFF_AUTO_CANCEL_DEFAULT);
+  // v2: the stored order predates the status column, and a stale order would append it last.
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } =
-    useColumnSettings('handoff-open', OPEN_COLUMNS);
+    useColumnSettings('handoff-open-v2', OPEN_COLUMNS);
 
-  const gridCols = useMemo(() => {
-    const pinned = orderedColumns.filter(c => c.pinned);
-    const visible = orderedColumns.filter(c => !c.pinned && visibleIds.has(c.id));
-    const tracks = [...pinned, ...visible].map(c => COL_TRACKS[c.id] ?? '1fr');
-    return tracks.join(' ');
-  }, [orderedColumns, visibleIds]);
+  // One ordered list drives the track widths, the header labels AND the cells. Building the tracks
+  // separately (pinned first) is what silently slid every cell into the wrong column.
+  const activeColumns = useMemo(
+    () => orderedColumns.filter(c => c.pinned || visibleIds.has(c.id)),
+    [orderedColumns, visibleIds],
+  );
+  const gridCols = useMemo(
+    () => activeColumns.map(c => COL_TRACKS[c.id] ?? '1fr').join(' '),
+    [activeColumns],
+  );
 
   const onRowEnter = useCallback((e: React.MouseEvent, h: HandoffItem) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -169,127 +206,137 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
     setHover(null);
   }, []);
 
+  const renderCell = useCallback((colId: string, h: HandoffItem): ReactNode => {
+    const view = cardView(h, t, pendingMinutes);
+    switch (colId) {
+      case 'status':
+        return (
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: view.accent }} aria-hidden />
+            <span className="text-xs font-[600] truncate" style={{ color: view.accent }}>{view.label}</span>
+          </span>
+        );
+      case 'client':
+        return (
+          <span className="flex flex-col min-w-0">
+            <span className="text-[13px] font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
+              {h.clientName ?? '—'}
+            </span>
+            {density !== 'compact' && h.dropoffAddress && (
+              <span className="text-2xs truncate" style={{ color: 'var(--text-muted)' }}>{h.dropoffAddress}</span>
+            )}
+          </span>
+        );
+      case 'transfer':
+        return <CustodyPair h={h} />;
+      case 'ref':
+        return h.deliveryId ? (
+          <Link
+            to={`/deliveries/${h.deliveryId}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-mono text-xs font-[600] hover:underline"
+            style={{ color: 'var(--brand)' }}
+          >
+            {h.erpOrderId || h.deliveryId.slice(0, 8)}
+          </Link>
+        ) : (
+          <span className="font-mono text-xs font-[600]" style={{ color: 'var(--text-soft)' }}>—</span>
+        );
+      case 'sla':
+        return <SlaCountdown requestedAt={h.requestedAt} slaMinutes={autoCancelMinutes} />;
+      case 'actions':
+        return isReadOnly ? null : (
+          <span className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => onCancel(h)}
+              disabled={cancellingId === h.id}
+              title={t.dispatchDeskPage.handoffCancelTitle}
+              aria-label={t.dispatchDeskPage.handoffCancelTitle}
+              className="w-7 h-7 rounded-[var(--radius)] flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity disabled:opacity-50 hover:bg-[var(--danger-bg)]"
+              style={{ color: 'var(--danger)' }}
+            >
+              <IconX size={14} stroke={2.5} />
+            </button>
+          </span>
+        );
+      default:
+        return null;
+    }
+  }, [t, density, isReadOnly, cancellingId, onCancel, pendingMinutes, autoCancelMinutes]);
+
   if (items.length === 0) return null;
 
   return (
     <>
-      {/* Table */}
       <div className="flex-1 overflow-y-auto">
-        <div className="rounded-[var(--radius-xl)] overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
-          {/* Header */}
+        <div className="rounded-[var(--radius-xl)] overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }} role="table">
+          {/* Header — the settings gear lives in the `actions` track, so every label sits over its
+              own cells instead of drifting by the gear's width. */}
           <div
-            className="sticky top-0 z-10 flex items-center h-[44px] px-4 border-b border-[var(--border)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            className="sticky top-0 z-10 grid items-center h-[44px] px-4 border-b border-[var(--border)]"
+            style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            role="row"
           >
-            <div className="grid flex-1 items-center" style={{ gridTemplateColumns: gridCols }}>
-              {orderedColumns.filter(c => c.pinned || visibleIds.has(c.id)).map(col => (
-                <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
-                  {tlabel(t.dispatchDeskPage, `handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`) ?? col.label}
-                </span>
-              ))}
-            </div>
-            <DisplaySettingsDropdown
-              columns={orderedColumns}
-              visibleIds={visibleIds}
-              onToggle={toggleColumn}
-              onReorder={moveColumn}
-              onReset={resetColumns}
-              density={density}
-              onDensityChange={setDensity}
-            />
+            {activeColumns.map(col => col.id === 'actions' ? (
+              <div key={col.id} className="flex items-center justify-end">
+                <DisplaySettingsDropdown
+                  columns={orderedColumns}
+                  visibleIds={visibleIds}
+                  onToggle={toggleColumn}
+                  onReorder={moveColumn}
+                  onReset={resetColumns}
+                  density={density}
+                  onDensityChange={setDensity}
+                />
+              </div>
+            ) : (
+              <span key={col.id} role="columnheader" className="text-xs font-semibold text-[var(--text-muted)] text-start truncate">
+                {tlabel(t.dispatchDeskPage, `handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`) ?? col.label}
+              </span>
+            ))}
           </div>
 
-          {/* Rows */}
           {items.map((h, idx) => {
+            // Urgency reads as a tinted row, not as red text: three red rows in a column look like a
+            // broken screen, while a tint still lets the countdown be the thing that shouts.
+            const overdue = phaseOf(h, pendingMinutes) === 'overdue';
             return (
-              <div key={h.id || idx} className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
-                <div
-                  className="grid items-center cursor-pointer group hover:bg-[var(--hover-bg)] transition-colors px-4"
-                  style={{ gridTemplateColumns: gridCols, height: ROW_H[density] }}
-                  onClick={() => setDetail(h)}
-                  onMouseEnter={(e) => onRowEnter(e, h)}
-                  onMouseLeave={onRowLeave}
-                >
-                  {/* Client (pinned) */}
-                  <div className="text-start min-w-0">
-                    <span className="text-xs font-[600] truncate block" style={{ color: 'var(--text-primary)' }}>
-                      {h.clientName ?? '—'}
-                    </span>
+              <div
+                key={h.id || idx}
+                role="row"
+                tabIndex={0}
+                className="grid items-center cursor-pointer group hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--hover-bg)] outline-none transition-colors px-4 border-b border-[var(--border)] last:border-b-0"
+                style={{
+                  gridTemplateColumns: gridCols,
+                  height: ROW_H[density],
+                  background: overdue ? 'var(--danger-bg)' : 'var(--surface)',
+                }}
+                onClick={() => setDetail(h)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail(h); } }}
+                onMouseEnter={(e) => onRowEnter(e, h)}
+                onMouseLeave={onRowLeave}
+              >
+                {activeColumns.map(col => (
+                  <div key={col.id} role="cell" className="min-w-0 text-start">
+                    {renderCell(col.id, h)}
                   </div>
-
-                  {/* Transfer */}
-                  {visibleIds.has('transfer') && (
-                    <div className="flex items-center gap-1.5 text-start min-w-0">
-                      <span className="shrink-0"><DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={18} /></span>
-                      <span className="text-2xs truncate max-w-[72px]" style={{ color: 'var(--text-secondary)' }}>
-                        {h.fromDriverName ?? '—'}
-                      </span>
-                      <IconArrowRight size={10} stroke={2.5} className="shrink-0" style={{ color: 'var(--text-soft)' }} />
-                      <span className="text-2xs font-[600] truncate max-w-[72px]" style={{ color: 'var(--text-primary)' }}>
-                        {h.toDriverName ?? '—'}
-                      </span>
-                      <span className="shrink-0"><DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={18} /></span>
-                    </div>
-                  )}
-
-                  {/* Ref */}
-                  {visibleIds.has('ref') && (
-                    <div className="text-start">
-                      {h.deliveryId ? (
-                        <Link
-                          to={`/deliveries/${h.deliveryId}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="font-mono text-2xs font-[600] hover:underline"
-                          style={{ color: 'var(--brand)' }}
-                        >
-                          {h.erpOrderId || h.deliveryId.slice(0, 8)}
-                        </Link>
-                      ) : (
-                        <span className="font-mono text-2xs font-[600]" style={{ color: 'var(--text-soft)' }}>—</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* SLA countdown */}
-                  {visibleIds.has('sla') && (
-                    <div className="text-start min-w-0">
-                      <SlaCountdown requestedAt={h.requestedAt} />
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  {visibleIds.has('actions') && !isReadOnly && (
-                    <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => onCancel(h)}
-                        disabled={cancellingId === h.id}
-                        aria-label={t.common?.annuler ?? 'Annuler'}
-                        className="text-2xs font-[600] h-6 px-2 rounded-[var(--radius)] flex items-center gap-1 transition-colors disabled:opacity-50 hover:bg-[var(--danger-bg)]"
-                        style={{ color: 'var(--danger)' }}
-                      >
-                        <IconX size={12} stroke={2.5} />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Hover tooltip */}
-      {hover && <HoverTooltip h={hover.h} t={t} rect={hover.rect} />}
+      {hover && <HoverTooltip h={hover.h} t={t} rect={hover.rect} pendingMinutes={pendingMinutes} />}
 
-      {/* Detail modal */}
       {detail && (
         <HandoffDetailModal
           h={detail}
           open={!!detail}
           onClose={() => setDetail(null)}
-          phase={phaseOf(detail)}
-          accent={cardView(detail, t).accent}
+          phase={phaseOf(detail, pendingMinutes)}
+          accent={cardView(detail, t, pendingMinutes).accent}
           t={t}
         />
       )}

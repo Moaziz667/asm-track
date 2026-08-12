@@ -13,6 +13,7 @@ import {
   IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
   IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle, IconRouter,
   IconBuildingStore, IconCheck, IconSettings, IconRoute, IconChartBar, IconCircleCheck,
+  IconPackageExport, IconQrcode,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { tw } from '@/lib/ui/typography';
@@ -40,6 +41,10 @@ const SLA_CARDS: { key: string; icon: typeof IconClock; def: string;
   { key: 'ops.sla.waiting-limit-minutes',   icon: IconHourglass,     def: '15',  label: 'waitingLimit',    desc: 'waitingLimitDesc' },
   { key: 'ops.sla.at-risk-window-minutes',  icon: IconAlertTriangle, def: '30',  label: 'atRiskWindow',    desc: 'atRiskWindowDesc' },
   { key: 'ops.sla.replan-grace-minutes',    icon: IconArrowBackUp,   def: '60',  label: 'replanGrace',     desc: 'replanGraceDesc' },
+  // Custody handoffs: same store, so a tenant whose drivers meet on a ring road and one whose
+  // drivers meet on foot in a souk don't have to share a deadline (nor a redeploy to change it).
+  { key: 'ops.handoff.pending-minutes',     icon: IconPackageExport, def: '15',  label: 'handoffPending',  desc: 'handoffPendingDesc' },
+  { key: 'ops.handoff.auto-cancel-minutes', icon: IconQrcode,        def: '60',  label: 'handoffExpiry',   desc: 'handoffExpiryDesc' },
 ];
 // Per-SLA recommendation copy key (shown in the edit modal).
 const SLA_REC: Record<string, keyof TSettings> = {
@@ -49,6 +54,8 @@ const SLA_REC: Record<string, keyof TSettings> = {
   'ops.sla.waiting-limit-minutes': 'waitingLimitRec',
   'ops.sla.at-risk-window-minutes': 'atRiskWindowRec',
   'ops.sla.replan-grace-minutes': 'replanGraceRec',
+  'ops.handoff.pending-minutes': 'handoffPendingRec',
+  'ops.handoff.auto-cancel-minutes': 'handoffExpiryRec',
 };
 type TSettings = Record<string, string>;
 

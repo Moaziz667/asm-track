@@ -2635,6 +2635,12 @@ export const EN_COPY = {
     replanGrace: 'Replan Grace Period',
     replanGraceDesc: 'When a stop is removed from a route to be re-planned, the planning clock is paused this long so it does not immediately re-alert as a brand-new late order.',
     replanGraceRec: 'Typical range: 30-120 minutes. Give planners enough breathing room to re-route without false alarms.',
+    handoffPending: 'Pending handoff alert',
+    handoffPendingDesc: 'How long an unconfirmed parcel handoff waits before it alerts the dispatcher and nudges both drivers. The parcel stays in the sender’s van until the scan.',
+    handoffPendingRec: 'Typical range: 10-20 minutes. Long enough for the drivers to meet, short enough not to lose sight of a parcel.',
+    handoffExpiry: 'Handoff expiry',
+    handoffExpiryDesc: 'How long an unconfirmed handoff lasts before it is cancelled outright and the parcel returns to dispatch resolution. This is the countdown shown in the Handoffs tab. Set 0 to disable expiry.',
+    handoffExpiryRec: 'Typical range: 45-120 minutes. Too short and a traffic jam cancels a legitimate transfer; 0 leaves a parcel in limbo indefinitely.',
     // ── SLA Guide (in-app explainer) ──
     slaGuideTitle: 'How the SLA system works',
     slaGuideIntro: 'Every delivery moves through lifecycle phases. Each phase has one deadline (computed from real route windows and the thresholds below) and a health light. One engine computes this once, so the dashboard, dispatch desk, delivery page and reports all show the same status. Lateness caused by planning or depot waiting is not charged to the driver.',
@@ -3096,10 +3102,10 @@ export const EN_COPY = {
       message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — loaded`,
     },
     'delivery.in_transit': {
-      title: 'En Route',
+      title: 'On the Way',
       message: (p: MsgParams) => {
         const eta = _en_fmtEta(p.etaAt);
-        const parts = [`${p.clientName || 'Client'} — en route`];
+        const parts = [`${p.clientName || 'Client'} — on the way`];
         if (p.driverName) parts.push(p.driverName);
         if (eta) parts.push(`ETA ${eta}`);
         if (p.routeDistanceKm) parts.push(`${Number(p.routeDistanceKm).toFixed(1)} km`);
@@ -3262,6 +3268,10 @@ export const EN_COPY = {
       title: 'Re-delivery Scheduled',
       message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — refused (defect) · re-delivery scheduled`,
     },
+    'return.requested': {
+      title: 'New customer return',
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'A customer'} requested a return`,
+    },
     'sla.alert': {
       title: (p: MsgParams) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA Breached' : 'SLA At Risk',
       message: (p: MsgParams) => {
@@ -3380,7 +3390,7 @@ export const EN_COPY = {
     scooter: {
       title: "Driver\nNotified",
       desc: "Route dispatched in real time. Built-in navigation.",
-      tag: "En Route",
+      tag: "On the Way",
     },
     delivery: {
       title: "Delivery\nConfirmed",

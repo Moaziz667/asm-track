@@ -7,6 +7,7 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { useDensity } from '@/hooks/useDensity';
+import { useOpsSettings, HANDOFF_PENDING_KEY, HANDOFF_PENDING_DEFAULT } from '@/hooks/useOpsSettings';
 import { cardView, phaseOf } from './HandoffCards';
 import { HandoffDetailModal } from './HandoffDetailModal';
 import type { HandoffItem } from '../types';
@@ -35,7 +36,7 @@ const COL_TRACKS: Record<string, string> = {
   duration: 'minmax(80px, 0.8fr)',
 };
 
-const ROW_H: Record<string, number> = { compact: 40, comfortable: 52, spacious: 64 };
+const ROW_H: Record<string, number> = { compact: 40, comfortable: 56, spacious: 68 };
 
 function fmtTs(iso?: string): string {
   if (!iso) return '—';
@@ -60,8 +61,8 @@ function endedAt(h: HandoffItem): string | undefined {
 }
 
 /** Floating tooltip shown on row hover — quick preview without clicking. */
-function HoverTooltip({ h, t, rect }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect }) {
-  const view = cardView(h, t);
+function HoverTooltip({ h, t, rect, pendingMinutes }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect; pendingMinutes: number }) {
+  const view = cardView(h, t, pendingMinutes);
   const dur = durationOf(h);
   const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'by';
 
@@ -108,15 +109,21 @@ export function HandoffHistoryTable({ items, t }: Props) {
   const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { density, setDensity } = useDensity('handoff-history', 'comfortable');
+  const pendingMinutes = useOpsSettings().getInt(HANDOFF_PENDING_KEY, HANDOFF_PENDING_DEFAULT);
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } =
     useColumnSettings('handoff-history', HANDOFF_HISTORY_COLUMNS);
 
-  const gridCols = useMemo(() => {
-    const pinned = orderedColumns.filter(c => c.pinned);
-    const visible = orderedColumns.filter(c => !c.pinned && visibleIds.has(c.id));
-    const tracks = [...pinned, ...visible].map(c => COL_TRACKS[c.id] ?? '1fr');
-    return tracks.join(' ');
-  }, [orderedColumns, visibleIds]);
+  // One ordered list drives the tracks, the labels AND the cells. Sorting pinned columns first for
+  // the tracks only (as this did) is what slid the open table's cells into the wrong columns. The
+  // trailing track holds the header's settings gear, reserved on the rows too so labels stay put.
+  const activeColumns = useMemo(
+    () => orderedColumns.filter(c => c.pinned || visibleIds.has(c.id)),
+    [orderedColumns, visibleIds],
+  );
+  const gridCols = useMemo(
+    () => [...activeColumns.map(c => COL_TRACKS[c.id] ?? '1fr'), '44px'].join(' '),
+    [activeColumns],
+  );
 
   const onRowEnter = useCallback((e: React.MouseEvent, h: HandoffItem) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -137,30 +144,30 @@ export function HandoffHistoryTable({ items, t }: Props) {
         <div className="rounded-[var(--radius-xl)] overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-card)' }}>
           {/* Header */}
           <div
-            className="sticky top-0 z-10 flex items-center h-[44px] px-4 border-b border-[var(--border)]"
-            style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+            className="sticky top-0 z-10 grid items-center h-[44px] px-4 border-b border-[var(--border)]"
+            style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
           >
-            <div className="grid flex-1 items-center" style={{ gridTemplateColumns: gridCols }}>
-              {orderedColumns.filter(c => c.pinned || visibleIds.has(c.id)).map(col => (
-                <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
-                  {tlabel(t.dispatchDeskPage, `handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`) ?? col.label}
-                </span>
-              ))}
+            {activeColumns.map(col => (
+              <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start truncate">
+                {tlabel(t.dispatchDeskPage, `handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`) ?? col.label}
+              </span>
+            ))}
+            <div className="flex items-center justify-end">
+              <DisplaySettingsDropdown
+                columns={orderedColumns}
+                visibleIds={visibleIds}
+                onToggle={toggleColumn}
+                onReorder={moveColumn}
+                onReset={resetColumns}
+                density={density}
+                onDensityChange={setDensity}
+              />
             </div>
-            <DisplaySettingsDropdown
-              columns={orderedColumns}
-              visibleIds={visibleIds}
-              onToggle={toggleColumn}
-              onReorder={moveColumn}
-              onReset={resetColumns}
-              density={density}
-              onDensityChange={setDensity}
-            />
           </div>
 
           {/* Rows */}
           {items.map((h, idx) => {
-            const view = cardView(h, t);
+            const view = cardView(h, t, pendingMinutes);
             const dur = durationOf(h);
             return (
               <div key={h.id || idx} className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
@@ -172,8 +179,9 @@ export function HandoffHistoryTable({ items, t }: Props) {
                   onMouseLeave={onRowLeave}
                 >
                   {/* Status (pinned) */}
-                  <div className="text-start">
-                    <span className="text-xs font-[600]" style={{ color: view.accent }}>
+                  <div className="flex items-center gap-2 text-start min-w-0">
+                    <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: view.accent }} aria-hidden />
+                    <span className="text-xs font-[600] truncate" style={{ color: view.accent }}>
                       {view.label}
                     </span>
                   </div>
@@ -181,7 +189,7 @@ export function HandoffHistoryTable({ items, t }: Props) {
                   {/* Client */}
                   {visibleIds.has('client') && (
                     <div className="text-start min-w-0">
-                      <span className="text-xs font-[600] truncate block" style={{ color: 'var(--text-primary)' }}>
+                      <span className="text-[13px] font-[600] truncate block" style={{ color: 'var(--text-primary)' }}>
                         {h.clientName ?? '—'}
                       </span>
                     </div>
@@ -189,16 +197,18 @@ export function HandoffHistoryTable({ items, t }: Props) {
 
                   {/* Transfer */}
                   {visibleIds.has('transfer') && (
-                    <div className="flex items-center gap-1.5 text-start">
-                      <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={18} />
-                      <span className="text-2xs truncate max-w-[72px]" style={{ color: 'var(--text-secondary)' }}>
-                        {h.fromDriverName ?? '—'}
+                    <div className="flex items-center gap-2 text-start min-w-0">
+                      <span className="flex items-center shrink-0">
+                        <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={22} />
+                        <span className="flex items-center" style={{ marginInlineStart: -7, boxShadow: '0 0 0 2px var(--surface)', borderRadius: '50%' }}>
+                          <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={22} />
+                        </span>
                       </span>
-                      <IconArrowRight size={10} stroke={2.5} className="shrink-0" style={{ color: 'var(--text-soft)' }} />
-                      <span className="text-2xs font-[600] truncate max-w-[72px]" style={{ color: 'var(--text-primary)' }}>
-                        {h.toDriverName ?? '—'}
+                      <span className="flex items-center gap-1.5 min-w-0 text-xs">
+                        <span className="truncate" style={{ color: 'var(--text-secondary)' }}>{h.fromDriverName ?? '—'}</span>
+                        <IconArrowRight size={12} stroke={2.5} className="shrink-0" style={{ color: 'var(--text-soft)' }} />
+                        <span className="truncate font-[600]" style={{ color: 'var(--text-primary)' }}>{h.toDriverName ?? '—'}</span>
                       </span>
-                      <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={18} />
                     </div>
                   )}
 
@@ -209,13 +219,13 @@ export function HandoffHistoryTable({ items, t }: Props) {
                         <Link
                           to={`/deliveries/${h.deliveryId}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="font-mono text-2xs font-[600] hover:underline"
+                          className="font-mono text-xs font-[600] hover:underline"
                           style={{ color: 'var(--brand)' }}
                         >
                           {h.erpOrderId || h.deliveryId.slice(0, 8)}
                         </Link>
                       ) : (
-                        <span className="font-mono text-2xs font-[600]" style={{ color: 'var(--text-soft)' }}>—</span>
+                        <span className="font-mono text-xs font-[600]" style={{ color: 'var(--text-soft)' }}>—</span>
                       )}
                     </div>
                   )}
@@ -223,7 +233,7 @@ export function HandoffHistoryTable({ items, t }: Props) {
                   {/* Date */}
                   {visibleIds.has('date') && (
                     <div className="text-start">
-                      <span className="text-2xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                      <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                         {fmtTs(endedAt(h))}
                       </span>
                     </div>
@@ -232,11 +242,14 @@ export function HandoffHistoryTable({ items, t }: Props) {
                   {/* Duration */}
                   {visibleIds.has('duration') && (
                     <div className="text-start">
-                      <span className="text-2xs font-mono" style={{ color: dur ? 'var(--text-primary)' : 'var(--text-soft)' }}>
+                      <span className="text-xs font-mono" style={{ color: dur ? 'var(--text-primary)' : 'var(--text-soft)' }}>
                         {dur ?? '—'}
                       </span>
                     </div>
                   )}
+
+                  {/* Reserved for the header's settings gear — keeps labels over their own cells. */}
+                  <div aria-hidden />
                 </div>
               </div>
             );
@@ -245,7 +258,7 @@ export function HandoffHistoryTable({ items, t }: Props) {
       </div>
 
       {/* Hover tooltip */}
-      {hover && <HoverTooltip h={hover.h} t={t} rect={hover.rect} />}
+      {hover && <HoverTooltip h={hover.h} t={t} rect={hover.rect} pendingMinutes={pendingMinutes} />}
 
       {/* Detail modal */}
       {detail && (
@@ -253,8 +266,8 @@ export function HandoffHistoryTable({ items, t }: Props) {
           h={detail}
           open={!!detail}
           onClose={() => setDetail(null)}
-          phase={phaseOf(detail)}
-          accent={cardView(detail, t).accent}
+          phase={phaseOf(detail, pendingMinutes)}
+          accent={cardView(detail, t, pendingMinutes).accent}
           t={t}
         />
       )}

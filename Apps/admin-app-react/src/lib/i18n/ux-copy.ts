@@ -2732,6 +2732,12 @@ export const FR_COPY = {
     replanGrace: 'Délai de grâce de replanification',
     replanGraceDesc: 'Quand un arrêt est retiré d’une tournée pour être replanifié, l’horloge de planification est suspendue durant ce délai afin de ne pas réalerter immédiatement comme une nouvelle commande en retard.',
     replanGraceRec: 'Plage typique : 30-120 minutes. Laissez aux planificateurs assez de marge pour re-router sans fausses alertes.',
+    handoffPending: 'Alerte passation en attente',
+    handoffPendingDesc: 'Au bout de combien de temps une passation de colis non confirmée alerte le répartiteur et relance les deux chauffeurs. Le colis reste dans le camion de l’expéditeur jusqu’au scan.',
+    handoffPendingRec: 'Plage typique : 10-20 minutes. Assez pour que les chauffeurs se rejoignent, assez court pour ne pas perdre un colis de vue.',
+    handoffExpiry: 'Expiration d’une passation',
+    handoffExpiryDesc: 'Au bout de combien de temps une passation non confirmée est annulée d’office et le colis renvoyé à la résolution dispatch. C’est le compte à rebours affiché dans l’onglet Passations. Mettre 0 désactive l’expiration.',
+    handoffExpiryRec: 'Plage typique : 45-120 minutes. Trop court et un embouteillage annule un transfert légitime ; 0 laisse un colis en suspens indéfiniment.',
     // ── SLA Guide (in-app explainer) ──
     slaGuideTitle: 'Comment fonctionne le système SLA',
     slaGuideIntro: 'Chaque livraison traverse des phases de cycle de vie. Chaque phase a une échéance (calculée à partir des fenêtres réelles de tournée et des seuils ci-dessous) et un voyant de santé. Un seul moteur calcule cela une fois : le tableau de bord, le poste de répartition, la page livraison et les rapports affichent donc le même statut. Le retard dû à la planification ou à l’attente au dépôt n’est pas imputé au chauffeur.',
@@ -3717,6 +3723,10 @@ export const FR_COPY = {
     'delivery.redelivery_scheduled': {
       title: 'Re-livraison programmée',
       message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — refusé (défaut) · re-livraison programmée`,
+    },
+    'return.requested': {
+      title: 'Nouveau retour client',
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Un client'} a demandé un retour`,
     },
     'sla.alert': {
       title: (p: MsgParams) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA dépassé' : 'SLA à risque',

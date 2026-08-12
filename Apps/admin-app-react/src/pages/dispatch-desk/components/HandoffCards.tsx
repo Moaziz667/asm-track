@@ -34,11 +34,11 @@ type Segment = 'open' | 'history';
  */
 export type Phase = 'wait' | 'active' | 'overdue' | 'confirmed' | 'expired' | 'cancelled';
 
-export function phaseOf(h: HandoffItem): Phase {
+export function phaseOf(h: HandoffItem, pendingMinutes?: number): Phase {
   if (h.state === 'CONFIRMED') return 'confirmed';
   if (h.state === 'EXPIRED') return 'expired';
   if (h.state === 'CANCELLED') return 'cancelled';
-  if (isHandoffOverdue(h)) return 'overdue';
+  if (isHandoffOverdue(h, pendingMinutes)) return 'overdue';
   if (h.state === 'IN_PROGRESS') return 'active';
   return 'wait';
 }
@@ -50,9 +50,9 @@ export interface CardView {
   phase: Phase;
 }
 
-export function cardView(h: HandoffItem, t: TranslationSchema): CardView {
+export function cardView(h: HandoffItem, t: TranslationSchema, pendingMinutes?: number): CardView {
   const c = t.dispatchDeskPage;
-  const phase = phaseOf(h);
+  const phase = phaseOf(h, pendingMinutes);
   switch (phase) {
     case 'confirmed': return { status: 'COMPLETED', label: c.handoffStateConfirmed, accent: 'var(--success)', phase };
     case 'expired':   return { status: 'PENDING' as StatusValue, label: c.handoffStateExpired, accent: 'var(--warning)', phase };

@@ -12,6 +12,7 @@ export type { DepotSyncResult, PatchDepotLocationPayload } from './useDepots';
 export { useDriverAvatars } from './useDriverAvatars';
 export { useDrivers, useCreateDriver, useUpdateDriver, useToggleDriverStatus, useCancelDriverInvite, useResendDriverInvite, useForceLogoutDriver, useImportDrivers, DRIVERS_QUERY_KEY } from './useDrivers';
 export type { DriverPayload } from './useDrivers';
+export { useOpsSettings, OPS_SETTINGS_QUERY_KEY, HANDOFF_PENDING_KEY, HANDOFF_PENDING_DEFAULT, HANDOFF_AUTO_CANCEL_KEY, HANDOFF_AUTO_CANCEL_DEFAULT } from './useOpsSettings';
 export { useRoutes, useRoute, useReassignRoute, useCloseRoute, useCancelRoute, useValidateRoute, ROUTES_QUERY_KEY } from './useRoutes';
 export type { RouteStop, RouteItem, RoutesQueryParams } from './useRoutes';
 export { useVehicles, useFleetDrivers, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useReactivateVehicle, VEHICLES_QUERY_KEY, FLEET_DRIVERS_QUERY_KEY } from './useVehicles';
