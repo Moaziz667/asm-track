@@ -193,7 +193,14 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
     () => drivers.filter(d => d.currentLat && d.currentLng),
     [drivers]
   );
-  const onlineCount = useMemo(() => visibleDrivers.filter(d => !isGpsStale(d.lastLocationAt)).length, [visibleDrivers]);
+  const resolveDriverStatus = useDriverStatusResolver();
+
+  // Connected, by the app-wide rule — not "has moved recently", which is what this counted and is
+  // a different question. See lib/state/driver-status.
+  const onlineCount = useMemo(
+    () => visibleDrivers.filter(d => isDriverConnected(resolveDriverStatus(d.id, d.onlineStatus))).length,
+    [visibleDrivers, resolveDriverStatus],
+  );
   // driverId → the route (and colour) it belongs to, so the car matches its route's pins.
   const driverRoute = useMemo(() => {
     const m = new Map<string, MapRoute>();
@@ -233,7 +240,6 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
     return out;
   }, [routes, focusedRouteId, onFocusRoute, routeColorMap]);
 
-  const resolveDriverStatus = useDriverStatusResolver();
   const driverMarkers = useMemo(() => {
     return visibleDrivers.map(driver => {
       const r = driverRoute.get(driver.id);
