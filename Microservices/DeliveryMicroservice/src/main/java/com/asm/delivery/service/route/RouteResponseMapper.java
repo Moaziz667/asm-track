@@ -96,11 +96,21 @@ public class RouteResponseMapper {
                                      (delivery != null ? delivery.getSourceDepotId() : null);
                 com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotMap.get(sourceDepotId) : null;
 
+                // sourceDepotId keeps naming one depot, for the map pin and every caller that only
+                // ever needed one. sourceDepotIds is what a client must match on: a delivery drawn
+                // from two warehouses belongs to two pickups, and the single field can only name the
+                // first — which is how the route builder and the phone both concluded that a Sousse
+                // pickup for a Tunis-headed order loaded nothing.
+                List<UUID> sourceDepotIds = stop.getStopType() == RouteStopType.PICKUP
+                    ? (sourceDepotId != null ? List.of(sourceDepotId) : List.of())
+                    : (delivery != null ? List.copyOf(DeliveryDepots.of(delivery)) : List.of());
+
                 stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
                     .stopType(stop.getStopType())
                     .sourceDepotId(sourceDepotId)
+                    .sourceDepotIds(sourceDepotIds)
                     .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
                     .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
                     .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)

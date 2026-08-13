@@ -25,6 +25,18 @@ public class RouteStopResponse {
     private Double sourceDepotLat;
     private Double sourceDepotLng;
 
+    /**
+     * Every depot this stop's goods are loaded from — one entry for a PICKUP, one or more for a
+     * DELIVERY whose lines come from several warehouses.
+     *
+     * <p>{@link #sourceDepotId} above cannot express two, and every client that asked "which pickup
+     * loads this delivery?" answered it by comparing that single field. Three of them derived the
+     * same wrong answer independently. This field is the one they should read instead: a delivery
+     * belongs to a pickup when this list contains the pickup's depot.
+     */
+    @Schema(description = "All depots this stop is loaded from (a DELIVERY may have several)")
+    private java.util.List<UUID> sourceDepotIds;
+
     @Schema(description = "Sequence order in route")
     private Integer stopOrder;
 

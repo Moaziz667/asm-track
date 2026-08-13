@@ -6,6 +6,7 @@ import { IconMapPin, IconTrash, IconX } from '@tabler/icons-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { StopRow } from './StopRow';
 import { RouteStop, DeliveryOption, StopWindowDraft } from '../types';
+import { depotsOfStop } from '../depots';
 import { resolveOrderRef, shortId } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -56,10 +57,15 @@ export function StopsList({
       if (s.stopType === 'PICKUP' && s.sourceDepotId) depots.add(s.sourceDepotId);
     }
     for (const s of stops) {
-      if (s.stopType !== 'PICKUP' && s.sourceDepotId && depots.has(s.sourceDepotId)) {
-        const list = byDepot.get(s.sourceDepotId) ?? [];
+      if (s.stopType === 'PICKUP') continue;
+      // A delivery can be loaded in two places, so it lands under both. Reading sourceDepotId
+      // instead — as this did — names only the first, and an ERP that puts the warehouse on the
+      // line answers "0 to load" at the second one.
+      for (const depotId of depotsOfStop(s)) {
+        if (!depots.has(depotId)) continue;
+        const list = byDepot.get(depotId) ?? [];
         list.push(s);
-        byDepot.set(s.sourceDepotId, list);
+        byDepot.set(depotId, list);
       }
     }
     return { pickupDepotIds: depots, deliveriesByDepot: byDepot };
@@ -155,7 +161,7 @@ export function StopsList({
           <div className="flex flex-col min-h-full">
             {stops.map((stop, index) => {
               const isPickup = stop.stopType === 'PICKUP';
-              const depotChip = !isPickup && stop.sourceDepotId && pickupDepotIds.has(stop.sourceDepotId)
+              const depotChip = !isPickup && depotsOfStop(stop).some((d) => pickupDepotIds.has(d))
                 ? (stop.sourceDepotName ?? null)
                 : null;
               return (
