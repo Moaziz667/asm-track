@@ -1522,6 +1522,7 @@ export const FR_COPY = {
     pickupLabel: 'Dépôt',
     pickupTitle: 'Chargement — Dépôt {depot}',
     pickupLoadCount: '{count} colis à charger',
+    pickupLoadTitle: 'À charger ici',
     pickupArrival: 'Arrivée prévue',
     pickupCompleted: 'Chargement confirmé',
     labelDepot: 'Dépôt',

@@ -1433,6 +1433,7 @@ export const EN_COPY = {
     pickupLabel: 'Depot',
     pickupTitle: 'Loading — Depot {depot}',
     pickupLoadCount: '{count} parcels to load',
+    pickupLoadTitle: 'To load here',
     pickupArrival: 'ETA at',
     pickupCompleted: 'Pickup confirmed',
     labelDepot: 'Depot',

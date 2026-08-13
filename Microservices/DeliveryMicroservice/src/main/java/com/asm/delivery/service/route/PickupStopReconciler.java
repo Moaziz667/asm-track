@@ -1,7 +1,6 @@
 package com.asm.delivery.service.route;
 
 import com.asm.delivery.entity.Delivery;
-import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
@@ -18,7 +17,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -250,27 +248,9 @@ public class PickupStopReconciler {
         return out;
     }
 
-    /**
-     * Every depot this parcel must be loaded from.
-     *
-     * <p>A shipment used to have one, and the field on the order still says so. It holds wherever an
-     * ERP issues a delivery note per warehouse — Odoo does. ERPNext puts a warehouse on each line, so
-     * one note can legitimately need two loads, and answering with the header alone sent a driver to
-     * fetch in Sousse goods that sit in Monastir.
-     *
-     * <p>Lines win when they carry a depot; the order's own depot answers for everything imported
-     * before they did, which is what this method used to return outright.
-     */
+    /** Every depot this parcel must be loaded from — see {@link DeliveryDepots}. */
     private static Set<UUID> depotsOf(Delivery delivery) {
-        Order order = delivery.getOrder();
-        if (order != null && order.getItems() != null) {
-            Set<UUID> fromLines = order.getItems().stream()
-                    .map(com.asm.delivery.entity.OrderItem::getSourceDepotId)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toCollection(LinkedHashSet::new));
-            if (!fromLines.isEmpty()) return fromLines;
-        }
-        return delivery.getSourceDepotId() != null ? Set.of(delivery.getSourceDepotId()) : Set.of();
+        return DeliveryDepots.of(delivery);
     }
 
     private RouteStops loadActiveStops(Route route) {

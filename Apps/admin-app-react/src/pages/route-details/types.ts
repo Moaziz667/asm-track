@@ -17,6 +17,19 @@ export type StopOrder = {
   items?: DeliveryItem[];
 };
 
+/**
+ * One line to carry out of the depot at a pickup stop. Flat rather than grouped by delivery: the
+ * order reference rides on every line, so a row read on its own still says whose goods it is.
+ */
+export type PickupLoadLine = {
+  deliveryId?: string;
+  orderRef?: string;
+  clientName?: string;
+  sku?: string;
+  name?: string;
+  quantity?: number;
+};
+
 export type RouteStop = {
   id: string;
   deliveryId: string;
@@ -37,6 +50,7 @@ export type RouteStop = {
   sourceDepotLat?: number;
   sourceDepotLng?: number;
   parcelCount?: number;
+  pickupLoad?: PickupLoadLine[];
   routeGeometry?: string;
   routeDistanceKm?: number;
   routeDurationMinutes?: number;
