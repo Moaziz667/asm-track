@@ -5,6 +5,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { safeStorage } from '@/lib/storage';
 import { extractCompanyIdFromToken } from '@/lib/tenant';
+import { useDriverStatusStore } from '@/lib/state/driver-status';
 
 // ── Single multiplexed realtime connection ─────────────────────────────────────
 // One STOMP-over-SockJS client for the whole authenticated app. Consumers (the
@@ -129,6 +130,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
               const payload = cloudEvent.data || cloudEvent;
               const type = cloudEvent.type || payload.event;
               payload.event = type;
+
+              // Driver availability is fed once, here, into the shared store. Every badge in the
+              // app reads it from there, so no page subscribes to this event on its own — and none
+              // can drift, or forget to.
+              if (type === 'driver.status_changed' && payload.driverId && payload.status) {
+                useDriverStatusStore.getState().apply(String(payload.driverId), String(payload.status));
+              }
+
               dispatch({ type, category, payload, receivedAt: Date.now() });
             } catch (e) {
               console.error(`[Realtime] parse error on ${topic}:`, e);

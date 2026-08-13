@@ -1,3 +1,4 @@
+import { driverStatusDot, driverStatusLabel } from '@/lib/state/driver-status';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import type { DeliveryStatus } from '@/types';
 
@@ -5,23 +6,17 @@ export const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULE
 export const REPLANNABLE_STATUSES:  DeliveryStatus[] = ['SCHEDULED', 'PICKED_UP', 'FAILED', 'CANCELLED'];
 export const ASSIGNABLE_STATUSES:   DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'];
 
+// Kept as thin aliases: the colours and labels live in lib/state/driver-status, next to the rule
+// that decides what a status means. This file used to hold its own copy of the three hexadecimals
+// and a French label frozen beside an i18n one.
 export const STATUS_DOT: Record<string, string> = {
-  ONLINE:   '#10B981',
-  ON_BREAK: '#F59E0B',
-  OFFLINE:  '#9CA3AF',
-};
-
-export const STATUS_TIP: Record<string, string> = {
-  ONLINE: 'En service', ON_BREAK: 'En pause', OFFLINE: 'Hors ligne',
+  ONLINE: driverStatusDot('ONLINE'),
+  ON_BREAK: driverStatusDot('ON_BREAK'),
+  OFFLINE: driverStatusDot('OFFLINE'),
 };
 
 export function getDriverStatusTip(status: string | undefined, t: TranslationSchema): string {
-  const map: Record<string, string> = {
-    ONLINE: t.dispatchDeskPage.driverOnline,
-    ON_BREAK: t.dispatchDeskPage.driverOnBreak,
-    OFFLINE: t.dispatchDeskPage.driverOffline,
-  };
-  return map[status ?? 'OFFLINE'] ?? t.dispatchDeskPage.driverOffline;
+  return driverStatusLabel(status, t);
 }
 
 // Pastel severity chips driven by themed tokens so they adapt to light AND

@@ -6,6 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/ui/theme';
 import { useLocaleContext, useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
+import { isDriverConnected, useDriverStatusResolver } from '@/lib/state/driver-status';
 import { routeColorFromMap } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -232,13 +233,17 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
     return out;
   }, [routes, focusedRouteId, onFocusRoute, routeColorMap]);
 
+  const resolveDriverStatus = useDriverStatusResolver();
   const driverMarkers = useMemo(() => {
     return visibleDrivers.map(driver => {
       const r = driverRoute.get(driver.id);
       const color = r ? routeColorFromMap(routeColorMap, r.id) : '#71717A';
       const isFocused = driver.id === focusedDriverId || (!!r && r.id === focusedRouteId);
       const dim = !isFocused && (isGpsStale(driver.lastLocationAt) || !!focusedRouteId || !!focusedDriverId);
-      const online = (driver.onlineStatus ?? 'OFFLINE') !== 'OFFLINE' && !isGpsStale(driver.lastLocationAt);
+      // Connected AND recently located: this is a map pin, and a driver whose last fix is old is
+      // drawn where he no longer is. Availability alone is the badge's business, not the puck's.
+      const online = isDriverConnected(resolveDriverStatus(driver.id, driver.onlineStatus))
+        && !isGpsStale(driver.lastLocationAt);
       return (
         <Marker
           key={driver.id}
@@ -250,7 +255,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
             <div style={{ fontFamily: 'var(--font-sans)' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{driver.name}</div>
               {r && <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 2 }}>{r.name}</div>}
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{statusLabels[driver.onlineStatus ?? 'OFFLINE']}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{statusLabels[resolveDriverStatus(driver.id, driver.onlineStatus)]}</div>
               <div style={{ fontSize: 10, color: isGpsStale(driver.lastLocationAt) ? 'var(--danger)' : 'var(--text-secondary)', marginTop: 3, fontWeight: 600 }}>
                 {lastSeen(driver.lastLocationAt)}
               </div>
@@ -259,7 +264,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
         </Marker>
       );
     });
-  }, [visibleDrivers, driverRoute, focusedRouteId, focusedDriverId, onFocusRoute, routeColorMap, locale]);
+  }, [visibleDrivers, driverRoute, focusedRouteId, focusedDriverId, onFocusRoute, routeColorMap, locale, resolveDriverStatus]);
 
   if (!mounted) {
     return (

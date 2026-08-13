@@ -10,6 +10,7 @@ import DispatchLiveMap, { type MapRoute, type LiveDriver } from '@/components/Di
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { useDriverAvatars } from '@/hooks/useDriverAvatars';
 import { useT } from '@/lib/i18n/LocaleContext';
+import { isDriverConnected, useDriverStatusResolver } from '@/lib/state/driver-status';
 import {
   IconMap2,
   IconX,
@@ -174,25 +175,7 @@ export default function GlobalFloatingMap() {
     );
   });
 
-  /**
-   * Follow the going online and offline, the same way the drivers page does.
-   *
-   * <p>Position and availability are two different facts and arrive on two different events. This
-   * map only listened to the first, so a driver's status waited for the poll — 15s floating, 45s
-   * expanded. That delay was invisible in itself, except the marker filter drops OFFLINE drivers:
-   * a driver connecting while the map was open kept moving on a map where nobody could see him.
-   *
-   * <p>Refetched rather than patched, and debounced: the event carries the change, not the row, and
-   * a fleet coming online at the start of a shift would otherwise fire one request per driver.
-   */
-  const driverStatusTimer = useRef<number | null>(null);
-  useRealtimeEvent(['driver.status_changed', 'driver.events'], () => {
-    if (driverStatusTimer.current != null) return;
-    driverStatusTimer.current = window.setTimeout(() => {
-      driverStatusTimer.current = null;
-      void queryClient.invalidateQueries({ queryKey: ['global-map-drivers'] });
-    }, 1500);
-  });
+
 
   useEffect(() => {
     if (mapMode === 'floating') {
@@ -289,7 +272,10 @@ export default function GlobalFloatingMap() {
   // calling it the first. A driver who starts his shift is online at once; his phone sends a first
   // fix seconds later, and until then currentLat is null. He was counted as offline the whole time
   // — no refresh could fix it, because the status was never what was being read.
-  const onlineDriversCount = safeDrivers.filter((d) => d.onlineStatus !== 'OFFLINE').length;
+  const resolveDriverStatus = useDriverStatusResolver();
+  const onlineDriversCount = safeDrivers.filter(
+    (d) => isDriverConnected(resolveDriverStatus(d.id, d.onlineStatus))
+  ).length;
 
   const bubbleTooltipText = useMemo(() => {
     return t.globalMap.bubbleTooltip
@@ -479,7 +465,7 @@ export default function GlobalFloatingMap() {
                   // Status only. The marker below still needs coordinates — one cannot pin a driver
                   // whose position is unknown — but the dot answers "is he connected?", and a
                   // driver waiting for his first GPS fix is connected.
-                  const online = driver.onlineStatus !== 'OFFLINE';
+                  const online = isDriverConnected(resolveDriverStatus(driver.id, driver.onlineStatus));
 
                   return (
                     <button

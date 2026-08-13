@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
+import { useDriverStatus } from '@/lib/state/driver-status';
 import { showSuccessToast, showErrorToast, showInfoToast } from '@/lib/ui/toast-service';
 import { Delivery, DeliverySource, ProofOfDelivery, TimelineEvent } from '@/types';
 import { normalizeTimeline, normalizePod } from './helpers';
@@ -112,21 +113,7 @@ export function useRouteData(routeId: string | undefined) {
 
   useEffect(() => { fetchDriverStatus(); }, [fetchDriverStatus]);
 
-  /**
-   * Follow this driver going online, on break and offline.
-   *
-   * <p>The status was read at mount and on socket reconnect only. The socket stays connected while
-   * the page is open, so there was no reconnect to wait for: a driver starting his shift left the
-   * badge grey until the page was reloaded.
-   *
-   * <p>The event carries the new status, so it is applied directly — asking the API for what was
-   * just delivered would only add a round trip.
-   */
-  useRealtimeEvent(['driver.status_changed'], evt => {
-    const { driverId: changed, status } = evt.payload ?? {};
-    if (!driverId || !status || changed !== driverId) return;
-    setDriverOnlineStatus(String(status));
-  });
+
 
   /**
    * Re-read the round whenever the socket comes back.
@@ -169,11 +156,10 @@ export function useRouteData(routeId: string | undefined) {
    * need to make. {@code lastSeen} is left alone — availability is not a location sighting, and
    * overwriting it here would make an idle driver look like he had just reported in.
    */
-  useRealtimeEvent(['driver.status_changed'], evt => {
-    if (!driverId || evt.payload?.driverId !== driverId) return;
-    const status = evt.payload?.status;
-    if (typeof status === 'string' && status) setDriverOnlineStatus(status);
-  });
+  // Fed centrally now: RealtimeProvider writes every driver.status_changed into the shared store,
+  // and the page reads it through useDriverStatus. One rule for the whole app instead of one
+  // subscription per screen — see lib/state/driver-status.
+  const liveDriverStatus = useDriverStatus(driverId, driverOnlineStatus);
 
   useEffect(() => {
     const checkFlag = () => {
@@ -438,7 +424,7 @@ export function useRouteData(routeId: string | undefined) {
 
   return {
     route, loading, fetchData,
-    driverOnlineStatus, driverLastSeen,
+    driverOnlineStatus: liveDriverStatus, driverLastSeen,
     deliveryMap, timelineMap, podMap,
     orderedStops, mapStops, totalWeightKg,
     stopRefs, expandedStops, toggleStop, scrollToStop,
