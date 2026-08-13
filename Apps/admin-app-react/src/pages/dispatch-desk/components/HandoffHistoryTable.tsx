@@ -189,7 +189,7 @@ export function HandoffHistoryTable({ items, t }: Props) {
                   {/* Client */}
                   {visibleIds.has('client') && (
                     <div className="text-start min-w-0">
-                      <span className="text-[13px] font-[600] truncate block" style={{ color: 'var(--text-primary)' }}>
+                      <span className="text-sm font-[600] truncate block" style={{ color: 'var(--text-primary)' }}>
                         {h.clientName ?? '—'}
                       </span>
                     </div>

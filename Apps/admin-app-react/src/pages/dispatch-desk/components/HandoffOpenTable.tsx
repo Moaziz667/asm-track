@@ -219,7 +219,7 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
       case 'client':
         return (
           <span className="flex flex-col min-w-0">
-            <span className="text-[13px] font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-sm font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
               {h.clientName ?? '—'}
             </span>
             {density !== 'compact' && h.dropoffAddress && (
