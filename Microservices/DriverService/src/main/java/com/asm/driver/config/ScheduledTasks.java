@@ -34,7 +34,10 @@ public class ScheduledTasks {
 
     // Drivers + invite tokens live in each tenant's schema; iterate every provisioned tenant so the
     // scheduled thread (no TenantContext) doesn't just scan the empty `public` schema.
-    @Scheduled(fixedDelay = 300_000)
+    // Every quarter hour, not every five minutes: this only decides how fast a driver already gone
+    // quiet is noticed, and noticing it three times faster never helped anyone. The rule itself is
+    // the threshold below.
+    @Scheduled(fixedDelay = 900_000)
     public void autoOfflineStaleDrivers() {
         tenantIterator.forEachActive(companyId -> self.getObject().autoOfflineStaleDriversForTenant());
     }
