@@ -9,6 +9,8 @@ import { IconCalendar, IconChevronDown,
 import { showErrorToast } from '@/lib/ui/toast-service';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
+import { DRIVER_STATUS_COLOR, type DriverOnlineStatus } from '@/lib/ui/design-tokens';
 import { useCloseRoute, useCancelRoute } from '@/hooks/useRoutes';
 import { useActiveZones } from '@/hooks/useDeliveries';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -212,11 +214,11 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
 }
 
 function RouteRow({
-  route, driverName, driverOnline, depotName, onCloseClick, onCancelClick,
+  route, driverName, driverStatus, depotName, onCloseClick, onCancelClick,
 }: {
   route:        EnrichedRoute;
   driverName:   string;
-  driverOnline: boolean;
+  driverStatus?: string;
   depotName:    string;
   onCloseClick: (route: EnrichedRoute) => void;
   onCancelClick: (route: EnrichedRoute) => void;
@@ -269,8 +271,9 @@ function RouteRow({
         {/* Chauffeur */}
         <div className="flex items-center gap-1.5">
           <div
-            className={cn('w-1.5 h-1.5 rounded-full shrink-0', driverName && driverOnline ? 'bg-emerald-500' : 'bg-gray-400')}
-            title={driverName ? (driverOnline ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')) : undefined}
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: driverName ? DRIVER_STATUS_COLOR[(driverStatus ?? 'OFFLINE') as DriverOnlineStatus]?.dot ?? DRIVER_STATUS_COLOR.OFFLINE.dot : DRIVER_STATUS_COLOR.OFFLINE.dot }}
+            title={driverName ? DRIVER_STATUS_COLOR[(driverStatus ?? 'OFFLINE') as DriverOnlineStatus]?.label : undefined}
           />
           <span className="text-xs font-[600] text-[var(--text-primary)] truncate max-w-[120px]">{driverName || t.routesTablePage.notAssigned}</span>
         </div>
@@ -385,11 +388,11 @@ function RouteRow({
 }
 
 function RouteMobileCard({
-  route, driverName, driverOnline, depotName, onCloseClick, onCancelClick,
+  route, driverName, driverStatus, depotName, onCloseClick, onCancelClick,
 }: {
   route:        EnrichedRoute;
   driverName:   string;
-  driverOnline: boolean;
+  driverStatus?: string;
   depotName:    string;
   onCloseClick: (route: EnrichedRoute) => void;
   onCancelClick: (route: EnrichedRoute) => void;
@@ -442,8 +445,9 @@ function RouteMobileCard({
       <div className="flex items-center justify-between border-t border-[var(--border)] pt-2.5 ps-1">
         <div className="flex items-center gap-1.5 min-w-0">
           <div
-            className={cn('w-1.5 h-1.5 rounded-full shrink-0', driverName && driverOnline ? 'bg-emerald-500' : 'bg-gray-400')}
-            title={driverName ? (driverOnline ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')) : undefined}
+            className="w-1.5 h-1.5 rounded-full shrink-0"
+            style={{ background: driverName ? DRIVER_STATUS_COLOR[(driverStatus ?? 'OFFLINE') as DriverOnlineStatus]?.dot ?? DRIVER_STATUS_COLOR.OFFLINE.dot : DRIVER_STATUS_COLOR.OFFLINE.dot }}
+            title={driverName ? DRIVER_STATUS_COLOR[(driverStatus ?? 'OFFLINE') as DriverOnlineStatus]?.label : undefined}
           />
           <span className="text-2xs font-[600] text-[var(--text-primary)] truncate max-w-[150px]">
             {driverName || t.routesTablePage.notAssigned}
@@ -660,6 +664,24 @@ function RoutesTablePageContent() {
   const totalPages = routesData?.totalPages ?? 1;
   const totalElements = routesData?.totalElements ?? 0;
   const drivers = routesData?.drivers ?? [];
+
+  /**
+   * Follow drivers going online, on break and offline while the table stays open.
+   *
+   * <p>The status came with the routes payload and nothing refreshed it, so it was frozen at load:
+   * a driver starting his shift stayed grey until the page was reloaded. The event carries the new
+   * status, so it is applied over the fetched list rather than triggering a refetch — reloading a
+   * paginated, filtered table on every driver of the fleet would be absurd for one coloured dot.
+   */
+  const [driverStatusLive, setDriverStatusLive] = useState<Record<string, string>>({});
+  useRealtimeEvent(['driver.status_changed'], evt => {
+    const { driverId, status } = evt.payload ?? {};
+    if (!driverId || !status) return;
+    setDriverStatusLive(prev => (prev[driverId] === status ? prev : { ...prev, [driverId]: status }));
+  });
+
+  const driverStatusOf = (driverId?: string | null) =>
+    driverId ? driverStatusLive[driverId] ?? drivers.find(d => d.id === driverId)?.onlineStatus : undefined;
   const vehicles = routesData?.vehicles ?? [];
   const depots = routesData?.depots ?? [];
 
@@ -815,7 +837,7 @@ function RoutesTablePageContent() {
                             key={route.id}
                             route={route}
                             driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
-                            driverOnline={drivers.find(d => d.id === route.driverId)?.onlineStatus === 'ONLINE'}
+                            driverStatus={driverStatusOf(route.driverId)}
                             depotName={depots.find(d => d.id === route.depotId)?.name || ''}
                             onCloseClick={setCloseTarget}
                             onCancelClick={setCancelTarget}
@@ -860,7 +882,7 @@ function RoutesTablePageContent() {
                             key={route.id}
                             route={route}
                             driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
-                            driverOnline={drivers.find(d => d.id === route.driverId)?.onlineStatus === 'ONLINE'}
+                            driverStatus={driverStatusOf(route.driverId)}
                             depotName={depots.find(d => d.id === route.depotId)?.name || ''}
                             onCloseClick={setCloseTarget}
                             onCancelClick={setCancelTarget}

@@ -113,6 +113,22 @@ export function useRouteData(routeId: string | undefined) {
   useEffect(() => { fetchDriverStatus(); }, [fetchDriverStatus]);
 
   /**
+   * Follow this driver going online, on break and offline.
+   *
+   * <p>The status was read at mount and on socket reconnect only. The socket stays connected while
+   * the page is open, so there was no reconnect to wait for: a driver starting his shift left the
+   * badge grey until the page was reloaded.
+   *
+   * <p>The event carries the new status, so it is applied directly — asking the API for what was
+   * just delivered would only add a round trip.
+   */
+  useRealtimeEvent(['driver.status_changed'], evt => {
+    const { driverId: changed, status } = evt.payload ?? {};
+    if (!driverId || !status || changed !== driverId) return;
+    setDriverOnlineStatus(String(status));
+  });
+
+  /**
    * Re-read the round whenever the socket comes back.
    *
    * <p>A realtime event is delivered once and only to whoever is listening at that instant. The
