@@ -7,6 +7,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
 import { getBusinessDayKey } from '@/lib/sla';
+import { depotsOfStop } from '../depots';
 import { useT } from '@/lib/i18n/LocaleContext';
 import type { Driver } from '@/types';
 import type { 
@@ -33,9 +34,11 @@ export function isPickupPrecedenceValid(stops: RouteStop[]): boolean {
   for (let i = 0; i < stops.length; i++) {
     const s = stops[i];
     if (s.stopType === 'PICKUP') continue;
-    const depot = s.sourceDepotId;
-    if (depot && pickupIndexByDepot.has(depot) && pickupIndexByDepot.get(depot)! > i) {
-      return false;
+    // Every depot the delivery draws from, not just the first: a drag that puts a two-warehouse
+    // delivery ahead of its second pickup has to be refused too.
+    for (const depot of depotsOfStop(s)) {
+      const pickupAt = pickupIndexByDepot.get(depot);
+      if (pickupAt !== undefined && pickupAt > i) return false;
     }
   }
   return true;

@@ -49,7 +49,7 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
       .finally(() => setLoadingPreview(false));
   };
 
-  useEffect(() => { if (selected) load(selected); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selected]);
+  useEffect(() => { if (selected) load(selected); }, [selected]);
 
   const mappedBy = new Map(mappings.filter((m) => m.canonicalField).map((m) => [m.canonicalField!, m.sourcePath]));
 

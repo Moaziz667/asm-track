@@ -147,6 +147,27 @@ export function StopCard({
                 {stop.routeDistanceKm != null && (
                   <p className="text-[var(--text-muted)]">{stop.routeDistanceKm.toFixed(1)} km · {fmtMins(stop.routeDurationMinutes)}</p>
                 )}
+                {/* What to carry out. A bare count is unusable at a bay holding a hundred parcels,
+                    and with a warehouse per line the driver cannot infer it from the order either:
+                    half of an order can belong to the next depot. */}
+                {!!stop.pickupLoad?.length && (
+                  <div className="pt-1">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">
+                      {t.routeDetailPage?.pickupLoadTitle || 'To load here'}
+                    </p>
+                    <ul className="space-y-1">
+                      {stop.pickupLoad.map((line, i) => (
+                        <li key={`${line.deliveryId ?? ''}-${line.sku ?? i}`} className="flex items-baseline gap-2">
+                          <span className="font-mono tabular-nums text-cyan-600 shrink-0">×{line.quantity ?? 1}</span>
+                          <span className="truncate text-[var(--text-primary)]">{line.name || line.sku || '—'}</span>
+                          <span className="ms-auto truncate text-[var(--text-muted)] shrink-0">
+                            {line.orderRef || line.clientName || ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {stop.sourceDepotLat && stop.sourceDepotLng && (
                   <a
                     href={`https://www.google.com/maps?q=${stop.sourceDepotLat},${stop.sourceDepotLng}`}

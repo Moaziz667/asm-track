@@ -126,4 +126,6 @@ public class RouteStopFullResponse {
     private String orderRef;
     @Schema(description = "Number of deliveries loaded at this depot (for PICKUP stops)")
     private Integer parcelCount;
+    @Schema(description = "The lines to collect at this depot (for PICKUP stops)")
+    private List<PickupLoadLineResponse> pickupLoad;
 }

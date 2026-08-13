@@ -113,7 +113,6 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
     Promise.all(drivers.map(d => loadDriverRoute(d.id).then(r => [d.id, r] as const).catch(() => [d.id, null] as const)))
       .then(entries => { if (alive) setSummaries(Object.fromEntries(entries)); });
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, drivers]);
 
   // Load the selected driver's route into the placement phase (reuse the prefetched summary if present).

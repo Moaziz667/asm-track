@@ -16,6 +16,11 @@ export type RouteStop = {
   // Multi-depot (slice 4/5)
   stopType?: RouteStopType;
   sourceDepotId?: string | null;
+  /**
+   * Every depot this stop loads from. A delivery whose lines sit in two warehouses belongs to two
+   * pickups, which `sourceDepotId` alone cannot say — match on this, never on that.
+   */
+  sourceDepotIds?: string[] | null;
   sourceDepotName?: string | null;
   sourceDepotLat?: number | null;
   sourceDepotLng?: number | null;

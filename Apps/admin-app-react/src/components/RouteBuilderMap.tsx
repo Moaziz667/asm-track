@@ -11,6 +11,7 @@ import { useIsDark } from '@/lib/ui/theme';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import { useRouteBuilderContext } from '@/pages/route-builder/hooks/useRouteBuilder';
+import { isLoadedAtDepot } from '@/pages/route-builder/depots';
 import { formatAddress } from '@/lib/utils/address';
 
 // Minimal typing for the untyped leaflet-draw plugin surface we use.
@@ -416,7 +417,7 @@ function RouteBuilderMapInner({
       stops.forEach((s) => {
         if (s.stopType === 'PICKUP' && s.sourceDepotId
             && typeof s.sourceDepotLat === 'number' && typeof s.sourceDepotLng === 'number') {
-          const count = stops.filter((d) => d.stopType !== 'PICKUP' && d.sourceDepotId === s.sourceDepotId).length;
+          const count = stops.filter((d) => d.stopType !== 'PICKUP' && isLoadedAtDepot(d, s.sourceDepotId)).length;
           byId.set(s.sourceDepotId, {
             name: s.sourceDepotName ?? '',
             lat: s.sourceDepotLat,

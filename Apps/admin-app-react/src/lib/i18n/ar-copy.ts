@@ -1492,6 +1492,7 @@ export const AR_COPY = {
     pickupLabel: 'مستودع',
     pickupTitle: 'تحميل — مستودع {depot}',
     pickupLoadCount: '{count} طرود للتحميل',
+    pickupLoadTitle: 'للتحميل هنا',
     pickupArrival: 'الوصول المتوقع',
     pickupCompleted: 'تم تأكيد التحميل',
     labelDepot: 'المستودع',
