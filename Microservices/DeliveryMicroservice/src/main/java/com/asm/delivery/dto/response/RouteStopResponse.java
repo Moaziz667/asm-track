@@ -37,6 +37,18 @@ public class RouteStopResponse {
     @Schema(description = "All depots this stop is loaded from (a DELIVERY may have several)")
     private java.util.List<UUID> sourceDepotIds;
 
+    /**
+     * For a PICKUP: what to physically carry out of that depot.
+     *
+     * <p>The driver reads this route, and a reference is not a loading instruction — worse, it
+     * misleads once an order can be split across depots, since only part of it is collected here.
+     */
+    @Schema(description = "Lines to load at this stop (PICKUP only)")
+    private java.util.List<PickupLoadLineResponse> pickupLoad;
+
+    @Schema(description = "Number of deliveries loaded at this depot (PICKUP only)")
+    private Integer parcelCount;
+
     @Schema(description = "Sequence order in route")
     private Integer stopOrder;
 

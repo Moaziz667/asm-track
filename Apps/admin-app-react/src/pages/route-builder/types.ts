@@ -21,6 +21,10 @@ export type RouteStop = {
    * pickups, which `sourceDepotId` alone cannot say — match on this, never on that.
    */
   sourceDepotIds?: string[] | null;
+  /** PICKUP only: how many shipments are collected here, as the server counted them. */
+  parcelCount?: number | null;
+  /** PICKUP only: what to carry out of that depot. */
+  pickupLoad?: { deliveryId?: string; orderRef?: string; clientName?: string; sku?: string; name?: string; quantity?: number }[] | null;
   sourceDepotName?: string | null;
   sourceDepotLat?: number | null;
   sourceDepotLng?: number | null;
