@@ -8,6 +8,8 @@ import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DepotRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
+import com.asm.delivery.service.route.DeliveryDepots;
+import com.asm.delivery.service.route.PrecedenceAwareSequencer;
 import com.asm.delivery.service.route.RouteWebSocketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +60,7 @@ public class RouteOptimizationService {
         List<double[]> points = buildCoordinateList(depot, stops, deliveryMap);
 
         // Try OSRM Trip API, fall back to nearest-neighbor
-        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops);
+        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops, deliveryMap);
 
         // Reorder stops according to optimized order
         List<RouteStop> reorderedStops = new ArrayList<>();
@@ -325,39 +327,83 @@ public class RouteOptimizationService {
 
     // ─── TSP order resolution ─────────────────────────────────────────────────────
 
-    private List<Integer> resolveOptimizedOrder(List<double[]> points, List<RouteStop> stops) {
+    private List<Integer> resolveOptimizedOrder(List<double[]> points, List<RouteStop> stops,
+                                                Map<UUID, Delivery> deliveryMap) {
+        List<Integer> identity = new ArrayList<>();
+        for (int i = 0; i < stops.size(); i++) identity.add(i);
+
         List<Integer> osrmOrder = null;
-        // Try OSRM Trip API
         Optional<OsrmRoutingService.OptimizedRoute> tripOpt = osrmRoutingService.optimizeTrip(points);
         if (tripOpt.isPresent() && !tripOpt.get().optimizedOrder().isEmpty()) {
             osrmOrder = tripOpt.get().optimizedOrder();
-        } else {
-            // Fall back to nearest-neighbor using duration matrix
-            log.info("OSRM Trip API unavailable, falling back to nearest-neighbor heuristic");
-            Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
-            if (matrixOpt.isPresent()) {
-                osrmOrder = osrmRoutingService.nearestNeighborOrder(matrixOpt.get().durations(), stops.size());
-            }
         }
 
-        if (osrmOrder == null) {
-            // No OSRM at all — return identity order
-            List<Integer> identity = new ArrayList<>();
-            for (int i = 0; i < stops.size(); i++) identity.add(i);
+        // The matrix is what makes precedence affordable: one table call prices every pair, so a
+        // candidate order can be scored without asking OSRM again.
+        Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
+        if (matrixOpt.isEmpty()) {
+            log.info("OSRM matrix unavailable — keeping the current stop order");
+            return osrmOrder != null ? pickupsFirst(osrmOrder, stops) : identity;
+        }
+
+        Map<Integer, Set<Integer>> mustFollow = precedenceOf(stops, deliveryMap);
+        PrecedenceAwareSequencer sequencer =
+                new PrecedenceAwareSequencer(matrixOpt.get().durations(), mustFollow, stops.size());
+
+        // The current order is a candidate too, so a route that is already good is left alone and
+        // the suggestion can never come back worse than what the dispatcher is looking at.
+        List<Integer> best = sequencer.best(sequencer.candidatesFrom(identity, osrmOrder));
+        if (best == null) {
+            log.warn("No feasible stop order found for route optimisation — keeping the current one");
             return identity;
         }
+        return best;
+    }
 
-        // Precedence-safe: enforce all PICKUP stops appear before DELIVERY stops
-        List<Integer> pickups = new ArrayList<>();
-        List<Integer> deliveries = new ArrayList<>();
-        for (Integer idx : osrmOrder) {
-            if (stops.get(idx).getStopType() == RouteStopType.PICKUP) {
-                pickups.add(idx);
-            } else {
-                deliveries.add(idx);
+    /**
+     * Which stops must precede which: a delivery follows the pickup of every depot it draws from.
+     *
+     * <p>Two depots on one delivery is the case that makes this a set rather than a single link —
+     * see {@link com.asm.delivery.service.route.DeliveryDepots}.
+     */
+    private Map<Integer, Set<Integer>> precedenceOf(List<RouteStop> stops, Map<UUID, Delivery> deliveryMap) {
+        Map<UUID, Integer> pickupIndexByDepot = new HashMap<>();
+        for (int i = 0; i < stops.size(); i++) {
+            RouteStop s = stops.get(i);
+            if (s.getStopType() == RouteStopType.PICKUP && s.getSourceDepotId() != null) {
+                pickupIndexByDepot.put(s.getSourceDepotId(), i);
             }
         }
-        
+        if (pickupIndexByDepot.isEmpty()) return Map.of();
+
+        Map<Integer, Set<Integer>> mustFollow = new HashMap<>();
+        for (int i = 0; i < stops.size(); i++) {
+            RouteStop s = stops.get(i);
+            if (s.getStopType() == RouteStopType.PICKUP || s.getDeliveryId() == null) continue;
+            Delivery delivery = deliveryMap.get(s.getDeliveryId());
+            if (delivery == null) continue;
+            Set<Integer> predecessors = new LinkedHashSet<>();
+            for (UUID depotId : DeliveryDepots.of(delivery)) {
+                Integer pickupIndex = pickupIndexByDepot.get(depotId);
+                if (pickupIndex != null) predecessors.add(pickupIndex);
+            }
+            if (!predecessors.isEmpty()) mustFollow.put(i, predecessors);
+        }
+        return mustFollow;
+    }
+
+    /**
+     * The old repair, kept for the case where OSRM answers the trip but not the table: feasible,
+     * because every pickup ends up ahead of every delivery, and blunt, because it will drive to a
+     * far depot before serving a customer next door.
+     */
+    private List<Integer> pickupsFirst(List<Integer> order, List<RouteStop> stops) {
+        List<Integer> pickups = new ArrayList<>();
+        List<Integer> deliveries = new ArrayList<>();
+        for (Integer idx : order) {
+            if (stops.get(idx).getStopType() == RouteStopType.PICKUP) pickups.add(idx);
+            else deliveries.add(idx);
+        }
         List<Integer> finalOrder = new ArrayList<>(pickups);
         finalOrder.addAll(deliveries);
         return finalOrder;

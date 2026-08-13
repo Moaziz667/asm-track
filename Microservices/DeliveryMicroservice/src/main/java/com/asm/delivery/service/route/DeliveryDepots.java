@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * only the reconciler learned about per-line depots, a pickup was correctly placed in Sousse and
  * then labelled with nothing to collect, because the count was still matching on the header.
  */
-final class DeliveryDepots {
+public final class DeliveryDepots {
 
     private DeliveryDepots() {
     }
@@ -36,7 +36,7 @@ final class DeliveryDepots {
      * <p>Lines win when they carry a depot; the order's own depot answers for everything imported
      * before they did, and for ERPs that only ever have one.
      */
-    static Set<UUID> of(Delivery delivery) {
+    public static Set<UUID> of(Delivery delivery) {
         Set<UUID> fromLines = linesWithDepot(delivery).stream()
                 .map(OrderItem::getSourceDepotId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -47,7 +47,7 @@ final class DeliveryDepots {
     }
 
     /** Whether any of this delivery's goods are collected at {@code depotId}. */
-    static boolean isLoadedAt(Delivery delivery, UUID depotId) {
+    public static boolean isLoadedAt(Delivery delivery, UUID depotId) {
         return depotId != null && of(delivery).contains(depotId);
     }
 
@@ -57,7 +57,7 @@ final class DeliveryDepots {
      * <p>When no line carries a depot the whole order is collected in one place, so the whole order
      * is the answer — a single-warehouse ERP therefore lists exactly what it always did.
      */
-    static List<OrderItem> linesAt(Delivery delivery, UUID depotId) {
+    public static List<OrderItem> linesAt(Delivery delivery, UUID depotId) {
         List<OrderItem> tagged = linesWithDepot(delivery);
         if (tagged.isEmpty()) {
             return items(delivery);
