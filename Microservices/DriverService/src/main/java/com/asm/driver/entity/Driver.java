@@ -29,6 +29,16 @@ public class Driver {
 
     private LocalDateTime lastLocationAt;
 
+    /**
+     * Last time the app was seen holding its realtime connection.
+     *
+     * <p>Distinct from {@link #lastLocationAt}: a driver reading his round in a car park is present
+     * without moving, and judging him on movement alone declared him unreachable while he was
+     * looking at the screen.
+     */
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false, length = 30)
     @Builder.Default

@@ -111,17 +111,6 @@ public class DriverService {
     }
 
     @Transactional
-    public void toggleDuty(UUID driverId, boolean onDuty) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        if (driver.getAccountStatus() != DriverAccountStatus.ACTIVE) {
-            throw AppException.forbidden("Cannot toggle duty status on an inactive/suspended account");
-        }
-        driver.setOnlineStatus(onDuty ? DriverOnlineStatus.ONLINE : DriverOnlineStatus.OFFLINE);
-        driverRepo.save(driver);
-    }
-
-    @Transactional
     public DriverOnlineStatus updateAvailability(UUID driverId, DriverOnlineStatus newStatus) {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));

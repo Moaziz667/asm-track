@@ -1,7 +1,7 @@
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DriverAvatar } from '@/components/data-display/DriverAvatar';
-import { cn } from '@/lib/utils';
+import { useDriverStatus, driverStatusDot, driverStatusLabel } from '@/lib/state/driver-status';
 import type { Driver } from '@/types';
 import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
@@ -71,6 +71,9 @@ export function DriverTableRow({
   drv, gridCols, rowHeight, orderedColumns, visibleIds, t, readOnly, resendCooldown,
   routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Props) {
+  // Availability follows the shared store, so this dot cannot disagree with the map or the
+  // dispatch desk — and an ON_BREAK driver shows amber instead of being flattened to offline.
+  const status = useDriverStatus(drv.id, drv.onlineStatus);
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',
   };
@@ -90,8 +93,9 @@ export function DriverTableRow({
             <DriverAvatar name={drv.name} photoUrl={drv.photoUrl} size={32} />
             {drv.accountStatus === 'ACTIVE' && (
               <span
-                title={drv.onlineStatus === 'ONLINE' ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')}
-                className={cn('absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]', drv.onlineStatus === 'ONLINE' ? 'bg-emerald-500' : 'bg-[var(--text-soft)]')}
+                title={driverStatusLabel(status, t)}
+                className="absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]"
+                style={{ background: driverStatusDot(status) }}
               />
             )}
           </div>
@@ -189,6 +193,9 @@ export function DriverMobileCard({
   drv, t, readOnly, resendCooldown,
   routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Omit<Props, 'gridCols' | 'rowHeight' | 'orderedColumns' | 'visibleIds'>) {
+  // Availability follows the shared store, so this dot cannot disagree with the map or the
+  // dispatch desk — and an ON_BREAK driver shows amber instead of being flattened to offline.
+  const status = useDriverStatus(drv.id, drv.onlineStatus);
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',
   };
@@ -208,8 +215,9 @@ export function DriverMobileCard({
             <DriverAvatar name={drv.name} photoUrl={drv.photoUrl} size={36} />
             {drv.accountStatus === 'ACTIVE' && (
               <span
-                title={drv.onlineStatus === 'ONLINE' ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')}
-                className={cn('absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-1 ring-[var(--surface)]', drv.onlineStatus === 'ONLINE' ? 'bg-emerald-500' : 'bg-[var(--text-soft)]')}
+                title={driverStatusLabel(status, t)}
+                className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-1 ring-[var(--surface)]"
+                style={{ background: driverStatusDot(status) }}
               />
             )}
           </div>

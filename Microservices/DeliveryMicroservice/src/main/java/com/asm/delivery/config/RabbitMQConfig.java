@@ -27,6 +27,8 @@ public class RabbitMQConfig {
     // ── Commands to Driver (Delivery → Driver, e.g. live location) ────────────
     public static final String DRIVER_COMMANDS_EXCHANGE = "driver.commands";
     public static final String DRIVER_LOCATION_ROUTING  = "driver.location.update";
+    /** A driver's app opened or closed its realtime connection — see DriverPresenceTracker. */
+    public static final String DRIVER_PRESENCE_ROUTING  = "driver.presence";
 
     // ── ERP sync (Delivery → ErpAdapter command; ErpAdapter → Delivery result) ─
     public static final String ERP_SYNC_EXCHANGE        = "erp.sync.exchange";

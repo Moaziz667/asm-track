@@ -26,6 +26,10 @@ public class RabbitMQConfig {
     public static final String DRIVER_COMMANDS_EXCHANGE = "driver.commands";
     public static final String DRIVER_LOCATION_ROUTING  = "driver.location.update";
     public static final String DRIVER_LOCATION_QUEUE    = "driver.location.update.queue";
+    /** A driver's app opened or closed its realtime connection — published by DeliveryService. */
+    public static final String DRIVER_PRESENCE_ROUTING  = "driver.presence";
+    public static final String DRIVER_PRESENCE_QUEUE    = "driver.presence.queue";
+    public static final String DRIVER_PRESENCE_DLQ      = "driver.presence.dlq";
     public static final String DRIVER_COMMANDS_DLX      = "driver.commands.dlx";
     public static final String DRIVER_LOCATION_DLQ      = "driver.location.update.dlq";
 
@@ -77,6 +81,29 @@ public class RabbitMQConfig {
     @Bean
     public Binding driverLocationBinding(Queue driverLocationQueue, TopicExchange driverCommandsExchange) {
         return BindingBuilder.bind(driverLocationQueue).to(driverCommandsExchange).with(DRIVER_LOCATION_ROUTING);
+    }
+
+    @Bean
+    public Queue driverPresenceDlq() {
+        return QueueBuilder.durable(DRIVER_PRESENCE_DLQ).build();
+    }
+
+    @Bean
+    public Binding driverPresenceDlqBinding() {
+        return BindingBuilder.bind(driverPresenceDlq()).to(driverCommandsDlx()).with(DRIVER_PRESENCE_DLQ);
+    }
+
+    @Bean
+    public Queue driverPresenceQueue() {
+        return QueueBuilder.durable(DRIVER_PRESENCE_QUEUE)
+                .withArgument("x-dead-letter-exchange", DRIVER_COMMANDS_DLX)
+                .withArgument("x-dead-letter-routing-key", DRIVER_PRESENCE_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding driverPresenceBinding(Queue driverPresenceQueue, TopicExchange driverCommandsExchange) {
+        return BindingBuilder.bind(driverPresenceQueue).to(driverCommandsExchange).with(DRIVER_PRESENCE_ROUTING);
     }
 
     @Bean

@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { DRIVER_STATUS_COLOR } from '@/lib/ui/design-tokens';
+import { normalizeDriverStatus } from '@/lib/state/driver-status';
 import RouteClosureReport from './closure-report/RouteClosureReport';
 import { RouteHeader } from '@/components/route/RouteHeader';
 import { RouteStats } from '@/components/route/RouteStats';
@@ -147,7 +148,7 @@ export default function RouteDetailsPage() {
         driverId={route.driver?.id}
         driverName={route.driver?.name}
         driverStatus={d.driverOnlineStatus ?? undefined}
-        driverStatusColor={d.driverOnlineStatus ? (DRIVER_STATUS_COLOR[d.driverOnlineStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE) : undefined}
+        driverStatusColor={DRIVER_STATUS_COLOR[normalizeDriverStatus(d.driverOnlineStatus)]}
         cumulativeDelayMinutes={route.cumulativeDelayMinutes}
         routeStartDelayMinutes={route.routeStartDelayMinutes}
         onTimeCompletionRate={route.onTimeCompletionRate}

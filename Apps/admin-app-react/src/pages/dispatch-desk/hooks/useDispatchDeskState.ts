@@ -285,14 +285,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
    * toggle for a single field. A driver the desk has never loaded is ignored — he arrives with the
    * next fetch, already correct.
    */
-  useRealtimeEvent(['driver.status_changed'], evt => {
-    const id = evt.payload?.driverId;
-    const status = evt.payload?.status;
-    if (!id || typeof status !== 'string') return;
-    setDrivers(prev => prev.some(d => d.id === id)
-      ? prev.map(d => (d.id === id ? { ...d, onlineStatus: status as Driver['onlineStatus'] } : d))
-      : prev);
-  });
+  // No local patch: RealtimeProvider feeds every driver.status_changed into the shared store and
+  // the components resolve through it, so the desk cannot drift from the map or the routes table.
+  // See lib/state/driver-status.
 
   // Reset on leave: dispatch filters are per-visit. Clearing the shared operational-filter store on
   // unmount means returning to the desk — or arriving via a notification deep-link (?search=…) —

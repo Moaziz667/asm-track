@@ -702,6 +702,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
         return new ProductDetails(weights, skus, types, records);
     }
 
+    /** Map lookup that tolerates a missing relation, which an immutable map does not. */
+    private static <V> V lookup(Map<Integer, V> byId, Integer id) {
+        return id == null ? null : byId.get(id);
+    }
+
     private ErpPendingOrderSummaryDTO mapToSummary(Map<String, Object> picking,
                                                    Map<Integer, Warehouse> warehouses,
                                                    Map<Integer, Map<String, Object>> partners,
@@ -709,9 +714,18 @@ public class OdooLookupAdapter implements ErpLookupPort {
         String bl = asString(picking.get("name"));
         if (bl == null) return null;
 
-        Warehouse wh = warehouses.get(asRelId(picking.get("picking_type_id")));
-        Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
-        Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
+        // A picking need not come from a sale order: one created by hand in Odoo — a manual
+        // shipment, a replacement, goods sent back out — carries sale_id = false, and asRelId then
+        // answers null. These maps are immutable, and an immutable map throws on a null key instead
+        // of answering null. So one hand-made picking raised a NullPointerException inside the
+        // stream and took the whole pending list with it: the import screen went empty while every
+        // other delivery note was perfectly importable.
+        //
+        // Everything below already treats sale, partner and warehouse as optional. Only the lookup
+        // was unsafe.
+        Warehouse wh = lookup(warehouses, asRelId(picking.get("picking_type_id")));
+        Map<String, Object> partner = lookup(partners, asRelId(picking.get("partner_id")));
+        Map<String, Object> sale = lookup(saleOrders, asRelId(picking.get("sale_id")));
 
         final Map<String, Map<String, Object>> records = scope(picking, sale, partner);
         final Map<String, Object> saleRef = sale;

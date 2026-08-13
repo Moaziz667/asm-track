@@ -5,7 +5,7 @@ import { IconCheck, IconAlertTriangle, IconCircleCheck } from '@tabler/icons-rea
 import { AppModal } from '@/components/overlays/AppModal';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
+import { useRouteBuilderContext, toShortTime } from '../../hooks/useRouteBuilder';
 
 export function ValidationModal() {
   const t = useT();
@@ -27,16 +27,21 @@ export function ValidationModal() {
     stopWindows,
   } = rb;
 
+  // The drafts are an override, not the source of truth. Reading them alone made every row flash
+  // red the instant the modal opened: they are seeded by an effect, which runs after the frame that
+  // opened it, so the first paint saw no window at all and flagged every stop as missing one. The
+  // stop already carries its window — judge on that, and let an edit take precedence.
   const rows = selectedRouteStops
     .filter((stop) => stop.stopType !== 'PICKUP')
     .map((stop) => {
       const delivery = waitingMap.get(stop.deliveryId);
+      const draft = stopWindows[stop.id];
       return {
         id: stop.id,
         deliveryId: stop.deliveryId,
         clientName: delivery?.clientName,
-        start: stopWindows[stop.id]?.startTime ?? '',
-        end: stopWindows[stop.id]?.endTime ?? '',
+        start: draft?.startTime || toShortTime(stop.startTimeWindow),
+        end: draft?.endTime || toShortTime(stop.endTimeWindow),
       };
     });
 

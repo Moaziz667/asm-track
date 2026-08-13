@@ -34,23 +34,29 @@ public class ScheduledTasks {
 
     // Drivers + invite tokens live in each tenant's schema; iterate every provisioned tenant so the
     // scheduled thread (no TenantContext) doesn't just scan the empty `public` schema.
-    @Scheduled(fixedDelay = 300_000)
+    // Every quarter hour, not every five minutes: this only decides how fast a driver already gone
+    // quiet is noticed, and noticing it three times faster never helped anyone. The rule itself is
+    // the threshold below.
+    @Scheduled(fixedDelay = 900_000)
     public void autoOfflineStaleDrivers() {
         tenantIterator.forEachActive(companyId -> self.getObject().autoOfflineStaleDriversForTenant());
     }
 
     @Transactional
     public void autoOfflineStaleDriversForTenant() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+        // Half an hour, not ten minutes: the connection now decides availability, and this only
+        // catches sessions whose close was never delivered. Sweeping aggressively on top of a signal
+        // that is already correct can only produce false offlines.
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(30);
 
         // Load before update so we can audit and publish events per driver
-        List<Driver> stale = driverRepo.findStaleForAutoOffline(DriverOnlineStatus.OFFLINE, threshold);
+        List<Driver> stale = driverRepo.findStaleForAutoOffline(DriverOnlineStatus.ONLINE, threshold);
 
         if (stale.isEmpty()) return;
 
         // Single bulk UPDATE instead of N individual saves
         int updated = driverRepo.bulkOfflineStaleDrivers(
-                DriverOnlineStatus.OFFLINE, LocalDateTime.now(), threshold);
+                DriverOnlineStatus.OFFLINE, DriverOnlineStatus.ONLINE, LocalDateTime.now(), threshold);
 
         for (Driver driver : stale) {
             DriverOnlineStatus previous = driver.getOnlineStatus();
