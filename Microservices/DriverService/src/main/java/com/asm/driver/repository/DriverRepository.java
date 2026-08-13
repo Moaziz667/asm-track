@@ -20,31 +20,36 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     boolean existsByPhone(String phone);
     boolean existsByEmail(String email);
     List<Driver> findByAccountStatus(DriverAccountStatus accountStatus);
-    List<Driver> findByAccountStatusAndOnlineStatus(DriverAccountStatus accountStatus, DriverOnlineStatus onlineStatus);
     /**
-     * Drivers the app has gone quiet on: no GPS fix <em>and</em> no status change since the threshold.
+     * The safety net, not the rule.
      *
-     * <p>The GPS clause alone was not enough. Going on duty sets the status but not
-     * {@code lastLocationAt} — the position follows separately, best-effort, and fails or lags
-     * exactly where a driver usually is when he starts: indoors at the depot. So a driver pressed
-     * "en service", the map turned green, and the next sweep read a location fix from before his
-     * shift and put him back offline within five minutes.
+     * <p>Availability is decided by the realtime connection now (DriverPresenceTracker publishes it,
+     * DriverPresenceConsumer applies it). This only catches what that missed: a session whose close
+     * was never delivered, or one held while DeliveryService was restarted.
      *
-     * <p>Requiring both means a driver is only offlined once nothing at all has come from him.
+     * <p>Three changes make it safe to leave running. It reads {@code lastSeenAt} as well as
+     * {@code lastLocationAt}, so a connected driver parked at a customer is no longer swept for not
+     * moving. It COALESCEs both, because a NULL is not "older than" anything — which is how a driver
+     * who had never sent a position stayed online indefinitely while the ones who did got swept.
+     * And it leaves ON_BREAK alone: that is the driver's own statement, and the connection is what
+     * ends it.
      */
-    @Query("SELECT d FROM Driver d WHERE d.onlineStatus <> :offline " +
-           "AND d.lastLocationAt < :threshold AND d.updatedAt < :threshold")
+    @Query("SELECT d FROM Driver d WHERE d.onlineStatus = :online AND ("
+         + "  COALESCE(d.lastSeenAt, d.lastLocationAt) IS NULL"
+         + "  OR (COALESCE(d.lastSeenAt, d.lastLocationAt) < :threshold AND d.updatedAt < :threshold))")
     List<Driver> findStaleForAutoOffline(
-            @Param("offline") DriverOnlineStatus offline,
+            @Param("online") DriverOnlineStatus online,
             @Param("threshold") LocalDateTime threshold);
 
     /** Single UPDATE to set all stale online/on-duty drivers to OFFLINE — avoids N+1 saves. */
     @Modifying
     @Query("UPDATE Driver d SET d.onlineStatus = :offline, d.updatedAt = :now " +
-           "WHERE d.onlineStatus <> :offline AND d.lastLocationAt < :threshold " +
-           "AND d.updatedAt < :threshold")
+           "WHERE d.onlineStatus = :online " +
+           "AND (COALESCE(d.lastSeenAt, d.lastLocationAt) IS NULL " +
+           "     OR (COALESCE(d.lastSeenAt, d.lastLocationAt) < :threshold AND d.updatedAt < :threshold))")
     int bulkOfflineStaleDrivers(
             @Param("offline") DriverOnlineStatus offline,
+            @Param("online") DriverOnlineStatus online,
             @Param("now") LocalDateTime now,
             @Param("threshold") LocalDateTime threshold);
 }

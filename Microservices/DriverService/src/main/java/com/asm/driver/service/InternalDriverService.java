@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import com.asm.driver.entity.DriverOnlineStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class InternalDriverService {
     private final DriverRepository driverRepo;
     private final DriverStatsRepository statsRepo;
     private final DriverHistoryRepository historyRepo;
+    private final DriverEventPublisher eventPublisher;
 
     public List<InternalDriverResponse> getAvailableDrivers() {
         List<Driver> drivers = driverRepo.findByAccountStatus(DriverAccountStatus.ACTIVE);
@@ -52,6 +54,44 @@ public class InternalDriverService {
         driver.setCurrentLng(lng);
         driver.setLastLocationAt(LocalDateTime.now());
         driverRepo.save(driver);
+    }
+
+    /**
+     * Applies what DeliveryService sees of the driver's realtime connection.
+     *
+     * <p>Presence is the source of truth for reachability, so it writes the status directly instead
+     * of letting a sweep infer one. Two rules keep it honest:
+     *
+     * <p>ON_BREAK survives a connection. The driver chose it, his phone is still answering, and
+     * flipping him back to ONLINE would tell a dispatcher he is available when he said he is not.
+     * A disconnection does end it — a phone that has gone silent is unreachable, break or not.
+     *
+     * <p>The sighting is always recorded, even when the status does not move, because the sweep
+     * dates a driver from it. Without that, a long and perfectly healthy session would be swept
+     * away for being quiet.
+     */
+    @Transactional
+    public void applyPresence(UUID driverId, boolean connected, LocalDateTime seenAt) {
+        Driver driver = driverRepo.findById(driverId).orElse(null);
+        if (driver == null) return;                      // unknown driver — nothing to retry
+
+        if (connected && (seenAt != null)
+                && (driver.getLastSeenAt() == null || driver.getLastSeenAt().isBefore(seenAt))) {
+            driver.setLastSeenAt(seenAt);
+        }
+
+        DriverOnlineStatus previous = driver.getOnlineStatus();
+        DriverOnlineStatus next = connected
+                ? (previous == DriverOnlineStatus.ON_BREAK ? DriverOnlineStatus.ON_BREAK : DriverOnlineStatus.ONLINE)
+                : DriverOnlineStatus.OFFLINE;
+
+        driver.setOnlineStatus(next);
+        driverRepo.save(driver);
+
+        // The admin screens follow this event; without it a badge would wait for the next poll.
+        if (previous != next) {
+            eventPublisher.publishStatusChanged(driverId, previous, next, driver.getName());
+        }
     }
 
     @Transactional

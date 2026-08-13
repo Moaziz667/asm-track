@@ -44,16 +44,19 @@ public class ScheduledTasks {
 
     @Transactional
     public void autoOfflineStaleDriversForTenant() {
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+        // Half an hour, not ten minutes: the connection now decides availability, and this only
+        // catches sessions whose close was never delivered. Sweeping aggressively on top of a signal
+        // that is already correct can only produce false offlines.
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(30);
 
         // Load before update so we can audit and publish events per driver
-        List<Driver> stale = driverRepo.findStaleForAutoOffline(DriverOnlineStatus.OFFLINE, threshold);
+        List<Driver> stale = driverRepo.findStaleForAutoOffline(DriverOnlineStatus.ONLINE, threshold);
 
         if (stale.isEmpty()) return;
 
         // Single bulk UPDATE instead of N individual saves
         int updated = driverRepo.bulkOfflineStaleDrivers(
-                DriverOnlineStatus.OFFLINE, LocalDateTime.now(), threshold);
+                DriverOnlineStatus.OFFLINE, DriverOnlineStatus.ONLINE, LocalDateTime.now(), threshold);
 
         for (Driver driver : stale) {
             DriverOnlineStatus previous = driver.getOnlineStatus();
