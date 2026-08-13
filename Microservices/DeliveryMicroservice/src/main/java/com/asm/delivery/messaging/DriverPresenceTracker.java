@@ -17,6 +17,9 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A driver is online when his app is holding its realtime connection — not when he last moved.
@@ -46,10 +49,25 @@ public class DriverPresenceTracker {
 
     private final DriverCommandPublisher publisher;
 
+    /** How long a driver may be gone before it counts as an absence. */
+    private static final long GRACE_SECONDS = 45;
+
     /** sessionId → who it belongs to. */
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
+    /** One thread: these tasks are a map lookup and, rarely, a publish. */
+    private final ScheduledExecutorService grace = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "driver-presence-grace");
+        t.setDaemon(true);          // must never hold the JVM open on shutdown
+        return t;
+    });
+
     private record Session(UUID driverId, UUID companyId) {
+    }
+
+    @jakarta.annotation.PreDestroy
+    public void shutdown() {
+        grace.shutdownNow();
     }
 
     @EventListener
@@ -68,16 +86,34 @@ public class DriverPresenceTracker {
         }
     }
 
+    /**
+     * A closed session is not an absence yet.
+     *
+     * <p>Mobile connections drop constantly — a tunnel, a handover between masts, a screen lock —
+     * and the app is back within seconds. Announcing OFFLINE at once would blink a working driver
+     * out of the dispatcher's screen several times an hour, and this deployment makes it worse: the
+     * sockets here are being recycled about every ninety seconds, so an immediate announcement would
+     * flap a perfectly healthy driver on and off all day.
+     *
+     * <p>So the departure is held for a grace period and only confirmed if he has not come back. The
+     * check is cheap and the delay is invisible: a driver who really closes his app is offline within
+     * the minute, which is still far faster than the sweep it replaces.
+     */
     @EventListener
     public void onDisconnected(SessionDisconnectEvent event) {
         Session gone = sessions.remove(event.getSessionId());
         if (gone == null) return;
+        if (hasSession(gone.driverId())) return;         // another tab or a reconnect already took over
 
-        boolean stillHere = sessions.values().stream().anyMatch(s -> s.driverId().equals(gone.driverId()));
-        if (!stillHere) {
+        grace.schedule(() -> {
+            if (hasSession(gone.driverId())) return;     // he came back during the grace period
             publish(gone.companyId(), gone.driverId(), false);
             log.info("Driver presence: {} disconnected", gone.driverId());
-        }
+        }, GRACE_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private boolean hasSession(UUID driverId) {
+        return sessions.values().stream().anyMatch(s -> s.driverId().equals(driverId));
     }
 
     /**
