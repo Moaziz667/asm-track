@@ -105,12 +105,16 @@ public class RouteResponseMapper {
                     ? (sourceDepotId != null ? List.of(sourceDepotId) : List.of())
                     : (delivery != null ? List.copyOf(DeliveryDepots.of(delivery)) : List.of());
 
+                PickupLoad load = pickupLoadFor(stop, activeStops, deliveriesById);
+
                 stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
                     .stopType(stop.getStopType())
                     .sourceDepotId(sourceDepotId)
                     .sourceDepotIds(sourceDepotIds)
+                    .pickupLoad(load.lines().isEmpty() ? null : load.lines())
+                    .parcelCount(load.parcelCount() > 0 ? load.parcelCount() : null)
                     .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
                     .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
                     .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)
@@ -518,6 +522,52 @@ public class RouteResponseMapper {
         return byDelivery;
     }
 
+    /** What a pickup stop holds: how many shipments, and the lines to carry out. */
+    private record PickupLoad(int parcelCount, List<PickupLoadLineResponse> lines) {
+        static final PickupLoad NONE = new PickupLoad(0, List.of());
+    }
+
+    /**
+     * The load of a PICKUP stop, for whoever is looking at it.
+     *
+     * <p>Matching goes through {@link DeliveryDepots} so this agrees with the reconciler that placed
+     * the stop. Comparing against the delivery's own {@code sourceDepotId} — as this once did —
+     * answers correctly for an ERP that issues one note per warehouse, and answers zero for one that
+     * puts the warehouse on the line: the Sousse pickup of an order whose header says Tunis counted
+     * nothing, so a driver was sent to a depot the screen told him was empty.
+     *
+     * <p>The lines matter more than the count, and more still since a delivery can be split: at
+     * Sousse one collects only the water of order 127, its dates staying in Tunis. The reference
+     * alone suggests the whole order is being loaded, which is worse than saying nothing.
+     */
+    private PickupLoad pickupLoadFor(RouteStop stop, List<RouteStop> activeStops,
+                                     Map<UUID, Delivery> deliveryMap) {
+        if (stop.getStopType() != RouteStopType.PICKUP || stop.getSourceDepotId() == null) {
+            return PickupLoad.NONE;
+        }
+        UUID depotId = stop.getSourceDepotId();
+        int parcelCount = 0;
+        List<PickupLoadLineResponse> lines = new ArrayList<>();
+        for (RouteStop rs : activeStops) {
+            if (rs.getStopType() != RouteStopType.DELIVERY || rs.getDeliveryId() == null) continue;
+            Delivery d = deliveryMap.get(rs.getDeliveryId());
+            if (d == null || !DeliveryDepots.isLoadedAt(d, depotId)) continue;
+            parcelCount++;
+            Order pickedOrder = d.getOrder();
+            for (OrderItem item : DeliveryDepots.linesAt(d, depotId)) {
+                lines.add(PickupLoadLineResponse.builder()
+                        .deliveryId(d.getId())
+                        .orderRef(pickedOrder != null ? pickedOrder.getErpOrderId() : null)
+                        .clientName(pickedOrder != null ? pickedOrder.getClientName() : null)
+                        .sku(item.getSku())
+                        .name(item.getName())
+                        .quantity(item.getQuantity())
+                        .build());
+            }
+        }
+        return new PickupLoad(parcelCount, lines);
+    }
+
     private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap,
                                                      Map<UUID, com.asm.delivery.sla.SlaState> slaByDeliveryId,
                                                      Map<UUID, com.asm.delivery.entity.Depot> depotById,
@@ -558,29 +608,7 @@ public class RouteResponseMapper {
         //
         // The lines are what the screen was missing outright. A count says "1 parcel" without saying
         // what to carry out, which is unusable at a loading bay holding a hundred of them.
-        int parcelCount = 0;
-        List<PickupLoadLineResponse> pickupLoad = List.of();
-        if (stop.getStopType() == RouteStopType.PICKUP && stop.getSourceDepotId() != null) {
-            List<PickupLoadLineResponse> lines = new ArrayList<>();
-            for (RouteStop rs : activeStops) {
-                if (rs.getStopType() != RouteStopType.DELIVERY || rs.getDeliveryId() == null) continue;
-                Delivery d = deliveryMap.get(rs.getDeliveryId());
-                if (d == null || !DeliveryDepots.isLoadedAt(d, stop.getSourceDepotId())) continue;
-                parcelCount++;
-                com.asm.delivery.entity.Order pickedOrder = d.getOrder();
-                for (OrderItem item : DeliveryDepots.linesAt(d, stop.getSourceDepotId())) {
-                    lines.add(PickupLoadLineResponse.builder()
-                            .deliveryId(d.getId())
-                            .orderRef(pickedOrder != null ? pickedOrder.getErpOrderId() : null)
-                            .clientName(pickedOrder != null ? pickedOrder.getClientName() : null)
-                            .sku(item.getSku())
-                            .name(item.getName())
-                            .quantity(item.getQuantity())
-                            .build());
-                }
-            }
-            pickupLoad = lines;
-        }
+        PickupLoad load = pickupLoadFor(stop, activeStops, deliveryMap);
 
         return RouteStopFullResponse.builder()
                 .id(stop.getId())
@@ -590,8 +618,8 @@ public class RouteResponseMapper {
                 .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
                 .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
                 .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)
-                .parcelCount(parcelCount > 0 ? parcelCount : null)
-                .pickupLoad(pickupLoad.isEmpty() ? null : pickupLoad)
+                .parcelCount(load.parcelCount() > 0 ? load.parcelCount() : null)
+                .pickupLoad(load.lines().isEmpty() ? null : load.lines())
                 .stopOrder(stop.getStopOrder())
                 .status(resolveStopStatus(stop, delivery))
                 .arrivedAt(stop.getArrivedAt())

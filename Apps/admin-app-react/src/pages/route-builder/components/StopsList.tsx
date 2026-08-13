@@ -71,11 +71,24 @@ export function StopsList({
     return { pickupDepotIds: depots, deliveriesByDepot: byDepot };
   }, [stops]);
 
-  const pickListFor = (depotId: string | null | undefined) =>
-    (depotId ? deliveriesByDepot.get(depotId) ?? [] : []).map((s) => {
+  /**
+   * What to load at this depot. The server sends the lines, so prefer them: a reference alone is
+   * not a loading instruction, and it misleads once an order is split — at Sousse one collects the
+   * water of order 127, not its dates. Falls back to the deliveries when the payload has no lines.
+   */
+  const pickListFor = (stop: RouteStop) => {
+    if (stop.pickupLoad?.length) {
+      return stop.pickupLoad.map((line, i) => ({
+        id: `${stop.id}-${line.deliveryId ?? ''}-${line.sku ?? i}`,
+        label: `×${line.quantity ?? 1} ${line.name || line.sku || ''} · ${line.orderRef ?? ''}`.trim(),
+      }));
+    }
+    const depotId = stop.sourceDepotId;
+    return (depotId ? deliveriesByDepot.get(depotId) ?? [] : []).map((s) => {
       const d = waitingMap.get(s.deliveryId);
       return { id: s.id, label: d ? `${resolveOrderRef(d)} · ${d.clientName ?? ''}`.trim() : shortId(s.deliveryId) };
     });
+  };
 
   const toggleAll = () => {
     if (allSelected) {
@@ -178,8 +191,10 @@ export function StopsList({
                   isRemoving={removingStopId === stop.id}
                   isSelected={selectedStopIds.includes(stop.id)}
                   onToggleSelect={isPickup ? undefined : onToggleStopSelect}
-                  pickupCount={isPickup ? pickListFor(stop.sourceDepotId).length : undefined}
-                  pickList={isPickup ? pickListFor(stop.sourceDepotId) : undefined}
+                  pickupCount={isPickup
+                    ? (stop.parcelCount ?? (deliveriesByDepot.get(stop.sourceDepotId ?? '')?.length ?? 0))
+                    : undefined}
+                  pickList={isPickup ? pickListFor(stop) : undefined}
                   depotChipLabel={depotChip}
                 />
               );
