@@ -373,36 +373,6 @@ public class OsrmRoutingService {
         }
     }
 
-    // ─── Nearest-neighbor fallback TSP heuristic using duration matrix ────────────
-
-    /**
-     * Falls back to nearest-neighbor when OSRM Trip API is unavailable.
-     * Returns indices (0-based, excluding depot) in visiting order.
-     */
-    public List<Integer> nearestNeighborOrder(double[][] durations, int numStops) {
-        // durations[0..numStops][0..numStops], index 0 = depot, 1..numStops = stops
-        boolean[] visited = new boolean[numStops + 1];
-        visited[0] = true; // depot already visited
-
-        List<Integer> order = new ArrayList<>();
-        int current = 0;
-        for (int i = 0; i < numStops; i++) {
-            double best = Double.MAX_VALUE;
-            int next = -1;
-            for (int j = 1; j <= numStops; j++) {
-                if (!visited[j] && durations[current][j] < best) {
-                    best = durations[current][j];
-                    next = j;
-                }
-            }
-            if (next == -1) break;
-            visited[next] = true;
-            order.add(next - 1); // convert to 0-based stop index
-            current = next;
-        }
-        return order;
-    }
-
     // ─── Helpers ──────────────────────────────────────────────────────────────────
 
     private double[][] parseMatrix(JsonNode node, int n) {
