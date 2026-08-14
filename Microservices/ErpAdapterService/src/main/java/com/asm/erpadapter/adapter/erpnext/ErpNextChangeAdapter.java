@@ -32,6 +32,21 @@ public class ErpNextChangeAdapter implements ErpChangePort {
 
     private final ErpNextRestClient rest;
 
+    /**
+     * Statuses an order reaches by being delivered or billed, rather than by being re-planned.
+     *
+     * <p>DeliveryService compares the announced value against what it stored and drops anything
+     * identical, so this is belt to that braces — but it also spares a pointless round trip per
+     * completed delivery, and keeps the debug log readable when something really does change.
+     */
+    private static boolean isDeliveryProgress(String status) {
+        if (status == null) return false;
+        return switch (status) {
+            case "Completed", "To Bill", "Closed" -> true;
+            default -> false;
+        };
+    }
+
     @Override
     public String initialCursor() {
         // Frappe `modified` is a "YYYY-MM-DD HH:MM:SS[.ffffff]" timestamp; seed with now so the first
@@ -60,12 +75,28 @@ public class ErpNextChangeAdapter implements ErpChangePort {
 
                 if (cancelled) {
                     out.add(new ErpOrderChangeDTO(ref, "CANCELLED", null, modified));
-                } else {
-                    Map<String, Object> payload = new HashMap<>();
-                    String deliveryDate = ErpNextRestClient.asString(so.get("delivery_date"));
-                    if (deliveryDate != null) payload.put("scheduledAt", deliveryDate);
-                    if (!payload.isEmpty()) out.add(new ErpOrderChangeDTO(ref, "DATE", payload, modified));
+                    continue;
                 }
+
+                // Delivering is not a change of plan.
+                //
+                // Frappe moves `modified` whenever anything on the document is touched, and the
+                // thing that touches it most often is us: submitting a delivery note updates the
+                // order's delivered quantities and its status. Announcing that as a change made ASM
+                // report a conflict on every delivery it had just completed itself.
+                //
+                // The delivery lifecycle statuses are therefore skipped. A real reschedule leaves the
+                // order in "To Deliver and Bill" / "To Deliver", where it still is one.
+                if (isDeliveryProgress(status)) {
+                    log.debug("[erpnext] so={} modified into status '{}' — delivery progress, not a plan change",
+                            ref, status);
+                    continue;
+                }
+
+                Map<String, Object> payload = new HashMap<>();
+                String deliveryDate = ErpNextRestClient.asString(so.get("delivery_date"));
+                if (deliveryDate != null) payload.put("scheduledAt", deliveryDate);
+                if (!payload.isEmpty()) out.add(new ErpOrderChangeDTO(ref, "DATE", payload, modified));
             }
         } catch (Exception e) {
             log.warn("ERPNext change fetch failed (will retry next tick): {}", e.getMessage());
