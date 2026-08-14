@@ -1216,20 +1216,41 @@ export function useRouteBuilder() {
   const overloadKg = Math.max(0, selectedWeight - vehicleCapacity);
   const payloadPercent = vehicleCapacity > 0 ? Math.round((selectedWeight / vehicleCapacity) * 100) : 0;
   
+  /**
+   * The windows to judge the route on: the edited draft when there is one, the stop's own otherwise.
+   *
+   * <p>Everything below used to read `stopWindows` alone, and that map is filled by an effect —
+   * which runs after the render that needed it. So the first paint of a perfectly valid route saw
+   * no window anywhere: every stop counted as missing one, the validation modal opened red, and a
+   * frame later it turned green. The data was never missing, only the draft copy of it.
+   */
+  const effectiveWindows = useMemo(() => {
+    const merged: Record<string, StopWindowDraft> = {};
+    selectedRouteStops.forEach((stop) => {
+      if (stop.stopType === 'PICKUP') return;
+      const draft = stopWindows[stop.id];
+      const startTime = draft?.startTime || toShortTime(stop.startTimeWindow);
+      const endTime = draft?.endTime || toShortTime(stop.endTimeWindow);
+      if (startTime && endTime) {
+        merged[stop.id] = { startTime, endTime, buffer: draft?.buffer ?? String(stop.bufferMinutes ?? 30) };
+      }
+    });
+    return merged;
+  }, [selectedRouteStops, stopWindows]);
+
   const chronoViolations = useMemo(() => {
     return computeChronologicalViolations(
       toShortTime(selectedRoute?.plannedStartTime) || '08:00',
       selectedRouteStops,
-      stopWindows,
+      effectiveWindows,
     );
-  }, [selectedRoute?.plannedStartTime, selectedRouteStops, stopWindows]);
+  }, [selectedRoute?.plannedStartTime, selectedRouteStops, effectiveWindows]);
 
   const hasChronoViolation = Object.values(chronoViolations).some(Boolean);
-  
+
   const missingWindowCount = selectedRouteStops.filter((stop) => {
     if (stop.stopType === 'PICKUP') return false; // pickups are auto-created, not window-validated
-    const cfg = stopWindows[stop.id];
-    return !(cfg && cfg.startTime && cfg.endTime);
+    return !effectiveWindows[stop.id];
   }).length;
 
   const canValidate = missingWindowCount === 0 && !hasChronoViolation;
@@ -1386,6 +1407,7 @@ export function useRouteBuilder() {
     overloadKg,
     payloadPercent,
     chronoViolations,
+    effectiveWindows,
     hasChronoViolation,
     missingWindowCount,
     canValidate,

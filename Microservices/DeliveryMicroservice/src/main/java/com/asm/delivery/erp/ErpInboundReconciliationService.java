@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,6 +73,23 @@ public class ErpInboundReconciliationService {
             return;
         }
 
+        // Nothing actually differs → nothing happened, whatever the ERP's timestamp says.
+        //
+        // A change is announced because the document's modification date moved, not because its
+        // contents did. And the most frequent thing to move it is us: validating a delivery makes
+        // ASM write a delivery note into the ERP, which updates the order's delivered quantities and
+        // touches its modification date. The next poll then saw an order "changed" after the parcel
+        // had left and raised a conflict — for our own write.
+        //
+        // Left alone, every completed delivery produced a false alert. A dispatcher would learn
+        // within a week to dismiss them all, and would dismiss the real one too.
+        if (!isMaterialChange(order, changeType, payload)) {
+            log.debug("ERP inbound: {} on orderId={} carries no change — ignoring (echo of our own write)",
+                    changeType, order.getId());
+            touchSynced(order, erpWriteDate);
+            return;
+        }
+
         Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
         boolean departed = delivery != null && hasDeparted(delivery.getStatus());
 
@@ -92,6 +110,76 @@ public class ErpInboundReconciliationService {
             case DATE      -> applyDateChange(order, payload);
         }
         touchSynced(order, erpWriteDate);
+    }
+
+    /**
+     * Whether the announced change carries anything the order does not already hold.
+     *
+     * <p>Compared here rather than in each ERP adapter because this is the only place holding both
+     * sides: the poller knows what the ERP says, not what ASM stored. It also means one guard covers
+     * every provider — the ERPNext poller announces DATE on any modified order without ever looking
+     * at the date, and Odoo has the same freedom.
+     *
+     * <p>A cancellation is always material: the ERP does not say it twice, and refusing to act on it
+     * would be far worse than acting once too often.
+     */
+    private boolean isMaterialChange(Order order, ChangeType changeType, Map<String, Object> payload) {
+        if (changeType == ChangeType.CANCELLED) return true;
+        if (payload == null || payload.isEmpty()) return false;
+
+        return switch (changeType) {
+            case DATE -> dateDiffers(order, payload.get("scheduledAt"));
+            case ADDRESS -> differs(order.getDropoffAddress(), payload.get("address"))
+                         || differs(order.getDropoffCity(), payload.get("city"));
+            case LINES -> linesDiffer(order, payload.get("items"));
+            case CANCELLED -> true;
+        };
+    }
+
+    private boolean dateDiffers(Order order, Object incoming) {
+        if (!(incoming instanceof String s) || s.isBlank() || "false".equalsIgnoreCase(s) || s.length() < 16) {
+            return false;                       // unusable value — applyDateChange would skip it anyway
+        }
+        try {
+            LocalDateTime parsed = LocalDateTime.parse(s.replace(' ', 'T').substring(0, 16));
+            LocalDateTime current = order.getRescheduledAt() != null ? order.getRescheduledAt() : order.getScheduledAt();
+            return current == null || !parsed.equals(current.truncatedTo(java.time.temporal.ChronoUnit.MINUTES));
+        } catch (Exception e) {
+            return false;                       // unparseable — treat as no change rather than alert on noise
+        }
+    }
+
+    /** Blank and null are the same absence; an unchanged string is not a change. */
+    private static boolean differs(String current, Object incoming) {
+        if (!(incoming instanceof String s) || s.isBlank()) return false;
+        return current == null || !current.trim().equals(s.trim());
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean linesDiffer(Order order, Object itemsRaw) {
+        if (itemsRaw == null) return false;
+        try {
+            List<OrderItem> incoming = objectMapper.convertValue(itemsRaw,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, OrderItem.class));
+            List<OrderItem> current = order.getItems() != null ? order.getItems() : List.of();
+            if (incoming.size() != current.size()) return true;
+            // Compared on what a dispatcher would call a change: which article, and how many.
+            Map<String, Integer> before = quantitiesBySku(current);
+            Map<String, Integer> after = quantitiesBySku(incoming);
+            return !before.equals(after);
+        } catch (Exception e) {
+            log.warn("ERP inbound LINES: could not compare items for orderId={}: {}", order.getId(), e.getMessage());
+            return true;                        // cannot tell → let the normal path decide
+        }
+    }
+
+    private static Map<String, Integer> quantitiesBySku(List<OrderItem> items) {
+        Map<String, Integer> out = new HashMap<>();
+        for (OrderItem i : items) {
+            String key = i.getSku() != null ? i.getSku() : String.valueOf(i.getName());
+            out.merge(key, i.getQuantity() != null ? i.getQuantity() : 0, Integer::sum);
+        }
+        return out;
     }
 
     private void applyCancellation(Delivery delivery, Order order) {
