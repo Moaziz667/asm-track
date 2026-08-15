@@ -70,27 +70,45 @@ public class OpenAiCompatibleLlmAdapter implements LlmPort {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return run(systemPrompt, userPrompt, false);
+    }
+
+    @Override
+    public String completeJson(String systemPrompt, String userPrompt) {
+        return run(systemPrompt, userPrompt, true);
+    }
+
+    private String run(String systemPrompt, String userPrompt, boolean jsonOnly) {
         if (!isConfigured()) {
             throw new LlmUnavailableException("LLM not configured (no API key)", null);
         }
         try {
             return metrics.record(metrics.llmTimer,
-                    () -> breaker.decorateSupplier(() -> callWithRetry(systemPrompt, userPrompt)).get());
+                    () -> breaker.decorateSupplier(
+                            () -> callWithRetry(systemPrompt, userPrompt, jsonOnly)).get());
         } catch (CallNotPermittedException e) {
             throw new LlmUnavailableException("LLM circuit open", e);
         }
     }
 
+    /** A selection answer is a dozen tokens; capping it stops a degenerate reply running to the limit. */
+    private static final int JSON_MAX_TOKENS = 120;
+
     @SuppressWarnings("unchecked")
-    private String callWithRetry(String systemPrompt, String userPrompt) {
-        Map<String, Object> body = Map.of(
+    private String callWithRetry(String systemPrompt, String userPrompt, boolean jsonOnly) {
+        Map<String, Object> body = new java.util.HashMap<>(Map.of(
                 "model", model,
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userPrompt)),
                 "temperature", temperature,
-                "max_tokens", maxOutputTokens
-        );
+                "max_tokens", jsonOnly ? JSON_MAX_TOKENS : maxOutputTokens
+        ));
+        // Gateways that don't know response_format ignore it; those that do stop the model from
+        // answering with prose, a code fence, or the run of "!!!!!!" seen under load.
+        if (jsonOnly) {
+            body.put("response_format", Map.of("type", "json_object"));
+        }
 
         for (int attempt = 0; ; attempt++) {
             try {

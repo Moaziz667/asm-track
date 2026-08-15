@@ -17,6 +17,21 @@ public interface LlmPort {
      */
     String complete(String systemPrompt, String userPrompt);
 
+    /**
+     * The same call, except the provider is told the reply must be a JSON object.
+     *
+     * <p>Used by the tool-selection step, whose answer is parsed rather than displayed. Asking
+     * politely in the prompt is not enough: a model under load once replied with a long run of
+     * {@code "!!!!!!"}, which no amount of parsing recovers, and the assistant silently lost its
+     * access to live data. Providers exposing a JSON mode refuse to emit anything else.
+     *
+     * <p>Default: a plain completion, so an adapter with no JSON mode still works — the caller has to
+     * tolerate a malformed reply in either case.
+     */
+    default String completeJson(String systemPrompt, String userPrompt) {
+        return complete(systemPrompt, userPrompt);
+    }
+
     /** Thrown when the model cannot be reached or fails; signals the fallback path. */
     class LlmUnavailableException extends RuntimeException {
         public LlmUnavailableException(String message, Throwable cause) { super(message, cause); }

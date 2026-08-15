@@ -53,13 +53,23 @@ public class FailoverLlmAdapter implements LlmPort {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return through(LlmPort::complete, systemPrompt, userPrompt);
+    }
+
+    @Override
+    public String completeJson(String systemPrompt, String userPrompt) {
+        return through(LlmPort::completeJson, systemPrompt, userPrompt);
+    }
+
+    /** Walk the chain with whichever call was asked for, so the standby honours it too. */
+    private String through(TriFunction call, String systemPrompt, String userPrompt) {
         if (providers.isEmpty()) {
             throw new LlmUnavailableException("LLM not configured (no API key)", null);
         }
         LlmUnavailableException last = null;
         for (int i = 0; i < providers.size(); i++) {
             try {
-                return providers.get(i).complete(systemPrompt, userPrompt);
+                return call.apply(providers.get(i), systemPrompt, userPrompt);
             } catch (LlmUnavailableException e) {
                 last = e;
                 boolean hasStandby = i + 1 < providers.size();
@@ -68,5 +78,11 @@ public class FailoverLlmAdapter implements LlmPort {
             }
         }
         throw last;
+    }
+
+    /** Which of the port's two calls to walk the chain with. */
+    @FunctionalInterface
+    private interface TriFunction {
+        String apply(LlmPort port, String systemPrompt, String userPrompt);
     }
 }

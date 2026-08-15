@@ -69,24 +69,43 @@ public class GeminiLlmAdapter implements LlmPort {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return run(systemPrompt, userPrompt, false);
+    }
+
+    @Override
+    public String completeJson(String systemPrompt, String userPrompt) {
+        return run(systemPrompt, userPrompt, true);
+    }
+
+    private String run(String systemPrompt, String userPrompt, boolean jsonOnly) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new LlmUnavailableException("LLM not configured (no API key)", null);
         }
         // The breaker records the whole retrying call as one outcome; when open it fast-fails.
         try {
             return metrics.record(metrics.llmTimer,
-                    () -> breaker.decorateSupplier(() -> callWithRetry(systemPrompt, userPrompt)).get());
+                    () -> breaker.decorateSupplier(
+                            () -> callWithRetry(systemPrompt, userPrompt, jsonOnly)).get());
         } catch (CallNotPermittedException e) {
             throw new LlmUnavailableException("LLM circuit open", e);
         }
     }
 
+    /** A selection answer is a dozen tokens; capping it stops a degenerate reply running to the limit. */
+    private static final int JSON_MAX_TOKENS = 120;
+
     @SuppressWarnings("unchecked")
-    private String callWithRetry(String systemPrompt, String userPrompt) {
+    private String callWithRetry(String systemPrompt, String userPrompt, boolean jsonOnly) {
+        // Gemini's equivalent of response_format: the model is constrained to emit JSON, so the
+        // selection step cannot come back as prose or as a degenerate run of characters.
+        Map<String, Object> generationConfig = jsonOnly
+                ? Map.of("temperature", temperature, "maxOutputTokens", JSON_MAX_TOKENS,
+                         "responseMimeType", "application/json")
+                : Map.of("temperature", temperature, "maxOutputTokens", maxOutputTokens);
         Map<String, Object> body = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
                 "contents", List.of(Map.of("parts", List.of(Map.of("text", userPrompt)))),
-                "generationConfig", Map.of("temperature", temperature, "maxOutputTokens", maxOutputTokens)
+                "generationConfig", generationConfig
         );
 
         for (int attempt = 0; ; attempt++) {

@@ -66,7 +66,7 @@ public class LiveToolSelector {
         for (int attempt = 1; attempt <= SELECTION_ATTEMPTS && node == null; attempt++) {
             String raw;
             try {
-                raw = llm.complete(GroundingPrompts.TOOL_SELECT_SYSTEM,
+                raw = llm.completeJson(GroundingPrompts.TOOL_SELECT_SYSTEM,
                         GroundingPrompts.toolSelectUserPrompt(question, catalog.asPromptCatalogue()));
             } catch (LlmPort.LlmUnavailableException e) {
                 log.warn("Tool selection unavailable, falling back to documentation: {}", e.getMessage());
