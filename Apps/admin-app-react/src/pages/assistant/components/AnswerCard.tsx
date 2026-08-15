@@ -132,7 +132,9 @@ export function AnswerCard({ turn }: { turn: Turn }) {
             {renderWithCitations(a.answer, markers, jumpToSource)}
           </div>
 
-          <Sources turnId={turn.id} citations={a.citations} />
+          {/* Not on a refusal: those citations are what retrieval surfaced and the answer judged
+              insufficient — listing them under "Sources" would suggest they back an answer. */}
+          {!a.refused && <Sources turnId={turn.id} citations={a.citations} />}
 
           {a.liveSources.length > 0 && (
             <div className="mt-3 border-t border-[var(--border)] pt-2.5 text-[12px] text-[var(--text-muted)]">

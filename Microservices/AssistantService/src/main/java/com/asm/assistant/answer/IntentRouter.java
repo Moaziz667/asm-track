@@ -13,7 +13,10 @@ import java.util.regex.Pattern;
  *   <li><b>DETERMINISTIC</b> — a question about SLA compliance/lateness of a specific entity goes to
  *       the SLA engine's own output (sla-timeline), never the LLM's guesswork.</li>
  *   <li><b>LIVE_API</b> — "current status / where is …" about a specific delivery, return (RMA), route
- *       or driver goes to the live read APIs, never vector search.</li>
+ *       or driver goes to the live read APIs, never vector search. Also covers the enumeration of a
+ *       <em>bounded</em> reference collection ("les dépôts ?"): asking which depots exist is a question
+ *       about this tenant's data, not about the documentation. Only small, stable collections qualify —
+ *       enumerating deliveries would pour thousands of rows into the context window.</li>
  *   <li><b>RAG</b> — how/why/what knowledge questions (SLA rules, ERP sync, RMA process, tournée
  *       lifecycle, COD, RBAC, multi-tenant…) go to the grounded corpus.</li>
  * </ul>

@@ -7,6 +7,7 @@ import com.asm.assistant.retrieval.HybridRetriever;
 import com.asm.assistant.retrieval.RetrievedChunk;
 import com.asm.assistant.tools.LiveDataService;
 import com.asm.assistant.tools.LiveDataService.LiveResult;
+import com.asm.assistant.tools.LiveToolSelector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +36,43 @@ public class AnswerService {
     private final ContextAssembler assembler;
     private final LlmPort llm;
     private final LiveDataService liveData;
+    private final LiveToolSelector toolSelector;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public AnswerResponse answer(String question) {
         IntentRouter.Decision decision = router.route(question);
         log.debug("Routed '{}' -> {}", question, decision);
         return switch (decision.intent()) {
-            case RAG -> answerFromRag(question);
+            case RAG -> answerAboutTenantDataOrDocs(question);
             case LIVE_API, DETERMINISTIC -> answerFromLive(question, decision);
         };
+    }
+
+    /**
+     * Questions the rule-based router could not tie to one entity. Most are documentation questions,
+     * but some ask about this tenant's own data ("les dépôts ?", "combien de livraisons aujourd'hui ?")
+     * — no identifier to match on, yet no answer in the corpus either. So the model is offered the
+     * read-only tool catalogue first; it declines for anything conceptual, and we fall through to RAG.
+     */
+    private AnswerResponse answerAboutTenantDataOrDocs(String question) {
+        return toolSelector.select(question)
+                .map(sel -> answerFromTool(question, sel))
+                .orElseGet(() -> answerFromRag(question));
+    }
+
+    private AnswerResponse answerFromTool(String question, LiveToolSelector.Selection sel) {
+        log.debug("Live tool selected: {} (id={})", sel.tool().name(), sel.entityId());
+        LiveResult live = liveData.run(sel.tool(), sel.entityId());
+        if (live.notFound()) {
+            return AnswerResponse.refusal("LIVE_API",
+                    "Aucun élément ne correspond à cette référence (" + live.sourceLabel() + ").");
+        }
+        // A tool that cannot answer is not a dead end: the documentation may still cover the question.
+        if (!live.available()) {
+            log.info("Live tool {} unavailable, falling back to documentation", sel.tool().name());
+            return answerFromRag(question);
+        }
+        return generateFromLive(question, live, "LIVE_API");
     }
 
     private AnswerResponse answerFromRag(String question) {
@@ -67,10 +96,20 @@ public class AnswerService {
     private AnswerResponse answerFromLive(String question, IntentRouter.Decision decision) {
         String route = decision.intent().name();
         LiveResult live = liveData.fetch(decision);
+        // "No such entity" is an answer, not an outage — saying "service indisponible" would blame
+        // the platform for what is really a wrong reference.
+        if (live.notFound()) {
+            return AnswerResponse.refusal(route,
+                    "Aucun élément ne correspond à cette référence (" + live.sourceLabel() + ").");
+        }
         if (!live.available()) {
             return AnswerResponse.degraded(route,
                     "L'état actuel (" + live.sourceLabel() + ") est indisponible pour le moment.");
         }
+        return generateFromLive(question, live, route);
+    }
+
+    private AnswerResponse generateFromLive(String question, LiveResult live, String route) {
         String json;
         try {
             json = mapper.writeValueAsString(live.data());

@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -14,7 +15,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -23,14 +23,29 @@ import java.util.UUID;
  *   <li><b>Read-on-behalf-of-user</b>: forwards the caller's {@code Authorization} bearer and
  *       {@code X-Company-Id}, so downstream RBAC + tenant isolation apply exactly as if the user
  *       called directly — the assistant can never read what the user couldn't.</li>
- *   <li><b>Fail honest</b>: any error (unreachable, 4xx/5xx, timeout) returns {@link Optional#empty()};
- *       the orchestrator then says the live state is unknown rather than inventing it.</li>
+ *   <li><b>Fail honest</b>: nothing is ever fabricated. A 4xx becomes {@link Status#NOT_FOUND} (no
+ *       such entity, or a malformed reference) and anything else — unreachable, 5xx, timeout —
+ *       {@link Status#UNAVAILABLE}, so the answer can say which of the two actually happened.</li>
  * </ul>
- * Only GETs are exposed here. No write/mutating call is reachable through this client.
+ *
+ * <p>That distinction also guards the circuit breaker: "no such delivery" is a normal business
+ * answer, not a fault. Counting it as one meant a single mistyped reference could open the breaker
+ * and disable live lookups for every later question.
+ *
+ * <p>Only GETs are exposed here. No write/mutating call is reachable through this client.
  */
 @Component
 @Slf4j
 public class LiveApiClient {
+
+    /** Outcome of a live read: found, genuinely absent, or the source could not answer. */
+    public enum Status { FOUND, NOT_FOUND, UNAVAILABLE }
+
+    public record LiveLookup(Status status, Map<String, Object> body) {
+        static LiveLookup found(Map<String, Object> b) { return new LiveLookup(Status.FOUND, b); }
+        static final LiveLookup NOT_FOUND = new LiveLookup(Status.NOT_FOUND, Map.of());
+        static final LiveLookup UNAVAILABLE = new LiveLookup(Status.UNAVAILABLE, Map.of());
+    }
 
     private final RestClient delivery;
     private final RestClient driver;
@@ -53,30 +68,81 @@ public class LiveApiClient {
         return RestClient.builder().baseUrl(baseUrl).requestFactory(f).build();
     }
 
-    public Optional<Map<String, Object>> getDelivery(String id)      { return get(delivery, "/api/v1/admin/deliveries/{id}", id); }
-    public Optional<Map<String, Object>> getSlaTimeline(String id)   { return get(delivery, "/api/v1/admin/deliveries/{id}/sla-timeline", id); }
-    public Optional<Map<String, Object>> getReturn(String id)        { return get(delivery, "/api/v1/admin/returns/{id}", id); }
-    public Optional<Map<String, Object>> getRoute(String id)         { return get(delivery, "/api/v1/admin/routes/{id}", id); }
-    public Optional<Map<String, Object>> getRouteDriverLocation(String id) { return get(delivery, "/api/v1/admin/routes/{id}/driver-location", id); }
+    /**
+     * Runs a tool from the catalogue. Collection endpoints answer with a JSON array, which is wrapped
+     * under {@code items} so every result reaching the answer layer is a single object.
+     */
+    public LiveLookup call(LiveToolCatalog.Tool tool, String id) {
+        return tool.needsId()
+                ? get(delivery, tool.uri(), id)
+                : getList(delivery, tool.uri());
+    }
+
+    public LiveLookup getDelivery(String id)      { return get(delivery, "/api/v1/admin/deliveries/{id}", id); }
+    public LiveLookup getSlaTimeline(String id)   { return get(delivery, "/api/v1/admin/deliveries/{id}/sla-timeline", id); }
+    public LiveLookup getReturn(String id)        { return get(delivery, "/api/v1/admin/returns/{id}", id); }
+    public LiveLookup getRoute(String id)         { return get(delivery, "/api/v1/admin/routes/{id}", id); }
+    public LiveLookup getRouteDriverLocation(String id) { return get(delivery, "/api/v1/admin/routes/{id}/driver-location", id); }
 
     @SuppressWarnings("unchecked")
-    private Optional<Map<String, Object>> get(RestClient rc, String uri, String id) {
+    private LiveLookup get(RestClient rc, String uri, String id) {
         try {
             String auth = currentAuthorization();
             UUID tenant = TenantContext.get();
-            Map<String, Object> body = breaker.decorateSupplier(() -> rc.get()
-                    .uri(uri, id)
-                    .headers(h -> {
-                        if (auth != null) h.set("Authorization", auth);
-                        if (tenant != null) h.set("X-Company-Id", tenant.toString());
-                    })
-                    .retrieve()
-                    .body(Map.class)).get();
-            return Optional.ofNullable(body);
+            // The 4xx is caught inside the decorated supplier so the breaker records it as a success:
+            // the downstream service answered, it simply has no such entity.
+            return breaker.decorateSupplier(() -> {
+                try {
+                    Map<String, Object> body = rc.get()
+                            .uri(uri, id)
+                            .headers(h -> {
+                                if (auth != null) h.set("Authorization", auth);
+                                if (tenant != null) h.set("X-Company-Id", tenant.toString());
+                            })
+                            .retrieve()
+                            .body(Map.class);
+                    return body == null ? LiveLookup.NOT_FOUND : LiveLookup.found(body);
+                } catch (HttpClientErrorException e) {
+                    log.info("Live API {} [{}] not found: {}", uri, id, e.getStatusCode());
+                    return LiveLookup.NOT_FOUND;
+                }
+            }).get();
         } catch (Exception e) {
             // Fail honest — never fabricate live state.
             log.warn("Live API {} [{}] unavailable: {}", uri, id, e.getMessage());
-            return Optional.empty();
+            return LiveLookup.UNAVAILABLE;
+        }
+    }
+
+    /** Same contract as {@link #get}, for endpoints returning a collection rather than an entity. */
+    @SuppressWarnings("unchecked")
+    private LiveLookup getList(RestClient rc, String uri) {
+        try {
+            String auth = currentAuthorization();
+            UUID tenant = TenantContext.get();
+            return breaker.decorateSupplier(() -> {
+                try {
+                    Object body = rc.get()
+                            .uri(uri)
+                            .headers(h -> {
+                                if (auth != null) h.set("Authorization", auth);
+                                if (tenant != null) h.set("X-Company-Id", tenant.toString());
+                            })
+                            .retrieve()
+                            .body(Object.class);
+                    if (body == null) return LiveLookup.NOT_FOUND;
+                    // Some of these endpoints already answer with an object (stats, health).
+                    return LiveLookup.found(body instanceof Map
+                            ? (Map<String, Object>) body
+                            : Map.of("items", body));
+                } catch (HttpClientErrorException e) {
+                    log.info("Live API {} not found: {}", uri, e.getStatusCode());
+                    return LiveLookup.NOT_FOUND;
+                }
+            }).get();
+        } catch (Exception e) {
+            log.warn("Live API {} unavailable: {}", uri, e.getMessage());
+            return LiveLookup.UNAVAILABLE;
         }
     }
 
