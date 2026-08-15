@@ -591,6 +591,11 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      INGESTION_ROOT: /corpus
+    volumes:
+      # The clean docs/ tree, read-only, is the knowledge corpus. Root context.md and any gitignored
+      # markdown live outside this mount and so are never reachable by ingestion.
+      - ../docs:/corpus:ro
     depends_on:
       postgres-assistant:
         condition: service_healthy

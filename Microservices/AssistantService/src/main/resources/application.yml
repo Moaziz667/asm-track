@@ -64,10 +64,19 @@ asm:
 # AI providers, isolated behind ports (EmbeddingPort / LlmPort). Keys come from the environment only
 # — never committed. Changing the embedding model changes the vector dimension → new Flyway migration.
 assistant:
+  # Corpus ingestion. Root is the mounted docs/ tree (read-only); run-on-startup is for local
+  # bring-up / CI fixtures, production ingestion is triggered via POST /api/assistant/admin/ingest.
+  ingestion:
+    root: ${INGESTION_ROOT:/corpus}
+    run-on-startup: ${INGESTION_ON_STARTUP:false}
+  chunking:
+    max-chars: 2000
+    overlap-chars: 150
   embedding:
     provider: openai
     model: text-embedding-3-small
     dimension: 1536
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     api-key: ${OPENAI_API_KEY:}
   llm:
     provider: gemini
