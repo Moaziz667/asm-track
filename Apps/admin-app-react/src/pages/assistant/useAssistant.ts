@@ -30,7 +30,13 @@ export function useAssistant() {
   const clear = useAssistantHistory((s) => s.clear);
 
   // Bind the stored feed to whoever is signed in; a different operator starts from an empty panel.
+  //
+  // Only once a user is actually known. On a reload react-oidc-context restores the session
+  // asynchronously, so `auth.user` is briefly null — adopting that null read as "another operator"
+  // and wiped the history at the exact moment it was meant to be restored. Signing out is handled
+  // where it happens (the two menu buttons and the 401 handler), not by watching for an absence.
   useEffect(() => {
+    if (!userId) return;
     adopt(userId);
   }, [userId, adopt]);
 

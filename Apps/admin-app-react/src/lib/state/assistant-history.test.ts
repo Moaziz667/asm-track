@@ -58,6 +58,19 @@ describe('assistant history', () => {
     expect(useAssistantHistory.getState().turns.map((t) => t.id)).toEqual(['a']);
   });
 
+  // The regression that made the whole feature look broken: on a reload the OIDC session is restored
+  // asynchronously, so the hook briefly sees no user. Treating that gap as "another operator" wiped
+  // the history at the exact moment it was meant to come back.
+  it('does not treat an unknown user as a different operator', () => {
+    const { adopt, push } = useAssistantHistory.getState();
+    adopt('user-1');
+    push(turn('a'));
+    // What the hook must NOT do while auth is still loading.
+    expect(useAssistantHistory.getState().turns).toHaveLength(1);
+    useAssistantHistory.getState().adopt('user-1');
+    expect(useAssistantHistory.getState().turns).toHaveLength(1);
+  });
+
   it('clears on demand', () => {
     const { push, clear } = useAssistantHistory.getState();
     push(turn('a'));
