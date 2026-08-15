@@ -36,7 +36,7 @@ variables:
 
 .all-services: &all-services
   matrix:
-    - SERVICE: [ApiGateway, AppBackend, DeliveryMicroservice, DriverService, ErpAdapterService]
+    - SERVICE: [ApiGateway, AppBackend, DeliveryMicroservice, DriverService, ErpAdapterService, AssistantService]
 
 .npm-admin: &npm-admin
   image: node:20
@@ -125,6 +125,39 @@ integration-test-backend-delivery:
       junit: Microservices/DeliveryMicroservice/build/test-results/integrationTest/*.xml
     paths:
       - Microservices/DeliveryMicroservice/build/reports/tests/
+    expire_in: 1 week
+
+# AssistantService needs pgvector (the vector type + cosine operator), so its side-car is the
+# pgvector image rather than stock postgres:16. Runs the tenant-isolation + authorization *IT; the
+# live retrieval eval (RetrievalEvalIT) is gated off by RUN_LIVE_EVAL and never runs here.
+integration-test-backend-assistant:
+  <<: *gradle-service
+  stage: integration-test
+  services:
+    - name: pgvector/pgvector:pg16
+      alias: postgres
+  variables:
+    SERVICE: AssistantService
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+    POSTGRES_DB: assistant_test
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    POSTGRES_HOST_AUTH_METHOD: trust
+    IT_DB_URL: "jdbc:postgresql://postgres:5432/assistant_test"
+    IT_DB_USER: test
+    IT_DB_PASS: test
+  before_script:
+    - cd Microservices/AssistantService
+    - until bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; do sleep 1; done
+  script:
+    - gradle integrationTest
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/AssistantService/build/test-results/integrationTest/*.xml
+    paths:
+      - Microservices/AssistantService/build/reports/tests/
     expire_in: 1 week
 
 # ── 3b. ERP ADAPTER — Odoo integration tests, two versions ───────────────────
@@ -340,6 +373,9 @@ package-images:
       - NAME: erp-adapter
         CONTEXT: Microservices
         DOCKERFILE_DIR: Microservices/ErpAdapterService
+      - NAME: assistant-service
+        CONTEXT: Microservices
+        DOCKERFILE_DIR: Microservices/AssistantService
       - NAME: admin-app
         CONTEXT: Apps/admin-app-react
 

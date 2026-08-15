@@ -61,7 +61,7 @@ public abstract class AbstractPostgresIT {
 
     /** Deterministic embedder: every query maps to a fixed unit vector — no network, no quota. */
     @TestConfiguration
-    static class StubEmbeddingConfig {
+    public static class StubEmbeddingConfig {
         @Bean
         @Primary
         EmbeddingPort stubEmbedding() {
