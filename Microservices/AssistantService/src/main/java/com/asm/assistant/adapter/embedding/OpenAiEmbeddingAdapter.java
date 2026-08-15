@@ -51,6 +51,13 @@ public class OpenAiEmbeddingAdapter implements EmbeddingPort {
     }
 
     @Override
+    public float[] embedQuery(String text) {
+        if (!isEnabled()) return null;
+        List<float[]> r = embed(List.of(text));   // OpenAI embeddings are symmetric (no task type)
+        return r.isEmpty() ? null : r.get(0);
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public List<float[]> embed(List<String> texts) {
         if (!isEnabled()) {

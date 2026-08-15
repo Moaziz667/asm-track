@@ -77,18 +77,24 @@ public class GeminiEmbeddingAdapter implements EmbeddingPort {
             List<String> slice = texts.subList(i, Math.min(i + batchSize, texts.size()));
             // Free-tier quota is per-content-per-minute, so pace between batches to stay under it.
             if (b > 0 && interBatchSleepMs > 0) sleep(interBatchSleepMs);
-            out.addAll(embedBatch(modelPath, slice));
+            out.addAll(embedBatch(modelPath, slice, "RETRIEVAL_DOCUMENT"));
             log.info("Embedded batch {}/{} ({} chunks)", b + 1, batches, slice.size());
         }
         return out;
     }
 
+    @Override
+    public float[] embedQuery(String text) {
+        if (!isEnabled()) return null;
+        return embedBatch("models/" + model, List.of(text), "RETRIEVAL_QUERY").get(0);
+    }
+
     @SuppressWarnings("unchecked")
-    private List<float[]> embedBatch(String modelPath, List<String> slice) {
+    private List<float[]> embedBatch(String modelPath, List<String> slice, String taskType) {
         List<Map<String, Object>> requests = slice.stream().map(t -> Map.<String, Object>of(
                 "model", modelPath,
                 "content", Map.of("parts", List.of(Map.of("text", t))),
-                "taskType", "RETRIEVAL_DOCUMENT",
+                "taskType", taskType,
                 "outputDimensionality", dimension
         )).toList();
 

@@ -1,0 +1,54 @@
+# Minimal retrieval golden set (Phase 3, step 17) — seed for the Phase 6 expansion to 30–40.
+# Each question lists path fragments a correct retrieval should surface in its top-N. Questions are
+# in French (the corpus language). Kinds tag what the assistant SHOULD do with each — retrieval eval
+# uses `expect_paths`; `route` documents the Phase 4 RAG-vs-live-vs-deterministic decision.
+questions:
+  - id: sla-phases
+    q: "Quelles sont les phases du SLA d'une livraison ?"
+    expect_paths: ["metier/livraison"]
+    route: RAG
+  - id: delivery-states
+    q: "Quels sont les statuts possibles d'une livraison ?"
+    expect_paths: ["metier/livraison"]
+    route: RAG
+  - id: tournee-lifecycle
+    q: "Comment se déroule le cycle de vie d'une tournée ?"
+    expect_paths: ["metier/tournees"]
+    route: RAG
+  - id: cod-encaissement
+    q: "Comment fonctionne l'encaissement à la livraison (COD) ?"
+    expect_paths: ["metier/encaissement"]
+    route: RAG
+  - id: rma-returns
+    q: "Comment sont gérés les retours (RMA) ?"
+    expect_paths: ["metier/retours"]
+    route: RAG
+  - id: multi-tenant
+    q: "Comment l'isolation multi-tenant est-elle assurée ?"
+    expect_paths: ["architecture/multi-tenant", "adr/001"]
+    route: RAG
+  - id: erp-sync
+    q: "Comment fonctionne la synchronisation avec l'ERP ?"
+    expect_paths: ["architecture/erp", "adr/003"]
+    route: RAG
+  - id: rbac-authz
+    q: "Comment les autorisations RBAC sont-elles évaluées ?"
+    expect_paths: ["architecture/autorisation", "adr/002"]
+    route: RAG
+  - id: db-schema
+    q: "Comment la base de données est-elle structurée ?"
+    expect_paths: ["technique/base-de-donnees"]
+    route: RAG
+  - id: api-reference
+    q: "Où trouver la référence des endpoints de l'API ?"
+    expect_paths: ["technique/api", "openapi/"]
+    route: RAG
+  # Out-of-corpus / live-data controls (Phase 4/6 behaviour — retrieval should be weak or empty here).
+  - id: live-delivery-status
+    q: "Quel est le statut actuel de la livraison D123 ?"
+    expect_paths: []
+    route: LIVE_API
+  - id: out-of-scope
+    q: "Quelle est la capitale de l'Australie ?"
+    expect_paths: []
+    route: REFUSAL

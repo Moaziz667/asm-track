@@ -72,6 +72,13 @@ assistant:
   chunking:
     max-chars: 2000
     overlap-chars: 150
+  # Retrieval: fetch top-K per strategy, fuse with RRF, keep top-N for the context budget.
+  retrieval:
+    top-k: 20
+    top-n: 6
+    rrf-k: 60
+  context:
+    char-budget: 8000
   # Default provider is Gemini (gemini-embedding-001 @ outputDimensionality=1536, matching vector(1536)),
   # reusing the one GEMINI_API_KEY. Set provider=openai + EMBEDDING_* to switch back to OpenAI.
   embedding:

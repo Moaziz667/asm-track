@@ -8,8 +8,13 @@ import java.util.List;
  */
 public interface EmbeddingPort {
 
-    /** @return one {@code float[dimension]} per input, in order; empty list if embedding is disabled. */
+    /** @return one {@code float[dimension]} per input, in order; empty list if embedding is disabled.
+     *  Corpus/document embeddings (RETRIEVAL_DOCUMENT task on providers that distinguish). */
     List<float[]> embed(List<String> texts);
+
+    /** Embed a search query (RETRIEVAL_QUERY task where the provider distinguishes) — the asymmetric
+     *  counterpart to {@link #embed}; returns {@code null} when embedding is disabled. */
+    float[] embedQuery(String text);
 
     /** Identifies which model produced a stored vector (persisted per chunk for re-embed safety). */
     String modelVersion();
