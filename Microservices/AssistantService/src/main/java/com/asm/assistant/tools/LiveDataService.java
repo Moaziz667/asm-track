@@ -2,6 +2,7 @@ package com.asm.assistant.tools;
 
 import com.asm.assistant.answer.IntentRouter.Decision;
 import com.asm.assistant.answer.IntentRouter.Intent;
+import com.asm.assistant.observability.RagMetrics;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.Optional;
 public class LiveDataService {
 
     private final LiveApiClient api;
+    private final RagMetrics metrics;
 
     /** available=false → the live source couldn't be reached or the entity wasn't found. */
     public record LiveResult(boolean available, String sourceLabel, Map<String, Object> data) {
@@ -29,15 +31,19 @@ public class LiveDataService {
         String id = d.entityId();
         if (id == null) return LiveResult.unavailable("aucune référence d'entité");
 
-        if (d.intent() == Intent.DETERMINISTIC) {
-            return wrap(api.getSlaTimeline(id), "SLA (moteur SLA — sla-timeline) de " + id);
-        }
-        return switch (d.domain()) {
-            case RMA      -> wrap(api.getReturn(id), "Retour (RMA) " + id);
-            case ROUTE    -> wrap(api.getRoute(id), "Tournée " + id);
-            case DRIVER   -> wrap(api.getRouteDriverLocation(id), "Position livreur (tournée " + id + ")");
-            case DELIVERY, UNKNOWN -> wrap(api.getDelivery(id), "Livraison " + id);
-        };
+        LiveResult r = metrics.record(metrics.toolTimer, () -> {
+            if (d.intent() == Intent.DETERMINISTIC) {
+                return wrap(api.getSlaTimeline(id), "SLA (moteur SLA — sla-timeline) de " + id);
+            }
+            return switch (d.domain()) {
+                case RMA      -> wrap(api.getReturn(id), "Retour (RMA) " + id);
+                case ROUTE    -> wrap(api.getRoute(id), "Tournée " + id);
+                case DRIVER   -> wrap(api.getRouteDriverLocation(id), "Position livreur (tournée " + id + ")");
+                case DELIVERY, UNKNOWN -> wrap(api.getDelivery(id), "Livraison " + id);
+            };
+        });
+        metrics.toolCall(d.domain().name(), r.available());
+        return r;
     }
 
     private LiveResult wrap(Optional<Map<String, Object>> data, String label) {

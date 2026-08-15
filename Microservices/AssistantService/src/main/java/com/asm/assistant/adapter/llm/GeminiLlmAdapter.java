@@ -1,6 +1,10 @@
 package com.asm.assistant.adapter.llm;
 
 import com.asm.assistant.domain.port.LlmPort;
+import com.asm.assistant.observability.RagMetrics;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -32,6 +36,8 @@ public class GeminiLlmAdapter implements LlmPort {
     private final int maxOutputTokens;
     private final int maxRetries;
     private final RestClient client;
+    private final CircuitBreaker breaker;
+    private final RagMetrics metrics;
 
     public GeminiLlmAdapter(
             @Value("${assistant.llm.api-key:}") String apiKey,
@@ -40,12 +46,16 @@ public class GeminiLlmAdapter implements LlmPort {
             @Value("${assistant.llm.max-output-tokens:1024}") int maxOutputTokens,
             @Value("${assistant.llm.timeout-ms:20000}") long timeoutMs,
             @Value("${assistant.llm.max-retries:2}") int maxRetries,
-            @Value("${assistant.llm.base-url:https://generativelanguage.googleapis.com/v1beta}") String baseUrl) {
+            @Value("${assistant.llm.base-url:https://generativelanguage.googleapis.com/v1beta}") String baseUrl,
+            CircuitBreakerRegistry breakerRegistry,
+            RagMetrics metrics) {
         this.apiKey = apiKey;
         this.model = model;
         this.temperature = temperature;
         this.maxOutputTokens = maxOutputTokens;
         this.maxRetries = maxRetries;
+        this.breaker = breakerRegistry.circuitBreaker("llm");
+        this.metrics = metrics;
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeoutMs)).build());
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
@@ -53,11 +63,21 @@ public class GeminiLlmAdapter implements LlmPort {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public String complete(String systemPrompt, String userPrompt) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new LlmUnavailableException("LLM not configured (no API key)", null);
         }
+        // The breaker records the whole retrying call as one outcome; when open it fast-fails.
+        try {
+            return metrics.record(metrics.llmTimer,
+                    () -> breaker.decorateSupplier(() -> callWithRetry(systemPrompt, userPrompt)).get());
+        } catch (CallNotPermittedException e) {
+            throw new LlmUnavailableException("LLM circuit open", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private String callWithRetry(String systemPrompt, String userPrompt) {
         Map<String, Object> body = Map.of(
                 "systemInstruction", Map.of("parts", List.of(Map.of("text", systemPrompt))),
                 "contents", List.of(Map.of("parts", List.of(Map.of("text", userPrompt)))),

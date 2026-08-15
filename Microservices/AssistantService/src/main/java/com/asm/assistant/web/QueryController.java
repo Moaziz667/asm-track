@@ -1,7 +1,7 @@
 package com.asm.assistant.web;
 
 import com.asm.assistant.answer.AnswerResponse;
-import com.asm.assistant.answer.AnswerService;
+import com.asm.assistant.answer.AssistantQueryService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,12 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class QueryController {
 
-    private final AnswerService answerService;
+    private final AssistantQueryService queryService;
 
     public record QueryRequest(@NotBlank String query) {}
 
     @PostMapping("/query")
     public AnswerResponse query(@RequestBody QueryRequest req) {
-        return answerService.answer(req.query());
+        return queryService.handle(req.query());
     }
 }

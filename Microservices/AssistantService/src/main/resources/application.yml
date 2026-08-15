@@ -93,6 +93,10 @@ assistant:
   # Read-only live tools (Delivery/Driver). Short timeout; failures degrade, never fabricate.
   tools:
     timeout-ms: 5000
+  # Per-(tenant+user) sliding window — answering is costly/abusable, so cap it. In-process, no infra.
+  ratelimit:
+    max-requests: 30
+    window-seconds: 60
   # Default provider is Gemini (gemini-embedding-001 @ outputDimensionality=1536, matching vector(1536)),
   # reusing the one GEMINI_API_KEY. Set provider=openai + EMBEDDING_* to switch back to OpenAI.
   embedding:
@@ -101,11 +105,6 @@ assistant:
     dimension: ${EMBEDDING_DIMENSION:1536}
     base-url: ${EMBEDDING_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
     api-key: ${EMBEDDING_API_KEY:${GEMINI_API_KEY:}}
-  llm:
-    provider: gemini
-    model: ${GEMINI_MODEL:gemini-flash-latest}
-    api-key: ${GEMINI_API_KEY:}
-    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
 
 # Downstream services for the Phase 4 read-only tools.
 delivery:

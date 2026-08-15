@@ -1,6 +1,8 @@
 package com.asm.assistant.tools;
 
 import com.asm.tenant.TenantContext;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -32,13 +34,16 @@ public class LiveApiClient {
 
     private final RestClient delivery;
     private final RestClient driver;
+    private final CircuitBreaker breaker;
 
     public LiveApiClient(
             @Value("${delivery.service.url:http://delivery-service:8082}") String deliveryUrl,
             @Value("${driver.service.url:http://driver-service:8086}") String driverUrl,
-            @Value("${assistant.tools.timeout-ms:5000}") long timeoutMs) {
+            @Value("${assistant.tools.timeout-ms:5000}") long timeoutMs,
+            CircuitBreakerRegistry breakerRegistry) {
         this.delivery = build(deliveryUrl, timeoutMs);
         this.driver = build(driverUrl, timeoutMs);
+        this.breaker = breakerRegistry.circuitBreaker("liveApi");
     }
 
     private RestClient build(String baseUrl, long timeoutMs) {
@@ -59,14 +64,14 @@ public class LiveApiClient {
         try {
             String auth = currentAuthorization();
             UUID tenant = TenantContext.get();
-            Map<String, Object> body = rc.get()
+            Map<String, Object> body = breaker.decorateSupplier(() -> rc.get()
                     .uri(uri, id)
                     .headers(h -> {
                         if (auth != null) h.set("Authorization", auth);
                         if (tenant != null) h.set("X-Company-Id", tenant.toString());
                     })
                     .retrieve()
-                    .body(Map.class);
+                    .body(Map.class)).get();
             return Optional.ofNullable(body);
         } catch (Exception e) {
             // Fail honest — never fabricate live state.

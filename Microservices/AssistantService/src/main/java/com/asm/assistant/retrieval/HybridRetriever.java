@@ -1,6 +1,7 @@
 package com.asm.assistant.retrieval;
 
 import com.asm.assistant.domain.port.EmbeddingPort;
+import com.asm.assistant.observability.RagMetrics;
 import com.asm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class HybridRetriever {
     private final EmbeddingPort embedding;
     private final VectorSearch vectorSearch;
     private final KeywordSearch keywordSearch;
+    private final RagMetrics metrics;
 
     @Value("${assistant.retrieval.top-k:20}")
     private int topK;
@@ -41,10 +43,12 @@ public class HybridRetriever {
             log.warn("Retrieval attempted with no tenant context — returning nothing");
             return List.of();
         }
-        float[] qVec = embedding.embedQuery(query);
-        List<RetrievedChunk> dense = vectorSearch.search(qVec, tenant, topK);
-        List<RetrievedChunk> lexical = keywordSearch.search(query, tenant, topK);
-        return fuse(dense, lexical);
+        return metrics.record(metrics.retrievalTimer, () -> {
+            float[] qVec = embedding.embedQuery(query);
+            List<RetrievedChunk> dense = vectorSearch.search(qVec, tenant, topK);
+            List<RetrievedChunk> lexical = keywordSearch.search(query, tenant, topK);
+            return fuse(dense, lexical);
+        });
     }
 
     private List<RetrievedChunk> fuse(List<RetrievedChunk> dense, List<RetrievedChunk> lexical) {
