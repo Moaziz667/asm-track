@@ -65,6 +65,41 @@ export const notifHelpers = {
 };
 
 export const FR_COPY = {
+  assistant: {
+    title: 'Assistant',
+    subtitle: 'Réponses fondées sur la documentation et les données en direct — avec sources.',
+    placeholder: 'Posez une question… ex. « Où en est la livraison D-1234 ? »',
+    send: 'Envoyer',
+    clear: 'Effacer',
+    you: 'Vous',
+    thinking: 'Recherche en cours…',
+    sources: 'Sources',
+    liveNote: 'Données en direct',
+    disclaimer: 'L’assistant peut se tromper. Vérifiez les sources citées.',
+    emptyTitle: 'Demandez à l’assistant',
+    emptyHint: 'Documentation métier (SLA, retours, tournées, ERP, RBAC) ou état en direct d’une livraison, d’une tournée ou d’un retour.',
+    example1: 'Quelles sont les phases du SLA ?',
+    example2: 'Comment fonctionnent les retours (RMA) ?',
+    example3: 'Où en est la livraison D-1234 ?',
+    example4: 'Comment marche la synchronisation ERP ?',
+    route: {
+      documentation: 'Documentation',
+      live: 'Données en direct',
+      sla: 'Moteur SLA',
+      refused: 'Éléments insuffisants',
+      degraded: 'Service indisponible',
+    },
+    authority: {
+      AUTHORITATIVE: 'Officiel',
+      SECONDARY: 'Documentation',
+      LOW: 'Indicatif',
+    },
+    error: {
+      rateLimited: 'Trop de requêtes. Réessayez dans un instant.',
+      unauthorized: 'Accès non autorisé.',
+      network: 'Impossible de joindre l’assistant. Réessayez.',
+    },
+  },
   // Suffixe de pluriel injecte dans les gabarits {plural} (voir tcount). Vide en arabe: la langue
   // ne pluralise pas par suffixe.
   pluralMark: 's',

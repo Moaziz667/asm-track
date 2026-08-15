@@ -470,6 +470,16 @@
         100% { background-position: -200% 0; }
       }
 
+      /* Assistant "live data" badge pulse (RouteBadge). Global so it animates even when no
+         StatusBadge is on screen; honours reduced motion. */
+      @keyframes asm-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: 0.4; transform: scale(0.78); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        [style*="asm-pulse"] { animation: none !important; }
+      }
+
       /* ── Scrollbars ─────────────────────────────────────────────────────────────── */
       * {
         scrollbar-width: thin;

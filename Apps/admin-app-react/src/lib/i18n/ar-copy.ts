@@ -44,6 +44,41 @@ const _ar_window = (start: unknown, end: unknown): string => {
 };
 
 export const AR_COPY = {
+  assistant: {
+    title: 'المساعد',
+    subtitle: 'إجابات مستندة إلى التوثيق والبيانات المباشرة — مع المصادر.',
+    placeholder: 'اطرح سؤالاً… مثال: «أين الشحنة D-1234؟»',
+    send: 'إرسال',
+    clear: 'مسح',
+    you: 'أنت',
+    thinking: 'جارٍ البحث…',
+    sources: 'المصادر',
+    liveNote: 'بيانات مباشرة',
+    disclaimer: 'قد يخطئ المساعد. تحقّق من المصادر المذكورة.',
+    emptyTitle: 'اسأل المساعد',
+    emptyHint: 'توثيق الأعمال (SLA، الإرجاعات، الجولات، ERP، الصلاحيات) أو الحالة المباشرة لشحنة أو جولة أو إرجاع.',
+    example1: 'ما هي مراحل اتفاقية مستوى الخدمة (SLA)؟',
+    example2: 'كيف تعمل الإرجاعات (RMA)؟',
+    example3: 'أين الشحنة D-1234؟',
+    example4: 'كيف تعمل مزامنة نظام ERP؟',
+    route: {
+      documentation: 'التوثيق',
+      live: 'بيانات مباشرة',
+      sla: 'محرك SLA',
+      refused: 'أدلة غير كافية',
+      degraded: 'الخدمة غير متاحة',
+    },
+    authority: {
+      AUTHORITATIVE: 'رسمي',
+      SECONDARY: 'توثيق',
+      LOW: 'إرشادي',
+    },
+    error: {
+      rateLimited: 'طلبات كثيرة جداً. أعد المحاولة بعد قليل.',
+      unauthorized: 'غير مصرّح.',
+      network: 'تعذّر الوصول إلى المساعد. أعد المحاولة.',
+    },
+  },
   pluralMark: '',
 
   // ── Actions (button labels) ────────────────────────────────────────

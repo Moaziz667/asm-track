@@ -36,6 +36,41 @@ const _en_window = (start: unknown, end: unknown): string => {
 };
 
 export const EN_COPY = {
+  assistant: {
+    title: 'Assistant',
+    subtitle: 'Answers grounded in the documentation and live data — with sources.',
+    placeholder: 'Ask a question… e.g. “Where is delivery D-1234?”',
+    send: 'Send',
+    clear: 'Clear',
+    you: 'You',
+    thinking: 'Searching…',
+    sources: 'Sources',
+    liveNote: 'Live data',
+    disclaimer: 'The assistant can be wrong. Check the cited sources.',
+    emptyTitle: 'Ask the assistant',
+    emptyHint: 'Business documentation (SLA, returns, routes, ERP, RBAC) or the live status of a delivery, route or return.',
+    example1: 'What are the SLA phases?',
+    example2: 'How do returns (RMA) work?',
+    example3: 'Where is delivery D-1234?',
+    example4: 'How does ERP synchronization work?',
+    route: {
+      documentation: 'Documentation',
+      live: 'Live data',
+      sla: 'SLA engine',
+      refused: 'Insufficient evidence',
+      degraded: 'Service unavailable',
+    },
+    authority: {
+      AUTHORITATIVE: 'Authoritative',
+      SECONDARY: 'Documentation',
+      LOW: 'Indicative',
+    },
+    error: {
+      rateLimited: 'Too many requests. Try again shortly.',
+      unauthorized: 'Not authorized.',
+      network: 'Could not reach the assistant. Try again.',
+    },
+  },
   pluralMark: 's',
 
   // ── Actions (button labels) ────────────────────────────────────────

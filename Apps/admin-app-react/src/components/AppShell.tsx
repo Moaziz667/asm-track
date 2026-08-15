@@ -13,6 +13,8 @@ import ErrorBoundary from './ErrorBoundary';
 import ContentBreadcrumb from './ContentBreadcrumb';
 import AlertBell from './AlertBell';
 import GlobalSearch from './GlobalSearch';
+import { AssistantTrigger } from '@/pages/assistant/AssistantTrigger';
+import { AssistantPanel } from '@/pages/assistant/AssistantPanel';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
@@ -63,7 +65,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <GlobalSearch />
                 </div>
 
-                <AlertBell />
+                <div className="flex items-center gap-1">
+                  <AssistantTrigger />
+                  <AlertBell />
+                </div>
               </div>
               
               <div
@@ -86,6 +91,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {/* Global floating live map */}
           <ErrorBoundary>
             <GlobalFloatingMap />
+          </ErrorBoundary>
+
+          {/* Global assistant — summoned from the top bar on any page */}
+          <ErrorBoundary>
+            <AssistantPanel />
           </ErrorBoundary>
         </AlertsProvider>
         </ErrorBoundary>
