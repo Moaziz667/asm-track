@@ -539,8 +539,8 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres-assistant
     ports:
-      # 5437 on the host: 5436 is taken by postgres-odoo. In-container the port is 5432 as usual.
-      - "127.0.0.1:5437:5432"
+      # 5438 on the host: 5436 is postgres-odoo and 5437 is postgres-driver. In-container it is 5432.
+      - "127.0.0.1:5438:5432"
     environment:
       POSTGRES_USER: assistant
       POSTGRES_PASSWORD: ${ASSISTANT_DB_PASS:-assistant}
@@ -591,6 +591,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      # Answering provider; whichever is not selected stays wired as the automatic standby.
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-oss-20b:free}
       INGESTION_ROOT: /corpus
     volumes:
       # The clean docs/ tree, read-only, is the knowledge corpus. Root context.md and any gitignored

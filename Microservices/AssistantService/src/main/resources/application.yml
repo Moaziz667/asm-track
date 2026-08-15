@@ -82,10 +82,21 @@ assistant:
   # LLM behind LlmPort. Reuses GEMINI_API_KEY. Bounded timeout + retry on 429/503; on failure the
   # orchestrator returns a controlled "degraded" answer, never a hallucination.
   llm:
-    provider: gemini
+    # Which provider answers first; the other is the automatic standby (see FailoverLlmAdapter).
+    # `openai` picks the OpenAI-compatible adapter below — OpenRouter by default, but the same
+    # adapter serves Groq, Hugging Face's router or a local Ollama by changing base-url + model.
+    provider: ${LLM_PROVIDER:gemini}
     model: ${GEMINI_MODEL:gemini-flash-latest}
     api-key: ${GEMINI_API_KEY:}
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+    # Any provider speaking OpenAI's /chat/completions. Left unconfigured (no key) it is simply
+    # skipped, so a Gemini-only deployment is unchanged.
+    openai:
+      api-key: ${OPENROUTER_API_KEY:}
+      # gpt-oss-20b rather than Gemma: the free Gemma tier is served from Google AI Studio's shared
+      # pool — the very quota the Gemini adapter already saturates, so it is no fallback at all.
+      model: ${OPENROUTER_MODEL:openai/gpt-oss-20b:free}
+      base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
     temperature: 0.2
     max-output-tokens: 1024
     timeout-ms: 20000
