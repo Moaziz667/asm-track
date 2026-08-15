@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RouteExecutionService {
 
+    /** When the driver actually acted, rather than when we heard about it after an offline replay. */
+    private final com.asm.delivery.service.ActionClock actionClock;
     private final RouteRepository routeRepository;
     private final RouteStopRepository routeStopRepository;
     private final DeliveryRepository deliveryRepository;
@@ -114,7 +116,7 @@ public class RouteExecutionService {
         }
 
         route.setStatus(RouteStatus.IN_PROGRESS);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = actionClock.now();
         if (route.getStartedAt() == null) route.setStartedAt(now);
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         auditLogService.logAction(principal, "START_ROUTE", "ROUTE", routeId.toString(),
@@ -176,7 +178,7 @@ public class RouteExecutionService {
         }
 
         stop.setStatus(RouteStopStatus.ARRIVED);
-        stop.setArrivedAt(LocalDateTime.now());
+        stop.setArrivedAt(actionClock.now());
         stop.setActualArrivalAt(stop.getArrivedAt());
         routeStopRepository.save(stop);
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
@@ -186,7 +188,7 @@ public class RouteExecutionService {
 
         if (route.getStatus() == RouteStatus.VALIDATED) {
             route.setStatus(RouteStatus.IN_PROGRESS);
-            route.setStartedAt(LocalDateTime.now());
+            route.setStartedAt(actionClock.now());
             routeRepository.save(route);
         }
 
@@ -215,7 +217,7 @@ public class RouteExecutionService {
             return toResponse(route); // idempotent
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = actionClock.now();
         if (route.getStatus() == RouteStatus.VALIDATED) {
             route.setStatus(RouteStatus.IN_PROGRESS);
             route.setStartedAt(now);
@@ -274,7 +276,7 @@ public class RouteExecutionService {
                 .changedByRole(role)
                 .eventKey(eventKey)
                 .eventParams(jsonParams)
-                .changedAt(LocalDateTime.now())
+                .changedAt(actionClock.now())
                 .build());
     }
 

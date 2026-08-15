@@ -35,6 +35,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DriverDeliveryService {
 
+    /** When the driver actually acted, rather than when we heard about it after an offline replay. */
+    private final ActionClock                     actionClock;
     private final DriverDeliveryMapper            mapper;
     private final DeliveryTransitionSupport       transitions;
     private final DriverIncidentService           incidentService;
@@ -158,7 +160,7 @@ public class DriverDeliveryService {
         transitions.assertStatus(delivery, DeliveryStatus.SCHEDULED, "pickup");
 
         delivery.setStatus(DeliveryStatus.PICKED_UP);
-        delivery.setPickedUpAt(LocalDateTime.now());
+        delivery.setPickedUpAt(actionClock.now());
         delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
@@ -179,7 +181,7 @@ public class DriverDeliveryService {
         Delivery delivery = transitions.loadAndAuthorize(deliveryId, driverId);
         transitions.assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
 
-        LocalDateTime transitStartedAt = LocalDateTime.now();
+        LocalDateTime transitStartedAt = actionClock.now();
         delivery.setStatus(DeliveryStatus.IN_TRANSIT);
         delivery.setInTransitAt(transitStartedAt);
         delivery.setPickupSlaMinutes(delayCalculationService.calculatePickupSlaMinutes(delivery));
@@ -304,7 +306,7 @@ public class DriverDeliveryService {
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
         delivery.setStatus(finalStatus);
-        delivery.setCompletedAt(LocalDateTime.now());
+        delivery.setCompletedAt(actionClock.now());
         delivery = deliveryRepo.save(delivery);
 
         // ADR-033 — A reverse-pickup leg reuses the original order, so it must NOT push a forward stock
@@ -650,7 +652,7 @@ public class DriverDeliveryService {
                 .recipientName(recipientName)
                 .lat(lat)
                 .lng(lng)
-                .collectedAt(LocalDateTime.now())
+                .collectedAt(actionClock.now())
                 .build();
 
         try {
@@ -684,7 +686,7 @@ public class DriverDeliveryService {
         // RabbitMQ frames.
         Map<String, Object> podPayload = new HashMap<>();
         podPayload.put("deliveryId", deliveryId.toString());
-        podPayload.put("deliveredAt", LocalDateTime.now().toString());
+        podPayload.put("deliveredAt", actionClock.now().toString());
         if (recipientName != null && !recipientName.isBlank()) podPayload.put("recipientName", recipientName);
         if (comment != null) podPayload.put("comment", comment);
         if (lat != null) podPayload.put("lat", lat);
@@ -781,7 +783,7 @@ public class DriverDeliveryService {
             if (delivery.getDriverId() != null) {
             }
             delivery.setStatus(DeliveryStatus.CANCELLED);
-            delivery.setCancelledAt(LocalDateTime.now());
+            delivery.setCancelledAt(actionClock.now());
             delivery.setCancelledBy(Role.SYSTEM);
             delivery.setCancelReason(reason);
             deliveryRepo.save(delivery);
