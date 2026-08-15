@@ -72,12 +72,14 @@ assistant:
   chunking:
     max-chars: 2000
     overlap-chars: 150
+  # Default provider is Gemini (gemini-embedding-001 @ outputDimensionality=1536, matching vector(1536)),
+  # reusing the one GEMINI_API_KEY. Set provider=openai + EMBEDDING_* to switch back to OpenAI.
   embedding:
-    provider: openai
-    model: text-embedding-3-small
-    dimension: 1536
-    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-    api-key: ${OPENAI_API_KEY:}
+    provider: ${EMBEDDING_PROVIDER:gemini}
+    model: ${EMBEDDING_MODEL:gemini-embedding-001}
+    dimension: ${EMBEDDING_DIMENSION:1536}
+    base-url: ${EMBEDDING_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+    api-key: ${EMBEDDING_API_KEY:${GEMINI_API_KEY:}}
   llm:
     provider: gemini
     model: ${GEMINI_MODEL:gemini-flash-latest}

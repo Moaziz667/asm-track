@@ -3,6 +3,7 @@ package com.asm.assistant.adapter.embedding;
 import com.asm.assistant.domain.port.EmbeddingPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -17,8 +18,12 @@ import java.util.Map;
  * <p>When no API key is configured it reports {@link #isEnabled()} false and returns an empty list;
  * ingestion then persists chunks without vectors, and a later run (once the key is set) backfills
  * them. This keeps the pipeline runnable end-to-end before the key is provided.
+ *
+ * <p>Alternative provider: only loaded when {@code assistant.embedding.provider=openai}. The default
+ * is Gemini ({@link GeminiEmbeddingAdapter}), reusing the one API key already configured.
  */
 @Component
+@ConditionalOnProperty(name = "assistant.embedding.provider", havingValue = "openai")
 @Slf4j
 public class OpenAiEmbeddingAdapter implements EmbeddingPort {
 
