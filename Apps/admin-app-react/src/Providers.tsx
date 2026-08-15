@@ -9,6 +9,7 @@ import { LocaleProvider } from '@/lib/i18n/LocaleContext';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { oidcConfig, syncSession, userManager } from '@/lib/api/oidcConfig';
 import { registerTokenRefresher, registerLogoutHandler } from '@/lib/api';
+import { useAssistantHistory } from '@/lib/state/assistant-history';
 
 type ProvidersProps = {
   children: ReactNode;
@@ -61,7 +62,12 @@ function AuthSync() {
       syncSession(user);
       return user;
     });
-    registerLogoutHandler(() => { void authRef.current.removeUser(); });
+    registerLogoutHandler(() => {
+      // The assistant feed quotes real customers, addresses and amounts. Signing out has to take it
+      // off this workstation, not leave it in localStorage for whoever signs in next.
+      useAssistantHistory.getState().clear();
+      void authRef.current.removeUser();
+    });
     return () => {
       registerTokenRefresher(null);
       registerLogoutHandler(null);

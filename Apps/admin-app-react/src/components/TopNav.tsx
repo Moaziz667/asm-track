@@ -12,6 +12,7 @@ import {
   IconCalendarEvent, IconChevronRight, IconSun, IconMoon,
   IconChevronDown, IconUserCircle, IconLogout } from '@tabler/icons-react';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
+import { useAssistantHistory } from '@/lib/state/assistant-history';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -240,6 +241,8 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
 
   const handleLogout = async () => {
     safeStorage.removeItem('admin-operational-filters');
+    // Assistant answers quote customers, addresses and amounts — they leave with the session.
+    useAssistantHistory.getState().clear();
     // Capture the id_token BEFORE clearing the user: passing it as id_token_hint lets Keycloak skip
     // its (unstyled) logout-confirmation prompt and log out + redirect straight to /login.
     const id_token_hint = auth.user?.id_token;

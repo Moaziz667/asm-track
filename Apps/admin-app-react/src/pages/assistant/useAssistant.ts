@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { AxiosError } from 'axios';
+import { useAuth } from 'react-oidc-context';
 import { api } from '@/lib/api';
-import type { AnswerResponse, Turn } from './types';
+import { useAssistantHistory } from '@/lib/state/assistant-history';
+import type { AnswerResponse } from './types';
 
 // The assistant lives under /api/assistant (not the /api/v1 business surface), so we override the
 // shared axios instance's baseURL per-call — this reuses its Bearer-token attach + 401 silent-refresh
@@ -13,12 +15,24 @@ function newId(): string {
 }
 
 /**
- * Drives the in-session answer feed: newest turn on top, each answered independently. Keeps only
- * client state — the server owns the audit trail. No global query cache: answers are one-shot and
- * shouldn't be re-served stale from cache.
+ * Drives the answer feed: newest turn on top, each answered independently.
+ *
+ * The feed lives in a persisted store rather than in this hook. It used to be local `useState`, so
+ * closing the panel or reloading the page threw the conversation away — and an answer here costs
+ * seconds of model latency, sometimes half a minute. The server still owns the audit trail; this is
+ * only the operator's own view of what he asked.
  */
 export function useAssistant() {
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const auth = useAuth();
+  const userId = auth.user?.profile?.sub ?? null;
+  const turns = useAssistantHistory((s) => s.turns);
+  const adopt = useAssistantHistory((s) => s.adopt);
+  const clear = useAssistantHistory((s) => s.clear);
+
+  // Bind the stored feed to whoever is signed in; a different operator starts from an empty panel.
+  useEffect(() => {
+    adopt(userId);
+  }, [userId, adopt]);
 
   const ask = useCallback(async (question: string) => {
     const trimmed = question.trim();
@@ -26,24 +40,22 @@ export function useAssistant() {
 
     const id = newId();
     const askedAt = Date.now();
-    setTurns((prev) => [{ id, question: trimmed, askedAt, status: 'loading' }, ...prev]);
+    // Read the actions off the store rather than closing over them: `ask` must stay stable, and the
+    // update below lands after an await, when a subscribed copy could already be stale.
+    const { push, update } = useAssistantHistory.getState();
+    push({ id, question: trimmed, askedAt, status: 'loading' });
 
     try {
       const res = await api.post<AnswerResponse>('/query', { query: trimmed }, { baseURL: ASSISTANT_BASE });
-      const latencyMs = Date.now() - askedAt;
-      setTurns((prev) => prev.map((t) =>
-        t.id === id ? { ...t, status: 'done', answer: res.data, latencyMs } : t));
+      update(id, { status: 'done', answer: res.data, latencyMs: Date.now() - askedAt });
     } catch (err) {
       const status = (err as AxiosError)?.response?.status;
       const errorKind = status === 429 ? 'rate_limited'
         : status === 401 || status === 403 ? 'unauthorized'
         : 'network';
-      setTurns((prev) => prev.map((t) =>
-        t.id === id ? { ...t, status: 'error', errorKind, latencyMs: Date.now() - askedAt } : t));
+      update(id, { status: 'error', errorKind, latencyMs: Date.now() - askedAt });
     }
   }, []);
-
-  const clear = useCallback(() => setTurns([]), []);
 
   return { turns, ask, clear };
 }

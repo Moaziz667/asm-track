@@ -20,6 +20,7 @@ import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
+import { useAssistantHistory } from '@/lib/state/assistant-history';
 import { useAuth } from 'react-oidc-context';
 import { safeStorage } from '@/lib/storage';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -257,6 +258,8 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     safeStorage.removeItem('admin-operational-filters');
+    // Assistant answers quote customers, addresses and amounts — they leave with the session.
+    useAssistantHistory.getState().clear();
     const id_token_hint = auth.user?.id_token;
     try {
       await auth.removeUser();
