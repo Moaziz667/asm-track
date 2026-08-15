@@ -59,6 +59,10 @@ flowchart TD
     style K fill:#e8f5e9,stroke:#2e7d32
 ```
 
+!!! info "Une tournée peut charger dans plusieurs dépôts"
+    Elle reçoit alors un arrêt d'enlèvement par dépôt, et aucune livraison ne peut être placée avant
+    l'enlèvement dont elle dépend. Voir [Dépôts](depots.md).
+
 !!! tip "L'optimisation suggère, elle n'applique pas"
     L'endpoint `/optimize` renvoie un ordre proposé ; c'est le dispatcher qui l'accepte via
     `/stops/reorder`. Un « appliquer directement » a existé et a été supprimé, sans appelant : le

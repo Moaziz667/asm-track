@@ -82,28 +82,12 @@ lib/src/features/
 
 ### Le mode hors ligne
 
-```mermaid
-flowchart TD
-    A["Le livreur valide une action"] --> B{"Réseau ?"}
-    B -->|oui| C["POST vers l'API"]
-    B -->|non| D["File locale Hive<br/>throw OFFLINE_QUEUED"]
-    D --> E["L'écran affiche<br/>« en attente de synchronisation »"]
-    E --> F{"Réseau revenu ?"}
-    F -->|oui| G["Rejeu de la file<br/>avec la clé d'idempotence"]
-    G --> C
+Un livreur en zone industrielle ou en sous-sol perd le réseau régulièrement. L'application reste
+entièrement utilisable sans connexion : elle lit dans un cache préchargé, projette localement les
+actions validées pour que l'écran avance, et rejoue les écritures au retour du signal sous une clé
+d'idempotence.
 
-    style D fill:#fff3e0,stroke:#ef6c00
-    style G fill:#e8f5e9,stroke:#2e7d32
-```
-
-**Pourquoi c'est nécessaire.** Un livreur en zone industrielle ou en sous-sol perd le réseau
-régulièrement. Sans file locale, il ne peut plus rien valider et doit ressaisir plus tard — avec le
-risque d'oublis et de doublons.
-
-!!! success "La clé d'idempotence rend le rejeu sûr"
-    Une action mise en file puis rejouée porte **la même clé**. Si la requête d'origine avait en
-    réalité abouti avant la coupure, le backend reconnaît le doublon et ne crée pas une seconde
-    livraison validée.
+[:material-arrow-right: Le mécanisme en détail](hors-ligne.md)
 
 ### Ce que la portée `offline_access` corrige
 

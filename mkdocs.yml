@@ -89,8 +89,11 @@ nav:
       - Temps réel et notifications: architecture/temps-reel.md
       - Stockage de fichiers: architecture/stockage.md
       - Clients (web et mobile): architecture/clients.md
+      - Mode hors ligne: architecture/hors-ligne.md
+      - Assistant interne: architecture/assistant.md
   - Métier:
       - Cycle de vie d'une livraison: metier/livraison.md
+      - Dépôts: metier/depots.md
       - Tournées: metier/tournees.md
       - Retours (RMA): metier/retours.md
       - Encaissement (COD): metier/encaissement.md
