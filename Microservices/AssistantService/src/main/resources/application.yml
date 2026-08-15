@@ -79,6 +79,20 @@ assistant:
     rrf-k: 60
   context:
     char-budget: 8000
+  # LLM behind LlmPort. Reuses GEMINI_API_KEY. Bounded timeout + retry on 429/503; on failure the
+  # orchestrator returns a controlled "degraded" answer, never a hallucination.
+  llm:
+    provider: gemini
+    model: ${GEMINI_MODEL:gemini-flash-latest}
+    api-key: ${GEMINI_API_KEY:}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+    temperature: 0.2
+    max-output-tokens: 1024
+    timeout-ms: 20000
+    max-retries: 2
+  # Read-only live tools (Delivery/Driver). Short timeout; failures degrade, never fabricate.
+  tools:
+    timeout-ms: 5000
   # Default provider is Gemini (gemini-embedding-001 @ outputDimensionality=1536, matching vector(1536)),
   # reusing the one GEMINI_API_KEY. Set provider=openai + EMBEDDING_* to switch back to OpenAI.
   embedding:
