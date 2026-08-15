@@ -1,0 +1,88 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.asm'
+version = '1.0.0'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    springCloudVersion = '2023.0.3'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+dependencies {
+    // Tenant propagation (HTTP + AMQP), shared with the other services. We import TenantCoreConfig
+    // only — NOT TenantJpaConfig — because the assistant store is single-schema with a row-level
+    // tenant_id filter, not schema-per-tenant. See docs/adr/001.
+    implementation 'com.asm:asm-tenant-core:1.0.0'
+
+    // Service-to-service: declarative HTTP clients + OAuth2 client_credentials (Phase 4 live tools)
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    // AMQP: required by the shared TenantCoreConfig (tenant-aware message post-processors), and the
+    // transport for event-driven ingestion triggers + audit events (Phase 2+).
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // Observability + resilience (reused wholesale from the platform conventions)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Database + pgvector. Schema is owned by Flyway (as in DeliveryMicroservice/AppBackend).
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    // JSONB metadata + vector(1536) mapping support for Hibernate 6 (used from Phase 2/3).
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.3'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    // Integration tests against a real Postgres+pgvector (tenant isolation, retrieval) — Phase 3.
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+    testImplementation 'org.testcontainers:postgresql:1.20.4'
+}
+
+// Unit tests: fast, no external services. Integration tests (*IT) get their own task/stage.
+tasks.named('test') {
+    useJUnitPlatform()
+    filter { excludeTestsMatching '*IT' }
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests (*IT) against a real Postgres+pgvector.'
+    group = 'verification'
+    useJUnitPlatform()
+    filter { includeTestsMatching '*IT' }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    shouldRunAfter('test')
+}

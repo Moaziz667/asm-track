@@ -26,6 +26,14 @@ spring:
             - Path=/files/**
           filters:
             - StripPrefix=1
+
+        # AssistantService (RAG). Authenticated route → the gateway injects X-Company-Id from the
+        # JWT org_id, so tenant isolation reaches the assistant exactly as it reaches the other services.
+        - id: assistant-service
+          uri: ${ASSISTANT_SERVICE_URL:http://assistant-service:8087}
+          predicates:
+            - Path=/api/assistant/**
+
         - id: app-backend-client-auth
           uri: ${APP_BACKEND_URL:http://localhost:8080}
           predicates:

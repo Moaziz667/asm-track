@@ -1,0 +1,7 @@
+rootProject.name = 'assistant-service'
+
+// Composite build: the shared tenant module is a sibling directory, not a published artefact.
+// We take only its HTTP/AMQP tenant propagation (TenantCoreConfig), not the schema-per-tenant JPA
+// part — the RAG corpus is mostly GLOBAL knowledge filtered by a row-level tenant_id, not one
+// schema per tenant. See docs/adr/001 and AssistantTenantConfig.
+includeBuild('../asm-tenant-core')

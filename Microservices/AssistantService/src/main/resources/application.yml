@@ -1,0 +1,101 @@
+# Tenant-aware log context (MDC keys set by TenantContextFilter).
+logging:
+  pattern:
+    level: "%5p [cid:%X{companyId:-},rid:%X{requestId:-}]"
+
+server:
+  port: 8087
+
+spring:
+  application:
+    name: assistant-service
+
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+      # Service-to-service auth for the Phase 4 read-only live tools (client_credentials).
+      client:
+        registration:
+          asm-svc:
+            provider: asm-keycloak
+            authorization-grant-type: client_credentials
+            client-id: ${CLIENT_ID:assistant-service}
+            client-secret: ${CLIENT_SECRET:}
+        provider:
+          asm-keycloak:
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
+
+  # Host/credentials supplied via SPRING_RABBITMQ_* / RABBITMQ_* env vars (see docker-compose).
+  # Used by the shared tenant AMQP post-processors and, from Phase 2, ingestion/audit events.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5437}/${DB_NAME:assistant_db}
+    username: ${DB_USER:assistant}
+    password: ${DB_PASS:assistant}
+    driver-class-name: org.postgresql.Driver
+
+  # Flyway owns the schema (pgvector + rag_* tables), as in DeliveryMicroservice/AppBackend.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+# Every /api/ route on the assistant is tenant-scoped: no tenant-less prefixes → fail-closed.
+asm:
+  tenant:
+    tenant-less-prefixes:
+
+# AI providers, isolated behind ports (EmbeddingPort / LlmPort). Keys come from the environment only
+# — never committed. Changing the embedding model changes the vector dimension → new Flyway migration.
+assistant:
+  embedding:
+    provider: openai
+    model: text-embedding-3-small
+    dimension: 1536
+    api-key: ${OPENAI_API_KEY:}
+  llm:
+    provider: gemini
+    model: ${GEMINI_MODEL:gemini-flash-latest}
+    api-key: ${GEMINI_API_KEY:}
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+
+# Downstream services for the Phase 4 read-only tools.
+delivery:
+  service:
+    url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
+driver:
+  service:
+    url: ${DRIVER_SERVICE_URL:http://driver-service:8086}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized

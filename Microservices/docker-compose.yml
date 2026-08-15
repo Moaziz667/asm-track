@@ -533,9 +533,88 @@ services:
   # See scripts/nginx-vps.conf and scripts/vps-setup.sh.
 
 
+  # ── Assistant Service (RAG) ────────────────────────────────────────────────
+  postgres-assistant:
+    # pgvector image, NOT stock postgres:16-alpine — the extension must be present for V1__pgvector.sql.
+    image: pgvector/pgvector:pg16
+    container_name: postgres-assistant
+    ports:
+      # 5437 on the host: 5436 is taken by postgres-odoo. In-container the port is 5432 as usual.
+      - "127.0.0.1:5437:5432"
+    environment:
+      POSTGRES_USER: assistant
+      POSTGRES_PASSWORD: ${ASSISTANT_DB_PASS:-assistant}
+      POSTGRES_DB: assistant_db
+    volumes:
+      - assistant-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assistant -d assistant_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  assistant-service:
+    build:
+      # Context is Microservices/, not the service folder: the build needs the sibling
+      # asm-tenant-core module, which a per-service context cannot reach.
+      context: .
+      dockerfile: AssistantService/Dockerfile
+    container_name: assistant-service
+    # ports:
+    #   - "8087:8087"  # Commented out — access via API Gateway only.
+    environment:
+      TZ: Africa/Tunis
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:+UseSerialGC"
+      DB_HOST: postgres-assistant
+      DB_PORT: "5432"
+      DB_NAME: assistant_db
+      DB_USER: assistant
+      DB_PASS: ${ASSISTANT_DB_PASS:-assistant}
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      CLIENT_ID: assistant-service
+      CLIENT_SECRET: ${CLIENT_SECRET_ASSISTANT:-}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
+      DELIVERY_SERVICE_URL: http://delivery-service:8082
+      DRIVER_SERVICE_URL: http://driver-service:8086
+      # AI providers — keys resolved from Microservices/.env (gitignored).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+    depends_on:
+      postgres-assistant:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8087"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   rabbitmq-data:
   app-pgdata:
+  assistant-pgdata:
   delivery-pgdata:
   delivery-wal-archive:   # continuous WAL journals — see ops/backup/README.md
   driver-pgdata:
