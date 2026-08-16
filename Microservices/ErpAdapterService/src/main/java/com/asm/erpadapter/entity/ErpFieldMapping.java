@@ -86,6 +86,19 @@ public class ErpFieldMapping {
     @Column(nullable = false, length = 24)
     private String readAs;
 
+    /**
+     * The normalised ERP type of the target field, as observed when this mapping was saved.
+     *
+     * <p>The baseline for drift detection: an integrator maps a {@code selection}, the customer later
+     * turns it into a free-text field, and the mapping keeps resolving while silently meaning
+     * something else. Comparing what the catalogue reports today against what was recorded here is
+     * what turns that into a reportable event instead of values quietly going blank.
+     *
+     * <p>Null for rows written before this existed — absence means "no baseline", never "unchanged".
+     */
+    @Column(length = 24)
+    private String sourceType;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

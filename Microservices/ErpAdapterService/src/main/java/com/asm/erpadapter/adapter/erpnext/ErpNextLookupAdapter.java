@@ -46,6 +46,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
 
     private final ErpNextRestClient erp;
     private final com.asm.erpadapter.mapping.ErpNextFieldMappingResolver fieldMapping;
+    private final com.asm.erpadapter.mapping.type.MappedValueReader mappedValues;
 
     // ── Mapped reads ──────────────────────────────────────────────────────────────────────────────
     // Each canonical value goes through the tenant's mapping first and falls back to the reader that
@@ -80,47 +81,43 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             ITEM_PRODUCT_TYPE = com.asm.erpadapter.mapping.CanonicalField.ITEM_PRODUCT_TYPE,
             ITEM_WAREHOUSE_CODE = com.asm.erpadapter.mapping.CanonicalField.ITEM_WAREHOUSE_CODE;
 
+    /*
+     * The five typed readers below are one line each because the conversion no longer lives here.
+     * Both adapters delegate to the same {@link MappedValueReader}, which picks the converter from
+     * the canonical field's declared type — so Odoo and ERPNext cannot read the same field as two
+     * different Java types, which is precisely what they used to be free to do.
+     */
+
     private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
                                 Map<String, Map<String, Object>> records,
                                 java.util.function.Supplier<String> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
+        return mappedValues.text(fieldMapping, field, records, builtIn);
     }
 
     private BigDecimal mappedDecimal(com.asm.erpadapter.mapping.CanonicalField field,
                                      Map<String, Map<String, Object>> records,
                                      java.util.function.Supplier<BigDecimal> builtIn) {
-        return asBigDecimal(fieldMapping.resolveOrDefault(field, records, builtIn::get));
+        return mappedValues.decimal(fieldMapping, field, records, builtIn);
     }
 
     private Integer mappedInt(com.asm.erpadapter.mapping.CanonicalField field,
                               Map<String, Map<String, Object>> records,
                               java.util.function.Supplier<Integer> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        return v instanceof Integer i ? i : asInt(v);
+        return mappedValues.integer(fieldMapping, field, records, builtIn);
     }
 
     private LocalDateTime mappedDateTime(com.asm.erpadapter.mapping.CanonicalField field,
                                          Map<String, Map<String, Object>> records,
                                          java.util.function.Supplier<LocalDateTime> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        if (v instanceof LocalDateTime dt) return dt;
-        return parseDateTime(v, null);
+        return mappedValues.dateTime(fieldMapping, field, records, builtIn);
     }
 
     private boolean mappedBoolean(com.asm.erpadapter.mapping.CanonicalField field,
                                   Map<String, Map<String, Object>> records,
                                   java.util.function.Supplier<Boolean> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        if (v instanceof Boolean b) return b;
-        if (v instanceof Number n) return n.doubleValue() != 0d;
-        // A customer often flags readiness with a status word rather than a checkbox.
-        if (v instanceof String str) {
-            String t = str.trim().toLowerCase();
-            return t.equals("1") || t.equals("true") || t.equals("yes") || t.equals("to deliver");
-        }
-        return false;
+        return mappedValues.flag(fieldMapping, field, records, builtIn);
     }
+
 
     /** An empty bag is noise on the delivery card; null keeps the section hidden. */
     private static Map<String, Object> emptyToNull(Map<String, Object> m) {

@@ -66,6 +66,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private final OdooJsonRpcClient rpc;
     private final com.asm.erpadapter.mapping.OdooFieldMappingResolver fieldMapping;
+    private final com.asm.erpadapter.mapping.type.MappedValueReader mappedValues;
 
     /**
      * Applies the tenant's field mapping, falling back to this class's own reader.
@@ -74,64 +75,43 @@ public class OdooLookupAdapter implements ErpLookupPort {
      * for every existing customer — the supplier runs and the result is identical to before mapping
      * existed, which is what makes this safe to introduce against ERPs already in production.
      */
+    /*
+     * The five typed readers below are one line each because the conversion no longer lives here.
+     * Both adapters delegate to the same {@link MappedValueReader}, which picks the converter from
+     * the canonical field's declared type — so Odoo and ERPNext cannot read the same field as two
+     * different Java types, which is precisely what they used to be free to do.
+     */
+
     private String mappedString(com.asm.erpadapter.mapping.CanonicalField field,
                                 Map<String, Map<String, Object>> records,
                                 java.util.function.Supplier<String> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        return v == null ? null : (v instanceof String s ? s : String.valueOf(v));
+        return mappedValues.text(fieldMapping, field, records, builtIn);
     }
-
-    /*
-     * Typed variants of the same idea. A mapped field arrives as whatever Odoo stores — a float where
-     * ASM wants a BigDecimal, the string "2026-07-28 09:00:00" where it wants a LocalDateTime — so the
-     * value is coerced here rather than at twenty call sites. A value that cannot be coerced yields
-     * null instead of throwing: one bad mapping must not abort an otherwise valid import, and the
-     * blank is visible in the preview, which is where the integrator is looking.
-     */
 
     private BigDecimal mappedDecimal(com.asm.erpadapter.mapping.CanonicalField field,
                                      Map<String, Map<String, Object>> records,
                                      java.util.function.Supplier<BigDecimal> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        // "Absent" must survive as absent. The shared asBigDecimal coerces both null and Odoo's
-        // `false` (its empty marker) to ZERO, which is right when summing a column and wrong here:
-        // the import list deliberately passes a null default for COD_AMOUNT so the cell stays blank,
-        // and ZERO turned that into a printed "0" beside a badge saying money is due. Zero to
-        // collect and nothing known are opposite instructions to a driver.
-        return v == null || Boolean.FALSE.equals(v) ? null : asBigDecimal(v);
+        return mappedValues.decimal(fieldMapping, field, records, builtIn);
     }
 
     private Integer mappedInt(com.asm.erpadapter.mapping.CanonicalField field,
                               Map<String, Map<String, Object>> records,
                               java.util.function.Supplier<Integer> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        if (v instanceof Integer i) return i;
-        Double d = asDouble(v);
-        return d == null ? null : (int) Math.round(d);
+        return mappedValues.integer(fieldMapping, field, records, builtIn);
     }
 
     private java.time.LocalDateTime mappedDateTime(com.asm.erpadapter.mapping.CanonicalField field,
-                                                   Map<String, Map<String, Object>> records,
-                                                   java.util.function.Supplier<java.time.LocalDateTime> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        if (v instanceof java.time.LocalDateTime dt) return dt;
-        return parseOdooDateTime(v);
+                                         Map<String, Map<String, Object>> records,
+                                         java.util.function.Supplier<java.time.LocalDateTime> builtIn) {
+        return mappedValues.dateTime(fieldMapping, field, records, builtIn);
     }
 
     private boolean mappedBoolean(com.asm.erpadapter.mapping.CanonicalField field,
                                   Map<String, Map<String, Object>> records,
                                   java.util.function.Supplier<Boolean> builtIn) {
-        Object v = fieldMapping.resolveOrDefault(field, records, builtIn::get);
-        if (v instanceof Boolean b) return b;
-        if (v instanceof Number n) return n.doubleValue() != 0d;
-        // A customer often flags readiness with a status word rather than a checkbox.
-        if (v instanceof String s) {
-            String t = s.trim().toLowerCase();
-            return t.equals("true") || t.equals("assigned") || t.equals("ready")
-                    || t.equals("done") || t.equals("1") || t.equals("yes");
-        }
-        return false;
+        return mappedValues.flag(fieldMapping, field, records, builtIn);
     }
+
 
 
     /**

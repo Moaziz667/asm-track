@@ -1,5 +1,6 @@
 package com.asm.erpadapter.mapping;
 
+import com.asm.erpadapter.mapping.type.SourceType;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,32 @@ public class OdooFieldCatalog implements ErpFieldCatalog {
             log.warn("Field catalog: could not read fields of {}: {}", model, e.getMessage());
             return List.of();
         }
+    }
+
+    /**
+     * Odoo's {@code ttype} in ASM's words.
+     *
+     * <p>Every name in {@link #MAPPABLE_TYPES} is answered here, and only those: a type the picker
+     * never offers cannot reach a mapping, and one it offers must always normalise to something a
+     * converter can judge. {@code char}, {@code text} and {@code html} are three Odoo types and two
+     * ASM ones — the first two are indistinguishable to us, the third is not, because carrying markup
+     * into a driver's instructions is a real difference.
+     */
+    @Override
+    public SourceType normalize(String rawType) {
+        if (rawType == null) return SourceType.UNKNOWN;
+        return switch (rawType.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "char", "text" -> SourceType.TEXT;
+            case "html" -> SourceType.RICH_TEXT;
+            case "selection" -> SourceType.ENUM;
+            case "many2one" -> SourceType.RELATION;
+            case "integer" -> SourceType.INTEGER;
+            case "float", "monetary" -> SourceType.DECIMAL;
+            case "boolean" -> SourceType.BOOLEAN;
+            case "date" -> SourceType.DATE;
+            case "datetime" -> SourceType.DATE_TIME;
+            default -> SourceType.UNKNOWN;
+        };
     }
 
     private static String str(Object o) {

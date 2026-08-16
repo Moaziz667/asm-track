@@ -1,5 +1,7 @@
 package com.asm.erpadapter.mapping;
 
+import com.asm.erpadapter.mapping.type.SourceType;
+
 import java.util.List;
 
 /**
@@ -25,6 +27,23 @@ public interface ErpFieldCatalog {
      * @return its mappable fields, sorted for display; empty when the model is unknown or unreachable
      */
     List<Field> fieldsOf(String model);
+
+    /**
+     * This ERP's own type name, said in ASM's words.
+     *
+     * <p>The single point where a provider's vocabulary is allowed to matter. Odoo says {@code char}
+     * and ERPNext says {@code Data}; both mean a line of text, and everything downstream —
+     * compatibility, conversion, the tests — is written once against the normalised name. Without this
+     * seam the type system would have to be duplicated per provider, which is the duplication it
+     * exists to prevent.
+     *
+     * <p>An unrecognised name maps to {@link SourceType#UNKNOWN}, which every converter refuses. That
+     * is deliberate: a type nobody has considered must surface as "unsupported" in the picker, not be
+     * quietly treated as text and read wrongly.
+     *
+     * @param rawType the value carried in {@link Field#type()}
+     */
+    SourceType normalize(String rawType);
 
     /**
      * One selectable field.

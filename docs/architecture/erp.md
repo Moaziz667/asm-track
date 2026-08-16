@@ -204,3 +204,12 @@ sa page de connexion**. Sans ce contrôle, le livreur recevrait une page HTML no
     **Le système qui possède un document possède sa conformité.** Le bon de livraison a des mentions
     légales, une numérotation continue, une TVA — tout cela vit dans l'ERP. Le régénérer serait
     reproduire une conformité qu'on ne maîtrise pas.
+
+---
+
+## Où chaque client range ses données
+
+Les adaptateurs savent parler à un ERP ; ils ne savent pas où *ce* client a mis sa référence client.
+C'est l'objet du mapping de champs, avec son propre système de types et ses garde-fous.
+
+[:material-arrow-right: Mapping des champs ERP](mapping-champs.md)

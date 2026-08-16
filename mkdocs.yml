@@ -86,6 +86,7 @@ nav:
       - Autorisation: architecture/autorisation.md
       - Messagerie et événements: architecture/messagerie.md
       - Intégration ERP: architecture/erp.md
+      - Mapping des champs ERP: architecture/mapping-champs.md
       - Temps réel et notifications: architecture/temps-reel.md
       - Stockage de fichiers: architecture/stockage.md
       - Clients (web et mobile): architecture/clients.md

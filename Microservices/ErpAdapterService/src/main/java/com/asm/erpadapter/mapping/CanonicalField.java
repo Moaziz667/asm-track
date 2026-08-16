@@ -1,5 +1,7 @@
 package com.asm.erpadapter.mapping;
 
+import com.asm.erpadapter.mapping.type.CanonicalType;
+
 /**
  * The business data ASM Track imports from an ERP, named independently of any ERP.
  *
@@ -20,19 +22,19 @@ public enum CanonicalField {
 
     // ── Identity ──────────────────────────────────────────────────────────────────────────────────
     /** The reference the import is keyed on; must be unique and stable in the ERP. */
-    ERP_ORDER_ID(Scope.HEADER),
+    ERP_ORDER_ID(Scope.HEADER, CanonicalType.TEXT),
     /** Delivery-note number shown to the driver and the recipient. */
-    BL_NUMBER(Scope.HEADER),
+    BL_NUMBER(Scope.HEADER, CanonicalType.TEXT),
     /** The originating sales order, for tracing back from a delivery. */
-    SALE_ORDER_REF(Scope.HEADER),
+    SALE_ORDER_REF(Scope.HEADER, CanonicalType.TEXT),
     /** The customer's own reference for this order, printed on paperwork. */
-    CUSTOMER_REF(Scope.HEADER),
+    CUSTOMER_REF(Scope.HEADER, CanonicalType.TEXT),
 
     // ── Recipient ─────────────────────────────────────────────────────────────────────────────────
-    CUSTOMER_NAME(Scope.HEADER),
-    CUSTOMER_PHONE(Scope.HEADER),
-    DELIVERY_ADDRESS(Scope.HEADER),
-    DELIVERY_CITY(Scope.HEADER),
+    CUSTOMER_NAME(Scope.HEADER, CanonicalType.TEXT),
+    CUSTOMER_PHONE(Scope.HEADER, CanonicalType.TEXT),
+    DELIVERY_ADDRESS(Scope.HEADER, CanonicalType.TEXT),
+    DELIVERY_CITY(Scope.HEADER, CanonicalType.TEXT),
     /**
      * The recipient's postal code — the key ASM resolves a delivery's zone from.
      *
@@ -41,13 +43,13 @@ public enum CanonicalField {
      * runs solely for orders that arrive without coordinates. An integration that supplies
      * exact coordinates — the good case — therefore produced deliveries with no zone at all.
      */
-    DELIVERY_POSTAL_CODE(Scope.HEADER),
+    DELIVERY_POSTAL_CODE(Scope.HEADER, CanonicalType.TEXT),
     /** Free text the driver sees on arrival (door code, floor, "call before"). */
-    DELIVERY_INSTRUCTIONS(Scope.HEADER),
+    DELIVERY_INSTRUCTIONS(Scope.HEADER, CanonicalType.TEXT),
 
     // ── Commercial ────────────────────────────────────────────────────────────────────────────────
-    TOTAL_AMOUNT(Scope.HEADER),
-    CURRENCY(Scope.HEADER),
+    TOTAL_AMOUNT(Scope.HEADER, CanonicalType.DECIMAL),
+    CURRENCY(Scope.HEADER, CanonicalType.TEXT),
 
     /**
      * Whether the driver must collect payment on arrival.
@@ -59,30 +61,30 @@ public enum CanonicalField {
      * a sum nobody can account for. So the default is "do not collect", and collecting is something a
      * human has to switch on by mapping this field.
      */
-    COD_REQUIRED(Scope.HEADER),
+    COD_REQUIRED(Scope.HEADER, CanonicalType.BOOLEAN),
     /** How much to collect when {@link #COD_REQUIRED} is true. */
-    COD_AMOUNT(Scope.HEADER),
+    COD_AMOUNT(Scope.HEADER, CanonicalType.DECIMAL),
 
     // ── Planning ──────────────────────────────────────────────────────────────────────────────────
-    DATE_ORDER(Scope.HEADER),
+    DATE_ORDER(Scope.HEADER, CanonicalType.DATE_TIME),
     /** The promised delivery date; drives SLA and route planning. */
-    SCHEDULED_AT(Scope.HEADER),
+    SCHEDULED_AT(Scope.HEADER, CanonicalType.DATE_TIME),
     /** Dispatch priority. Hardcoded to NORMAL before mapping existed — a prime candidate to map. */
-    PRIORITY(Scope.HEADER),
+    PRIORITY(Scope.HEADER, CanonicalType.TEXT),
 
     // ── Fulfilment source ─────────────────────────────────────────────────────────────────────────
-    WAREHOUSE_CODE(Scope.HEADER),
-    WAREHOUSE_NAME(Scope.HEADER),
+    WAREHOUSE_CODE(Scope.HEADER, CanonicalType.TEXT),
+    WAREHOUSE_NAME(Scope.HEADER, CanonicalType.TEXT),
     /** Whether the ERP considers the shipment ready to leave; gates import. */
-    READY(Scope.HEADER),
+    READY(Scope.HEADER, CanonicalType.BOOLEAN),
 
     // ── Order lines ───────────────────────────────────────────────────────────────────────────────
-    ITEM_SKU(Scope.LINE),
-    ITEM_NAME(Scope.LINE),
-    ITEM_QUANTITY(Scope.LINE),
-    ITEM_UNIT_PRICE(Scope.LINE),
-    ITEM_UNIT_WEIGHT_KG(Scope.LINE),
-    ITEM_PRODUCT_TYPE(Scope.LINE),
+    ITEM_SKU(Scope.LINE, CanonicalType.TEXT),
+    ITEM_NAME(Scope.LINE, CanonicalType.TEXT),
+    ITEM_QUANTITY(Scope.LINE, CanonicalType.INTEGER),
+    ITEM_UNIT_PRICE(Scope.LINE, CanonicalType.DECIMAL),
+    ITEM_UNIT_WEIGHT_KG(Scope.LINE, CanonicalType.DECIMAL),
+    ITEM_PRODUCT_TYPE(Scope.LINE, CanonicalType.TEXT),
     /**
      * Which warehouse this particular line ships from.
      *
@@ -96,19 +98,35 @@ public enum CanonicalField {
      * only to answer, per line, where the goods are. An ERP with a single warehouse per document
      * simply repeats the header value, and the route ends up with one pickup as before.
      */
-    ITEM_WAREHOUSE_CODE(Scope.LINE);
+    ITEM_WAREHOUSE_CODE(Scope.LINE, CanonicalType.TEXT);
 
     /** Whether the field belongs to the order header (once) or to each order line (N times). */
     public enum Scope { HEADER, LINE }
 
     private final Scope scope;
+    private final CanonicalType type;
 
-    CanonicalField(Scope scope) {
+    CanonicalField(Scope scope, CanonicalType type) {
         this.scope = scope;
+        this.type = type;
     }
 
     public Scope scope() {
         return scope;
+    }
+
+    /**
+     * The Java shape this field is stored in — part of the canonical contract, identical for every
+     * tenant and every ERP.
+     *
+     * <p>Declared here so exactly one place answers it. Before, the answer was implied by whichever
+     * coercion helper an adapter happened to call, which meant Odoo and ERPNext could disagree about
+     * the same field with nothing to notice. It is also what
+     * {@link com.asm.erpadapter.mapping.type.CanonicalConverterRegistry} checks at start-up: a type no
+     * converter produces stops the application rather than importing blanks.
+     */
+    public CanonicalType type() {
+        return type;
     }
 
     public boolean isLine() {

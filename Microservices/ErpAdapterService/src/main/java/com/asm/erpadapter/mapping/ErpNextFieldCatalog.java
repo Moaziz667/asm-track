@@ -1,5 +1,6 @@
 package com.asm.erpadapter.mapping;
 
+import com.asm.erpadapter.mapping.type.SourceType;
 import com.asm.erpadapter.adapter.erpnext.ErpNextRestClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +104,38 @@ public class ErpNextFieldCatalog implements ErpFieldCatalog {
         return rest.getList("Custom Field",
                 List.of("fieldname", "label", "fieldtype", "options"),
                 List.of(List.of("dt", "=", doctype)), 500, null);
+    }
+
+    /**
+     * Frappe's {@code fieldtype} in ASM's words.
+     *
+     * <p>Covers every name in {@link #MAPPABLE_TYPES}, so nothing the picker offers can reach a
+     * mapping unjudged. Two calls deserve a note:
+     *
+     * <ul>
+     *   <li>{@code Read Only} is a display attribute, not a data type — Frappe stores whatever the
+     *       underlying value is. Text is the only honest reading.</li>
+     *   <li>{@code Duration} is a count of seconds, so it is a number rather than a time of day.
+     *       {@code Time} is a time of day with no date, which no canonical field wants, and it
+     *       normalises to text so it can at least be displayed rather than silently mis-parsed.</li>
+     * </ul>
+     */
+    @Override
+    public SourceType normalize(String rawType) {
+        if (rawType == null) return SourceType.UNKNOWN;
+        return switch (rawType.trim()) {
+            case "Data", "Small Text", "Text", "Long Text", "Markdown Editor",
+                 "Phone", "Barcode", "Color", "Password", "Read Only", "Time" -> SourceType.TEXT;
+            case "Text Editor" -> SourceType.RICH_TEXT;
+            case "Select", "Autocomplete" -> SourceType.ENUM;
+            case "Link", "Dynamic Link" -> SourceType.RELATION;
+            case "Int", "Duration" -> SourceType.INTEGER;
+            case "Float", "Currency", "Percent", "Rating" -> SourceType.DECIMAL;
+            case "Check" -> SourceType.BOOLEAN;
+            case "Date" -> SourceType.DATE;
+            case "Datetime" -> SourceType.DATE_TIME;
+            default -> SourceType.UNKNOWN;
+        };
     }
 
     private static String str(Object o) {

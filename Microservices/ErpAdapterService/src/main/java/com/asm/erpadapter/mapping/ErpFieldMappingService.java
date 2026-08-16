@@ -1,6 +1,8 @@
 package com.asm.erpadapter.mapping;
 
 import com.asm.erpadapter.entity.ErpFieldMapping;
+import com.asm.erpadapter.mapping.type.Compatibility;
+import com.asm.erpadapter.mapping.type.MappingTypeChecker;
 import com.asm.erpadapter.repository.ErpFieldMappingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,8 @@ public class ErpFieldMappingService {
     private static final int MAX_CUSTOM_KEYS = 20;
 
     private final ErpFieldMappingRepository repository;
+    private final MappingTypeChecker typeChecker;
+    private final List<FieldMappingResolver> resolvers;
 
     public List<ErpFieldMapping> list(UUID tenantId, String provider) {
         return repository.findByTenantIdAndProvider(tenantId, provider);
@@ -46,6 +50,19 @@ public class ErpFieldMappingService {
     @Transactional
     public ErpFieldMapping upsert(UUID tenantId, String provider, String canonicalField,
                                   String customKey, String sourcePath, String readAs, String actor) {
+        return upsert(tenantId, provider, canonicalField, customKey, sourcePath, readAs, actor, false);
+    }
+
+    /**
+     * @param acceptLossy the integrator has been shown what a lossy conversion costs and accepted it.
+     *                    Required rather than assumed: a quantity losing its decimals is a decision
+     *                    with a customer on the other end, and defaulting to yes would make the
+     *                    warning decorative.
+     */
+    @Transactional
+    public ErpFieldMapping upsert(UUID tenantId, String provider, String canonicalField,
+                                  String customKey, String sourcePath, String readAs, String actor,
+                                  boolean acceptLossy) {
         String path = requirePath(sourcePath);
         String kind = SourceKind.from(readAs).name();
 
@@ -85,6 +102,7 @@ public class ErpFieldMappingService {
         row.setSourcePath(path);
         row.setReadAs(kind);
         row.setUpdatedBy(actor);
+        row.setSourceType(checkType(provider, canonical, path, acceptLossy));
 
         ErpFieldMapping saved = repository.save(row);
         log.info("Field mapping saved — tenant={} provider={} target={} path={} readAs={} by={}",
@@ -109,6 +127,67 @@ public class ErpFieldMappingService {
     }
 
     // ── Validation ────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Refuse a mapping the converters cannot honour, and record the type it was built against.
+     *
+     * <p>This is the check that stops a phone number reaching a quantity. It runs here rather than in
+     * the picker alone because the picker is advisory — an API client, a replayed request or a stale
+     * browser tab all reach this method, and a rule enforced only in the UI is not a rule.
+     *
+     * @return the normalised source type to store as the drift baseline, or null when the ERP could
+     *         not be asked — absence must not later read as "unchanged"
+     */
+    private String checkType(String provider, String canonicalField, String path, boolean acceptLossy) {
+        if (canonicalField == null) return null;   // an extra has no canonical type to satisfy
+
+        CanonicalField field = CanonicalField.valueOf(canonicalField);
+        MappingTypeChecker.Verdict verdict =
+                typeChecker.check(provider, field, modelOf(path, provider, field), lastSegment(path));
+
+        if (verdict.isRefused()) {
+            throw new IllegalArgumentException(verdict.message());
+        }
+        if (verdict.compatibility() == Compatibility.LOSSY && !acceptLossy && verdict.message() != null) {
+            // Surfaced as a refusal the caller can retry with acceptLossy=true — the UI turns this
+            // into a confirmation rather than a dead end.
+            throw new LossyMappingException(verdict.message());
+        }
+        return verdict.sourceType() != null ? verdict.sourceType().name() : null;
+    }
+
+    /** Raised when a mapping converts but loses something, and nobody has said that is acceptable. */
+    public static class LossyMappingException extends RuntimeException {
+        public LossyMappingException(String message) { super(message); }
+    }
+
+    /** The document the final segment of {@code path} belongs to. */
+    private String modelOf(String path, String provider, CanonicalField field) {
+        String expr = path;
+        String model = null;
+        int colon = path.indexOf(':');
+        if (colon > 0) {
+            model = path.substring(0, colon).trim();
+            expr = path.substring(colon + 1).trim();
+        }
+        // A path that walks a relation ends on a model we cannot name without following it, and
+        // following it needs live records. Leave it unverified rather than judged against the wrong
+        // document — the preview will still run the real conversion.
+        if (expr.contains(".")) return null;
+        if (model != null) return model;
+
+        return resolvers.stream()
+                .filter(r -> r.provider().equalsIgnoreCase(provider))
+                .findFirst()
+                .map(r -> r.scopeFor(field.scope()).primary())
+                .orElse(null);
+    }
+
+    private static String lastSegment(String path) {
+        String expr = path.contains(":") ? path.substring(path.indexOf(':') + 1) : path;
+        String[] parts = expr.split("\\.");
+        return parts[parts.length - 1].trim();
+    }
 
     private String requirePath(String sourcePath) {
         if (sourcePath == null || sourcePath.isBlank()) {
