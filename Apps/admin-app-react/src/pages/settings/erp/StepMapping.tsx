@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { SourceCombobox } from './SourceCombobox';
 import { modelsFor, primaryModelFor, type MappingScopes } from './mappingScope';
 import type {
-  CanonicalFieldInfo, ErpField, FieldMapping, UpsertMappingInput,
+  CanonicalFieldInfo, ErpField, FieldMapping, TypeMatrix, UpsertMappingInput,
 } from '@/lib/api/erpIntegration';
 
 /**
@@ -22,12 +22,14 @@ import type {
  * runs the code that ran before mapping existed.
  */
 export function StepMapping({
-  canonicalFields, mappings, availableFields, scopes, loading, canManage, copy,
+  canonicalFields, mappings, availableFields, scopes, typeMatrix, loading, canManage, copy,
   onUpsert, onReset, onDeleteCustom,
 }: {
   canonicalFields: CanonicalFieldInfo[];
   mappings: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
+  typeMatrix?: TypeMatrix;
+  typeMatrix?: TypeMatrix;
   scopes: MappingScopes;
   loading: boolean;
   canManage: boolean;
@@ -61,6 +63,7 @@ export function StepMapping({
         fields={header}
         byField={byField}
         availableFields={availableFields}
+        typeMatrix={typeMatrix}
         scopes={scopes}
         canManage={canManage}
         copy={copy}
@@ -74,6 +77,7 @@ export function StepMapping({
         fields={lines}
         byField={byField}
         availableFields={availableFields}
+        typeMatrix={typeMatrix}
         scopes={scopes}
         canManage={canManage}
         copy={copy}
@@ -84,6 +88,7 @@ export function StepMapping({
       <ExtraFields
         extras={extras}
         availableFields={availableFields}
+        typeMatrix={typeMatrix}
         scopes={scopes}
         canManage={canManage}
         copy={copy}
@@ -97,12 +102,13 @@ export function StepMapping({
 // ── One section (header / lines) ──────────────────────────────────────────────────────────────────
 
 function MappingSection({
-  title, subtitle, fields, byField, availableFields, scopes, canManage, copy, onUpsert, onReset,
+  title, subtitle, fields, byField, availableFields, scopes, typeMatrix, canManage, copy, onUpsert, onReset,
 }: {
   title: string; subtitle: string;
   fields: CanonicalFieldInfo[];
   byField: Map<string, FieldMapping>;
   availableFields: Record<string, ErpField[]>;
+  typeMatrix?: TypeMatrix;
   scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
@@ -123,6 +129,8 @@ function MappingSection({
             field={f}
             mapping={byField.get(f.field)}
             availableFields={availableFields}
+            typeMatrix={typeMatrix}
+        typeMatrix={typeMatrix}
             scopes={scopes}
             canManage={canManage}
             copy={copy}
@@ -138,11 +146,12 @@ function MappingSection({
 // ── One mappable field ────────────────────────────────────────────────────────────────────────────
 
 function MappingRow({
-  field, mapping, availableFields, scopes, canManage, copy, onUpsert, onReset,
+  field, mapping, availableFields, scopes, typeMatrix, canManage, copy, onUpsert, onReset,
 }: {
   field: CanonicalFieldInfo;
   mapping?: FieldMapping;
   availableFields: Record<string, ErpField[]>;
+  typeMatrix?: TypeMatrix;
   scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
@@ -172,6 +181,8 @@ function MappingRow({
       <SourceCombobox
         value={mapping?.sourcePath ?? ''}
         availableFields={availableFields}
+        typeMatrix={typeMatrix}
+        targetType={field.type}
         models={modelsFor(field.scope, availableFields, scopes)}
         primaryModel={primaryModelFor(field.scope, scopes)}
         disabled={!canManage || busy}
@@ -232,6 +243,7 @@ function ExtraFields({
 }: {
   extras: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
+  typeMatrix?: TypeMatrix;
   scopes: MappingScopes;
   canManage: boolean;
   copy: Record<string, string>;
@@ -307,6 +319,9 @@ function ExtraFields({
             <SourceCombobox
               value={path}
               availableFields={availableFields}
+            typeMatrix={typeMatrix}
+        typeMatrix={typeMatrix}
+              typeMatrix={typeMatrix}
               models={modelsFor('HEADER', availableFields, scopes)}
               primaryModel={primaryModelFor('HEADER', scopes)}
               disabled={busy}

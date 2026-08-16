@@ -92,6 +92,25 @@ export const getConformance = (forceRefresh = false) =>
 export type FieldScope = 'HEADER' | 'LINE';
 export type SourceKind = 'AUTO' | 'LABEL' | 'ID' | 'RAW';
 
+/** The Java shape ASM stores a canonical field in. Part of the contract — never per-tenant. */
+export type CanonicalType = 'TEXT' | 'INTEGER' | 'DECIMAL' | 'BOOLEAN' | 'DATE_TIME';
+
+/** An ERP field type said in ASM's words: Odoo `char` and ERPNext `Data` are both `TEXT`. */
+export type SourceType =
+  | 'TEXT' | 'RICH_TEXT' | 'ENUM' | 'RELATION'
+  | 'INTEGER' | 'DECIMAL' | 'BOOLEAN' | 'DATE' | 'DATE_TIME' | 'UNKNOWN';
+
+/**
+ * How well a source type can fill a canonical one.
+ *
+ * Three levels rather than two: `float → INTEGER` does convert, so a yes/no rule would accept it in
+ * silence and a line measured in kilos would change quantity. `LOSSY` makes that a decision.
+ */
+export type Compatibility = 'SAFE' | 'LOSSY' | 'UNSUPPORTED';
+
+/** Derived from the converters actually registered on the server — never maintained by hand here. */
+export type TypeMatrix = Record<CanonicalType, Partial<Record<SourceType, Compatibility>>>;
+
 export interface CanonicalFieldInfo {
   field: string;
   scope: FieldScope;
@@ -102,6 +121,8 @@ export interface CanonicalFieldInfo {
    * empty hint reads as "not known yet", a wrong one sends someone to the wrong field.
    */
   defaultSource?: string;
+  /** What this field expects. Drives which ERP fields the picker will let you choose. */
+  type: CanonicalType;
 }
 
 export interface FieldMapping {
@@ -121,7 +142,10 @@ export interface FieldMapping {
 export interface ErpField {
   name: string;
   label: string;
+  /** The ERP's own name for the type, shown to the integrator: `char`, `Currency`, `Select`. */
   type: string;
+  /** The same type in ASM's words — what compatibility is judged on. */
+  sourceType: SourceType;
   relation?: string | null;
   custom: boolean;
 }
@@ -149,6 +173,9 @@ export const getAvailableFields = (model?: string) =>
     { params: model ? { model } : undefined })
     .then((r) => r.data);
 
+export const getTypeMatrix = () =>
+  api.get<TypeMatrix>('/settings/erp/field-mappings/type-matrix').then((r) => r.data);
+
 export interface UpsertMappingInput {
   provider?: string;
   canonicalField?: string | null;
@@ -156,7 +183,16 @@ export interface UpsertMappingInput {
   sourcePath: string;
   readAs?: SourceKind;
   updatedBy?: string | null;
+  /**
+   * Set only after the integrator has been shown what a lossy conversion costs and accepted it.
+   * Without it the server refuses a lossy mapping with `LOSSY_FIELD_MAPPING`, which is what turns
+   * the warning into a real decision instead of a note nobody reads.
+   */
+  acceptLossy?: boolean;
 }
+
+/** The server's two distinct refusals, so the UI can prompt on one and stop on the other. */
+export type MappingErrorCode = 'LOSSY_FIELD_MAPPING' | 'INVALID_FIELD_MAPPING';
 
 export const upsertFieldMapping = (input: UpsertMappingInput) =>
   api.post<FieldMapping>('/settings/erp/field-mappings', input).then((r) => r.data);

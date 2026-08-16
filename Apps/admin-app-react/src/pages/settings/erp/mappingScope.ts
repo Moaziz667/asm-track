@@ -1,4 +1,4 @@
-import type { ErpField, FieldScope } from '@/lib/api/erpIntegration';
+import type { Compatibility, CanonicalType, SourceType, TypeMatrix, ErpField, FieldScope } from '@/lib/api/erpIntegration';
 
 /**
  * What a mapping row may read from, and how a chosen field becomes a stored path.
@@ -47,6 +47,10 @@ export interface Option {
   label: string;
   custom: boolean;
   path: string;
+  /** The ERP's own type name, shown so the integrator sees what he is choosing. */
+  erpType: string;
+  /** Normalised type, what compatibility is judged on. */
+  sourceType: SourceType;
 }
 
 /**
@@ -70,6 +74,10 @@ export function buildOptions(
         label: f.label,
         custom: f.custom,
         path: model === primaryModel ? f.name : `${model}:${f.name}`,
+        erpType: f.type,
+        // Older payloads predate the normalised type; treating them as UNKNOWN would grey out the
+        // whole catalogue, so they fall through to TEXT and the server stays the authority.
+        sourceType: f.sourceType ?? 'TEXT',
       });
     }
   }
@@ -124,4 +132,25 @@ export function rank(options: Option[], query: string): Option[] {
   }
   return ordered.flatMap((bucket) =>
     [...bucket].sort((a, b) => a.score - b.score).map((x) => x.o));
+}
+
+/**
+ * How well one ERP field could fill one canonical field.
+ *
+ * <p>Reads the matrix the server derived from its registered converters rather than re-stating the
+ * rules here. A second copy would eventually disagree with the save, and the integrator would be told
+ * yes by a dropdown and no by a dialog.
+ *
+ * <p>Absent matrix — still loading, or an old backend — yields `SAFE`, so the picker never blocks on
+ * information it does not have. The save re-checks regardless.
+ */
+export function compatibilityOf(
+  target: CanonicalType | undefined,
+  source: SourceType,
+  matrix: TypeMatrix | undefined,
+): Compatibility {
+  if (!target || !matrix) return 'SAFE';
+  const row = matrix[target];
+  if (!row) return 'SAFE';
+  return row[source] ?? 'UNSUPPORTED';
 }

@@ -10,7 +10,7 @@ import { tw } from '@/lib/ui/typography';
 import {
   getErpSettings, saveErpSettings, testErpSettings, testStoredErpSettings,
   getConformance, getFieldMappings, getCanonicalFields, getAvailableFields, getMappingScopes,
-  upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks,
+  upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks, getTypeMatrix,
   type ErpSettings, type ErpConfig, type ErpProvider, type ConnStatus,
   type ConformanceReport, type FieldMapping, type CanonicalFieldInfo, type ErpField,
   type UpsertMappingInput,
@@ -50,6 +50,7 @@ export default function ErpIntegrationPage() {
   const [availableFields, setAvailableFields] = useState<Record<string, ErpField[]>>({});
   /** Which documents each scope may read from — from the backend, never assumed. */
   const [scopes, setScopes] = useState<MappingScopes>({});
+  const [typeMatrix, setTypeMatrix] = useState<TypeMatrix | undefined>(undefined);
 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -111,6 +112,9 @@ export default function ErpIntegrationPage() {
       // The field catalogue is the slowest call (one fields_get per model); never let it block the
       // rows from rendering, so the integrator sees their existing mapping immediately.
       getAvailableFields().then(setAvailableFields).catch(() => setAvailableFields({}));
+      // Derived server-side from the registered converters. Left undefined on failure, which makes
+      // the picker permissive rather than blocking every field on a transient error.
+      getTypeMatrix().then(setTypeMatrix).catch(() => setTypeMatrix(undefined));
       getMappingScopes().then(setScopes).catch(() => setScopes({}));
     } catch { /* the step renders its own empty state */ }
     finally { setLoadingMapping(false); }
@@ -234,6 +238,25 @@ export default function ErpIntegrationPage() {
       await upsertFieldMapping(input);
       await refreshMappings();
       showSuccessToast(c('mapping').saved);
+    } catch (e0) {
+      const body = (e0 as { response?: { data?: { error?: string; errorCode?: string } } })?.response?.data;
+      // A lossy mapping is allowed, it just costs something — so it is a question, not a failure.
+      // Confirming re-sends the same request with the acceptance, which is what makes the warning a
+      // decision rather than a note nobody reads.
+      if (body?.errorCode === 'LOSSY_FIELD_MAPPING' && !input.acceptLossy) {
+        const question = `${body.error}
+
+${c('mapping').lossyConfirm}`;
+        if (!window.confirm(question)) return;
+        return handleUpsert({ ...input, acceptLossy: true });
+      }
+      throw e0;
+    }
+  };
+
+  const handleUpsertReporting = async (input: UpsertMappingInput) => {
+    try {
+      await handleUpsert(input);
     } catch (e) {
       // The backend writes these messages for the integrator ("Chemin trop profond…"); showing our
       // own generic text instead would throw away the only thing that tells them how to fix it.
@@ -377,10 +400,11 @@ export default function ErpIntegrationPage() {
                     mappings={mappings}
                     availableFields={availableFields}
                     scopes={scopes}
+                    typeMatrix={typeMatrix}
                     loading={loadingMapping}
                     canManage={canManage}
                     copy={c('mapping')}
-                    onUpsert={handleUpsert}
+                    onUpsert={handleUpsertReporting}
                     onReset={handleReset}
                     onDeleteCustom={handleDeleteExtra}
                   />

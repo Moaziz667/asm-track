@@ -43,6 +43,7 @@ public class ErpFieldMappingController {
 
     private final ErpFieldMappingService service;
     private final ErpProviderRouter router;
+    private final com.asm.erpadapter.mapping.type.CanonicalConverterRegistry registry;
     private final List<ErpFieldCatalog> catalogs;
     private final List<FieldMappingResolver> resolvers;
 
@@ -80,6 +81,9 @@ public class ErpFieldMappingController {
             Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("field", f.name());
             row.put("scope", f.scope().name());
+            // The declared canonical type — part of the contract, identical for every tenant. The
+            // picker needs it to say what a field expects before anything is chosen.
+            row.put("type", f.type().name());
             // Absent rather than guessed when no provider is configured: an empty hint reads as
             // "not known yet", where a wrong one would send someone to the wrong field.
             if (r != null) row.put("defaultSource", r.defaultSourceFor(f));
@@ -105,7 +109,18 @@ public class ErpFieldMappingController {
 
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         for (String m : models) {
-            out.put(m, fieldCatalog.fieldsOf(m));
+            // Each field carries its normalised type alongside the ERP's own name, so the picker can
+            // grey out what the save would refuse instead of letting someone find out on submit.
+            out.put(m, fieldCatalog.fieldsOf(m).stream().map(f -> {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("name", f.name());
+                row.put("label", f.label());
+                row.put("type", f.type());
+                row.put("sourceType", fieldCatalog.normalize(f.type()).name());
+                row.put("relation", f.relation());
+                row.put("custom", f.custom());
+                return row;
+            }).toList());
         }
         return ResponseEntity.ok(out);
     }
@@ -165,6 +180,26 @@ public class ErpFieldMappingController {
         return "none".equals(tenants) ? "odoo" : tenants;
     }
 
+    /**
+     * Which source types may fill which canonical type, derived from the registered converters.
+     *
+     * <p>Served rather than duplicated in the frontend for the same reason as {@code /scopes}: a copy
+     * would drift, and the disagreement would be silent — the picker offering a field the save then
+     * refuses. The server stays the authority; this only lets the screen show the verdict before the
+     * click instead of after it.
+     */
+    @GetMapping("/type-matrix")
+    @Operation(summary = "Compatibility of each ERP source type with each canonical type")
+    public ResponseEntity<Map<String, Map<String, String>>> typeMatrix() {
+        Map<String, Map<String, String>> out = new java.util.LinkedHashMap<>();
+        registry.matrix().forEach((target, row) -> {
+            Map<String, String> bySource = new java.util.LinkedHashMap<>();
+            row.forEach((source, compat) -> bySource.put(source.name(), compat.name()));
+            out.put(target.name(), bySource);
+        });
+        return ResponseEntity.ok(out);
+    }
+
     @PostMapping
     @Operation(summary = "Create or replace one field mapping")
     public ResponseEntity<?> upsert(@RequestBody FieldMappingRequest request) {
@@ -173,7 +208,14 @@ public class ErpFieldMappingController {
         try {
             return ResponseEntity.ok(service.upsert(tenantId, provider,
                     request.canonicalField(), request.customKey(),
-                    request.sourcePath(), request.readAs(), request.updatedBy()));
+                    request.sourcePath(), request.readAs(), request.updatedBy(),
+                    Boolean.TRUE.equals(request.acceptLossy())));
+        } catch (ErpFieldMappingService.LossyMappingException e) {
+            // Distinct from a refusal: the mapping is allowed, it just costs something. The UI turns
+            // this into a confirmation and retries with acceptLossy — a plain 400 would read as a
+            // dead end and the integrator would go looking for another field.
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage(), "errorCode", "LOSSY_FIELD_MAPPING", "status", 400));
         } catch (IllegalArgumentException e) {
             // The message is written for the integrator, so hand it back rather than a generic 400.
             return ResponseEntity.badRequest().body(Map.of(
@@ -211,6 +253,8 @@ public class ErpFieldMappingController {
             String customKey,
             String sourcePath,
             String readAs,
-            String updatedBy
+            String updatedBy,
+            /** Set once the integrator has seen what a lossy conversion costs and accepted it. */
+            Boolean acceptLossy
     ) {}
 }

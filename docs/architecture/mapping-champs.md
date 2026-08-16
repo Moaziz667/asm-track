@@ -119,8 +119,19 @@ développeur, pas à une livraison.
 **2. Au choix du champ.** Le sélecteur grise ce qui sera refusé et affiche le motif.
 
 **3. À l'enregistrement.** Le même verdict est appliqué côté serveur. Un `UNSUPPORTED` est rejeté ;
-un `LOSSY` exige une confirmation explicite. La règle vit dans le service et pas seulement dans
-l'écran : un client d'API, une requête rejouée ou un onglet resté ouvert passent tous par là.
+un `LOSSY` répond `LOSSY_FIELD_MAPPING`, que l'écran transforme en confirmation et rejoue avec
+`acceptLossy`. La règle vit dans le service et pas seulement dans l'écran : un client d'API, une
+requête rejouée ou un onglet resté ouvert passent tous par là.
+
+### Ce que voit l'intégrateur
+
+Le sélecteur affiche le type ERP de chaque champ (`x_qte · float`), grise ceux que le serveur
+refuserait avec le motif au survol, et marque « perte » ceux qui convertissent en perdant quelque
+chose. Choisir un champ marqué « perte » ouvre une confirmation qui dit exactement ce qui est perdu.
+
+L'écran lit la matrice servie par `/type-matrix` plutôt que de rejouer les règles : une copie finirait
+par diverger, et l'intégrateur serait autorisé par une liste puis refusé par une boîte de dialogue.
+Quand la matrice n'a pas pu être chargée, le sélecteur ne bloque rien — le serveur reste l'autorité.
 
 **4. À l'aperçu et à l'import.** Le même moteur de conversion, sur de vraies commandes. Un écran
 d'aperçu qui ferait sa propre conversion montrerait quelque chose que l'import pourrait ne pas

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconSearch, IconCheck, IconSelector, IconX } from '@tabler/icons-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { MAX_SHOWN, buildOptions, rank } from './mappingScope';
-import type { ErpField } from '@/lib/api/erpIntegration';
+import { MAX_SHOWN, buildOptions, compatibilityOf, rank } from './mappingScope';
+import type { CanonicalType, Compatibility, ErpField, SourceType, TypeMatrix } from '@/lib/api/erpIntegration';
 
 /**
  * Picks one ERP field out of the few hundred a live Odoo exposes.
@@ -22,6 +22,7 @@ import type { ErpField } from '@/lib/api/erpIntegration';
  */
 export function SourceCombobox({
   value, availableFields, models, primaryModel, disabled, placeholder, copy, onChange,
+  targetType, typeMatrix,
 }: {
   value: string;
   availableFields: Record<string, ErpField[]>;
@@ -37,6 +38,10 @@ export function SourceCombobox({
   placeholder: string;
   copy: Record<string, string>;
   onChange: (path: string) => void;
+  /** What the canonical field expects. Undefined for a customer-defined extra, which accepts anything. */
+  targetType?: CanonicalType;
+  /** Server-derived compatibility. Undefined while loading — the picker then blocks nothing. */
+  typeMatrix?: TypeMatrix;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -49,6 +54,14 @@ export function SourceCombobox({
     [availableFields, models, primaryModel]);
 
   const matches = useMemo(() => rank(options, query), [options, query]);
+
+  /**
+   * The verdict per row, so an incompatible field is visibly out of reach before it is clicked.
+   * Computed here rather than in `buildOptions` because it depends on the row being filled, and the
+   * same catalogue serves every row of the screen.
+   */
+  const verdictOf = (o: { sourceType: SourceType }) =>
+    compatibilityOf(targetType, o.sourceType, typeMatrix);
   const shown = matches.slice(0, MAX_SHOWN);
   const hidden = matches.length - shown.length;
 
@@ -72,7 +85,10 @@ export function SourceCombobox({
       ?.scrollIntoView({ block: 'nearest' });
   }, [active, query]);
 
-  const commit = (path: string) => {
+  const commit = (path: string, verdict: Compatibility) => {
+    // Refused here as well as on the server: clicking a greyed row should do nothing, not submit and
+    // bounce. The server check remains the one that counts.
+    if (verdict === 'UNSUPPORTED') return;
     onChange(path);
     toggle(false);
   };
@@ -85,7 +101,7 @@ export function SourceCombobox({
       setActive((i) => (i + step + shown.length) % shown.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (shown[active]) commit(shown[active].path);
+      if (shown[active]) commit(shown[active].path, verdictOf(shown[active]));
     } else if (e.key === 'Escape') {
       toggle(false);
     }
@@ -163,6 +179,7 @@ export function SourceCombobox({
           </button>
 
           {shown.map((o, i) => {
+            const verdict = verdictOf(o);
             const first = i === 0 || shown[i - 1].model !== o.model;
             return (
               <div key={o.path}>
@@ -184,11 +201,16 @@ export function SourceCombobox({
                   role="option"
                   aria-selected={o.path === value}
                   data-active={i === active}
-                  onClick={() => commit(o.path)}
+                  onClick={() => commit(o.path, verdict)}
                   onPointerMove={() => setActive(i)}
+                  disabled={verdict === 'UNSUPPORTED'}
+                  title={verdict === 'UNSUPPORTED'
+                    ? (copy.typeIncompatible ?? '').replace('{type}', o.erpType)
+                    : verdict === 'LOSSY' ? copy.typeLossyShort : undefined}
                   className={cn(
                     'flex w-full items-center gap-2 px-2.5 py-1.5 text-left',
-                    i === active && 'bg-[var(--hover-bg)]',
+                    i === active && verdict !== 'UNSUPPORTED' && 'bg-[var(--hover-bg)]',
+                    verdict === 'UNSUPPORTED' && 'cursor-not-allowed opacity-40',
                   )}
                 >
                   <IconCheck size={13} className={cn(
@@ -203,6 +225,12 @@ export function SourceCombobox({
                     </span>
                     <span className="block truncate text-2xs text-[var(--text-muted)]">
                       {o.label}
+                      {/* The ERP's own type name: the integrator recognises it from his own screen,
+                          where the normalised one would mean nothing to him. */}
+                      <span className="ml-1.5 font-mono text-[var(--text-soft)]">· {o.erpType}</span>
+                      {verdict === 'LOSSY' && (
+                        <span className="ml-1.5 text-[var(--warning)]">· {copy.typeLossyBadge}</span>
+                      )}
                     </span>
                   </span>
                 </button>
