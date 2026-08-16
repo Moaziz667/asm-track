@@ -31,20 +31,20 @@ export function AssistantPanel() {
             <span className="grid size-6 place-items-center rounded-md bg-[var(--brand-soft)] text-[var(--brand)]">
               <IconBrain size={15} stroke={1.8} />
             </span>
-            <SheetTitle className="text-[15px] font-bold text-[var(--text-primary)]">
+            <SheetTitle className="text-lg font-bold text-[var(--text-primary)]">
               {t.assistant.title}
             </SheetTitle>
             {turns.length > 0 && (
               <button
                 type="button"
                 onClick={clear}
-                className="ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--brand)]"
+                className="ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--brand)]"
               >
                 <IconEraser size={13} stroke={1.8} /> {t.assistant.clear}
               </button>
             )}
           </div>
-          <SheetDescription className="text-[12px] leading-snug text-[var(--text-muted)]">
+          <SheetDescription className="text-sm leading-snug text-[var(--text-muted)]">
             {t.assistant.subtitle}
           </SheetDescription>
         </SheetHeader>
@@ -65,7 +65,7 @@ export function AssistantPanel() {
 
         <SheetFooter className="shrink-0 gap-1.5 border-t border-[var(--border)] bg-[var(--surface-sunken)]">
           <AskBar onSubmit={ask} busy={busy} />
-          <p className="px-0.5 text-[11px] leading-snug text-[var(--text-soft)]">{t.assistant.disclaimer}</p>
+          <p className="px-0.5 text-xs leading-snug text-[var(--text-soft)]">{t.assistant.disclaimer}</p>
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -46,7 +46,7 @@ export function AskBar({ onSubmit, busy }: { onSubmit: (q: string) => void; busy
         rows={1}
         placeholder={t.assistant.placeholder}
         aria-label={t.assistant.placeholder}
-        className="min-h-[24px] flex-1 resize-none self-center bg-transparent py-1 text-[13.5px] leading-[1.5] text-[var(--text-primary)] placeholder:text-[var(--text-soft)] outline-none"
+        className="min-h-[24px] flex-1 resize-none self-center bg-transparent py-1 text-base leading-[1.5] text-[var(--text-primary)] placeholder:text-[var(--text-soft)] outline-none"
       />
       <button
         type="button"
