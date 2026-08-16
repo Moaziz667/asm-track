@@ -534,6 +534,22 @@ public class SettingsController {
     }
 
     /**
+     * Which ERP source types may fill which canonical type, derived from the adapter's converters.
+     *
+     * <p>Proxied like the rest rather than restated here: the screen greys out what the save would
+     * refuse, and a second copy of the rules — in this service or in the frontend — would eventually
+     * disagree with the adapter that actually converts. Its absence is worth noting: the screen then
+     * receives nothing and stops greying anything at all, which loses the guard silently instead of
+     * failing visibly.
+     */
+    @GetMapping("/erp/field-mappings/type-matrix")
+    @Operation(summary = "Compatibility of each ERP source type with each canonical type")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> typeMatrix() {
+        return proxyToAdapter("/api/v1/erp/field-mappings/type-matrix", HttpMethod.GET, null);
+    }
+
+    /**
      * The customer's own ERP fields, for the dropdown — their {@code x_*} fields included, which are
      * exactly the ones no automatic detection could have found.
      */

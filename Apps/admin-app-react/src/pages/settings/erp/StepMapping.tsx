@@ -29,7 +29,6 @@ export function StepMapping({
   mappings: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
   typeMatrix?: TypeMatrix;
-  typeMatrix?: TypeMatrix;
   scopes: MappingScopes;
   loading: boolean;
   canManage: boolean;
@@ -130,7 +129,6 @@ function MappingSection({
             mapping={byField.get(f.field)}
             availableFields={availableFields}
             typeMatrix={typeMatrix}
-        typeMatrix={typeMatrix}
             scopes={scopes}
             canManage={canManage}
             copy={copy}
@@ -239,7 +237,7 @@ function MappingRow({
  * sorts by it.
  */
 function ExtraFields({
-  extras, availableFields, scopes, canManage, copy, onUpsert, onDelete,
+  extras, availableFields, scopes, typeMatrix, canManage, copy, onUpsert, onDelete,
 }: {
   extras: FieldMapping[];
   availableFields: Record<string, ErpField[]>;
@@ -320,8 +318,6 @@ function ExtraFields({
               value={path}
               availableFields={availableFields}
             typeMatrix={typeMatrix}
-        typeMatrix={typeMatrix}
-              typeMatrix={typeMatrix}
               models={modelsFor('HEADER', availableFields, scopes)}
               primaryModel={primaryModelFor('HEADER', scopes)}
               disabled={busy}

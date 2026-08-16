@@ -1,3 +1,4 @@
+import { LossyMappingDialog } from './erp/LossyMappingDialog';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconLock } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -51,6 +52,9 @@ export default function ErpIntegrationPage() {
   /** Which documents each scope may read from — from the backend, never assumed. */
   const [scopes, setScopes] = useState<MappingScopes>({});
   const [typeMatrix, setTypeMatrix] = useState<TypeMatrix | undefined>(undefined);
+  /** The mapping awaiting an explicit acceptance of its conversion loss. */
+  const [lossyPrompt, setLossyPrompt] = useState<{ input: UpsertMappingInput; reason: string } | null>(null);
+  const [lossyBusy, setLossyBusy] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingReport, setLoadingReport] = useState(false);
@@ -244,11 +248,11 @@ export default function ErpIntegrationPage() {
       // Confirming re-sends the same request with the acceptance, which is what makes the warning a
       // decision rather than a note nobody reads.
       if (body?.errorCode === 'LOSSY_FIELD_MAPPING' && !input.acceptLossy) {
-        const question = `${body.error}
-
-${c('mapping').lossyConfirm}`;
-        if (!window.confirm(question)) return;
-        return handleUpsert({ ...input, acceptLossy: true });
+        // Not an error: the mapping is allowed, it just costs something. Park it and let the dialog
+        // say what is given up — a toast would report a failure that did not happen, and the
+        // integrator would go looking for another field.
+        setLossyPrompt({ input, reason: body.error ?? '' });
+        return;
       }
       throw e0;
     }
@@ -263,6 +267,17 @@ ${c('mapping').lossyConfirm}`;
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       showErrorToast(new Error(msg || c('mapping').saveFailed));
       throw e;
+    }
+  };
+
+  const confirmLossy = async () => {
+    if (!lossyPrompt) return;
+    setLossyBusy(true);
+    try {
+      await handleUpsertReporting({ ...lossyPrompt.input, acceptLossy: true });
+      setLossyPrompt(null);
+    } finally {
+      setLossyBusy(false);
     }
   };
 
@@ -429,6 +444,17 @@ ${c('mapping').lossyConfirm}`;
           </div>
         )}
       </div>
+
+      <LossyMappingDialog
+        open={!!lossyPrompt}
+        field={lossyPrompt?.input.canonicalField ?? lossyPrompt?.input.customKey ?? ''}
+        sourcePath={lossyPrompt?.input.sourcePath ?? ''}
+        reason={lossyPrompt?.reason ?? ''}
+        busy={lossyBusy}
+        copy={c('mapping')}
+        onCancel={() => setLossyPrompt(null)}
+        onConfirm={confirmLossy}
+      />
     </div>
   );
 }
