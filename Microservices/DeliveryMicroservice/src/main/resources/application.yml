@@ -281,3 +281,12 @@ resilience4j:
 asm:
   tenant:
     tenant-less-prefixes: /api/v1/public/,/api/v1/auth/,/api/v1/dev/
+
+# Idempotency dedup horizon. The Driver App keeps a queued offline write for up to 24h before it
+# gives up (dead-letters it). The server must remember a processed request for LONGER than that, so a
+# write that is finally replayed near the 24h mark still hits the stored response instead of being
+# executed a second time (e.g. a POD re-triggering ERP sync / cash). 48h gives a full day of margin
+# over the client TTL and bounds the processed_requests table (hourly cleanup, per tenant).
+idempotency:
+  cleanup:
+    ttl-hours: 48
