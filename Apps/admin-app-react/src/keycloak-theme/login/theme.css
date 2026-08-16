@@ -352,6 +352,13 @@ body::after {
 .asm-link { font-size: 13px; color: var(--brand); text-decoration: none; font-weight: 600; }
 .asm-link:hover { text-decoration: underline; }
 
+/* Pages this theme does not implement fall back to Keycloakify's default markup, rendered inside our
+   own Template — login-username.ftl among them, which is the first screen most users actually see.
+   That markup carries none of the classes above and gives its "remember me" row no spacing at all,
+   so the checkbox sits flush against the field above it. Same 8px as .asm-row, so both paths read
+   alike until the page gets a styled implementation of its own. */
+form .checkbox { margin-top: 8px; }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .asm-btn-primary {
   width: 100%;
