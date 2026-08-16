@@ -56,4 +56,23 @@ public class ErpPendingOrderPreviewDTO {
     private String warehouseName;
     /** True when the delivery note is ready to ship (Odoo picking state = 'assigned'). */
     private Boolean ready;
+
+    /**
+     * Why each field looks the way it does, keyed by canonical field name.
+     *
+     * <p>Only filled for the preview, and only for fields that are not a plain readable value. A blank
+     * cell otherwise means three different things at once — empty in the ERP, unreadable, or a path
+     * pointing at nothing — and the integrator has no way to tell which. Carrying the state alongside
+     * the value is what turns the preview from "look at the result" into "look at what went wrong".
+     */
+    private java.util.Map<String, FieldRead> fieldReads;
+
+    /**
+     * One field's reading.
+     *
+     * @param state  EMPTY when the ERP genuinely holds nothing, UNREADABLE when a value is there but
+     *               no honest conversion exists
+     * @param reason human explanation, present only for UNREADABLE
+     */
+    public record FieldRead(String state, String reason) {}
 }

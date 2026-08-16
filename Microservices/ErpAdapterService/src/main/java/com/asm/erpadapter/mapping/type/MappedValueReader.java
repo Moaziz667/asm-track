@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 public class MappedValueReader {
 
     private final CanonicalConverterRegistry registry;
+    private final ConversionTrace trace;
 
     /**
      * The full outcome, for callers that can act on the difference between empty and unreadable —
@@ -38,6 +39,8 @@ public class MappedValueReader {
                                   Map<String, Map<String, Object>> records, Supplier<Object> builtIn) {
         Object raw = resolver.resolveOrDefault(field, records, builtIn);
         ConversionOutcome outcome = registry.convert(field, raw);
+        // Silent on the import path; only a preview asks to be told.
+        trace.record(field, outcome);
         if (outcome.isUnreadable()) {
             // Logged once per field per record: an integrator debugging a mapping needs to find this
             // in the service log, and support needs it when the preview is not in front of them.

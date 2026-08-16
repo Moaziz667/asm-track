@@ -3901,6 +3901,8 @@ export const EN_COPY = {
       colResult: 'Result in ASM',
       defaultSource: '(default)',
       emptyValue: 'empty',
+      unreadableValue: 'Unreadable',
+      emptyInErp: 'Empty in the ERP',
       extrasPreview: 'Extra fields',
       linesPreview: 'Lines',
       noOrders: 'No order to preview.',

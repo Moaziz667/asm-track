@@ -27,6 +27,7 @@ import java.util.List;
 public class ErpLookupController {
 
     private final ErpProviderRouter router;
+    private final com.asm.erpadapter.mapping.type.ConversionTrace trace;
 
     private ErpLookupPort resolve() {
         return router.getLookup();
@@ -71,13 +72,37 @@ public class ErpLookupController {
     @Operation(summary = "Preview a pending ERP order")
     public ResponseEntity<ErpPendingOrderPreviewDTO> getPendingOrderPreview(
             @RequestParam String erpOrderId) {
+        // Collection is switched on only here. The preview is the one caller that needs to explain a
+        // blank cell; the import wants the value and nothing else, and pays nothing for this.
+        trace.start();
         try {
             ErpPendingOrderPreviewDTO preview = resolve().getPendingOrderPreview(erpOrderId);
             if (preview == null) return ResponseEntity.notFound().build();
+            preview.setFieldReads(notableReads(trace.stop()));
             return ResponseEntity.ok(preview);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } finally {
+            // stop() is idempotent; this clears the thread-local on the error paths above.
+            trace.stop();
         }
+    }
+
+    /**
+     * Keep only what the integrator has to act on.
+     *
+     * <p>A field that read cleanly needs no annotation — the value speaks for itself, and marking all
+     * thirty would drown the two that matter.
+     */
+    private static java.util.Map<String, ErpPendingOrderPreviewDTO.FieldRead> notableReads(
+            java.util.Map<String, com.asm.erpadapter.mapping.type.ConversionOutcome> collected) {
+        java.util.Map<String, ErpPendingOrderPreviewDTO.FieldRead> out = new java.util.LinkedHashMap<>();
+        collected.forEach((field, outcome) -> {
+            if (outcome.isValue()) return;
+            out.put(field, new ErpPendingOrderPreviewDTO.FieldRead(
+                    outcome.state().name(), outcome.reason()));
+        });
+        return out;
     }
 
     @GetMapping("/warehouses")

@@ -121,6 +121,11 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
                 const raw = preview[key];
                 const source = mappedBy.get(canonical);
                 const empty = raw === null || raw === undefined || raw === '';
+                // Why the cell is blank, when the server had something to say about it. Without this
+                // an unreadable value and a genuinely empty ERP field look identical — and the first
+                // is a mapping to fix while the second is nothing to do.
+                const read = preview.fieldReads?.[canonical];
+                const unreadable = read?.state === 'UNREADABLE';
                 return (
                   <li
                     key={canonical}
@@ -136,8 +141,25 @@ export function StepPreview({ mappings, copy }: { mappings: FieldMapping[]; copy
                       {/* Pinned to the first line: on a value that now wraps to three, a vertically
                           centred arrow drifts away from the row it belongs to. */}
                       <IconArrowRight size={12} className="shrink-0 text-[var(--text-soft)] self-start mt-1.5" />
-                      {empty ? (
-                        <span className="text-xs italic text-[var(--warning)]">{copy.emptyValue}</span>
+                      {unreadable ? (
+                        <span className="min-w-0">
+                          <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-semibold"
+                                style={{ background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
+                                         color: 'var(--danger)' }}>
+                            <IconAlertTriangle size={11} /> {copy.unreadableValue}
+                          </span>
+                          {/* The server's own reason: it names the value that could not be read, which
+                              is the only thing that tells the integrator which field to change. */}
+                          {read?.reason && (
+                            <span className="mt-0.5 block text-2xs text-[var(--text-muted)] break-words">
+                              {read.reason}
+                            </span>
+                          )}
+                        </span>
+                      ) : empty ? (
+                        <span className="text-xs italic text-[var(--warning)]">
+                          {read?.state === 'EMPTY' ? copy.emptyInErp : copy.emptyValue}
+                        </span>
                       ) : (
                         // Wraps rather than truncates: this column is the whole point of the screen.
                         // A delivery instruction cut at "entrée p…" hides exactly the part an

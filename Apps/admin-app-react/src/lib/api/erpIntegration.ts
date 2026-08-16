@@ -216,7 +216,21 @@ export interface PendingOrderSummary {
   ready: boolean;
 }
 
+/**
+ * Why one previewed field is not a plain value.
+ *
+ * Present only for fields that read as empty or could not be converted — a value that came through
+ * cleanly needs no annotation, and marking all thirty would bury the two that matter.
+ */
+export interface FieldRead {
+  state: 'EMPTY' | 'UNREADABLE';
+  /** The server's explanation, on UNREADABLE only. */
+  reason?: string | null;
+}
+
 export interface OrderPreview {
+  /** Keyed by canonical field name, e.g. `ITEM_QUANTITY`. */
+  fieldReads?: Record<string, FieldRead>;
   erpOrderId?: string | null;
   blNumber?: string | null;
   saleOrderRef?: string | null;

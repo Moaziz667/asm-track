@@ -137,6 +137,15 @@ Quand la matrice n'a pas pu être chargée, le sélecteur ne bloque rien — le 
 d'aperçu qui ferait sa propre conversion montrerait quelque chose que l'import pourrait ne pas
 reproduire.
 
+L'aperçu affiche les trois états, pas seulement la valeur. Une cellule vide dit maintenant laquelle
+des deux causes s'applique — « Vide dans l'ERP » ou « Illisible », avec la raison du serveur :
+
+> **DATE_ORDER** — Illisible
+> « S01686 » n'est pas une date reconnue.
+
+Seuls les champs qui ne sont pas une valeur lisible sont annotés : marquer les trente noierait les
+deux qui comptent.
+
 ---
 
 ## Détection de dérive

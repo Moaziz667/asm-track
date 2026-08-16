@@ -3487,6 +3487,8 @@ export const FR_COPY = {
       colResult: 'Résultat dans ASM',
       defaultSource: '(défaut)',
       emptyValue: 'vide',
+      unreadableValue: 'Illisible',
+      emptyInErp: "Vide dans l'ERP",
       extrasPreview: 'Champs supplémentaires',
       linesPreview: 'Lignes',
       noOrders: 'Aucune commande à prévisualiser.',

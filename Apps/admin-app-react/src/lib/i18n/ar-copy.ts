@@ -3438,6 +3438,8 @@ export const AR_COPY = {
       colResult: 'النتيجة في ASM',
       defaultSource: '(افتراضي)',
       emptyValue: 'فارغ',
+      unreadableValue: 'غير قابل للقراءة',
+      emptyInErp: 'فارغ في النظام',
       extrasPreview: 'حقول إضافية',
       linesPreview: 'السطور',
       noOrders: 'لا يوجد طلب للمعاينة.',

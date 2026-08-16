@@ -102,4 +102,16 @@ public class ErpPendingOrderPreviewDTO {
 
     @Schema(description = "True when the delivery note is ready to ship (Odoo picking state 'assigned')", example = "true")
     private Boolean ready;
+
+    /**
+     * Why each field looks the way it does on the mapping preview, keyed by canonical field name.
+     *
+     * <p>Relayed untouched from the adapter. This DTO is a separate class from the adapter's, so a
+     * field missing here is silently dropped in transit rather than failing — which is exactly what
+     * happened to this one, and why the preview showed nothing the first time it was wired.
+     */
+    private java.util.Map<String, FieldRead> fieldReads;
+
+    /** @param state EMPTY or UNREADABLE; @param reason present only for UNREADABLE */
+    public record FieldRead(String state, String reason) {}
 }
