@@ -1,0 +1,60 @@
+@startuml
+skinparam shadowing false
+skinparam monochrome false
+skinparam linetype ortho
+skinparam node {
+  BackgroundColor #FAFAFA
+  BorderColor #546E7A
+}
+skinparam artifact {
+  BackgroundColor #E8EAF6
+  BorderColor #3F51B5
+}
+skinparam database {
+  BackgroundColor #E0F2F1
+  BorderColor #00897B
+}
+title Diagramme de déploiement — ASM Track
+
+node "Poste back-office" {
+  artifact "Navigateur\n(React)" as web
+}
+node "Terminal livreur" {
+  artifact "Application\n(Flutter)" as mob
+}
+
+node "Serveur — Docker Compose" {
+  artifact "API Gateway" as gw
+  artifact "AppBackend" as ab
+  artifact "DeliveryMicroservice" as del
+  artifact "DriverService" as drv
+  artifact "ErpAdapterService" as erp
+  artifact "AssistantService" as ast
+  artifact "Keycloak" as kc
+  component "RabbitMQ" as mq
+  artifact "MinIO" as minio
+  database "PostgreSQL\n(4 bases)" as pg
+  database "pgvector" as pgv
+  database "H2 (fichier)" as h2
+}
+
+cloud "ERP client\n(Odoo / ERPNext)" as odoo
+
+web --> gw : HTTPS
+mob --> gw : HTTPS
+web ..> kc : OIDC
+mob ..> kc : OIDC
+gw --> ab
+gw --> del
+gw --> drv
+gw --> ast
+del --> mq
+erp --> mq
+erp --> odoo
+del --> minio
+ab --> pg
+del --> pg
+drv --> pg
+ast --> pgv
+erp --> h2
+@enduml

@@ -1,0 +1,12 @@
+flowchart TD
+    A["Le livreur remplit le formulaire"] --> B["Photos → MinIO<br/>(hors transaction)"]
+    B --> C{"Dépôt réussi ?"}
+    C -->|non| D["503 — réessayez<br/>rien n'est écrit"]
+    C -->|oui| E["Transaction unique"]
+    E --> F["proof_of_delivery"]
+    E --> G["statut DELIVERED / PARTIALLY_DELIVERED"]
+    E --> H["encaissement si COD"]
+    E --> I["outbox_event → ERP"]
+
+    style D fill:#ffebee,stroke:#c62828
+    style E fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,14 @@
+flowchart TB
+    SRC["rbac-policy.json<br/>(source unique, dans la gateway)"]
+    SYNC["sync-rbac-policy.py"]
+    SRC --> SYNC
+    SYNC --> G["ApiGateway"]
+    SYNC --> A["AppBackend"]
+    SYNC --> D["DeliveryMicroservice"]
+    SYNC --> V["DriverService"]
+
+    G -.->|"même empreinte MD5"| A
+    A -.-> D
+    D -.-> V
+
+    style SRC fill:#e8eaf6,stroke:#3f51b5

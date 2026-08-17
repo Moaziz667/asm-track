@@ -1,0 +1,11 @@
+flowchart LR
+    subgraph KC["Keycloak"]
+        R["Rôle composite<br/>DISPATCHER"] --> P1["perm:route:manage"]
+        R --> P2["perm:delivery:view"]
+        R --> P3["perm:dispatch:operate"]
+    end
+    KC -->|"realm_access.roles<br/>dans le JWT"| T["Jeton"]
+    T --> GW["Gateway + services<br/>évaluent rbac-policy.json"]
+    T --> UI["Interface<br/>masque les actions interdites"]
+
+    style KC fill:#fce4ec,stroke:#c2185b

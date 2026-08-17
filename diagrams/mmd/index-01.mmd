@@ -1,0 +1,12 @@
+flowchart LR
+    subgraph ERP["ERP du client"]
+        O["Commandes<br/>Bons de livraison<br/>Factures"]
+    end
+    subgraph ASM["ASM Track"]
+        T["Tournées<br/>Livreurs<br/>Preuves<br/>Encaissements"]
+    end
+    O -- "import des commandes à livrer" --> T
+    T -- "résultat terrain : livré / partiel / échoué" --> O
+
+    style ERP fill:#e8eaf6,stroke:#3f51b5
+    style ASM fill:#e0f2f1,stroke:#00897b

@@ -1,0 +1,19 @@
+flowchart TB
+    subgraph S1["1 · Requête d'un utilisateur"]
+        direction LR
+        C1["Client"] -->|"REST + JWT"| G1["Gateway"] -->|"REST + X-Company-Id"| SV1["Service"]
+    end
+
+    subgraph S2["2 · Entre services, asynchrone (la règle)"]
+        direction LR
+        SV2["Service A"] -->|"publie"| MQ2{{"RabbitMQ"}} -->|"consomme"| SV3["Service B"]
+    end
+
+    subgraph S3["3 · Entre services, synchrone (l'exception)"]
+        direction LR
+        SV4["Service A"] -->|"/internal/** + rôle SERVICE"| SV5["Service B"]
+    end
+
+    style S1 fill:#e3f2fd,stroke:#1565c0
+    style S2 fill:#f3e5f5,stroke:#7b1fa2
+    style S3 fill:#fff3e0,stroke:#ef6c00

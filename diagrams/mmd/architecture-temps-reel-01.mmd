@@ -1,0 +1,17 @@
+flowchart TB
+    subgraph Sans["❌ Courtier en mémoire"]
+        I1["Instance 1<br/>+ abonnés A, B"]
+        I2["Instance 2<br/>+ abonnés C, D"]
+        E1["événement reçu<br/>par l'instance 1"] --> I1
+        I1 -.->|"C et D ne voient rien"| I2
+    end
+
+    subgraph Avec["✅ Relais STOMP RabbitMQ"]
+        J1["Instance 1"] --> MQ{{"RabbitMQ<br/>:61613"}}
+        J2["Instance 2"] --> MQ
+        MQ --> T["/topic/…"]
+        T --> K["tous les abonnés,<br/>quelle que soit l'instance"]
+    end
+
+    style Sans fill:#ffebee,stroke:#c62828
+    style Avec fill:#e8f5e9,stroke:#2e7d32

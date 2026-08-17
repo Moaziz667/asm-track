@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    participant S as Service métier
+    participant DB as PostgreSQL
+    participant OP as OutboxProcessor<br/>(toutes les 20 s)
+    participant MQ as RabbitMQ
+    participant E as ErpAdapterService
+
+    rect rgb(232, 245, 233)
+        Note over S,DB: Une seule transaction
+        S->>DB: UPDATE deliveries SET status='DELIVERED'
+        S->>DB: INSERT INTO outbox_event (status='PENDING')
+        S->>DB: COMMIT
+    end
+    Note over S,DB: les deux réussissent, ou aucun
+
+    OP->>DB: SELECT … WHERE status='PENDING' FOR UPDATE SKIP LOCKED
+    DB-->>OP: lot d'événements (max 10)
+    OP->>DB: status='PROCESSING'
+    OP->>MQ: publie
+    MQ->>E: erp.sync.command
+    OP->>DB: status='PROCESSED'

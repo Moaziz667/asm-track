@@ -28,6 +28,70 @@ d'un voisin. Les données traversent par message ou par appel `/internal/`.
 
 ---
 
+## Le modèle du domaine
+
+Vue **conceptuelle** : les objets métier et leurs liens, indépendamment des tables. Elle répond à
+« de quoi parle le système ? » avant le « comment est-ce stocké ? » du schéma qui suit.
+
+```mermaid
+classDiagram
+    direction LR
+    class Commande {
+        référence
+        client
+        montantCOD
+    }
+    class Livraison {
+        statut
+        dateDeLivraison
+    }
+    class Tournée {
+        date
+        statut
+    }
+    class Arrêt {
+        ordre
+    }
+    class Livreur {
+        nom
+    }
+    class Véhicule {
+        immatriculation
+    }
+    class Dépôt {
+        nom
+        ville
+    }
+    class PreuveDeLivraison {
+        photo
+        signature
+    }
+    class Encaissement {
+        montant
+    }
+    class Retour {
+        statut
+    }
+
+    Commande "1" --> "1" Livraison : génère
+    Livraison "1" --> "0..1" PreuveDeLivraison : atteste
+    Livraison "1" --> "0..1" Encaissement : à la livraison
+    Livraison "1" --> "0..*" Retour : peut donner lieu à
+    Tournée "1" *-- "1..*" Arrêt : ordonne
+    Arrêt "1" --> "1" Livraison : dessert
+    Tournée "0..*" --> "1" Dépôt : part de
+    Livreur "1" --> "0..*" Tournée : exécute
+    Véhicule "1" --> "0..*" Tournée : affecté à
+```
+
+**Le pivot est la `Livraison`.** Une `Commande` importée en génère exactement une ; tout le reste
+(preuve, encaissement, retour, arrêt de tournée) gravite autour d'elle. Cette vue conceptuelle se
+projette sur les tables du schéma ci-dessous — une classe peut y correspondre à une ou plusieurs
+tables (l'historique de statuts et les positions GPS, par exemple, sont des tables de traçabilité de
+la `Livraison`).
+
+---
+
 ## Le schéma métier principal
 
 ```mermaid

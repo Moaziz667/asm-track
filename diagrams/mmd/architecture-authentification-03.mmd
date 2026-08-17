@@ -1,0 +1,7 @@
+flowchart LR
+    A["Livreur saisit<br/>email + mot de passe"] --> B["Direct Grant (ROPC)<br/>client: driver-app"]
+    B --> C["access_token<br/>+ refresh_token offline"]
+    C --> D["flutter_secure_storage"]
+    D --> E["Dio ajoute le Bearer<br/>à chaque requête"]
+
+    style C fill:#e8f5e9,stroke:#2e7d32

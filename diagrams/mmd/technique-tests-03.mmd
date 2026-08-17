@@ -1,0 +1,10 @@
+flowchart TD
+    A["DeliveryLifecycleAcceptanceIT"] -->|écrit directement| B[("Dépôts")]
+    C["DriverJourneyAcceptanceIT"] -->|passe par| D["DriverDeliveryService"]
+    D --> B
+
+    A -.->|"vérifie le SCHÉMA"| E["ne voit pas les règles"]
+    C -.->|"vérifie les RÈGLES"| F["propriété, transitions,<br/>historique, horodatages"]
+
+    style E fill:#ffebee,stroke:#c62828
+    style F fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,11 @@
+flowchart LR
+    A["Requête"] --> B["1 · en-têtes nettoyés"]
+    B --> C["2 · signature JWT"]
+    C --> D["3 · politique RBAC (gateway)"]
+    D --> E["4 · locataire résolu"]
+    E --> F["5 · filtre tenant du service"]
+    F --> G["6 · politique RBAC (service)"]
+    G --> H["7 · search_path PostgreSQL"]
+
+    style B fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#e8f5e9,stroke:#2e7d32

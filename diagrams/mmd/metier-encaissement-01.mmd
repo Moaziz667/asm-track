@@ -1,0 +1,21 @@
+erDiagram
+    DELIVERY ||--o| CASH_COLLECTION : "produit à la livraison"
+    CASH_COLLECTION }o--o| CASH_REMITTANCE : "regroupée dans"
+
+    CASH_COLLECTION {
+        uuid delivery_id
+        uuid driver_id
+        decimal amount_expected "figé à la création"
+        decimal amount_collected "saisi par le livreur"
+        string status "PENDING COLLECTED PARTIAL REFUSED"
+        timestamp collected_at
+        uuid remittance_id "NULL tant qu'en poche"
+    }
+    CASH_REMITTANCE {
+        uuid driver_id
+        decimal expected_total "calculé par la plateforme"
+        decimal declared_total "annoncé par le livreur"
+        decimal received_total "compté au dépôt"
+        decimal discrepancy "dérivé, jamais saisi"
+        string status "OPEN DECLARED RECEIVED DISPUTED RECONCILED"
+    }

@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant L as Livreur
+    participant D as DeliveryMicroservice
+    participant DB as PostgreSQL
+    participant MQ as RabbitMQ
+    participant E as ErpAdapterService
+    participant O as Odoo
+
+    L->>D: POD validée
+    rect rgb(232, 245, 233)
+        D->>DB: statut = DELIVERED
+        D->>DB: outbox_event PENDING
+        D->>DB: order.erpSyncStatus = PENDING_SYNC
+    end
+    D-->>L: 200 — le livreur repart
+    Note over D,MQ: (asynchrone à partir d'ici)
+    D->>MQ: erp.sync.command
+    MQ->>E: consomme
+    E->>O: valide le transfert (JSON-RPC)
+    O-->>E: ok
+    E->>MQ: erp.sync.result
+    MQ->>D: consomme
+    D->>DB: order.erpSyncStatus = SYNCED

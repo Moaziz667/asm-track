@@ -1,0 +1,22 @@
+flowchart TB
+    subgraph M["asm-tenant-core"]
+        direction TB
+        TC["TenantContext"]
+        TS["TenantSchema"]
+        F["web/TenantContextFilter"]
+        A1["amqp/TenantMessagePostProcessor"]
+        A2["amqp/TenantInboundPostProcessor"]
+        J1["jpa/TenantIdentifierResolver"]
+        J2["jpa/SchemaMultiTenantConnectionProvider"]
+        J3["jpa/TenantIterator"]
+        CC["TenantCoreConfig<br/>(web + AMQP)"]
+        JC["TenantJpaConfig<br/>(Hibernate)"]
+    end
+
+    AB["AppBackend"] --> CC & JC
+    DEL["DeliveryMicroservice"] --> CC & JC
+    DRV["DriverService"] --> CC & JC
+    ERP["ErpAdapterService"] --> CC
+
+    style M fill:#e8eaf6,stroke:#3f51b5
+    style ERP fill:#fff3e0,stroke:#ef6c00

@@ -1,0 +1,10 @@
+flowchart TB
+    A["ADR-001<br/>Schéma par client"] --> B["Le locataire doit voyager<br/>partout : HTTP, AMQP, tâches"]
+    B --> C["ADR-002<br/>Autorisation déclarative"]
+    C --> D["Une politique unique évaluée<br/>par la gateway ET le service"]
+    A --> E["ADR-004<br/>Outbox transactionnel"]
+    E --> F["Les messages portent<br/>l'en-tête du locataire"]
+    F --> G["ADR-003<br/>Ports & Adapters"]
+    G --> H["L'adaptateur résout la config ERP<br/>du bon client"]
+
+    style A fill:#e8eaf6,stroke:#3f51b5

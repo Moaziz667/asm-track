@@ -1,0 +1,48 @@
+classDiagram
+    direction LR
+    class Commande {
+        référence
+        client
+        montantCOD
+    }
+    class Livraison {
+        statut
+        dateDeLivraison
+    }
+    class Tournée {
+        date
+        statut
+    }
+    class Arrêt {
+        ordre
+    }
+    class Livreur {
+        nom
+    }
+    class Véhicule {
+        immatriculation
+    }
+    class Dépôt {
+        nom
+        ville
+    }
+    class PreuveDeLivraison {
+        photo
+        signature
+    }
+    class Encaissement {
+        montant
+    }
+    class Retour {
+        statut
+    }
+
+    Commande "1" --> "1" Livraison : génère
+    Livraison "1" --> "0..1" PreuveDeLivraison : atteste
+    Livraison "1" --> "0..1" Encaissement : à la livraison
+    Livraison "1" --> "0..*" Retour : peut donner lieu à
+    Tournée "1" *-- "1..*" Arrêt : ordonne
+    Arrêt "1" --> "1" Livraison : dessert
+    Tournée "0..*" --> "1" Dépôt : part de
+    Livreur "1" --> "0..*" Tournée : exécute
+    Véhicule "1" --> "0..*" Tournée : affecté à

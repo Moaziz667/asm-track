@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    participant L as Livreur
+    participant S as DriverDeliveryService
+    participant M as MinIO
+    participant DB as PostgreSQL
+
+    L->>S: submitPod(photos, signature, position…)
+    rect rgb(255, 243, 224)
+        Note over S,M: 1 · Hors transaction
+        S->>M: dépose bon-livraison.png
+        S->>M: dépose package.png
+        alt échec du dépôt
+            S-->>L: 503 « réessayez »
+            Note over S,DB: rien n'est écrit en base
+        end
+    end
+    rect rgb(232, 245, 233)
+        Note over S,DB: 2 · Transaction
+        S->>DB: proof_of_delivery (chemins)
+        S->>DB: delivery.status = DELIVERED
+        S->>DB: outbox_event PENDING
+    end
+    S-->>L: 200

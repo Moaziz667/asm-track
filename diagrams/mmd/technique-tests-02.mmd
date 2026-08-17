@@ -1,0 +1,13 @@
+flowchart LR
+    subgraph CI["Job GitLab"]
+        PG[("PostgreSQL")]
+        O16["Odoo 16"]
+        O19["Odoo 19"]
+        PG --- O16
+        PG --- O19
+    end
+    T["Suite d'intégration"] --> O16
+    T --> O19
+
+    style O16 fill:#e0f2f1,stroke:#00897b
+    style O19 fill:#e0f2f1,stroke:#00897b

@@ -1,0 +1,16 @@
+erDiagram
+    BASE_DELIVERY_DB {
+        string public "flyway_schema_history, tables partagées"
+    }
+    SCHEMA_A["company_54ed4906…"] {
+        string deliveries "les livraisons du client A"
+        string orders "ses commandes"
+        string routes "ses tournées"
+    }
+    SCHEMA_B["company_3b2ae6fe…"] {
+        string deliveries "les livraisons du client B"
+        string orders "ses commandes"
+        string routes "ses tournées"
+    }
+    BASE_DELIVERY_DB ||--o{ SCHEMA_A : contient
+    BASE_DELIVERY_DB ||--o{ SCHEMA_B : contient

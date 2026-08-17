@@ -1,0 +1,9 @@
+flowchart LR
+    A["Ouverture de la page"] --> B["GET /public/track/{id}"]
+    B --> C["Affichage : statut, ETA, carte"]
+    C --> D["Abonnement STOMP<br/>/topic/public.{id}"]
+    C --> E["Rafraîchissement<br/>toutes les 60 s"]
+    D --> F["position du livreur en direct"]
+    E --> F
+
+    style D fill:#e3f2fd,stroke:#1565c0

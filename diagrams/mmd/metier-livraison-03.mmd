@@ -1,0 +1,10 @@
+flowchart TB
+    C["DriverDeliveryController"]
+    C --> S1["DriverDeliveryService<br/>accepter · pickup · transit · compléter · POD"]
+    C --> S2["DriverIncidentService<br/>échouer · abandonner · signaler"]
+    C --> S3["DriverHandoffService<br/>transfert de garde"]
+    S1 & S2 & S3 --> SH["DeliveryTransitionSupport<br/>propriété + historique + SLA"]
+    S1 & S2 & S3 --> M["DriverDeliveryMapper<br/>la vue renvoyée au mobile"]
+
+    style SH fill:#e8eaf6,stroke:#3f51b5
+    style M fill:#e8eaf6,stroke:#3f51b5

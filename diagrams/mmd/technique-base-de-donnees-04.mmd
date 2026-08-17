@@ -1,0 +1,10 @@
+flowchart TD
+    subgraph Démarrage
+        A["Flyway Spring Boot"] --> B["schéma public de chaque service"]
+        C["TenantMigrationRunner"] --> D["chaque schéma company_*<br/>déjà existant"]
+    end
+    subgraph "Nouveau client"
+        E["TenantSchemaProvisioner"] --> F["CREATE SCHEMA + flyway.migrate()"]
+    end
+
+    style C fill:#e8f5e9,stroke:#2e7d32

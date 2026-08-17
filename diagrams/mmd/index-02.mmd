@@ -1,0 +1,36 @@
+graph TB
+    subgraph Clients
+        W["Back-office<br/>React 19 + Vite"]
+        M["Application livreur<br/>Flutter"]
+        P["Suivi public<br/>lien partageable"]
+    end
+
+    GW["API Gateway<br/>:80"]
+    KC[("Keycloak<br/>OIDC")]
+
+    subgraph Services["Microservices Spring Boot"]
+        AB["AppBackend<br/>:8080"]
+        DEL["DeliveryMicroservice<br/>:8082"]
+        DRV["DriverService<br/>:8086"]
+        ERP["ErpAdapterService<br/>:8088"]
+    end
+
+    MQ{{"RabbitMQ"}}
+    EXT["Odoo · ERPNext"]
+
+    W --> GW
+    M --> GW
+    P --> GW
+    W -.authentification.-> KC
+    M -.authentification.-> KC
+    GW --> AB & DEL & DRV
+    DEL <--> MQ
+    AB <--> MQ
+    DRV <--> MQ
+    ERP <--> MQ
+    ERP --> EXT
+
+    style GW fill:#fff3e0,stroke:#ef6c00
+    style KC fill:#fce4ec,stroke:#c2185b
+    style MQ fill:#f3e5f5,stroke:#7b1fa2
+    style ERP fill:#e0f2f1,stroke:#00897b

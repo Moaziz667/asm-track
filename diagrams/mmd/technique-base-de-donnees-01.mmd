@@ -1,0 +1,11 @@
+flowchart TB
+    subgraph PG["PostgreSQL 16"]
+        A[("app_db<br/>AppBackend")]
+        D[("delivery_db<br/>DeliveryMicroservice")]
+        V[("driver_db<br/>DriverService")]
+        K[("keycloak_db<br/>Keycloak")]
+    end
+    H[("H2 fichier<br/>ErpAdapterService")]
+
+    style D fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#fff3e0,stroke:#ef6c00

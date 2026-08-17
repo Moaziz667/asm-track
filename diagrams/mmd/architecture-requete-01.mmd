@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    participant C as Client<br/>(navigateur / mobile)
+    participant GW as API Gateway
+    participant KC as Keycloak
+    participant F as TenantContextFilter<br/>(dans le service)
+    participant S as Service
+    participant H as Hibernate
+    participant DB as PostgreSQL
+
+    C->>GW: GET /api/v1/admin/deliveries<br/>Authorization: Bearer …
+    GW->>GW: 1. Supprime tout X-User-* et X-Company-Id entrant
+    GW->>KC: 2. Valide la signature (JWKS, RS256)
+    KC-->>GW: clés publiques
+    GW->>GW: 3. Évalue rbac-policy.json
+    alt Aucune règle ne correspond
+        GW-->>C: 403 (fail-closed)
+    end
+    GW->>GW: 4. Extrait la claim « organization »
+    alt Absente, multiple ou non-UUID
+        GW-->>C: 403
+    end
+    GW->>S: 5. Requête + X-User-Id + X-Company-Id
+    S->>F: 6. Filtre d'entrée
+    F->>F: Pose TenantContext (ThreadLocal) + MDC
+    alt Chemin métier sans X-Company-Id
+        F-->>C: 403 « No tenant context »
+    end
+    F->>S: 7. Le contrôleur s'exécute
+    S->>S: 8. Ré-évalue rbac-policy.json (même fichier)
+    S->>H: 9. Requête JPA
+    H->>DB: SET search_path TO "company_<32hex>"
+    DB-->>H: données du seul locataire
+    H-->>S: entités
+    S-->>C: 200

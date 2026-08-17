@@ -1,0 +1,8 @@
+flowchart LR
+    C["Client"] --> GW["Gateway<br/>évaluation n°1"]
+    GW --> S["Service<br/>évaluation n°2"]
+    X["Appelant interne<br/>ou réseau compromis"] -.contourne la gateway.-> S
+
+    style GW fill:#fff3e0,stroke:#ef6c00
+    style S fill:#e8f5e9,stroke:#2e7d32
+    style X fill:#ffebee,stroke:#c62828,stroke-dasharray: 5

@@ -1,0 +1,14 @@
+sequenceDiagram
+    autonumber
+    participant R as RouteOptimizationService
+    participant O as OSRM
+    participant DB as PostgreSQL
+
+    R->>R: point de départ = dépôt
+    loop pour chaque arrêt, dans l'ordre
+        R->>O: itinéraire point → point
+        O-->>R: distance + durée
+        R->>R: ETA = heure précédente + trajet + temps d'arrêt
+        R->>R: compare à la fenêtre de livraison
+    end
+    R->>DB: enregistre ETA, distance, durée, statut SLA par arrêt

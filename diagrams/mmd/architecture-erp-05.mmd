@@ -1,0 +1,11 @@
+flowchart LR
+    A["Le livreur demande le BL"] --> B["OdooReportService"]
+    B --> C{"Version Odoo ?"}
+    C -->|"≤ 13"| D["render_qweb_pdf par RPC"]
+    C -->|"≥ 14"| E["Session web +<br/>/report/pdf/{report}/{id}"]
+    D & E --> F{"La réponse<br/>commence par %PDF ?"}
+    F -->|non| G["Odoo a renvoyé sa page de login<br/>en HTTP 200 → erreur explicite"]
+    F -->|oui| H["PDF servi au livreur"]
+
+    style G fill:#ffebee,stroke:#c62828
+    style H fill:#e8f5e9,stroke:#2e7d32

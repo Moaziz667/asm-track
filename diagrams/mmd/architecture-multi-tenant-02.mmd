@@ -1,0 +1,23 @@
+sequenceDiagram
+    autonumber
+    participant F as TenantContextFilter
+    participant TC as TenantContext<br/>(ThreadLocal)
+    participant R as TenantIdentifierResolver
+    participant P as SchemaMultiTenantConnectionProvider
+    participant Pool as Pool Hikari (unique)
+    participant DB as PostgreSQL
+
+    F->>TC: set(companyId)
+    Note over F,TC: depuis l'en-tête X-Company-Id
+    F->>R: (la requête s'exécute)
+    R->>TC: get()
+    TC-->>R: companyId
+    R-->>P: « company_54ed4906… »
+    P->>Pool: emprunte une connexion
+    Pool-->>P: connexion
+    P->>DB: SET search_path TO "company_54ed4906…", public
+    DB-->>P: prêt
+    Note over P,DB: toutes les requêtes JPA voient<br/>uniquement ce schéma
+    P->>DB: SET search_path TO public
+    P->>Pool: rend la connexion
+    Note over Pool: aucun état de locataire ne fuit<br/>vers l'emprunteur suivant

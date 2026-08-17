@@ -1,0 +1,10 @@
+flowchart TD
+    R["/api/v1/…"] --> A["/admin/**<br/>back-office"]
+    R --> D["/driver/**<br/>application livreur"]
+    R --> P["/public/**<br/>sans authentification"]
+    R --> AU["/auth/**<br/>activation de compte"]
+    R --> S["/settings/**<br/>paramétrage"]
+    I["/internal/**"] --> IS["service à service<br/>rôle SERVICE, non routé"]
+
+    style P fill:#fff3e0,stroke:#ef6c00
+    style IS fill:#ffebee,stroke:#c62828

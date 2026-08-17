@@ -1,0 +1,20 @@
+sequenceDiagram
+    autonumber
+    participant U as Utilisateur
+    participant W as Back-office<br/>(React)
+    participant KC as Keycloak
+    participant GW as API Gateway
+
+    U->>W: ouvre /dashboard
+    W->>W: aucune session
+    W->>KC: redirection Authorization Code + PKCE
+    KC->>U: page de connexion (thème ASM, langue de l'app)
+    U->>KC: identifiants
+    KC->>W: redirection /callback?code=…
+    W->>KC: échange code → jetons
+    KC-->>W: access_token (RS256) + refresh_token
+    W->>W: stocke la session (localStorage)
+    W->>GW: GET /api/… + Bearer
+    GW->>KC: JWKS (clés publiques, mises en cache)
+    GW->>GW: vérifie la signature
+    GW-->>W: 200

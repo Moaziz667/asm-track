@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor D as Dispatcher
+    actor L as Livreur
+    participant API as Backend
+    participant E as ERP
+
+    E->>API: commande prête (import)
+    Note over API: UNSCHEDULED
+    D->>API: construit la tournée, affecte
+    Note over API: SCHEDULED
+    L->>API: pickup au dépôt
+    Note over API: PICKED_UP
+    L->>API: transit (+ position GPS)
+    Note over API: IN_TRANSIT — calcul de l'itinéraire et de l'ETA
+    alt Livraison réussie
+        L->>API: preuve : photos, signature, (encaissement)
+        Note over API: DELIVERED
+        API->>E: valider le transfert
+    else Livraison partielle
+        L->>API: quantités réellement remises
+        Note over API: PARTIALLY_DELIVERED
+        API->>E: transfert partiel → reliquat créé
+    else Échec
+        L->>API: motif (client absent, refus…)
+        Note over API: FAILED
+        API->>E: signaler l'échec
+    end

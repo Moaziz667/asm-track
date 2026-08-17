@@ -1,0 +1,7 @@
+flowchart LR
+    A["Collectes avec<br/>remittance_id NULL"] --> C["En circulation"]
+    B["Collectes rattachées à une remise<br/>OPEN ou DECLARED"] --> C
+    D["Collectes d'une remise<br/>RECONCILED"] -.->|"plus en circulation"| E["Soldé"]
+
+    style C fill:#fff3e0,stroke:#ef6c00
+    style E fill:#e8f5e9,stroke:#2e7d32

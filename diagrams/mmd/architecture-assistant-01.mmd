@@ -1,0 +1,12 @@
+flowchart TD
+    Q["Question de l'opérateur"] --> R{"Porte sur quoi ?"}
+    R -->|"un fonctionnement,<br/>une règle, un concept"| DOC["Recherche dans<br/>la documentation"]
+    R -->|"un état, un chiffre,<br/>une entité précise"| LIVE["Lecture des<br/>données réelles"]
+    DOC --> E{"Assez d'éléments ?"}
+    E -->|non| REF["Refus explicite"]
+    E -->|oui| A1["Réponse + sources citées"]
+    LIVE --> A2["Réponse + source live"]
+
+    style REF fill:#ffebee,stroke:#c62828
+    style A1 fill:#e8f5e9,stroke:#2e7d32
+    style A2 fill:#e8f5e9,stroke:#2e7d32

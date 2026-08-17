@@ -1,0 +1,8 @@
+flowchart LR
+    A["Livreur : photo en base64"] --> B["MinioStorageService"]
+    B --> C[("MinIO<br/>pod/{deliveryId}/…")]
+    B --> D["chemin stocké<br/>dans proof_of_delivery"]
+    E["Back-office demande la photo"] --> F["MediaUrlResolver"]
+    F --> G["URL publique signée"]
+
+    style C fill:#e0f2f1,stroke:#00897b

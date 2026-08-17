@@ -1,0 +1,17 @@
+flowchart TB
+    subgraph Ext["Hors plateforme"]
+        C["Client final<br/>reçoit le colis"]
+        E["ERP du transporteur"]
+    end
+    subgraph Int["Utilisateurs"]
+        D["Dispatcher<br/>planifie, arbitre les incidents"]
+        L["Livreur<br/>exécute la tournée"]
+        M["Responsable<br/>consulte les rapports"]
+        A["Administrateur<br/>comptes, paramètres, ERP"]
+    end
+
+    E -->|commandes à livrer| D
+    D -->|tournées| L
+    L -->|colis + preuve| C
+    C -->|lien de suivi| Int
+    L -->|résultats| E

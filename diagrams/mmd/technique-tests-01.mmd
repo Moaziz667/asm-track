@@ -1,0 +1,8 @@
+flowchart TB
+    A["Tests unitaires — 468<br/>mockés, sans base"] --> B["Tests d'intégration<br/>PostgreSQL réel"]
+    B --> C["Tests d'acceptance<br/>parcours métier complets"]
+    C --> D["Tests ERP — 28<br/>Odoo 16 ET 19 simultanés"]
+    E["Frontend — 128<br/>logique pure, Node"]
+
+    style A fill:#e8f5e9,stroke:#2e7d32
+    style D fill:#e0f2f1,stroke:#00897b

@@ -1,0 +1,21 @@
+flowchart LR
+    subgraph Producteurs
+        D["DeliveryMicroservice<br/>EventPublisher"]
+    end
+    subgraph Destinations
+        T1["/topic/deliveries"]
+        T2["/topic/routes"]
+        T3["/topic/drivers"]
+        T4["/topic/public.{deliveryId}"]
+        T5["/topic/notifications"]
+    end
+    subgraph Abonnés
+        W["Back-office<br/>(dispatch, tableau de bord)"]
+        P["Page de suivi public"]
+    end
+
+    D --> T1 & T2 & T3 & T4 & T5
+    T1 & T2 & T3 & T5 --> W
+    T4 --> P
+
+    style T4 fill:#fff3e0,stroke:#ef6c00

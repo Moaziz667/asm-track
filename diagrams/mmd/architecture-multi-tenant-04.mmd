@@ -1,0 +1,15 @@
+flowchart TD
+    subgraph N["Nouveau client"]
+        A["TenantOnboardingService"] -->|"POST /internal/tenants/{id}/provision"| B["AppBackend"]
+        A --> C["DeliveryMicroservice"]
+        A --> D["DriverService"]
+        B & C & D --> E["CREATE SCHEMA IF NOT EXISTS<br/>+ flyway.migrate()"]
+    end
+
+    subgraph S["À chaque démarrage"]
+        F["TenantMigrationRunner"] --> G["TenantIterator<br/>lit les schémas company_*"]
+        G --> H["provision() sur chacun<br/>= migrations en attente"]
+    end
+
+    style N fill:#e3f2fd,stroke:#1565c0
+    style S fill:#e8f5e9,stroke:#2e7d32

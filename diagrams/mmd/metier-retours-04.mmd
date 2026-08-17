@@ -1,0 +1,9 @@
+flowchart LR
+    A["Page de suivi"] --> B["Formulaire de retour"]
+    B --> C["POST /public/track/{id}/return"]
+    C --> D{"Limite de débit<br/>4 / 24 h par IP+livraison"}
+    D -->|dépassée| E["429"]
+    D -->|ok| F["RMA REQUESTED"]
+    F --> G["Le back-office arbitre"]
+
+    style D fill:#fff3e0,stroke:#ef6c00

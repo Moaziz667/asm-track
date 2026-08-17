@@ -1,0 +1,17 @@
+flowchart LR
+    subgraph P["Périmètre d'ASM Track"]
+        A["Import des commandes<br/>depuis l'ERP"]
+        B["Planification<br/>des tournées"]
+        C["Exécution terrain<br/>preuve de livraison"]
+        D["Encaissement<br/>et remise de caisse"]
+        E["Retours"]
+        F["Suivi et rapports"]
+        A --> B --> C --> D
+        C --> E
+        C --> F
+    end
+    G["ERP du client"] -.-> A
+    C -.-> G
+    E -.-> G
+
+    style P fill:#e8f5e9,stroke:#2e7d32

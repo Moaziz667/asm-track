@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant Q as Requête API
+    participant AX as Couche Axios
+    participant UM as UserManager<br/>(oidc-client-ts)
+    participant KC as Keycloak
+
+    Q->>AX: GET /api/…
+    AX-->>Q: 401 (jeton expiré)
+    AX->>AX: une seule tentative, mutualisée
+    AX->>UM: signinSilent()
+    UM->>KC: refresh_token grant
+    KC-->>UM: nouveau access_token
+    UM->>AX: session mise à jour
+    AX->>Q: rejoue la requête d'origine
+    Q-->>AX: 200

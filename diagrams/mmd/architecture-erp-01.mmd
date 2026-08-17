@@ -1,0 +1,32 @@
+classDiagram
+    class ErpSyncPort {
+        <<interface>>
+        +syncFullDelivery(orderId, backorderId, txId, ref) boolean
+        +syncPartialDelivery(orderId, items, txId, ref) ErpPartialDeliveryResultDTO
+        +syncFailure(orderId, code, comment, txId, ref) boolean
+        +syncOrderCancellation(orderId, txId, ref) boolean
+    }
+    class ErpLookupPort {
+        <<interface>>
+        +getPendingOrders(...)
+        +searchClients(...)
+        +getWarehouses(...)
+    }
+    class ErpOrderPort {
+        <<interface>>
+        +createOrder(...)
+        +resolvePickingRef(...)
+    }
+    class ErpChangePort {
+        <<interface>>
+        +pollChanges(...)
+    }
+
+    ErpSyncPort <|.. OdooSyncAdapter
+    ErpSyncPort <|.. ErpNextSyncAdapter
+    ErpSyncPort <|.. NoopSyncAdapter
+    ErpLookupPort <|.. OdooLookupAdapter
+    ErpLookupPort <|.. ErpNextLookupAdapter
+    ErpLookupPort <|.. NoopLookupAdapter
+
+    note for NoopSyncAdapter "erp_type = NONE\nrépond « succès » sans rien faire"

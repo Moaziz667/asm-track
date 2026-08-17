@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> DRAFT : création
+    DRAFT --> DRAFT : ajouter, retirer, réordonner
+    DRAFT --> VALIDATED : validation du dispatcher
+    VALIDATED --> IN_PROGRESS : le livreur démarre
+    IN_PROGRESS --> CLOSED : tous les arrêts terminés
+    VALIDATED --> CANCELLED : annulation (motif requis)
+    IN_PROGRESS --> CANCELLED : annulation (motif requis)
+    CLOSED --> [*]
+    CANCELLED --> [*]
+
+    note right of DRAFT
+        Seul état modifiable librement.
+        Le livreur ne la voit pas encore.
+    end note
+    note right of CANCELLED
+        Les arrêts non livrés retournent
+        au pool ; les terminés sont gardés.
+    end note

@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant A as OdooSyncAdapter
+    participant CR as CapabilityResolver
+    participant C as Cache par client
+    participant O as Odoo
+
+    A->>CR: quel champ pour DONE_QUANTITY ?
+    CR->>C: déjà résolu ?
+    alt en cache
+        C-->>CR: « quantity »
+    else première fois
+        CR->>O: fields_get("stock.move.line")
+        O-->>CR: liste des champs réels
+        CR->>CR: premier candidat présent
+        CR->>C: mémorise
+    end
+    CR-->>A: « quantity »
+    A->>O: write(… quantity: 3)

@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant A as Service émetteur
+    participant PP as TenantMessagePostProcessor
+    participant MQ as RabbitMQ
+    participant IP as TenantInboundPostProcessor
+    participant B as Service consommateur
+
+    A->>PP: publie un événement
+    PP->>PP: lit TenantContext
+    PP->>MQ: message + en-tête X-Company-Id
+    MQ->>IP: livraison au consommateur
+    IP->>IP: clear() PUIS set(companyId)
+    IP->>B: le listener s'exécute
+    Note over B: son travail en base atteint<br/>le bon schéma

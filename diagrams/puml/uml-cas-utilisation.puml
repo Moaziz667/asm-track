@@ -1,0 +1,56 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam monochrome false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+}
+skinparam actor {
+  BackgroundColor #ECEFF1
+  BorderColor #546E7A
+}
+title Diagramme de cas d'utilisation — ASM Track
+
+actor "Client" as C
+actor "Livreur" as L
+actor "Dispatcheur" as D
+actor "Administrateur" as A
+actor "ERP\n(Odoo / ERPNext)" as E
+
+rectangle "ASM Track" {
+  usecase "Passer une commande" as UC1
+  usecase "Suivre son colis" as UC2
+  usecase "Consulter sa tournée" as UC3
+  usecase "Réaliser une livraison" as UC4
+  usecase "Signaler un échec" as UC5
+  usecase "Encaisser un paiement" as UC6
+  usecase "Planifier les tournées" as UC7
+  usecase "Superviser les livraisons" as UC8
+  usecase "Résoudre les incidents" as UC9
+  usecase "Gérer les comptes et rôles" as UC10
+  usecase "Configurer l'intégration ERP" as UC11
+  usecase "Consulter les rapports" as UC12
+}
+
+C --> UC1
+C --> UC2
+
+L --> UC3
+L --> UC4
+L --> UC5
+L --> UC6
+
+D --> UC7
+D --> UC8
+D --> UC9
+
+A --> UC10
+A --> UC11
+A --> UC12
+
+UC1 ..> E : import
+UC4 ..> E : synchronisation
+@enduml

@@ -1,0 +1,10 @@
+flowchart LR
+    A["Métadonnée ERP<br/>char · Data · Select"] --> B["normalize()<br/>par catalogue"]
+    B --> C["SourceType<br/>TEXT · ENUM · DECIMAL…"]
+    C --> D["Convertisseur<br/>du type canonique"]
+    D --> E["SAFE / LOSSY / UNSUPPORTED"]
+    D --> F["VALUE / EMPTY / UNREADABLE"]
+
+    style C fill:#e3f2fd,stroke:#1565c0
+    style E fill:#fff3e0,stroke:#ef6c00
+    style F fill:#e8f5e9,stroke:#2e7d32

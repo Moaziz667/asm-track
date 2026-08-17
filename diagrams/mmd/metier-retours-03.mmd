@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant A as Back-office
+    participant D as DeliveryMicroservice
+    participant MQ as RabbitMQ
+    participant E as ErpAdapterService
+    participant O as Odoo
+
+    A->>D: marquer RESTOCKED
+    D->>D: rma.status = RESTOCKED, erpSync = PENDING_SYNC
+    D->>MQ: outbox → erp.sync.command (RETURN)
+    MQ->>E: consomme
+    E->>O: crée l'assistant stock.return.picking
+    E->>O: matérialise les lignes si absentes
+    E->>O: renseigne les quantités par SKU
+    E->>O: create_returns (16) / action_create_returns (18+)
+    O-->>E: transfert inverse créé
+    E->>MQ: erp.sync.result
+    MQ->>D: rma.erpSync = SYNCED

@@ -1,0 +1,9 @@
+flowchart LR
+    A["Le livreur encaisse"] --> B["Argent en poche<br/>plusieurs heures"]
+    B --> C["Retour au dépôt"]
+    C --> D{"Qui vérifie ?"}
+    D -->|"le livreur lui-même"| E["❌ système déclaratif"]
+    D -->|"un tiers au comptoir"| F["✅ contrôle réel"]
+
+    style E fill:#ffebee,stroke:#c62828
+    style F fill:#e8f5e9,stroke:#2e7d32

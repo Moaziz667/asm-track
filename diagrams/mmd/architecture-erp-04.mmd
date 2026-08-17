@@ -1,0 +1,13 @@
+flowchart TD
+    A["button_validate(picking)"] --> B{"Réponse ?"}
+    B -->|"true"| Z["Transfert validé"]
+    B -->|"ir.actions.act_window"| C["Un assistant est demandé"]
+    C --> D{"res_id présent ?"}
+    D -->|non| E["Créer l'enregistrement<br/>depuis les default_* du contexte"]
+    D -->|oui| F["Utiliser l'existant"]
+    E & F --> G["Renseigner les lignes<br/>une par picking"]
+    G --> H["process()"]
+    H --> B
+
+    style E fill:#fff3e0,stroke:#ef6c00
+    style G fill:#fff3e0,stroke:#ef6c00

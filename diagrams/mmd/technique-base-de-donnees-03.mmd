@@ -1,0 +1,18 @@
+erDiagram
+    ORDERS ||--|| DELIVERIES : "une livraison par commande"
+    ORDERS ||--o{ ORDER_ITEMS : contient
+    DELIVERIES ||--o{ DELIVERY_STATUS_HISTORY : "trace chaque changement"
+    DELIVERIES ||--o| PROOF_OF_DELIVERY : "preuve, si terminale"
+    DELIVERIES ||--o{ TRACKING : "positions GPS"
+    DELIVERIES ||--o| CASH_COLLECTION : "si COD"
+    DELIVERIES ||--o| SLA_STATE : "échéance et santé"
+    DELIVERIES ||--o{ HANDOFFS : "transferts de garde"
+    DELIVERIES ||--o{ RMA : "retours"
+    ROUTES ||--o{ ROUTE_STOPS : "séquence ordonnée"
+    ROUTE_STOPS }o--|| DELIVERIES : "un arrêt = une livraison"
+    ROUTES }o--|| DEPOTS : "part de"
+    ROUTES ||--o| ROUTE_REPORT : "à la clôture"
+    RMA ||--o{ RMA_ITEM : "lignes retournées"
+    RMA ||--o{ RMA_PHOTO : preuves
+    CASH_COLLECTION }o--o| CASH_REMITTANCE : "regroupée dans"
+    DEPOTS ||--o{ ZONES : couvre

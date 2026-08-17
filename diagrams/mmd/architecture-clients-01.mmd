@@ -1,0 +1,13 @@
+flowchart TD
+    C["Composant"] --> Q["useQuery / useMutation"]
+    Q --> AX["instance Axios"]
+    AX --> I1["Intercepteur requête<br/>+ Bearer, + clé d'idempotence"]
+    I1 --> GW["API Gateway"]
+    GW --> I2["Intercepteur réponse"]
+    I2 --> R{"401 ?"}
+    R -->|non| S["aplatit la pagination Spring"]
+    R -->|oui| T["renouvellement unique, mutualisé"]
+    T -->|réussi| U["rejoue la requête"]
+    T -->|échoué| V["déconnexion, une seule fois"]
+
+    style T fill:#fff3e0,stroke:#ef6c00

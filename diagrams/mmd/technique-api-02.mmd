@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant C as Client
+    participant API as Backend
+    participant DB as processed_requests
+
+    C->>API: POST /accept + X-Idempotency-Key: abc
+    API->>DB: la clé existe ?
+    alt première fois
+        API->>DB: enregistre la clé
+        API->>API: exécute
+        API-->>C: 200
+    else rejeu
+        DB-->>API: déjà traitée
+        API-->>C: la réponse d'origine
+    end

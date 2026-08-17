@@ -1,0 +1,15 @@
+flowchart TD
+    A["Requête : méthode + chemin + rôles du jeton"] --> B["Parcours des règles<br/>dans l'ordre"]
+    B --> C{"La méthode<br/>correspond ?"}
+    C -->|non| D["règle suivante"]
+    D --> B
+    C -->|oui| E{"Le chemin<br/>correspond ?"}
+    E -->|non| D
+    E -->|oui| F{"Le jeton porte<br/>la permission ?"}
+    F -->|oui| G["AUTORISÉ"]
+    F -->|non| H["REFUSÉ"]
+    B -->|"fin de liste"| I["REFUSÉ<br/>(fail-closed)"]
+
+    style G fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#ffebee,stroke:#c62828
+    style I fill:#ffebee,stroke:#c62828,stroke-width:3px

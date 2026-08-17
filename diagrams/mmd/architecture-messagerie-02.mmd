@@ -1,0 +1,8 @@
+flowchart LR
+    A["UPDATE deliveries<br/>status = DELIVERED"] --> B{"COMMIT<br/>réussit ?"}
+    B -->|oui| C["publier vers l'ERP"]
+    C --> D{"le service<br/>survit ?"}
+    D -->|non| E["Livraison enregistrée<br/>ERP jamais informé"]
+    D -->|oui| F["cohérent"]
+
+    style E fill:#ffebee,stroke:#c62828,stroke-width:3px

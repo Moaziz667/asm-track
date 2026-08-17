@@ -1,0 +1,8 @@
+flowchart TD
+    E["Événement métier<br/>(livraison échouée, SLA dépassé…)"]
+    E --> W["WebSocket<br/>→ apparaît immédiatement"]
+    E --> N["Table notifications<br/>→ survit au rechargement"]
+    N --> B["Cloche du back-office<br/>lecture / non-lecture"]
+
+    style W fill:#e3f2fd,stroke:#1565c0
+    style N fill:#e8f5e9,stroke:#2e7d32

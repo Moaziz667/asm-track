@@ -77,6 +77,22 @@ sequenceDiagram
 Les écritures sensibles portent `@IdempotentOperation`. La clé est générée **une fois par requête**
 côté client et survit aux rejeux — indispensable pour la file hors ligne du mobile.
 
+### Heure du geste
+
+Les actions livreur portent un en-tête `X-Client-Timestamp` (ISO-8601, UTC) capturé **au moment du
+tap**, avant toute tentative réseau. Le serveur l'utilise via `ActionClock` pour horodater la
+transition (`pickup`, `transit`, `complete`, `cancel`, `fail`, POD) — sinon une action mise en file
+hors ligne serait datée de la reconnexion, faussant preuve de livraison, verdict SLA et ERP.
+
+L'horloge d'un téléphone n'étant pas fiable, la valeur n'est retenue **que si elle est plausible** :
+pas dans le futur au-delà de 5 min de dérive tolérée, pas plus ancienne que la TTL de la file (24 h).
+Hors de ces bornes, l'heure du serveur s'applique — tardive, mais jamais inventée.
+
+!!! note "Absent des specs OpenAPI"
+    `X-Client-Timestamp` et `X-Idempotency-Key` sont posés au runtime par le client (Dio), pas
+    déclarés en `@RequestHeader` : springdoc ne les génère donc pas. Le contrat vit ici, pas dans
+    `docs/openapi/`.
+
 ### Erreurs
 
 Chaque service a **exactement un** `@RestControllerAdvice`. La forme est uniforme :

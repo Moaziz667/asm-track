@@ -1,0 +1,27 @@
+stateDiagram-v2
+    [*] --> UNSCHEDULED : import depuis l'ERP
+    UNSCHEDULED --> SCHEDULED : affectée à un livreur<br/>(tournée ou prise directe)
+    SCHEDULED --> PICKED_UP : colis récupéré au dépôt
+    PICKED_UP --> IN_TRANSIT : départ vers le destinataire
+    IN_TRANSIT --> DELIVERED : preuve de livraison complète
+    IN_TRANSIT --> PARTIALLY_DELIVERED : une partie seulement
+    IN_TRANSIT --> FAILED : motif d'échec
+    IN_TRANSIT --> AWAITING_HANDOFF : transfert vers un autre livreur
+    AWAITING_HANDOFF --> IN_TRANSIT : réception confirmée
+    SCHEDULED --> UNSCHEDULED : le livreur se désiste
+    UNSCHEDULED --> CANCELLED : annulation côté ERP
+    SCHEDULED --> CANCELLED : annulation administrative
+
+    DELIVERED --> [*]
+    PARTIALLY_DELIVERED --> [*]
+    FAILED --> [*]
+    CANCELLED --> [*]
+
+    note right of UNSCHEDULED
+        Le « pool » : personne
+        ne la porte encore
+    end note
+    note right of AWAITING_HANDOFF
+        Deux livreurs, un jeton :
+        la garde ne se perd jamais
+    end note

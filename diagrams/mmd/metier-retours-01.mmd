@@ -1,0 +1,20 @@
+stateDiagram-v2
+    [*] --> REQUESTED : demande (destinataire ou back-office)
+    REQUESTED --> APPROVED : validation
+    REQUESTED --> REJECTED : refus motivé
+    APPROVED --> RECEIVED : collecte terminée par le livreur
+    RECEIVED --> RESTOCKED : réintégré au stock ERP
+    APPROVED --> CANCELLED : abandon
+    REQUESTED --> CANCELLED : abandon
+    RESTOCKED --> [*]
+    REJECTED --> [*]
+    CANCELLED --> [*]
+
+    note right of RECEIVED
+        Le colis est physiquement au dépôt.
+        L'ERP ne le sait pas encore.
+    end note
+    note right of RESTOCKED
+        Déclenche le mouvement inverse
+        dans l'ERP → PENDING_SYNC
+    end note

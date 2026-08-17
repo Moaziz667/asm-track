@@ -1,0 +1,9 @@
+flowchart LR
+    A["RMA APPROVED"] --> B["Livraison RETURN_PICKUP<br/>créée"]
+    B --> C["Insérée dans une tournée<br/>comme un arrêt normal"]
+    C --> D["Le livreur collecte"]
+    D --> E["POD sans bon de livraison"]
+    E --> F["RMA → RECEIVED"]
+
+    style B fill:#fff3e0,stroke:#ef6c00
+    style E fill:#fff3e0,stroke:#ef6c00

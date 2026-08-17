@@ -1,0 +1,14 @@
+sequenceDiagram
+    autonumber
+    actor A as Livreur A
+    actor B as Livreur B
+    participant API as Backend
+
+    A->>API: demande un jeton de transfert
+    API-->>A: jeton + expiration
+    A->>A: affiche un QR code
+    B->>B: scanne le QR
+    B->>API: confirme avec le jeton (+ position)
+    API->>API: vérifie le jeton et son expiration
+    API-->>B: la livraison lui appartient
+    Note over API: AWAITING_HANDOFF → IN_TRANSIT

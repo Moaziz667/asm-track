@@ -1,0 +1,7 @@
+flowchart LR
+    A["Un transporteur adopte<br/>une plateforme de livraison"] --> B{"Doit-il changer<br/>son ERP ?"}
+    B -->|oui| C["❌ refus commercial<br/>ses commandes, son stock,<br/>sa facturation y vivent"]
+    B -->|non| D["✅ adoption possible"]
+
+    style C fill:#ffebee,stroke:#c62828
+    style D fill:#e8f5e9,stroke:#2e7d32

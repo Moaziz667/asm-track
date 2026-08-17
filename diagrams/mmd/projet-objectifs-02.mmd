@@ -1,0 +1,10 @@
+flowchart LR
+    A["Endpoint oublié dans la politique"] --> B["403, pas accès libre"]
+    C["Locataire non résolu"] --> D["403, pas le schéma public"]
+    E["Réponse Odoo non-PDF"] --> F["erreur claire, pas un fichier corrompu"]
+    G["Écriture outbox hors transaction"] --> H["refus du conteneur"]
+
+    style B fill:#e8f5e9,stroke:#2e7d32
+    style D fill:#e8f5e9,stroke:#2e7d32
+    style F fill:#e8f5e9,stroke:#2e7d32
+    style H fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,10 @@
+flowchart TD
+    A["Demande de comptage"] --> B{"Le compteur est-il<br/>le déclarant ?"}
+    B -->|oui| R1["400 CASH_SELF_RECEIVE"]
+    B -->|non| C{"Le compteur est-il<br/>le livreur ?"}
+    C -->|oui| R2["400 CASH_SELF_RECEIVE"]
+    C -->|non| D["Comptage enregistré"]
+
+    style R1 fill:#ffebee,stroke:#c62828
+    style R2 fill:#ffebee,stroke:#c62828
+    style D fill:#e8f5e9,stroke:#2e7d32

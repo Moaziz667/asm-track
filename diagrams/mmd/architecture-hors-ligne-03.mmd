@@ -1,0 +1,9 @@
+flowchart LR
+    A["Rejeu"] --> B{"Réponse ?"}
+    B -->|"2xx"| C["Retiré de la file"]
+    B -->|"5xx, timeout"| D["Nouvelle tentative"]
+    D -->|"trop d'échecs"| E["Mise en échec<br/>(visible dans le centre de synchro)"]
+    B -->|"4xx — refus métier"| E
+    E --> F["Le livreur relance ou abandonne,<br/>explicitement"]
+
+    style E fill:#ffebee,stroke:#c62828

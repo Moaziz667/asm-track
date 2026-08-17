@@ -2,50 +2,64 @@
 
 ## Le découpage, et sa logique
 
-Cinq services Spring Boot, **chacun propriétaire de sa base de données**. Aucun ne lit la base d'un
+Six services Spring Boot, **chacun propriétaire de sa base de données**. Aucun ne lit la base d'un
 autre — vérifiable : aucune configuration ne pointe vers la base d'un voisin.
 
 ```mermaid
-C4Container
-    title Diagramme de conteneurs — ASM Track
+flowchart TB
+    dispatcher(["Dispatcher"])
+    livreur(["Livreur"])
+    destinataire(["Destinataire"])
 
-    Person(dispatcher, "Dispatcher", "Planifie les tournées, résout les incidents")
-    Person(livreur, "Livreur", "Exécute la tournée sur le terrain")
-    Person(destinataire, "Destinataire", "Suit son colis par un lien")
+    subgraph asm["ASM Track"]
+        web["Back-office<br/>React 19, Vite"]
+        mobile["Application livreur<br/>Flutter"]
+        gw{{"API Gateway<br/>Spring Cloud Gateway"}}
+        ab["AppBackend<br/>Spring Boot"]
+        del["DeliveryMicroservice<br/>Spring Boot"]
+        drv["DriverService<br/>Spring Boot"]
+        erp["ErpAdapterService<br/>Spring Boot"]
+        ast["AssistantService<br/>Spring Boot"]
+        pg[("PostgreSQL ×3<br/>schéma par client")]
+        pga[("pgvector<br/>isolation par tenant_id")]
+        h2[("H2<br/>correspondances ERP")]
+        mq[["RabbitMQ"]]
+    end
 
-    System_Boundary(asm, "ASM Track") {
-        Container(web, "Back-office", "React 19, Vite", "Planification, supervision, paramétrage")
-        Container(mobile, "Application livreur", "Flutter", "Tournée, preuve de livraison, encaissement")
-        Container(gw, "API Gateway", "Spring Cloud Gateway", "Vérifie le jeton, résout le locataire, route")
-        Container(ab, "AppBackend", "Spring Boot", "Comptes back-office, paramètres, intégration Keycloak")
-        Container(del, "DeliveryMicroservice", "Spring Boot", "Livraisons, tournées, retours, encaissements, SLA")
-        Container(drv, "DriverService", "Spring Boot", "Livreurs, véhicules, disponibilité")
-        Container(erp, "ErpAdapterService", "Spring Boot", "Traduction vers l'ERP du client")
-        ContainerDb(pg, "PostgreSQL ×3", "Une base par service, schéma par client")
-        ContainerDb(h2, "H2", "Correspondances ERP par client")
-        ContainerQueue(mq, "RabbitMQ", "Événements et commandes asynchrones")
-    }
+    kc["Keycloak"]
+    odoo["Odoo / ERPNext"]
+    minio["MinIO"]
 
-    System_Ext(kc, "Keycloak", "Identités, jetons, organisations")
-    System_Ext(odoo, "Odoo / ERPNext", "ERP du client")
-    System_Ext(minio, "MinIO", "Photos de preuve de livraison")
+    dispatcher -->|HTTPS| web
+    livreur -->|HTTPS| mobile
+    destinataire -->|"lien de suivi"| gw
+    web -->|"REST + WebSocket"| gw
+    mobile -->|REST| gw
+    web -->|OIDC| kc
+    mobile -->|OIDC| kc
+    gw -->|REST| ab
+    gw -->|REST| del
+    gw -->|REST| drv
+    gw -->|REST| ast
+    del -->|"publie / consomme"| mq
+    erp -->|"consomme / publie"| mq
+    erp -->|"JSON-RPC / REST"| odoo
+    del -->|photos| minio
+    del -->|JDBC| pg
+    ast -->|JDBC| pga
+    erp -->|JDBC| h2
 
-    Rel(dispatcher, web, "HTTPS")
-    Rel(livreur, mobile, "HTTPS")
-    Rel(destinataire, gw, "Lien de suivi")
-    Rel(web, gw, "REST + WebSocket")
-    Rel(mobile, gw, "REST")
-    Rel(web, kc, "OIDC")
-    Rel(mobile, kc, "OIDC")
-    Rel(gw, ab, "REST")
-    Rel(gw, del, "REST")
-    Rel(gw, drv, "REST")
-    Rel(del, mq, "publie / consomme")
-    Rel(erp, mq, "consomme / publie")
-    Rel(erp, odoo, "JSON-RPC / REST")
-    Rel(del, minio, "photos")
-    Rel(del, pg, "JDBC")
-    Rel(erp, h2, "JDBC")
+    classDef acteur fill:#eceff1,stroke:#546e7a,color:#263238
+    classDef client fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef service fill:#e8eaf6,stroke:#3f51b5,color:#1a237e
+    classDef donnee fill:#e0f2f1,stroke:#00897b,color:#004d40
+    classDef externe fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+
+    class dispatcher,livreur,destinataire acteur
+    class web,mobile client
+    class gw,ab,del,drv,erp,ast service
+    class pg,pga,h2,mq donnee
+    class kc,odoo,minio externe
 ```
 
 **Pourquoi ce diagramme.** Il répond d'un coup à « qui parle à qui », et surtout à **qui ne parle pas
@@ -65,11 +79,12 @@ C4Container
 
 | Service | Port | Responsabilité | Base |
 |---|---|---|---|
-| `ApiGateway` | 80 | Routage (44 routes), agrégation OpenAPI, première évaluation RBAC | — |
+| `ApiGateway` | 80 | Routage (45 routes), agrégation OpenAPI, première évaluation RBAC | — |
 | `AppBackend` | 8080 | Comptes back-office, paramètres entreprise, pilotage Keycloak | PostgreSQL |
 | `DeliveryMicroservice` | 8082 | **Cœur métier** : livraisons, tournées, retours, encaissements, SLA | PostgreSQL |
 | `DriverService` | 8086 | Livreurs, véhicules, disponibilité | PostgreSQL |
 | `ErpAdapterService` | 8088 | Traduction vers l'ERP du client — **interne** | H2 (fichier) |
+| `AssistantService` | 8087 | Assistant RAG — recherche et réponses sur les données du client | pgvector |
 
 !!! info "Pourquoi `DeliveryMicroservice` est si gros"
     Il porte 60 % du code backend. Ce n'est pas un défaut de découpage mais une conséquence du

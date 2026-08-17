@@ -32,6 +32,13 @@ flowchart LR
 | **Suivi** | temps réel pour le dispatch, lien public pour le destinataire, rapports de tournée |
 | **Administration** | comptes back-office, rôles fins, paramétrage ERP guidé, journal d'audit |
 
+### Acteurs et cas d'utilisation
+
+Vue d'ensemble des acteurs et de ce que chacun peut faire. L'ERP est un acteur **secondaire** : il
+alimente le système en commandes et reçoit en retour les preuves de livraison.
+
+![Diagramme de cas d'utilisation d'ASM Track](../assets/uml/uml-cas-utilisation.svg)
+
 ---
 
 ## Ce que la plateforme ne fait pas — et pourquoi

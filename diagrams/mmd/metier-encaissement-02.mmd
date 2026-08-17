@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor L as Livreur
+    actor C as Comptoir (dépôt)
+    participant API as Backend
+
+    Note over L,API: 1 · Sur le terrain
+    L->>API: POD + montant encaissé
+    API->>API: cash_collection (COLLECTED / PARTIAL / REFUSED)
+    Note over API: l'argent est « en circulation »
+
+    Note over L,API: 2 · Au retour au dépôt
+    L->>API: déclare le total remis
+    API->>API: expected_total calculé depuis les collectes
+    Note over API: remise DECLARED
+
+    Note over C,API: 3 · Le comptage, par quelqu'un d'autre
+    C->>API: montant réellement compté
+    alt Le compteur est le déclarant ou le livreur
+        API-->>C: 400 CASH_SELF_RECEIVE
+    end
+    API->>API: discrepancy = compté − attendu
+    alt écart nul
+        Note over API: RECONCILED
+    else écart
+        Note over API: DISPUTED
+    end
+
+    Note over C,API: 4 · Solder un écart
+    C->>API: justification écrite (obligatoire)
+    Note over API: RECONCILED

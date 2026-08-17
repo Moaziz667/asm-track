@@ -1,0 +1,12 @@
+flowchart TD
+    A["Claim « organization » du JWT"] --> B{"Combien<br/>d'organisations ?"}
+    B -->|"aucune"| R1["403 — pas de locataire"]
+    B -->|"plusieurs"| R2["403 — locataire ambigu"]
+    B -->|"exactement une"| C{"Est-ce un UUID ?"}
+    C -->|"non"| R3["403 — identifiant invalide"]
+    C -->|"oui"| D["Injecte X-Company-Id"]
+
+    style R1 fill:#ffebee,stroke:#c62828
+    style R2 fill:#ffebee,stroke:#c62828
+    style R3 fill:#ffebee,stroke:#c62828
+    style D fill:#e8f5e9,stroke:#2e7d32

@@ -1,0 +1,7 @@
+flowchart LR
+    A["Tournée CLOSED"] --> B["RouteReportService"]
+    B --> C["Agrégats : livrés, échoués,<br/>km, SLA, espèces"]
+    C --> D["route_report<br/>(figé en base)"]
+    D --> E["PDF"]
+
+    style D fill:#e8f5e9,stroke:#2e7d32

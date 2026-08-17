@@ -1,0 +1,16 @@
+sequenceDiagram
+    autonumber
+    participant D as Destinataire
+    participant GW as Gateway
+    participant F1 as TenantContextFilter
+    participant F2 as PublicTrackingTenantFilter
+    participant S as PublicTrackingService
+
+    D->>GW: GET /api/v1/public/track/{deliveryId}
+    Note over GW: Aucun jeton — chemin permitAll
+    GW->>F1: requête sans X-Company-Id
+    Note over F1: /api/v1/public/ est déclaré<br/>« sans locataire » : laisse passer
+    F1->>F2: 
+    F2->>F2: Résout le locataire depuis l'identifiant de livraison
+    F2->>S: TenantContext posé
+    S-->>D: statut, ETA, position du livreur

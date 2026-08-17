@@ -1,0 +1,8 @@
+flowchart LR
+    A["Ouverture de l'app<br/>(en ligne)"] --> B["Tournée + livraisons"]
+    B --> C["Cache local Hive"]
+    B --> D["Préchargement du détail<br/>de chaque livraison"]
+    D --> C
+    C --> E["Consultable hors ligne"]
+
+    style C fill:#e8f5e9,stroke:#2e7d32

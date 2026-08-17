@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> PENDING : enqueue()
+    PENDING --> PROCESSING : claim (SKIP LOCKED)
+    PROCESSING --> PROCESSED : succès
+    PROCESSING --> PENDING : échec, tentative ≤ 15
+    PROCESSING --> FAILED : échec, tentative > 15
+    PROCESSING --> PENDING : bloqué > 5 min (reprise après crash)
+    FAILED --> PENDING : rejeu manuel (back-office)
+    PROCESSED --> [*]
+
+    note right of PENDING
+        Attente exponentielle :
+        2ⁿ × 5 s, plafonnée à 4 h
+    end note
+    note right of FAILED
+        File morte, visible et
+        rejouable — jamais perdu
+    end note

@@ -1,0 +1,10 @@
+flowchart LR
+    A["Entrepôts de l'ERP<br/>Odoo / ERPNext"] --> B["POST /depots/sync"]
+    B --> C["Dépôts ASM"]
+    C --> D{"Coordonnées<br/>connues ?"}
+    D -->|non| E["Géocodage de l'adresse<br/>(Nominatim)"]
+    D -->|oui| F["Prêt pour la planification"]
+    E --> F
+
+    style C fill:#e8f5e9,stroke:#2e7d32
+    style E fill:#e3f2fd,stroke:#1565c0

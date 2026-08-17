@@ -1,0 +1,15 @@
+sequenceDiagram
+    autonumber
+    participant O as Opérateur
+    participant A as Assistant
+    participant M as Modèle
+    participant API as API métier
+
+    O->>A: « les dépôts ? »
+    A->>M: catalogue d'outils + question
+    M-->>A: { "tool": "depots_active" }
+    A->>API: GET, avec le jeton de l'opérateur
+    API-->>A: données réelles
+    A->>M: question + données
+    M-->>A: réponse rédigée
+    A-->>O: réponse + source live

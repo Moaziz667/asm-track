@@ -1,0 +1,9 @@
+flowchart TD
+    A["Commande de synchronisation<br/>+ X-Company-Id"] --> B["SettingsClient<br/>lit la config du client"]
+    B --> C{"erp_type ?"}
+    C -->|ODOO| D["OdooSyncAdapter"]
+    C -->|ERPNEXT| E["ErpNextSyncAdapter"]
+    C -->|NONE| F["NoopSyncAdapter"]
+    C -->|"statut ≠ CONNECTED"| G["refus explicite<br/>« credentials non certifiés »"]
+
+    style G fill:#fff3e0,stroke:#ef6c00

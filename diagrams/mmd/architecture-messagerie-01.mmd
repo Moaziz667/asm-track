@@ -1,0 +1,39 @@
+flowchart LR
+    subgraph DEL["DeliveryMicroservice"]
+        D1["OutboxProcessor"]
+        D2["AuditEventConsumer"]
+        D3["DriverStatusConsumer"]
+    end
+    subgraph ERP["ErpAdapterService"]
+        E1["ErpSyncCommandConsumer"]
+        E2["ErpSyncResultPublisher"]
+    end
+    subgraph DRV["DriverService"]
+        V1["publie les statuts"]
+        V2["consomme les positions"]
+    end
+    subgraph AB["AppBackend"]
+        A1["publie l'audit"]
+        A2["IamCommandApplier"]
+    end
+
+    X1{{"erp.sync.exchange"}}
+    X2{{"erp.sync.result.exchange"}}
+    X3{{"driver.events"}}
+    X4{{"driver.commands"}}
+    X5{{"audit.exchange"}}
+    X6{{"iam.exchange"}}
+    DLX{{"*.dlx<br/>files mortes"}}
+
+    D1 -->|"erp.sync.command"| X1 --> E1
+    E2 -->|"erp.sync.result"| X2 --> D1
+    V1 -->|"driver.status.changed"| X3 --> D3
+    D1 -->|"driver.location.update"| X4 --> V2
+    A1 & D2 -->|"audit.log"| X5 --> D2
+    A2 -->|"iam.command"| X6
+    X3 -.échecs.-> DLX
+    X5 -.échecs.-> DLX
+
+    style X1 fill:#f3e5f5,stroke:#7b1fa2
+    style X2 fill:#f3e5f5,stroke:#7b1fa2
+    style DLX fill:#ffebee,stroke:#c62828
