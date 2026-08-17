@@ -6,7 +6,7 @@
 
 ## Contexte
 
-La plateforme expose environ 250 endpoints, répartis sur cinq services, pour des profils aux droits
+La plateforme expose environ 250 endpoints, répartis sur six services, pour des profils aux droits
 très différents : administrateur, dispatcher, responsable, livreur, et des appels entre services.
 Les droits fins sont portés par des rôles composites Keycloak de la forme `perm:route:manage`,
 `perm:cash:receive`, `perm:report:view`.
@@ -77,13 +77,13 @@ développement, où les services sont joignables sur leurs ports, elle est déj�
 
 ### Un serveur de politique (OPA, Keycloak Authorization Services)
 Le bon outil à une autre échelle. Ici, il ajouterait un composant à déployer, à surveiller et à
-maintenir disponible, pour évaluer 29 règles. Le coût d'exploitation dépasse le bénéfice.
+maintenir disponible, pour évaluer 30 règles. Le coût d'exploitation dépasse le bénéfice.
 
 ---
 
 ## Conséquences
 
-**Ce qu'on gagne.** La politique tient en 38 lignes lisibles par un non-développeur. Un audit se fait
+**Ce qu'on gagne.** La politique tient en 40 lignes lisibles par un non-développeur. Un audit se fait
 en lisant un fichier. Un oubli échoue de manière sûre. Les quatre services ne peuvent pas diverger,
 puisqu'ils partagent l'octet près le même fichier.
 

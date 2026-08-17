@@ -12,6 +12,7 @@
 stages:
   - build
   - unit-test
+  - security
   - integration-test
   - package
 
@@ -74,6 +75,17 @@ lint-admin:
     - npm run lint:ci
     - npm run check:design
 
+# La gateway possède rbac-policy.json ; un script le recopie verbatim dans les trois autres services.
+# Rien ne garantissait que les copies concordent — une politique désynchronisée = gateway et service
+# n'appliquent pas les mêmes règles d'autorisation. `--check` n'écrit rien et sort 1 sur dérive.
+rbac-policy-check:
+  stage: build
+  image: python:3.12-slim
+  tags: [docker]
+  script:
+    - cd Microservices
+    - python sync-rbac-policy.py --check
+
 # ── 2. UNIT TEST ─────────────────────────────────────────────────────────────
 # `test` runs unit tests only (integration *IT excluded in build.gradle) — no DB needed.
 unit-test-backend:
@@ -93,6 +105,27 @@ test-admin:
   stage: unit-test
   script:
     - npm test
+
+# ── 2b. SECURITY ─────────────────────────────────────────────────────────────
+# Scan de vulnérabilités des dépendances. Trivy lit package-lock.json (npm) et vérifie les Dockerfile,
+# et signale HIGH/CRITICAL. Informatif (allow_failure) : une CVE transitive doit être VISIBLE sans
+# bloquer la livraison. NB : les services Java n'ont pas de gradle.lockfile — leur scan de dépendances
+# se fait au niveau de l'image (voir la note dans docs/exploitation/ci-cd.md).
+dependency-scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  tags: [docker]
+  allow_failure: true
+  variables:
+    TRIVY_CACHE_DIR: .trivycache
+  cache:
+    key: trivy-db
+    paths:
+      - .trivycache
+  script:
+    - trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 --no-progress --skip-dirs '**/node_modules' --skip-dirs '**/build' .
 
 # ── 3. INTEGRATION TEST ──────────────────────────────────────────────────────
 # `integrationTest` runs the *IT suite against the side-car Postgres (via IT_DB_URL). No Docker-in-Docker:

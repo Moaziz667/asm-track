@@ -6,7 +6,7 @@
 
 ## Le problème que ça résout
 
-La plateforme expose ~250 endpoints sur cinq services, pour des profils aux droits très différents.
+La plateforme expose ~250 endpoints sur six services, pour des profils aux droits très différents.
 La question à laquelle il faut pouvoir répondre — en revue comme en exploitation — est simple à poser
 et redoutable à tenir :
 
@@ -25,7 +25,7 @@ Personne ne peut la donner, et personne ne peut vérifier qu'un endroit n'a pas 
 { "methods": ["*"],   "pathPrefix": "/api/v1/admin/",          "require": { "perm": "perm:dispatch:operate" } }
 ```
 
-29 règles, 38 lignes, lisibles par un non-développeur.
+30 règles, 40 lignes, lisibles par un non-développeur.
 
 ```mermaid
 flowchart TD
