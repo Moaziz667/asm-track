@@ -85,7 +85,11 @@ export function SourceCombobox({
       ?.scrollIntoView({ block: 'nearest' });
   }, [active, query]);
 
-  const commit = (path: string, verdict: Compatibility) => {
+  /**
+   * @param verdict defaults to SAFE because the one call that omits it is "clear the mapping", and
+   *                returning a field to its built-in default can never be incompatible.
+   */
+  const commit = (path: string, verdict: Compatibility = 'SAFE') => {
     // Refused here as well as on the server: clicking a greyed row should do nothing, not submit and
     // bounce. The server check remains the one that counts.
     if (verdict === 'UNSUPPORTED') return;

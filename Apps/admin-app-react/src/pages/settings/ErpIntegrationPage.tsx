@@ -12,6 +12,7 @@ import {
   getErpSettings, saveErpSettings, testErpSettings, testStoredErpSettings,
   getConformance, getFieldMappings, getCanonicalFields, getAvailableFields, getMappingScopes,
   upsertFieldMapping, deleteFieldMapping, deleteFieldMappingById, blockingChecks, getTypeMatrix,
+  type TypeMatrix,
   type ErpSettings, type ErpConfig, type ErpProvider, type ConnStatus,
   type ConformanceReport, type FieldMapping, type CanonicalFieldInfo, type ErpField,
   type UpsertMappingInput,

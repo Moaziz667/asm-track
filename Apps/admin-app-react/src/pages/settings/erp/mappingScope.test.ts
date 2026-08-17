@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { buildOptions, modelsFor, primaryModelFor, rank, type MappingScopes } from './mappingScope';
 import type { ErpField } from '@/lib/api/erpIntegration';
 
+// `char` / TEXT: these cases are about path building, not compatibility, so the widest source type
+// keeps them independent of which canonical field a row happens to target.
 const f = (name: string, label: string, custom = false): ErpField =>
-  ({ name, label, type: 'char', custom });
+  ({ name, label, type: 'char', sourceType: 'TEXT', custom });
 
 /**
  * What the backend serves for an Odoo tenant. Hardcoded in the test on purpose: the point of these
