@@ -63,11 +63,21 @@ public class AdminDriverService {
     /** Lightweight driverId → avatar-URL map for showing photos anywhere a driver appears
      *  (handoff cards, dashboard, stats, reports). Only drivers with a photo are included. */
     @Transactional(readOnly = true)
+    /**
+     * driverId → avatar URL, rebuilt at read time like every other read of a photo.
+     *
+     * <p>This one handed back the stored column verbatim, and that column holds an address frozen
+     * when the photo was uploaded. The drivers page worked because it rebuilds the URL; the maps —
+     * route tracking, dispatch desk — read this map and showed a broken image the moment the server
+     * answered on a different host. Same data, two answers, depending on which screen asked.
+     */
     public Map<String, String> avatarsMap() {
         Map<String, String> out = new HashMap<>();
         for (Driver d : driverRepo.findAll()) {
-            if (d.getPhotoUrl() != null && !d.getPhotoUrl().isBlank()) {
-                out.put(d.getId().toString(), d.getPhotoUrl());
+            if (d.getPhotoUrl() != null && !d.getPhotoUrl().isBlank()
+                    && d.getPhotoVersion() != null && d.getPhotoVersion() > 0) {
+                out.put(d.getId().toString(),
+                        avatarService.publicUrlFor(d.getId(), d.getPhotoVersion(), "thumb"));
             }
         }
         return out;
