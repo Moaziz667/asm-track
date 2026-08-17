@@ -46,6 +46,12 @@ public class DeliveryStatusHistory {
 
     @PrePersist
     void prePersist() {
-        changedAt = LocalDateTime.now();
+        // Only default when the caller did not set it. An offline driver action replayed on
+        // reconnection carries its real tap time (via ActionClock in appendHistory); overwriting it
+        // here with now() is exactly the "delivered in the van, not in the basement" bug, on the
+        // timeline this time — the line the admin reads shows "par <livreur>, <date>".
+        if (changedAt == null) {
+            changedAt = LocalDateTime.now();
+        }
     }
 }

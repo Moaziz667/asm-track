@@ -109,11 +109,16 @@ Une action rejouée est horodatée **au moment où le livreur a appuyé**, pas �
 Sans cela, un colis remis à 14 h 10 dans un sous-sol était prouvé livré à 17 h 53 dans la camionnette :
 faux sur la preuve de livraison, faux dans le verdict SLA, faux dans l'ERP.
 
-L'application transmet donc l'heure du geste, et le serveur ne la retient **que si elle est
-plausible** : jamais dans le futur au-delà de la dérive d'horloge tolérée, jamais plus ancienne que la
-durée de vie d'une écriture en file. Une horloge de téléphone se règle à la main ; la croire sur
-parole permettrait d'antidater une livraison. Hors de ces bornes, l'heure du serveur s'applique —
-tardive, mais jamais inventée.
+L'application transmet donc l'heure du geste dans l'en-tête `X-Client-Timestamp` (ISO-8601, UTC),
+capturé au moment du tap. Côté serveur, `ActionClock` ne la retient **que si elle est plausible** :
+jamais dans le futur au-delà de la dérive d'horloge tolérée (5 min), jamais plus ancienne que la durée
+de vie d'une écriture en file (24 h, la même borne des deux côtés). Une horloge de téléphone se règle à
+la main ; la croire sur parole permettrait d'antidater une livraison. Hors de ces bornes, l'heure du
+serveur s'applique — tardive, mais jamais inventée.
+
+Toutes les transitions livreur passent par `ActionClock` — `pickup`, `transit`, `complete`, `cancel`,
+`fail`, et la preuve de livraison. La cohérence tient à ce qu'aucune n'y échappe : une seule oubliée
+(ce fut `fail`) et l'anomalie ne se voit qu'à la reconnexion, invisible en test en ligne.
 
 ---
 

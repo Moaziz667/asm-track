@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +47,7 @@ public class DriverIncidentService {
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final DriverDeliveryMapper      mapper;
     private final DeliveryTransitionSupport transitions;
+    private final ActionClock               actionClock;
 
     /*
       Lazy, exactly as in the service this was split out of. Both of these sit on a construction-time
@@ -106,7 +106,10 @@ public class DriverIncidentService {
                 : reasonLabel;
 
         delivery.setStatus(DeliveryStatus.FAILED);
-        delivery.setFailedAt(LocalDateTime.now());
+        // Honour the moment the driver actually tapped (X-Client-Timestamp) so an offline failure
+        // replayed on reconnection is stamped at 14:10, not at the 17:53 the van regained signal.
+        // Every other driver transition already goes through ActionClock; this one was the exception.
+        delivery.setFailedAt(actionClock.now());
         delivery.setFailReason(storedReason);
         // Keep the driver's words on their own field too, so the admin motif label and the driver
         // comment can be shown separately (fail_reason stays flattened for ERP/analytics/tracking).

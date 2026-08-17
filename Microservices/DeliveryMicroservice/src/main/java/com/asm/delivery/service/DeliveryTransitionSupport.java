@@ -33,6 +33,7 @@ public class DeliveryTransitionSupport {
     private final DeliveryStatusHistoryRepository historyRepo;
     private final SlaStateService slaStateService;
     private final ObjectMapper objectMapper;
+    private final ActionClock actionClock;
 
     /**
      * Load a delivery and refuse it to anyone but the driver holding it.
@@ -75,6 +76,10 @@ public class DeliveryTransitionSupport {
 
         historyRepo.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
+                // The moment the driver tapped (X-Client-Timestamp), not the reconnection replay.
+                // For a system/admin action there is no header, so ActionClock falls back to now() —
+                // which is correct there. This is the timeline the admin reads ("par <livreur>, <date>").
+                .changedAt(actionClock.now())
                 .status(status)
                 .changedBy(changedBy)
                 .changedByRole(role)
