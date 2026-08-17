@@ -14,6 +14,15 @@ RUN gradle bootJar --no-daemon
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
+
+# Run as a normal user, like every other service here. A container that runs as root turns any
+# escape into host root; there is nothing this JVM needs that requires the privilege.
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 COPY --from=build /workspace/DriverService/build/libs/*.jar app.jar
+RUN chown appuser:appgroup app.jar
+
+USER appuser
+
 EXPOSE 8086
 ENTRYPOINT ["java", "-jar", "app.jar"]

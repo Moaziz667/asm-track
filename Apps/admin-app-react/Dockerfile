@@ -22,7 +22,10 @@ RUN npm run build
 # ── Stage 2: serve static assets + reverse-proxy /api and /ws to the gateway ──
 # The SPA calls relative paths (api.ts forces baseURL=''), so the browser is
 # same-origin and nginx forwards API/WS to the gateway over the docker network.
-FROM nginx:alpine
+# Unprivileged nginx: same image family, but the master process drops root and the config lives
+# under a writable prefix. Stock nginx needs root to bind :80, so "add a USER line" is not enough —
+# the port has to move above 1024 too. Publish it as -p 80:8080 when running the container.
+FROM nginxinc/nginx-unprivileged:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

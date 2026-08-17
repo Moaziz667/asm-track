@@ -33,6 +33,7 @@ public class AvatarService {
 
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
+    private final PublicOriginResolver originResolver;
 
     private static final String BUCKET = "driver-avatars";
     private static final int FULL_PX = 512;
@@ -135,11 +136,17 @@ public class AvatarService {
         }
     }
 
+    /**
+     * Built on the caller's own origin, not on a host fixed at boot.
+     *
+     * <p>The previous version read MINIO_PUBLIC_URL, so every caller was handed the one address the
+     * server was configured with. A driver whose phone reached the API over a hotspot got avatar URLs
+     * pointing at the office Wi-Fi — the API answered, the image did not load, and the only fix was
+     * an environment variable and a restart.
+     */
     private String publicUrl(String objectPath) {
-        String baseUrl = StringUtils.hasText(minioConfig.getPublicUrl())
-                ? minioConfig.getPublicUrl()
-                : minioConfig.getUrl();
-        return baseUrl + "/" + BUCKET + "/" + objectPath;
+        return originResolver.origin() + PublicOriginResolver.FILES_PREFIX
+                + "/" + BUCKET + "/" + objectPath;
     }
 
     private void ensureBucket() {
