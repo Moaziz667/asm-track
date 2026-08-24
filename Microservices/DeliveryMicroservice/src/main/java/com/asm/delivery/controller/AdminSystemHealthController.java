@@ -60,14 +60,14 @@ public class AdminSystemHealthController {
     }
 
     @PostMapping("/erp-sync/{orderId}/resync")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('perm:erp:resync')")
     @Operation(summary = "Re-drive a single SYNC_FAILED order through the ERP sync path")
     public ResponseEntity<Map<String, Object>> resync(@PathVariable UUID orderId) {
         return ResponseEntity.ok(erpResyncService.resync(orderId).toMap());
     }
 
     @PostMapping("/erp-sync/resync-all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('perm:erp:resync')")
     @Operation(summary = "Re-drive up to {max} of the oldest SYNC_FAILED orders")
     public ResponseEntity<Map<String, Object>> resyncAll(@RequestParam(defaultValue = "50") int max) {
         return ResponseEntity.ok(erpResyncService.resyncAll(max));

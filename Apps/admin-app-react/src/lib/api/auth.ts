@@ -64,6 +64,7 @@ export type Perm =
   | 'perm:delivery:view' | 'perm:delivery:manage'
   | 'perm:driver:view' | 'perm:driver:manage'
   | 'perm:dispatch:operate'
+  | 'perm:cash:view' | 'perm:cash:manage'
   | 'perm:erp:sync' | 'perm:erp:config'
   | 'perm:user:manage' | 'perm:company:manage' | 'perm:settings:manage';
 

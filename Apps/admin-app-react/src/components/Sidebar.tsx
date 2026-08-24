@@ -73,7 +73,7 @@ export const GROUP_DEFS: NavGroupDef[] = [
     items: [
       { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          perm: 'perm:delivery:view' },
       { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    perm: 'perm:dispatch:operate' },
-      { labelKey: 'cash',       href: '/cash',          Icon: IconCashBanknote,     perm: 'perm:dispatch:operate' },
+      { labelKey: 'cash',       href: '/cash',          Icon: IconCashBanknote,     perm: 'perm:cash:view' },
       { labelKey: 'import',     href: '/import',        Icon: IconUpload,           perm: 'perm:erp:sync' },
       { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        perm: 'perm:settings:manage' },
     ],
@@ -174,13 +174,23 @@ export function AppSidebar() {
 
     const fetchTelemetry = async () => {
       try {
+        // Only ask for what this role may read. The calls were already fail-safe, but a manager
+        // still fired three forbidden requests every thirty seconds — a console full of 403s that
+        // hides real errors, and a badge that could never show anything anyway.
+        const empty = <T,>(data: T) => Promise.resolve({ data });
         const [erpRes, routesRes, exceptionsRes] = await Promise.all([
-          api.get('/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] })),
-          api.get('/admin/routes').catch(() => ({ data: [] })),
+          hasPermReactive('perm:erp:sync')
+            ? api.get('/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] }))
+            : empty([]),
+          hasPermReactive('perm:route:view')
+            ? api.get('/admin/routes').catch(() => ({ data: [] }))
+            : empty([]),
           // 'all', not 'day'. A delivery that failed yesterday and is still waiting on a dispatcher
           // is precisely what this badge is for, and asking only for today left it uncounted — the
           // badge went quiet on the backlog it exists to surface.
-          api.get('/admin/ops/exceptions', { params: { period: 'all', limit: 200 } }).catch(() => ({ data: { items: [] } }))
+          hasPermReactive('perm:report:view')
+            ? api.get('/admin/ops/exceptions', { params: { period: 'all', limit: 200 } }).catch(() => ({ data: { items: [] } }))
+            : empty({ items: [] })
         ]);
         if (!active) return;
 
@@ -212,7 +222,7 @@ export function AppSidebar() {
       clearInterval(timer);
       window.removeEventListener(OPS_TELEMETRY_EVENT, fetchTelemetry);
     };
-  }, [isClient]);
+  }, [isClient, hasPermReactive]);
 
   const groups = useMemo(() =>
     GROUP_DEFS.map((g) => ({

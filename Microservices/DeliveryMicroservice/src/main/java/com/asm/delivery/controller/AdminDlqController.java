@@ -31,7 +31,9 @@ public class AdminDlqController {
     }
 
     @PostMapping("/{queue}/replay")
-    @PreAuthorize("hasRole('ADMIN')")
+    // Permission, not role: a role check cannot be granted to a custom role, however many permissions
+    // it is given — it silently escaped the RBAC model this project is otherwise built on.
+    @PreAuthorize("hasAuthority('perm:erp:resync')")
     @Operation(summary = "Replay up to {max} parked messages to their original exchange")
     public ResponseEntity<Map<String, Object>> replay(@PathVariable String queue,
                                                        @RequestParam(defaultValue = "100") int max) {

@@ -16,6 +16,7 @@ import {
   useRemittances, useCashCirculation, useRefreshCash,
   useRemittanceCounts, useRemittanceCollections, useOutstandingByDriver,
 } from '@/hooks/useCash';
+import { usePermissions } from '@/lib/api/auth';
 import { useDrivers } from '@/hooks/useDrivers';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
@@ -94,6 +95,11 @@ export default function CashDeskPage() {
   const t = useT();
   const c = t.cashPage;
   const { locale } = useLocaleStore();
+  // Reading the desk needs perm:cash:view (the route guard), settling needs perm:cash:manage. A
+  // supervisor lands here legitimately with view only, so the actions must not be offered: the
+  // gateway would reject them anyway, and a button that always fails is worse than no button.
+  const { has: hasPerm } = usePermissions();
+  const canSettle = hasPerm('perm:cash:manage');
 
   const [filter, setFilter] = useState<CashRemittanceStatus | 'ALL'>('ALL');
   const [page, setPage] = useState(0);
@@ -459,7 +465,7 @@ export default function CashDeskPage() {
                         </td>
                         <td className="px-6 text-end" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
-                            {r.status === 'DECLARED' && (
+                            {canSettle && r.status === 'DECLARED' && (
                               <Button
                                 size="sm"
                                 disabled={busyId === r.id}
@@ -469,7 +475,7 @@ export default function CashDeskPage() {
                                 <IconScale size={12} /> {c.actionCount}
                               </Button>
                             )}
-                            {disputed && (
+                            {canSettle && disputed && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -481,7 +487,7 @@ export default function CashDeskPage() {
                                 <IconCheck size={12} /> {c.actionSettle}
                               </Button>
                             )}
-                            {!disputed && r.status !== 'DECLARED' && (
+                            {(!canSettle || (!disputed && r.status !== 'DECLARED')) && (
                               <span className="text-xs text-[var(--text-soft)]">—</span>
                             )}
                           </div>

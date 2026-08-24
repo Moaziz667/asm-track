@@ -90,26 +90,20 @@
             "perm:delivery:manage",
             "perm:dispatch:operate",
             "perm:erp:sync",
-            "perm:report:view",
-            "perm:audit:view"
+            "perm:report:view"
           ]
         },
         "clientRole": false
       },
       {
         "name": "MANAGER",
-        "description": "Read-only manager",
+        "description": "Read-only manager: supervises, does not operate",
         "composite": true,
         "composites": {
           "realm": [
             "perm:driver:view",
             "perm:route:view",
-            "perm:route:manage",
-            "perm:route:validate",
             "perm:delivery:view",
-            "perm:delivery:manage",
-            "perm:dispatch:operate",
-            "perm:erp:sync",
             "perm:report:view",
             "perm:audit:view"
           ]

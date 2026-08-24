@@ -121,9 +121,10 @@ const router = createBrowserRouter([
       { path: "/notifications", element: guard(ANY, <NotificationsPage />) },
       { path: "/zones", element: guard('perm:route:view', <ZonesPage />) },
       { path: "/returns", element: guard('perm:dispatch:operate', <ReturnsPage />) },
-      // Counting a driver's cash is a dispatcher/admin act — the gateway's /api/v1/admin/ rule
-      // already gates the endpoints on the same permission.
-      { path: "/cash", element: guard('perm:dispatch:operate', <CashDeskPage />) },
+      // Reading the cash desk is supervision, not dispatch: a manager must see the money in
+      // circulation without being able to plan a route. Settling a remittance stays behind
+      // perm:cash:manage, enforced by the gateway on the same paths.
+      { path: "/cash", element: guard('perm:cash:view', <CashDeskPage />) },
       { path: "/failure-reasons", element: guard('perm:settings:manage', <FailureReasonsPage />) },
       { path: "/system-health", element: guard('perm:settings:manage', <SystemHealthPage />) },
       { path: "*", element: <NotFound /> },

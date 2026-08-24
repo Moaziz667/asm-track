@@ -4,7 +4,7 @@ Idempotent RBAC provisioning for the ASM Keycloak realm.
 
 Applies rbac-roles.json (the canonical role->permission model) to a RUNNING realm: creates any missing
 perm:* realm roles and business roles, then ensures each business role's composite contains the perms
-defined (adds missing; never removes -- extras are reported). Safe to re-run.
+defined (adds missing; extras are only revoked with --prune). Safe to re-run.
 
 This is the "provisioning-as-code" companion to the asm-realm.json import seed: the seed bootstraps a
 fresh realm, this reconciles an existing one after the policy changes -- no manual clicks.
@@ -12,6 +12,14 @@ fresh realm, this reconciles an existing one after the policy changes -- no manu
 Usage:
   KC_URL=http://localhost:8089 KC_REALM=asm KC_ADMIN=admin KC_ADMIN_PASSWORD=*** \
     python apply-rbac.py            # add --dry-run to preview without writing
+                                    # add --prune   to REVOKE perms no longer in the policy
+
+Why --prune is opt-in. Granting a permission is additive and harmless to re-run; revoking one takes
+screens away from people already using them, so it has to be a deliberate act rather than a side
+effect of routine provisioning. The cost of that caution is that the realm can only ever drift
+wider than the policy -- which is exactly how MANAGER kept the five operational permissions
+(route:manage, route:validate, delivery:manage, dispatch:operate, erp:sync) that made it
+indistinguishable from DISPATCHER. Hence this flag: the drift is now correctable, but never silently.
 
 Only depends on the Python stdlib (urllib) -- no jq, no extra packages.
 """
@@ -27,6 +35,7 @@ KC_REALM = os.environ.get("KC_REALM", "asm")
 KC_ADMIN = os.environ.get("KC_ADMIN", "admin")
 KC_PW = os.environ.get("KC_ADMIN_PASSWORD")
 DRY_RUN = "--dry-run" in sys.argv
+PRUNE = "--prune" in sys.argv
 DEF_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rbac-roles.json")
 
 
@@ -83,6 +92,11 @@ def main():
 
     # 2. Reconcile each business-role composite.
     for role, desired in defn["composites"].items():
+        # A "_"-prefixed key is documentation, not a role. Without this guard the loop treated a
+        # comment as a role name and iterated over its characters, which would have created realm
+        # roles literally named "'", "(", "A"... Same convention as the top-level "_comment".
+        if role.startswith("_"):
+            continue
         print(f"-> Reconciling composite: {role}")
         if not DRY_RUN:
             req("POST", "/roles", token, body={"name": role, "composite": True})  # idempotent
@@ -104,10 +118,26 @@ def main():
                 print(f"   + added: {' '.join(missing)} (HTTP {s2})")
         else:
             print("   OK up to date")
+        # Only perm:* names are considered removable: a business role may legitimately compose other
+        # business roles, and pruning those would dismantle the hierarchy rather than the drift.
         if extra:
-            print(f"   ! extra perms present (not in policy, left untouched): {' '.join(extra)}")
+            if not PRUNE:
+                print(f"   ! extra perms present (not in policy, kept -- pass --prune to revoke):"
+                      f" {' '.join(extra)}")
+            elif DRY_RUN:
+                print(f"   (dry-run) would revoke: {' '.join(extra)}")
+            else:
+                reps = []
+                for e in extra:
+                    _, rep = req("GET", f"/roles/{e}", token)
+                    reps.append({"id": rep["id"], "name": rep["name"]})
+                s3, _ = req("DELETE", f"/roles/{role}/composites", token, body=reps)
+                print(f"   - revoked: {' '.join(extra)} (HTTP {s3})")
 
-    print("Done." if not DRY_RUN else "Dry-run complete (no changes written).")
+    if DRY_RUN:
+        print("Dry-run complete (no changes written).")
+    else:
+        print("Done." + ("" if PRUNE else "  (extras kept -- re-run with --prune to revoke them)"))
 
 
 if __name__ == "__main__":

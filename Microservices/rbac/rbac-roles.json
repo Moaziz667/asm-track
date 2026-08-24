@@ -1,5 +1,8 @@
 {
   "_comment": "Canonical role→permission model for the ASM realm. Source of truth for the Keycloak composites, applied idempotently by apply-rbac.py. Keep in sync with rbac-policy.json (gateway) — the perms below are the perm:* strings every service/UI gates on.",
+  "_comment_resync": "erp:resync couvre la reprise après échec — rejeu d'un message en file de rebut, resynchronisation d'une commande ou d'un retour. Distincte d'erp:sync, qui n'ouvre que l'import des commandes depuis l'ERP : importer est le quotidien du dispatcheur, rejouer est un geste de réparation. Ces routes étaient gardées par hasRole('ADMIN') côté service, un contrôle de rôle qui court-circuitait le modèle de permissions — un rôle sur mesure ne pouvait pas obtenir le droit, même en lui accordant toutes les permissions. Le resync d'un RMA reste volontairement sous dispatch:operate : relancer un retour fait partie du quotidien du dispatcheur, alors que rejouer une file de rebut ou forcer la resynchronisation d'une commande répare la plateforme elle-même. La différence est assumée, pas subie.",
+  "_comment_cash": "L'encaissement COD est sorti de dispatch:operate. La caisse n'est pas du dispatch : la garde physique des fonds se surveille (cash:view) et se solde (cash:manage) indépendamment du fait de planifier une tournée. Sans cette séparation, MANAGER — qui supervise — devenait aveugle sur l'argent en circulation dès qu'il perdait dispatch:operate, la lecture étant gardée par une permission d'action.",
+  "_comment_manager": "MANAGER supervise, il n'opère pas : lecture, rapports et audit, sans les cinq permissions d'action (route:manage, route:validate, delivery:manage, dispatch:operate, erp:sync). Il portait auparavant exactement les mêmes droits que DISPATCHER — deux rôles indiscernables, donc un seul rôle réel affiché sous deux noms. Ce commentaire vit à la racine et non dans composites : les clés de composites sont lues comme des noms de rôles.",
   "perms": [
     "perm:user:manage",
     "perm:driver:manage",
@@ -10,7 +13,10 @@
     "perm:delivery:view",
     "perm:delivery:manage",
     "perm:dispatch:operate",
+    "perm:cash:view",
+    "perm:cash:manage",
     "perm:erp:sync",
+    "perm:erp:resync",
     "perm:erp:config",
     "perm:report:view",
     "perm:audit:view",
@@ -21,18 +27,18 @@
     "ADMIN": [
       "perm:user:manage", "perm:driver:manage", "perm:driver:view", "perm:route:view",
       "perm:route:manage", "perm:route:validate", "perm:delivery:view", "perm:delivery:manage",
-      "perm:dispatch:operate", "perm:erp:sync", "perm:erp:config", "perm:report:view",
-      "perm:audit:view", "perm:settings:manage", "perm:company:manage"
+      "perm:dispatch:operate", "perm:cash:view", "perm:cash:manage", "perm:erp:sync", "perm:erp:resync",
+      "perm:erp:config", "perm:report:view", "perm:audit:view", "perm:settings:manage",
+      "perm:company:manage"
     ],
     "DISPATCHER": [
       "perm:driver:view", "perm:route:view", "perm:route:manage", "perm:route:validate",
-      "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate", "perm:erp:sync",
-      "perm:report:view", "perm:audit:view"
+      "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate",
+      "perm:cash:view", "perm:cash:manage", "perm:erp:sync", "perm:report:view"
     ],
     "MANAGER": [
-      "perm:driver:view", "perm:route:view", "perm:route:manage", "perm:route:validate",
-      "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate", "perm:erp:sync",
-      "perm:report:view", "perm:audit:view"
+      "perm:driver:view", "perm:route:view", "perm:delivery:view",
+      "perm:cash:view", "perm:report:view", "perm:audit:view"
     ]
   }
 }
