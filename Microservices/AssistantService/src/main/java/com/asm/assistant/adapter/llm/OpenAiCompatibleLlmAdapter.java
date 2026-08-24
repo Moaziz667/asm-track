@@ -109,6 +109,16 @@ public class OpenAiCompatibleLlmAdapter implements LlmPort {
         if (jsonOnly) {
             body.put("response_format", Map.of("type", "json_object"));
         }
+        // Reasoning models differ in where they put their thinking: some return it in a separate
+        // `reasoning` field, others inline it in `content`. The second kind answered a delivery
+        // question with forty lines of "Here's a thinking process:" and ran out of tokens before
+        // reaching the answer.
+        //
+        // Both keys are sent because they do different things: `enabled: false` turns thinking off on
+        // models that support the toggle (which also stops it eating the token budget), `exclude: true`
+        // keeps it out of the response for those that always think. A provider that knows neither
+        // ignores the field, so no model is made worse by this.
+        body.put("reasoning", Map.of("enabled", false, "exclude", true));
 
         for (int attempt = 0; ; attempt++) {
             try {

@@ -99,14 +99,24 @@ public class AnswerService {
         // "No such entity" is an answer, not an outage — saying "service indisponible" would blame
         // the platform for what is really a wrong reference.
         if (live.notFound()) {
-            return AnswerResponse.refusal(route,
-                    "Aucun élément ne correspond à cette référence (" + live.sourceLabel() + ").");
+            return AnswerResponse.refusal(route, notFoundMessage(live));
         }
         if (!live.available()) {
             return AnswerResponse.degraded(route,
                     "L'état actuel (" + live.sourceLabel() + ") est indisponible pour le moment.");
         }
         return generateFromLive(question, live, route);
+    }
+
+    /**
+     * A resolver that found several candidates has something specific to say; anything else falls back
+     * to the generic wording. Concatenating the two produced "aucun élément ne correspond … 3 livraisons
+     * correspondent", which contradicts itself.
+     */
+    private String notFoundMessage(LiveResult live) {
+        return live.hasMessage()
+                ? live.message()
+                : "Aucun élément ne correspond à cette référence (" + live.sourceLabel() + ").";
     }
 
     private AnswerResponse generateFromLive(String question, LiveResult live, String route) {

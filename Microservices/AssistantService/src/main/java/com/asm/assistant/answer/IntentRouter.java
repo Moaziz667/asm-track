@@ -2,6 +2,7 @@ package com.asm.assistant.answer;
 
 import org.springframework.stereotype.Component;
 
+import java.text.Normalizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,22 +34,44 @@ public class IntentRouter {
 
     public record Decision(Intent intent, Domain domain, String entityId) {}
 
-    // A UUID, or a reference code like "D-1234" / "RMA1234" / "T4-… " — a concrete entity reference.
+    /**
+     * A UUID, or a reference code as an ERP prints it. Both supported ERPs must be covered, and they do
+     * not agree on shape:
+     * <ul>
+     *   <li>ERPNext names documents in dashed segments — {@code SAL-ORD-2026-00036}, {@code MAT-DN-2026-00012}.</li>
+     *   <li>Odoo uses a compact form for orders ({@code SO0042}) and <em>slash</em> segments for
+     *       transfers ({@code WH/OUT/00042}).</li>
+     * </ul>
+     *
+     * <p>Hence one separator class for both, and a multi-segment alternative: a pattern anchored on a
+     * single segment captured just the middle of an ERPNext reference ({@code ORD-2026}), which matched
+     * nothing downstream and read to the user as "this delivery does not exist".
+     */
     private static final Pattern ENTITY_REF = Pattern.compile(
-            "\\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-            + "|[A-Za-z]{1,5}-?\\d{3,})\\b");
+            "([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+            + "|\\b[A-Za-z]{1,6}(?:[-/][A-Za-z0-9]+)*[-/]\\d{2,}"
+            + "|\\b[A-Za-z]{1,5}\\d{3,}\\b)");
 
+    /**
+     * Matched against the <em>folded</em> question (see {@link #fold}), so every alternative here is
+     * written unaccented: users type "etat" and "ou" as often as "état" and "où", and a lexicon that
+     * only knows the accented spelling silently sends live questions to the corpus.
+     */
     private static final Pattern LIVE_HINT = Pattern.compile(
-            "(?i)\\b(statut|status|où|ou est|position|localis|en cours|actuel|actuelle|maintenant|"
-            + "en ce moment|aujourd'hui|current|now|live|en retard|retard)\\b");
+            "(?i)\\b(statut|status|etat|etats|avancement|ou|ou est|position|localis|en cours|actuel|"
+            + "actuelle|maintenant|en ce moment|aujourd'hui|aujourdhui|current|now|live|en retard|retard|"
+            + "livree|livre|arrive|termine|reste|encore)\\b");
 
     private static final Pattern SLA_HINT = Pattern.compile(
-            "(?i)\\b(sla|respect|respecté|viol|violation|en retard|dépass|deadline|échéance|à temps|a temps)\\b");
+            "(?i)\\b(sla|respect|respecte|viol|violation|en retard|depass|deadline|echeance|a temps)\\b");
 
     public Decision route(String query) {
-        String q = query == null ? "" : query;
+        String raw = query == null ? "" : query;
+        String q = fold(raw);
         Domain domain = detectDomain(q);
-        Matcher ref = ENTITY_REF.matcher(q);
+        // Matched on the raw text: an identifier is never accented, and folding would not change it,
+        // but the reference must be returned exactly as the user wrote it for the live lookup.
+        Matcher ref = ENTITY_REF.matcher(raw);
         String entityId = ref.find() ? ref.group(1) : null;
 
         // A concrete entity + a "state" question → live/deterministic, not RAG.
@@ -61,12 +84,22 @@ public class IntentRouter {
         return new Decision(Intent.RAG, domain, entityId);
     }
 
+    /** {@code q} is already folded, so the alternatives are unaccented. */
     private Domain detectDomain(String q) {
-        String low = q.toLowerCase();
-        if (low.matches(".*\\b(retour|retours|rma|return)\\b.*")) return Domain.RMA;
-        if (low.matches(".*\\b(tourn[ée]e|tournee|itin[ée]raire|route)\\b.*")) return Domain.ROUTE;
-        if (low.matches(".*\\b(livreur|chauffeur|driver|conducteur)\\b.*")) return Domain.DRIVER;
-        if (low.matches(".*\\b(livraison|colis|commande|delivery|expédition)\\b.*")) return Domain.DELIVERY;
+        if (q.matches(".*\\b(retour|retours|rma|return)\\b.*")) return Domain.RMA;
+        if (q.matches(".*\\b(tournee|tournees|itineraire|route)\\b.*")) return Domain.ROUTE;
+        if (q.matches(".*\\b(livreur|livreurs|chauffeur|driver|conducteur)\\b.*")) return Domain.DRIVER;
+        if (q.matches(".*\\b(livraison|livraisons|colis|commande|delivery|expedition)\\b.*")) return Domain.DELIVERY;
         return Domain.UNKNOWN;
+    }
+
+    /**
+     * Lowercase and strip diacritics, so one spelling in the lexicons covers every way a user actually
+     * types the word. Decomposing to NFD turns "é" into "e" + combining accent, which the following
+     * range then removes.
+     */
+    public static String fold(String s) {
+        return Normalizer.normalize(s.toLowerCase(), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
     }
 }

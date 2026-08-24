@@ -78,6 +78,15 @@ public class LiveApiClient {
                 : getList(delivery, tool.uri());
     }
 
+    /**
+     * Free-text delivery search — the same endpoint the admin list screen uses, which matches on client
+     * name, city, ERP order id and BL number. This is what lets a question name a delivery the way a
+     * human does ("SAL-ORD-2026-00036", "Hotel Riadh Palms") instead of by UUID.
+     */
+    public LiveLookup searchDeliveries(String q) {
+        return getSearch(delivery, "/api/v1/admin/deliveries", q);
+    }
+
     public LiveLookup getDelivery(String id)      { return get(delivery, "/api/v1/admin/deliveries/{id}", id); }
     public LiveLookup getSlaTimeline(String id)   { return get(delivery, "/api/v1/admin/deliveries/{id}/sla-timeline", id); }
     public LiveLookup getReturn(String id)        { return get(delivery, "/api/v1/admin/returns/{id}", id); }
@@ -110,6 +119,37 @@ public class LiveApiClient {
         } catch (Exception e) {
             // Fail honest — never fabricate live state.
             log.warn("Live API {} [{}] unavailable: {}", uri, id, e.getMessage());
+            return LiveLookup.UNAVAILABLE;
+        }
+    }
+
+    /**
+     * Same contract as {@link #get}, for a paginated search. {@code size} is capped low on purpose: the
+     * resolver only needs to know whether the reference is unique, and a wide page would be pure cost.
+     */
+    @SuppressWarnings("unchecked")
+    private LiveLookup getSearch(RestClient rc, String uri, String q) {
+        try {
+            String auth = currentAuthorization();
+            UUID tenant = TenantContext.get();
+            return breaker.decorateSupplier(() -> {
+                try {
+                    Map<String, Object> body = rc.get()
+                            .uri(b -> b.path(uri).queryParam("q", q).queryParam("size", 5).build())
+                            .headers(h -> {
+                                if (auth != null) h.set("Authorization", auth);
+                                if (tenant != null) h.set("X-Company-Id", tenant.toString());
+                            })
+                            .retrieve()
+                            .body(Map.class);
+                    return body == null ? LiveLookup.NOT_FOUND : LiveLookup.found(body);
+                } catch (HttpClientErrorException e) {
+                    log.info("Live API search {} [{}] not found: {}", uri, q, e.getStatusCode());
+                    return LiveLookup.NOT_FOUND;
+                }
+            }).get();
+        } catch (Exception e) {
+            log.warn("Live API search {} [{}] unavailable: {}", uri, q, e.getMessage());
             return LiveLookup.UNAVAILABLE;
         }
     }

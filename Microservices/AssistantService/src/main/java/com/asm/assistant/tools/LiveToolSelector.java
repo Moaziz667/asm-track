@@ -33,6 +33,7 @@ public class LiveToolSelector {
 
     private final LlmPort llm;
     private final LiveToolCatalog catalog;
+    private final LexicalToolSelector lexical;
     private final ObjectMapper mapper = new ObjectMapper();
 
     /** A chosen tool plus the entity reference the model extracted, when the tool needs one. */
@@ -57,8 +58,16 @@ public class LiveToolSelector {
      */
     private static final int SELECTION_ATTEMPTS = 2;
 
+    /**
+     * "How/why does X work" — a question the corpus owns. Exposed so the lexical standby applies the
+     * same guard: it must be safe on its own, not only because this class happens to check first.
+     */
+    public static boolean isConceptual(String question) {
+        return question == null || CONCEPTUAL.matcher(question).find();
+    }
+
     public Optional<Selection> select(String question) {
-        if (question == null || CONCEPTUAL.matcher(question).find()) {
+        if (isConceptual(question)) {
             return Optional.empty();
         }
 
@@ -69,8 +78,8 @@ public class LiveToolSelector {
                 raw = llm.completeJson(GroundingPrompts.TOOL_SELECT_SYSTEM,
                         GroundingPrompts.toolSelectUserPrompt(question, catalog.asPromptCatalogue()));
             } catch (LlmPort.LlmUnavailableException e) {
-                log.warn("Tool selection unavailable, falling back to documentation: {}", e.getMessage());
-                return Optional.empty();
+                log.warn("Tool selection unavailable, trying lexical fallback: {}", e.getMessage());
+                return withoutModel(question);
             }
             node = parse(raw);
             if (node == null) {
@@ -78,20 +87,34 @@ public class LiveToolSelector {
                         attempt, SELECTION_ATTEMPTS, abbreviate(raw));
             }
         }
-        if (node == null) return Optional.empty();
+        if (node == null) return withoutModel(question);
 
         Optional<Tool> tool = catalog.byName(node.path("tool").asText(null));
-        if (tool.isEmpty()) return Optional.empty();
+        if (tool.isEmpty()) {
+            // The model answered, but named nothing we recognise — including its way of saying "no
+            // tool". The lexicon only fires on an explicit phrase, so a conceptual question still
+            // yields nothing here and falls through to the documentation as before.
+            return withoutModel(question);
+        }
 
         String id = node.path("id").asText(null);
         if (id != null && (id.isBlank() || "null".equalsIgnoreCase(id))) id = null;
         if (tool.get().needsId() && id == null) {
-            // The model wants an entity read but found no reference — the documentation is the
-            // honest fallback, guessing an identifier is not.
+            // The model wants an entity read but found no reference — guessing an identifier is not an
+            // option. Often the question was really an aggregate ("combien de livraisons ?") that the
+            // model mapped to the single-entity tool, so try the lexicon before the documentation.
             log.info("Tool {} needs a reference but none was extracted", tool.get().name());
-            return Optional.empty();
+            return withoutModel(question);
         }
         return Optional.of(new Selection(tool.get(), id));
+    }
+
+    /**
+     * Last resort before the documentation: a tool chosen by phrase matching. Only reaches tools that
+     * need no identifier, so the {@code needsId} guard above stays the sole path for entity reads.
+     */
+    private Optional<Selection> withoutModel(String question) {
+        return lexical.select(question).map(t -> new Selection(t, null));
     }
 
     /** Models wrap JSON in prose or fences; take the first object-looking span and try that. */
