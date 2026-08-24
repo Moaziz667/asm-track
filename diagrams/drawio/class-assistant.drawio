@@ -1,0 +1,82 @@
+<mxfile host="Electron">
+  <diagram name="Classes — Assistant interne (RAG)" id="class-assistant-rag">
+    <mxGraphModel dx="3060" dy="2047" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="a-title" value="Diagramme de classes — Assistant interne (recherche augmentée)" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" vertex="1" parent="1">
+          <mxGeometry x="60" y="40" width="900" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-answer" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«service» — orchestrateur&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;AnswerService&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;+ answer(question) : Réponse&lt;br&gt;&lt;i&gt;Réponse = texte + citations + mode&lt;/i&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="120" width="320" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-router" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«service»&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;IntentRouter&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;+ route(question) : Intention&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-intent" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«enumeration»&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;Intention&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;DOCUMENTATION&lt;br&gt;DONNÉE_EN_DIRECT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFF8E1;strokeColor=#F9A825;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="290" width="280" height="105" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-retriever" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«service» — recherche hybride&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;HybridRetriever&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;+ retrieve(question) : Liste&amp;lt;Fragment&amp;gt;&lt;br&gt;&lt;i&gt;vectorielle + mots-clés&lt;/i&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="330" width="320" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-llm-port" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface» (port)&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px;font-style:italic&#39;&gt;LlmPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0;font-style:italic&#39;&gt;+ complete(consigne, question) : String&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="120" width="300" height="105" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-llm-fail" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«adapter» — repli en chaîne&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;FailoverLlmAdapter&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;- candidats : Liste&amp;lt;LlmPort&amp;gt;&lt;br&gt;&lt;i&gt;Gemini, puis OpenAI&lt;/i&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="850" y="310" width="300" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-doc" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«entity»&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;Document&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;- titre : String&lt;br&gt;- autorité : String&lt;br&gt;- entreprise : UUID&lt;br&gt;- empreinte : String&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="280" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-frag" value="&lt;p style=&#39;margin:4px 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«entity»&lt;/p&gt;&lt;p style=&#39;margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px&#39;&gt;Fragment&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:6px 0&#39;&gt;- section : String&lt;br&gt;- contenu : Texte&lt;br&gt;- vecteur : Vecteur(1536)&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="420" y="520" width="320" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-u1" value="«utilise»" style="html=1;endArrow=open;endSize=10;rounded=0;dashed=1;fontSize=11;fontStyle=2;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="a-answer" target="a-router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a-u2" value="«utilise»" style="html=1;endArrow=open;endSize=10;rounded=0;dashed=1;fontSize=11;fontStyle=2;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a-answer" target="a-retriever">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a-u3" value="«utilise»" style="html=1;endArrow=open;endSize=10;rounded=0;dashed=1;fontSize=11;fontStyle=2;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="a-answer" target="a-llm-port">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a-u4" value="«utilise»" style="html=1;endArrow=open;endSize=10;rounded=0;dashed=1;fontSize=11;fontStyle=2;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a-router" target="a-intent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-i1" value="«implémente»" style="html=1;rounded=0;endArrow=block;endFill=0;endSize=14;dashed=1;fontSize=11;fontStyle=2;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="a-llm-fail" target="a-llm-port">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-r1" value="interroge ▶" style="html=1;endArrow=none;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="a-retriever" target="a-frag">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a-c1" value="découpé en ▶" style="html=1;endArrow=none;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="a-doc" target="a-frag">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a-c1s" value="1" style="edgeLabel;html=1;resizable=0;points=[];fontSize=11;" connectable="0" vertex="1" parent="a-c1">
+          <mxGeometry x="-0.8" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+        <mxCell id="a-c1t" value="*" style="edgeLabel;html=1;resizable=0;points=[];fontSize=11;" connectable="0" vertex="1" parent="a-c1">
+          <mxGeometry x="0.8" relative="1" as="geometry"><mxPoint as="offset" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="a-note" value="Le modèle est derrière un port : changer de fournisseur ne touche pas l&#39;orchestrateur. FailoverLlmAdapter implémente ce port et essaie ses candidats dans l&#39;ordre, ce qui rend la panne d&#39;un fournisseur invisible.&#xa;&#xa;Sans preuve retrouvée dans le corpus, l&#39;orchestrateur refuse de répondre ; si le modèle est injoignable, il le dit. Il n&#39;invente jamais." style="shape=note;whiteSpace=wrap;html=1;size=16;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=12;align=left;spacingLeft=8;spacingRight=8;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="850" y="500" width="300" height="180" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

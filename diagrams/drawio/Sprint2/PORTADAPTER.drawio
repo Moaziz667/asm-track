@@ -1,0 +1,85 @@
+<mxfile host="Electron">
+  <diagram name="États — Événement outbox" id="PhnKCIqg-xF0OtpvpTUr">
+    <mxGraphModel dx="1264" dy="908" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-23" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" value="Architecture en ports &amp; adaptateurs — Intégration ERP (diagramme de classes de conception)" vertex="1">
+          <mxGeometry height="30" width="1000" x="20" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-24" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«service»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpProviderRouter&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;&amp;nbsp;&lt;/div&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ forSync() : ErpSyncPort&lt;br&gt;+ forLookup() : ErpLookupPort&lt;br&gt;+ forOrder() : ErpOrderPort&lt;br&gt;+ forChange() : ErpChangePort&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="300" x="40" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-25" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpSyncPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ syncFullDelivery(...) : boolean&lt;br&gt;+ syncPartialDelivery(...) : Result&lt;br&gt;+ syncFailure(...) : boolean&lt;br&gt;+ syncOrderCancellation(...) : boolean&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="320" x="440" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-26" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpOrderPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ createOrder(...) : OrderRef&lt;br&gt;+ resolvePickingRef(...) : String&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="320" x="440" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-27" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpLookupPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ getPendingOrders(...) : List&lt;br&gt;+ searchClients(...) : List&lt;br&gt;+ getWarehouses(...) : List&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="320" x="440" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-28" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpChangePort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ pollChanges(...) : List&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="320" x="440" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-29" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="OdooSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-30" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="ErpNextSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-32" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="NoopSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-33" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=11;fontStyle=1;" value="Odoo (JSON-RPC)" vertex="1">
+          <mxGeometry height="70" width="150" x="1200" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-34" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=11;fontStyle=1;" value="ERPNext (REST)" vertex="1">
+          <mxGeometry height="70" width="150" x="1200" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-36" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="NoopSyncAdapter : patron Objet Nul (erp_type = NONE). Répond « succès » sans rien faire — un client sans ERP reste servi." vertex="1">
+          <mxGeometry height="70" width="280" x="860" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-37" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Chaque fournisseur réalise aussi ErpOrderPort, ErpLookupPort et ErpChangePort (adaptateurs analogues) — omis ici pour la lisibilité." vertex="1">
+          <mxGeometry height="66" width="340" x="440" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-38" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="ErpProviderRouter résout l&#39;adaptateur par tenant (SettingsClient) — nom de bean → « odoo » / « erpnext »&amp;nbsp; / « none »." vertex="1">
+          <mxGeometry height="66" width="300" x="40" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-39" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-24" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-25" value="résout">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-40" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-24" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.45;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-26" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-41" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-24" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-27" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-42" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-24" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.9;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-28" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-43" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-29" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-44" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-30" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-46" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-32" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-25" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-47" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-29" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;fontSize=10;fontColor=#4A148C;strokeColor=#7B1FA2;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-33" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-48" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-30" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;fontSize=10;fontColor=#4A148C;strokeColor=#7B1FA2;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="Eeark8JBY3BRN_gWz4eE-34" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-50" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-36" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;" target="Eeark8JBY3BRN_gWz4eE-32" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Eeark8JBY3BRN_gWz4eE-51" edge="1" parent="1" source="Eeark8JBY3BRN_gWz4eE-38" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;" target="Eeark8JBY3BRN_gWz4eE-24" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

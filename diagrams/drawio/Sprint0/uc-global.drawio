@@ -1,0 +1,168 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Cas d&#39;utilisation global" id="uc-global">
+    <mxGraphModel dx="1530" dy="967" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="sys" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=18;fontStyle=1;spacingTop=10;fillColor=#f9f7ed;strokeColor=#36393d;" value="ASM Track" vertex="1">
+          <mxGeometry height="2110" width="770" x="350" y="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ADMIN" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Administrateur" vertex="1">
+          <mxGeometry height="90" width="50" x="140" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="DISP" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Dispatcheur" vertex="1">
+          <mxGeometry height="90" width="50" x="140" y="900" as="geometry" />
+        </mxCell>
+        <mxCell id="MGR" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Responsable" vertex="1">
+          <mxGeometry height="90" width="50" x="140" y="1490" as="geometry" />
+        </mxCell>
+        <mxCell id="DRV" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Livreur" vertex="1">
+          <mxGeometry height="90" width="50" x="140" y="1780" as="geometry" />
+        </mxCell>
+        <mxCell id="CLI" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Destinataire" vertex="1">
+          <mxGeometry height="90" width="50" x="140" y="2020" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_USERS" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les comptes et les rôles" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_MAP" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer l&#39;intégration ERP" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_DRIVERS" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les chauffeurs" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_VEHICLES" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les véhicules" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="370" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_IMPORT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Importer les commandes" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_DEPOTSYNC" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Synchroniser les dépôts" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_PLAN" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Planifier une tournée" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_ASSIGN" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Affecter un livreur" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_VALID" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Valider une tournée" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="910" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_ZONES" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les zones" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1010" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_EXC" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Traiter une exception" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1110" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_RMA" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Traiter un retour" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1210" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_RECON" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Contrôler la remise de caisse" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1310" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_TRACK" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Suivre les livraisons" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_REPORT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Consulter les rapports" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1550" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_RUN" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Exécuter sa tournée" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1690" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_DELIV" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Livrer une commande" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1790" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_FAIL" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Déclarer un échec" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="1890" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_PUBTRACK" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Suivre son colis" vertex="1">
+          <mxGeometry height="70" width="240" x="420" y="2030" as="geometry" />
+        </mxCell>
+
+        <mxCell id="UC_OPT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Optimiser l&#39;ordre des arrêts" vertex="1">
+          <mxGeometry height="70" width="240" x="760" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_AUTH" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="S&#39;authentifier" vertex="1">
+          <mxGeometry height="70" width="240" x="760" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="UC_CASH" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Encaisser un paiement" vertex="1">
+          <mxGeometry height="70" width="240" x="760" y="1700" as="geometry" />
+        </mxCell>
+
+        <mxCell id="KC" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontSize=14;" value="&lt;i&gt;«Système externe»&lt;/i&gt;&lt;br&gt;Keycloak" vertex="1">
+          <mxGeometry height="80" width="230" x="1241" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ERP" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;fontSize=14;" value="&lt;i&gt;«Système externe»&lt;/i&gt;&lt;br&gt;Odoo / ERPNext" vertex="1">
+          <mxGeometry height="80" width="230" x="1241" y="1150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" edge="1" parent="1" source="ADMIN" target="UC_USERS" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2" edge="1" parent="1" source="ADMIN" target="UC_MAP" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2b" edge="1" parent="1" source="ADMIN" target="UC_DRIVERS" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2c" edge="1" parent="1" source="ADMIN" target="UC_VEHICLES" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="a3" edge="1" parent="1" source="DISP" target="UC_IMPORT" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a3b" edge="1" parent="1" source="DISP" target="UC_DEPOTSYNC" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a4" edge="1" parent="1" source="DISP" target="UC_PLAN" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a5" edge="1" parent="1" source="DISP" target="UC_ASSIGN" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a6" edge="1" parent="1" source="DISP" target="UC_VALID" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a6b" edge="1" parent="1" source="DISP" target="UC_ZONES" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a7" edge="1" parent="1" source="DISP" target="UC_EXC" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a8" edge="1" parent="1" source="DISP" target="UC_RMA" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a9" edge="1" parent="1" source="DISP" target="UC_RECON" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="a10" edge="1" parent="1" source="MGR" target="UC_TRACK" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a11" edge="1" parent="1" source="MGR" target="UC_REPORT" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="a12" edge="1" parent="1" source="DRV" target="UC_RUN" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a13" edge="1" parent="1" source="DRV" target="UC_DELIV" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a14" edge="1" parent="1" source="DRV" target="UC_FAIL" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="a15" edge="1" parent="1" source="CLI" target="UC_PUBTRACK" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="i1" edge="1" parent="1" source="UC_USERS" target="UC_AUTH" value="«include»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.75;entryY=0.07;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i2" edge="1" parent="1" source="UC_IMPORT" target="UC_AUTH" value="«include»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0.25;entryY=0.07;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i3" edge="1" parent="1" source="UC_PLAN" target="UC_AUTH" value="«include»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.85;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i4" edge="1" parent="1" source="UC_TRACK" target="UC_AUTH" value="«include»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=0.93;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="i5" edge="1" parent="1" source="UC_RUN" target="UC_AUTH" value="«include»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.75;entryY=0.93;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e1" edge="1" parent="1" source="UC_OPT" target="UC_PLAN" value="«extend»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="UC_CASH" target="UC_DELIV" value="«extend»" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=12;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="x1" edge="1" parent="1" source="UC_AUTH" target="KC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1050" y="1014" /><mxPoint x="1050" y="180" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="x2" edge="1" parent="1" source="UC_IMPORT" target="ERP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1150" y="531" /><mxPoint x="1150" y="1174" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="x3" edge="1" parent="1" source="UC_DELIV" target="ERP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1150" y="1811" /><mxPoint x="1150" y="1206" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="x4" edge="1" parent="1" source="UC_DEPOTSYNC" target="ERP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;endFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1195" y="645" /><mxPoint x="1195" y="1110" /><mxPoint x="1356" y="1110" /></Array></mxGeometry>
+        </mxCell>
+
+        <mxCell id="gen1" edge="1" parent="1" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry"><mxPoint x="165" y="355" as="sourcePoint" /><mxPoint x="165" y="880" as="targetPoint" /></mxGeometry>
+        </mxCell>
+        <mxCell id="gen2" edge="1" parent="1" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry"><mxPoint x="165" y="1045" as="sourcePoint" /><mxPoint x="165" y="1470" as="targetPoint" /></mxGeometry>
+        </mxCell>
+
+        <mxCell id="NOTE_AUTH" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=18;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;align=left;spacingLeft=8;spacingRight=8;verticalAlign=middle;" value="Tous les cas d&#39;utilisation internes s&#39;exécutent dans une session authentifiée : l&#39;authentification est une précondition, elle n&#39;est reliée qu&#39;aux points d&#39;entrée pour ne pas surcharger la figure. Seul « Suivre son colis » est accessible sans compte, par lien public." vertex="1">
+          <mxGeometry height="130" width="540" x="140" y="2200" as="geometry" />
+        </mxCell>
+        <mxCell id="NOTE_LINK" edge="1" parent="1" source="NOTE_AUTH" target="sys" style="html=1;endArrow=none;dashed=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.1;entryY=1;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

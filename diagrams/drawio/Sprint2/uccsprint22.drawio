@@ -1,0 +1,90 @@
+<mxfile host="Electron">
+  <diagram name="Cas d&#39;utilisation — sprint 2" id="ZAhwAZuxbGI8QTWgGTib">
+    <mxGraphModel dx="2295" dy="1450" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-80" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" value="Architecture en ports &amp; adaptateurs — Intégration ERP (diagramme de classes de conception)" vertex="1">
+          <mxGeometry height="30" width="1000" x="20" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-81" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«service»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpProviderRouter&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;&amp;nbsp;&lt;/div&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ forSync() : ErpSyncPort&lt;br&gt;+ forLookup() : ErpLookupPort&lt;br&gt;+ forOrder() : ErpOrderPort&lt;br&gt;+ forChange() : ErpChangePort&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="300" x="40" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-82" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpSyncPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ syncFullDelivery(...) : boolean&lt;br&gt;+ syncPartialDelivery(...) : Result&lt;br&gt;+ syncFailure(...) : boolean&lt;br&gt;+ syncOrderCancellation(...) : boolean&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="320" x="440" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-83" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpOrderPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ createOrder(...) : OrderRef&lt;br&gt;+ resolvePickingRef(...) : String&lt;/div&gt;" vertex="1">
+          <mxGeometry height="90" width="320" x="440" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-84" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpLookupPort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ getPendingOrders(...) : List&lt;br&gt;+ searchClients(...) : List&lt;br&gt;+ getWarehouses(...) : List&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="320" x="440" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-85" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#F5F5F5;strokeColor=#37474F;fontSize=12;" value="&lt;p style=&#39;margin:4px 0 0 0;text-align:center;font-size:11px;font-style:italic&#39;&gt;«interface»&lt;/p&gt;&lt;p style=&#39;margin:0 0 5px 0;text-align:center;font-weight:bold;font-size:13px&#39;&gt;ErpChangePort&lt;/p&gt;&lt;hr style=&#39;margin:0&#39;/&gt;&lt;div style=&#39;margin:5px 0&#39;&gt;+ pollChanges(...) : List&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="320" x="440" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-86" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="OdooSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-87" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="ErpNextSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-89" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=center;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;fontStyle=1;" value="NoopSyncAdapter" vertex="1">
+          <mxGeometry height="60" width="240" x="880" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-90" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=11;fontStyle=1;" value="Odoo (JSON-RPC)" vertex="1">
+          <mxGeometry height="70" width="150" x="1200" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-91" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=11;fontStyle=1;" value="ERPNext (REST)" vertex="1">
+          <mxGeometry height="70" width="150" x="1200" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-93" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="NoopSyncAdapter : patron Objet Nul (erp_type = NONE). Répond « succès » sans rien faire — un client sans ERP reste servi." vertex="1">
+          <mxGeometry height="70" width="280" x="860" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-94" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Chaque fournisseur réalise aussi ErpOrderPort, ErpLookupPort et ErpChangePort (adaptateurs analogues) — omis ici pour la lisibilité." vertex="1">
+          <mxGeometry height="66" width="340" x="440" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-95" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="ErpProviderRouter résout l&#39;adaptateur par tenant (SettingsClient) — nom de bean → « odoo » / « erpnext » / « none »." vertex="1">
+          <mxGeometry height="66" width="300" x="40" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-96" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-81" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-82" value="résout">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-97" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-81" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.45;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-83" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-98" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-81" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.7;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-84" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="410" y="355" />
+              <mxPoint x="410" y="455" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-99" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-81" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;dashed=1;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.9;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-85" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-100" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-86" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-82" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-101" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-87" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-82" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-103" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-89" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=0;endSize=14;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-82" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-104" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-86" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;fontSize=10;fontColor=#4A148C;strokeColor=#7B1FA2;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-90" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-105" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-87" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=12;fontSize=10;fontColor=#4A148C;strokeColor=#7B1FA2;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="c4zeAfvk40dJb7nSAHoM-91" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-107" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-93" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;" target="c4zeAfvk40dJb7nSAHoM-89" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4zeAfvk40dJb7nSAHoM-108" edge="1" parent="1" source="c4zeAfvk40dJb7nSAHoM-95" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;" target="c4zeAfvk40dJb7nSAHoM-81" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

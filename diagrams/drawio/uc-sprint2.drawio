@@ -1,0 +1,100 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="uc-sprint2" name="Cas d'utilisation — sprint 2">
+    <mxGraphModel dx="1000" dy="700" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== frontiere ==================== -->
+        <mxCell id="SYS" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="ASM Track — Sprint 2 · Intégration ERP">
+          <mxGeometry height="880" width="700" x="340" y="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== acteurs humains (gauche) ==================== -->
+        <mxCell id="ADMIN" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Administrateur">
+          <mxGeometry height="90" width="50" x="70" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="DISP" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Dispatcher">
+          <mxGeometry height="90" width="50" x="70" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="MGR" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Manager">
+          <mxGeometry height="90" width="50" x="70" y="600" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== groupe : configuration ==================== -->
+        <mxCell id="TG1" parent="1" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#616161;" value="Configuration ERP — Administrateur">
+          <mxGeometry height="20" width="300" x="400" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="UC1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Configurer la connexion ERP">
+          <mxGeometry height="70" width="300" x="400" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="UC2" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Certifier la connexion (test de conformité)">
+          <mxGeometry height="70" width="300" x="400" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="UC3" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Configurer les correspondances de champs">
+          <mxGeometry height="70" width="300" x="400" y="305" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== groupe : exploitation ==================== -->
+        <mxCell id="TG2" parent="1" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#616161;" value="Exploitation — Dispatcher / Manager">
+          <mxGeometry height="20" width="300" x="400" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="UC4" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Importer une commande depuis l'ERP">
+          <mxGeometry height="70" width="300" x="400" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="UC5" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Rejouer une synchronisation en échec">
+          <mxGeometry height="70" width="300" x="400" y="545" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== groupe : automatique ==================== -->
+        <mxCell id="TG3" parent="1" vertex="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#616161;" value="Traitement automatique — Système">
+          <mxGeometry height="20" width="300" x="400" y="655" as="geometry" />
+        </mxCell>
+        <mxCell id="UC6" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Synchroniser une livraison vers l'ERP">
+          <mxGeometry height="70" width="300" x="400" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="UC7" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Récupérer les changements de l'ERP (polling)">
+          <mxGeometry height="70" width="300" x="400" y="770" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== encadres a droite : systeme + ERP + note ==================== -->
+        <mxCell id="ERP" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;«&amp;nbsp;système externe&amp;nbsp;»&lt;/i&gt;&lt;br&gt;&lt;b&gt;ERP du client&lt;/b&gt;&lt;br&gt;Odoo / ERPNext / DUX">
+          <mxGeometry height="100" width="250" x="1090" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="SYST" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;«&amp;nbsp;système&amp;nbsp;»&lt;/i&gt;&lt;br&gt;&lt;b&gt;Système&lt;/b&gt;">
+          <mxGeometry height="90" width="250" x="1090" y="690" as="geometry" />
+        </mxCell>
+        <mxCell id="NOTE" parent="1" vertex="1" style="shape=note;whiteSpace=wrap;html=1;size=16;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=8;spacingRight=8;verticalAlign=middle;" value="L'ERP est interchangeable : chaque fournisseur (Odoo, ERPNext, DUX, Noop) est un adaptateur derrière le même port — voir « Ports &amp; Adaptateurs ».">
+          <mxGeometry height="130" width="250" x="1090" y="810" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== associations administrateur ==================== -->
+        <mxCell id="a1" parent="1" edge="1" source="ADMIN" target="UC1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a2" parent="1" edge="1" source="ADMIN" target="UC2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="a3" parent="1" edge="1" source="ADMIN" target="UC3" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ==================== associations dispatcher / manager ==================== -->
+        <mxCell id="d1" parent="1" edge="1" source="DISP" target="UC4" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="d2" parent="1" edge="1" source="DISP" target="UC5" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g1" parent="1" edge="1" source="MGR" target="UC4" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g2" parent="1" edge="1" source="MGR" target="UC5" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.6;exitDx=0;exitDy=0;entryX=0;entryY=0.6;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ==================== systeme (encadre) declenche les UC automatiques ==================== -->
+        <mxCell id="s1" parent="1" edge="1" source="SYST" target="UC6" value="déclenche" style="html=1;endArrow=open;endFill=0;rounded=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="s2" parent="1" edge="1" source="SYST" target="UC7" style="html=1;endArrow=open;endFill=0;rounded=0;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ==================== liens vers l'ERP externe ==================== -->
+        <mxCell id="e6" parent="1" edge="1" source="UC6" target="ERP" value="JSON-RPC / REST" style="html=1;rounded=0;endArrow=open;endFill=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" parent="1" edge="1" source="UC7" target="ERP" style="html=1;rounded=0;endArrow=open;endFill=0;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.9;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" parent="1" edge="1" source="UC2" target="ERP" style="html=1;rounded=0;endArrow=open;endFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.2;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e4" parent="1" edge="1" source="UC4" target="ERP" style="html=1;rounded=0;endArrow=open;endFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.45;entryDx=0;entryDy=0;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ==================== extend : reprise sur echec ==================== -->
+        <mxCell id="ext1" parent="1" edge="1" source="UC5" target="UC6" value="«extend»&#10;[ échec ]" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;edgeStyle=orthogonalEdgeStyle;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="500" y="640" /></Array></mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

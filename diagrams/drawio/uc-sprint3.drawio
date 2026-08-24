@@ -1,0 +1,156 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Cas d'utilisation — sprint 3" id="uc-sprint3">
+    <mxGraphModel dx="2295" dy="1450" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1720" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== cadre système ===================== -->
+        <mxCell id="BND" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="ASM Track — Sprint 3 · Planification, exécution et suivi temps réel">
+          <mxGeometry x="320" y="60" width="880" height="1570" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== acteurs (gauche) ===================== -->
+        <mxCell id="ACT_M" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Responsable&#10;(supervision)">
+          <mxGeometry x="110" y="150" width="50" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ACT_D" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Dispatcheur">
+          <mxGeometry x="110" y="560" width="50" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ACT_C" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Chauffeur">
+          <mxGeometry x="110" y="1150" width="50" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ACT_R" parent="1" vertex="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Destinataire">
+          <mxGeometry x="110" y="1540" width="50" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== système externe (droite) ===================== -->
+        <mxCell id="EXT_OSRM" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;« système externe »&lt;/i&gt;&lt;br&gt;&lt;b&gt;OSRM&lt;/b&gt;&lt;br&gt;(moteur d'itinéraire)">
+          <mxGeometry x="1270" y="388" width="190" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC supervision (Manager) ===================== -->
+        <mxCell id="S1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Suivre les tournées&#10;en temps réel">
+          <mxGeometry x="430" y="120" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="S2" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Consulter les SLA">
+          <mxGeometry x="430" y="205" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="S3" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Consulter le rapport de tournée">
+          <mxGeometry x="430" y="290" width="280" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC dispatcheur ===================== -->
+        <mxCell id="X1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Optimiser la tournée">
+          <mxGeometry x="430" y="400" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="D1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Construire une tournée">
+          <mxGeometry x="430" y="490" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="D2" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Valider la tournée">
+          <mxGeometry x="430" y="580" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="D3" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Réassigner la tournée">
+          <mxGeometry x="430" y="670" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="D4" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Annuler une tournée&#10;(motif requis)">
+          <mxGeometry x="430" y="760" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="D5" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Retirer / annuler un arrêt">
+          <mxGeometry x="430" y="850" width="280" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC chauffeur ===================== -->
+        <mxCell id="C1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Consulter sa tournée du jour">
+          <mxGeometry x="430" y="960" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="C2" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Démarrer la tournée">
+          <mxGeometry x="430" y="1050" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="C3" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Confirmer l'enlèvement au dépôt">
+          <mxGeometry x="430" y="1140" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="C4" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Marquer l'arrivée à un arrêt">
+          <mxGeometry x="430" y="1230" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="C5" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Partager sa position (GPS)">
+          <mxGeometry x="430" y="1320" width="280" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="CP" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;fontStyle=2;" value="Clôturer un arrêt">
+          <mxGeometry x="430" y="1430" width="280" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC destinataire ===================== -->
+        <mxCell id="P1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;" value="Suivre sa livraison&#10;(page publique)">
+          <mxGeometry x="430" y="1540" width="280" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC inclus (droite) ===================== -->
+        <mxCell id="I1" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Sélectionner les livraisons&#10;à planifier">
+          <mxGeometry x="770" y="490" width="270" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="I2" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Vérifier la précédence&#10;enlèvement → livraison">
+          <mxGeometry x="770" y="580" width="270" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="I3" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Définir les fenêtres horaires&#10;des arrêts (créneaux)">
+          <mxGeometry x="770" y="680" width="270" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== UC enfants (généralisation, droite) ===================== -->
+        <mxCell id="CL" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Livrer">
+          <mxGeometry x="770" y="1350" width="250" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="CPa" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Livrer partiellement">
+          <mxGeometry x="770" y="1432" width="250" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="CE" parent="1" vertex="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Déclarer un échec">
+          <mxGeometry x="770" y="1514" width="250" height="52" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== associations acteur → UC ===================== -->
+        <mxCell id="e_s1" parent="1" edge="1" source="ACT_M" target="S1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s2" parent="1" edge="1" source="ACT_M" target="S2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s3" parent="1" edge="1" source="ACT_M" target="S3" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e_x1" parent="1" edge="1" source="ACT_D" target="X1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_d1" parent="1" edge="1" source="ACT_D" target="D1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_d2" parent="1" edge="1" source="ACT_D" target="D2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_d3" parent="1" edge="1" source="ACT_D" target="D3" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_d4" parent="1" edge="1" source="ACT_D" target="D4" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_d5" parent="1" edge="1" source="ACT_D" target="D5" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e_c1" parent="1" edge="1" source="ACT_C" target="C1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_c2" parent="1" edge="1" source="ACT_C" target="C2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_c3" parent="1" edge="1" source="ACT_C" target="C3" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_c4" parent="1" edge="1" source="ACT_C" target="C4" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_c5" parent="1" edge="1" source="ACT_C" target="C5" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cp" parent="1" edge="1" source="ACT_C" target="CP" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e_r" parent="1" edge="1" source="ACT_R" target="P1" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- OSRM (droite) → Optimiser -->
+        <mxCell id="e_osrm" parent="1" edge="1" source="EXT_OSRM" target="X1" style="html=1;endArrow=none;rounded=0;exitX=0;exitY=0.5;entryX=1;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===================== généralisation d'acteurs : Dispatcheur ▷ Manager ===================== -->
+        <mxCell id="g_dm" parent="1" edge="1" source="ACT_D" target="ACT_M" style="html=1;rounded=0;endArrow=block;endFill=0;endSize=16;strokeColor=#37474F;exitX=0.5;exitY=0;entryX=0.5;entryY=1;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===================== généralisation de cas d'utilisation : enfants ▷ Clôturer un arrêt ===================== -->
+        <mxCell id="g_cl" parent="1" edge="1" source="CL" target="CP" style="html=1;rounded=0;endArrow=block;endFill=0;endSize=14;strokeColor=#37474F;exitX=0;exitY=0.5;entryX=1;entryY=0.3;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g_cpa" parent="1" edge="1" source="CPa" target="CP" style="html=1;rounded=0;endArrow=block;endFill=0;endSize=14;strokeColor=#37474F;exitX=0;exitY=0.5;entryX=1;entryY=0.5;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g_ce" parent="1" edge="1" source="CE" target="CP" style="html=1;rounded=0;endArrow=block;endFill=0;endSize=14;strokeColor=#37474F;exitX=0;exitY=0.5;entryX=1;entryY=0.7;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===================== include / extend ===================== -->
+        <mxCell id="ext1" parent="1" edge="1" source="X1" target="D1" style="html=1;rounded=0;dashed=1;endArrow=open;endSize=12;fontSize=11;fontStyle=2;fontColor=#7B1FA2;strokeColor=#7B1FA2;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=1;entryX=0.75;entryY=0;" value="«extend»"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="inc1" parent="1" edge="1" source="D1" target="I1" style="html=1;rounded=0;dashed=1;endArrow=open;endSize=12;fontSize=11;fontStyle=2;fontColor=#2E7D32;strokeColor=#2E7D32;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="«include»"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="inc2" parent="1" edge="1" source="D2" target="I2" style="html=1;rounded=0;dashed=1;endArrow=open;endSize=12;fontSize=11;fontStyle=2;fontColor=#2E7D32;strokeColor=#2E7D32;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="«include»"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="inc3" parent="1" edge="1" source="D1" target="I3" style="html=1;rounded=0;dashed=1;endArrow=open;endSize=12;fontSize=11;fontStyle=2;fontColor=#2E7D32;strokeColor=#2E7D32;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;entryX=0;entryY=0.5;" value="«include»"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===================== note ===================== -->
+        <mxCell id="NOTE" parent="1" vertex="1" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=10;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Généralisations : le Dispatcheur est un Responsable (il hérite de la supervision). « Clôturer un arrêt » est abstrait — il se réalise par Livrer, Livrer partiellement ou Déclarer un échec.">
+          <mxGeometry x="770" y="800" width="270" height="100" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

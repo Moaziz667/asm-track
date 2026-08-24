@@ -1,0 +1,116 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="etats-livraison" name="États — Livraison">
+    <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="TTL" parent="1" vertex="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" value="Diagramme d'états — Cycle de vie d'une livraison">
+          <mxGeometry x="40" y="16" width="700" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- pseudo-état initial -->
+        <mxCell id="INIT" parent="1" vertex="1" style="ellipse;fillColor=#000000;strokeColor=#000000;html=1;" value="">
+          <mxGeometry x="392" y="60" width="18" height="18" as="geometry" />
+        </mxCell>
+
+        <!-- états -->
+        <mxCell id="UNSCH" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#607D8B;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;UNSCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;dans le pool&lt;/font&gt;">
+          <mxGeometry x="310" y="100" width="180" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="SCHED" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;SCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;affectée à un livreur&lt;/font&gt;">
+          <mxGeometry x="310" y="220" width="180" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="PICK" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;PICKED_UP&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;chargée au dépôt&lt;/font&gt;">
+          <mxGeometry x="310" y="340" width="180" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="TRANS" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;IN_TRANSIT&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;en route vers le client&lt;/font&gt;">
+          <mxGeometry x="310" y="460" width="180" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="HAND" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;AWAITING_HANDOFF&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;transfert de garde&lt;/font&gt;">
+          <mxGeometry x="590" y="460" width="200" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="CANC" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#90A4AE;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;CANCELLED&lt;/b&gt;">
+          <mxGeometry x="600" y="222" width="170" height="48" as="geometry" />
+        </mxCell>
+
+        <!-- pseudo-état choix -->
+        <mxCell id="CHOICE" parent="1" vertex="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=10;" value="issue de&#10;l'arrêt">
+          <mxGeometry x="352" y="566" width="96" height="72" as="geometry" />
+        </mxCell>
+
+        <!-- états terminaux -->
+        <mxCell id="DELIV" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;DELIVERED&lt;/b&gt;">
+          <mxGeometry x="110" y="720" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="PART" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;PARTIALLY_DELIVERED&lt;/b&gt;">
+          <mxGeometry x="330" y="720" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="FAIL" parent="1" vertex="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;FAILED&lt;/b&gt;">
+          <mxGeometry x="600" y="720" width="160" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- états finaux -->
+        <mxCell id="FIN_D" parent="1" vertex="1" style="ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;" value=""><mxGeometry x="188" y="820" width="24" height="24" as="geometry" /></mxCell>
+        <mxCell id="FIN_P" parent="1" vertex="1" style="ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;" value=""><mxGeometry x="428" y="820" width="24" height="24" as="geometry" /></mxCell>
+        <mxCell id="FIN_F" parent="1" vertex="1" style="ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;" value=""><mxGeometry x="668" y="815" width="24" height="24" as="geometry" /></mxCell>
+        <mxCell id="FIN_C" parent="1" vertex="1" style="ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;" value=""><mxGeometry x="810" y="234" width="24" height="24" as="geometry" /></mxCell>
+
+        <!-- ===================== transitions ===================== -->
+        <mxCell id="t0" parent="1" edge="1" source="INIT" target="UNSCH" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="import depuis l'ERP"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t1" parent="1" edge="1" source="UNSCH" target="SCHED" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="affectée à un livreur"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t2" parent="1" edge="1" source="SCHED" target="PICK" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="colis chargé au dépôt"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t3" parent="1" edge="1" source="PICK" target="TRANS" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="départ vers le destinataire"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="t4" parent="1" edge="1" source="TRANS" target="CHOICE" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="le livreur clôture l'arrêt"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="c1" parent="1" edge="1" source="CHOICE" target="DELIV" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#2E7D32;fontSize=11;fontColor=#1B5E20;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" value="[ tout remis ]&#10;/ preuve de livraison"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c2" parent="1" edge="1" source="CHOICE" target="PART" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#1565C0;fontSize=11;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="[ partie remise ]&#10;/ preuve de livraison + motif"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="c3" parent="1" edge="1" source="CHOICE" target="FAIL" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#C62828;fontSize=11;fontColor=#B71C1C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" value="[ rien remis ]&#10;/ motif d'échec"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="fd" parent="1" edge="1" source="DELIV" target="FIN_D" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#2E7D32;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value=""><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="fp" parent="1" edge="1" source="PART" target="FIN_P" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#1565C0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value=""><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="ff" parent="1" edge="1" source="FAIL" target="FIN_F" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#C62828;fontSize=11;fontColor=#B71C1C;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="échec définitif"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="fr" parent="1" edge="1" source="FAIL" target="UNSCH" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#C62828;fontSize=11;fontColor=#B71C1C;labelBackgroundColor=#FFFFFF;dashed=1;exitX=1;exitY=0.5;entryX=1;entryY=0.3;" value="replanifiée (nouvelle date)"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="855" y="745" /><mxPoint x="855" y="115" /></Array></mxGeometry></mxCell>
+
+        <!-- handoff aller-retour -->
+        <mxCell id="hp" parent="1" edge="1" source="PICK" target="HAND" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#EF6C00;fontSize=11;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" value="transfert de garde (jeton)"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="h1" parent="1" edge="1" source="TRANS" target="HAND" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#EF6C00;fontSize=11;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.6;entryX=0;entryY=0.75;" value="transfert de garde (jeton)"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="h2" parent="1" edge="1" source="HAND" target="PICK" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#EF6C00;fontSize=11;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.08;entryX=1;entryY=0.4;" value="réception confirmée (colis en main)"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- désistement (retour au pool) -->
+        <mxCell id="d1" parent="1" edge="1" source="SCHED" target="UNSCH" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;dashed=1;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" value="arrêt retiré / tournée annulée"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="250" y="246" /><mxPoint x="250" y="126" /></Array></mxGeometry></mxCell>
+
+        <!-- annulations -->
+        <mxCell id="x1" parent="1" edge="1" source="UNSCH" target="CANC" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#90A4AE;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" value="annulation ERP"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="x2" parent="1" edge="1" source="SCHED" target="CANC" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#90A4AE;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="annulation administrative"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="fc" parent="1" edge="1" source="CANC" target="FIN_C" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#90A4AE;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value=""><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- annulation de tournée : repool des livraisons en main -->
+        <mxCell id="rp1" parent="1" edge="1" source="PICK" target="UNSCH" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;dashed=1;exitX=0;exitY=0.5;entryX=0;entryY=0.4;" value="tournée annulée">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="215" y="366" /><mxPoint x="215" y="121" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="rp2" parent="1" edge="1" source="TRANS" target="UNSCH" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;dashed=1;exitX=0;exitY=0.5;entryX=0;entryY=0.25;" value="tournée annulée">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="185" y="486" /><mxPoint x="185" y="113" /></Array></mxGeometry>
+        </mxCell>
+        <!-- annulation admin d'une livraison prise en charge -->
+        <mxCell id="pc" parent="1" edge="1" source="PICK" target="CANC" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#90A4AE;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.35;entryX=0.5;entryY=1;" value="annulation (admin)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="540" y="358" /></Array></mxGeometry>
+        </mxCell>
+
+        <!-- ===================== notes ===================== -->
+        <mxCell id="N1" parent="1" vertex="1" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=10;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="UNSCHEDULED = le pool : une livraison qui y retourne (désistement) est reprenable par un autre livreur.">
+          <mxGeometry x="30" y="185" width="150" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="N1l" parent="1" edge="1" source="N1" target="UNSCH" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="N2" parent="1" vertex="1" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=10;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="AWAITING_HANDOFF : deux livreurs, un jeton — la garde n'est jamais floue. Atteignable depuis PICKED_UP ou IN_TRANSIT ; à la confirmation, retour à PICKED_UP.">
+          <mxGeometry x="590" y="540" width="270" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="N2l" parent="1" edge="1" source="N2" target="HAND" style="html=1;endArrow=none;dashed=1;rounded=0;strokeColor=#9E9E9E;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="N3" parent="1" vertex="1" style="shape=note;whiteSpace=wrap;html=1;size=12;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=10;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Terminaux : DELIVERED, PARTIALLY_DELIVERED, CANCELLED. FAILED peut être replanifiée (nouvelle date) → retour au pool. Le reliquat d'une livraison partielle vit dans une AUTRE livraison. L'issue est dérivée des quantités, pas d'un bouton.">
+          <mxGeometry x="120" y="600" width="230" height="96" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

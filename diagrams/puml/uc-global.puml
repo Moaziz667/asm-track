@@ -1,0 +1,113 @@
+@startuml uc-global
+' =====================================================================
+'  Diagramme de cas d'utilisation global — ASM Track
+'  Chapitre 2 (Sprint 0), figure 2.1
+'
+'  Contenu dérivé du code : acteurs et droits de Microservices/rbac/rbac-roles.json,
+'  cas du livreur de DriverDeliveryController / DriverRouteController, cas du destinataire
+'  de PublicTrackingController (monté sous /api/v1/public/**, non authentifié).
+'
+'  Volontairement à plat et limité aux cas de premier niveau : le système en compte une
+'  trentaine, les détailler ici rendrait la figure illisible. Le détail est porté par les
+'  diagrammes de cas d'utilisation propres à chaque sprint (chapitres 4 à 8).
+'
+'  Conventions UML 2.5 : acteurs hors frontière, verbes à l'infinitif, «include» pour
+'  l'obligatoire (du cas de base vers le cas inclus), «extend» pour l'optionnel (du cas
+'  extenseur vers le cas de base), généralisation pour une relation « est un » vérifiée.
+' =====================================================================
+
+left to right direction
+
+skinparam shadowing false
+skinparam defaultFontName Serif
+skinparam defaultFontSize 12
+skinparam nodesep 20
+skinparam ranksep 70
+skinparam usecase {
+  BackgroundColor #EEF3F8
+  BorderColor #1F6CA0
+}
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #37474F
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #37474F
+}
+
+' ---------------------------------------------------- acteurs (gauche)
+' Hiérarchie vérifiée : MANAGER (5 perms) ⊂ DISPATCHER (10) ⊂ ADMIN (15).
+actor "Responsable"    as MGR
+actor "Dispatcheur"    as DISP
+actor "Administrateur" as ADMIN
+actor "Livreur"        as DRV
+actor "Destinataire"   as CLI
+
+rectangle "ASM Track" {
+  usecase "Importer les commandes"        as UC_IMPORT
+  usecase "Planifier une tournée"         as UC_PLAN
+  usecase "Optimiser l'ordre des arrêts"  as UC_OPT
+  usecase "Affecter un livreur"           as UC_ASSIGN
+  usecase "Valider une tournée"           as UC_VALID
+  usecase "Suivre les livraisons"         as UC_TRACK
+  usecase "Traiter une exception"         as UC_EXC
+  usecase "Traiter un retour"             as UC_RMA
+  usecase "Réconcilier la caisse"         as UC_RECON
+  usecase "Consulter les rapports"        as UC_REPORT
+  usecase "Gérer les comptes et les rôles" as UC_USERS
+  usecase "Configurer l'intégration ERP"  as UC_MAP
+
+  usecase "Exécuter sa tournée"           as UC_RUN
+  usecase "Livrer une commande"           as UC_DELIV
+  usecase "Encaisser un paiement"         as UC_CASH
+  usecase "Déclarer un échec"             as UC_FAIL
+
+  usecase "Suivre son colis"              as UC_PUBTRACK
+
+  usecase "S'authentifier"                as UC_AUTH
+}
+
+' ---------------------------------------------------- systèmes externes (droite)
+rectangle "«Système externe»\nOdoo / ERPNext" as ERP
+rectangle "«Système externe»\nKeycloak"       as KC
+
+' ---------------------------------------------------- associations
+MGR --> UC_TRACK
+MGR --> UC_REPORT
+
+DISP --|> MGR
+DISP --> UC_IMPORT
+DISP --> UC_PLAN
+DISP --> UC_ASSIGN
+DISP --> UC_VALID
+DISP --> UC_EXC
+DISP --> UC_RMA
+DISP --> UC_RECON
+
+ADMIN --|> DISP
+ADMIN --> UC_USERS
+ADMIN --> UC_MAP
+
+DRV --> UC_RUN
+DRV --> UC_DELIV
+DRV --> UC_FAIL
+
+CLI --> UC_PUBTRACK
+
+' ---------------------------------------------------- «include» / «extend»
+UC_IMPORT ..> UC_AUTH : «include»
+UC_PLAN   ..> UC_AUTH : «include»
+UC_TRACK  ..> UC_AUTH : «include»
+UC_USERS  ..> UC_AUTH : «include»
+UC_RUN    ..> UC_AUTH : «include»
+
+UC_OPT  ..> UC_PLAN  : «extend»
+UC_CASH ..> UC_DELIV : «extend»
+
+' ---------------------------------------------------- systèmes externes
+UC_AUTH   --> KC
+UC_IMPORT --> ERP
+UC_DELIV  --> ERP
+
+@enduml

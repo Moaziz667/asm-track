@@ -1,0 +1,330 @@
+<mxfile host="Electron">
+  <diagram name="01-Vue-ensemble" id="bf-xys-rSiCr0C0apfDb">
+    <mxGraphModel dx="1513" dy="952" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="SGPfUHSgG8945-kM_Nen-268" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#263238" value="Architecture microservices d&#39;ASM Track - Vue d&#39;ensemble" vertex="1">
+          <mxGeometry height="26" width="1150" x="40" y="12" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-269" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#607D8B;fontStyle=2" value="HTTP synchrone (bleu, a gauche)  vs  evenements asynchrones RabbitMQ (orange, a droite).  Cadres [logo: ...] a remplacer." vertex="1">
+          <mxGeometry height="18" width="1150" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-270" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FBF5FE;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=12;fontStyle=1;verticalAlign=top;align=center;arcSize=8;spacingTop=8" value="Keycloak  (IAM) OIDC / JWT RS256 / JWKS" vertex="1">
+          <mxGeometry height="95" width="210" x="786" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-271" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Keycloak ]" vertex="1">
+          <mxGeometry height="50" width="60" x="354" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-272" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="keycloak_db PostgreSQL" vertex="1">
+          <mxGeometry height="50" width="70" x="915" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-273" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: PostgreSQL ]" vertex="1">
+          <mxGeometry height="14" width="102" x="579" y="84" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-274" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1E88E5;dashed=1;dashPattern=8 6;verticalAlign=top;align=left;fontStyle=1;fontColor=#1565C0;fontSize=14;spacingLeft=12;spacingTop=8;arcSize=2" value="Applications clientes" vertex="1">
+          <mxGeometry height="560" width="285" x="20" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-275" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F9FF;strokeColor=#90CAF9;fontColor=#0D47A1;fontSize=12;fontStyle=1;verticalAlign=top;align=center;arcSize=8;spacingTop=8" value="Application livreur Flutter (Android)" vertex="1">
+          <mxGeometry height="150" width="235" x="45" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-276" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Flutter ]" vertex="1">
+          <mxGeometry height="85" width="85" x="120" y="308" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-277" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F9FF;strokeColor=#90CAF9;fontColor=#0D47A1;fontSize=12;fontStyle=1;verticalAlign=top;align=center;arcSize=8;spacingTop=8" value="Back-office React 19 - Vite (SPA)" vertex="1">
+          <mxGeometry height="150" width="235" x="45" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-278" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: React ]" vertex="1">
+          <mxGeometry height="85" width="85" x="120" y="488" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-279" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F9FF;strokeColor=#90CAF9;fontColor=#0D47A1;fontSize=12;fontStyle=1;verticalAlign=top;align=center;arcSize=8;spacingTop=8" value="Suivi public destinataire" vertex="1">
+          <mxGeometry height="120" width="235" x="45" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-280" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: navigateur ]" vertex="1">
+          <mxGeometry height="62" width="80" x="122" y="662" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-281" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3D6;strokeColor=#F9A825;fontColor=#E65100;fontSize=13;fontStyle=1;verticalAlign=middle;align=center;arcSize=6" value="API GATEWAY :80  Spring Cloud Gateway  routage validation JWT RBAC CORS" vertex="1">
+          <mxGeometry height="236.5" width="120" x="440" y="401.5" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-283" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F51B5;strokeWidth=2;verticalAlign=top;align=left;arcSize=6;spacingLeft=12;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#1A237E" value="AppBackend  -  :8080   (comptes, pilotage Keycloak)" vertex="1">
+          <mxGeometry height="100" width="430" x="760" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-284" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontColor=#3F51B5;fontSize=9" value="" vertex="1">
+          <mxGeometry height="44" width="52" x="780" y="284" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-285" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Spring ]" vertex="1">
+          <mxGeometry height="24" width="60" x="838" y="294" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-286" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="app_db schema par tenant" vertex="1">
+          <mxGeometry height="60" width="110" x="1058" y="284" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-287" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: PostgreSQL ]" vertex="1">
+          <mxGeometry height="14" width="102" x="1059" y="253" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-288" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF0FB;strokeColor=#283593;strokeWidth=3;verticalAlign=top;align=left;arcSize=6;spacingLeft=12;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#1A237E" value="DeliveryMicroservice  -  :8082   (COEUR METIER : livraisons, tournees, retours, SLA)" vertex="1">
+          <mxGeometry height="155" width="430" x="760" y="385" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-289" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontColor=#3F51B5;fontSize=9" value="" vertex="1">
+          <mxGeometry height="44" width="52" x="780" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-290" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Spring ]" vertex="1">
+          <mxGeometry height="24" width="60" x="838" y="425" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-291" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="delivery_db schema par tenant" vertex="1">
+          <mxGeometry height="60" width="110" x="1051" y="418" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-292" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: PostgreSQL ]" vertex="1">
+          <mxGeometry height="14" width="102" x="1059" y="392" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-293" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00838F;fontColor=#006064;fontSize=10;fontStyle=1;verticalAlign=middle;align=left;arcSize=12;spacingLeft=30" value="MinIO - photos POD" vertex="1">
+          <mxGeometry height="34" width="185" x="780" y="489" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-294" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: MinIO ]" vertex="1">
+          <mxGeometry height="24" width="22" x="786" y="494" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-295" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00838F;fontColor=#006064;fontSize=10;fontStyle=1;verticalAlign=middle;align=left;arcSize=12;spacingLeft=30" value="OSRM - routage OSM" vertex="1">
+          <mxGeometry height="34" width="185" x="985" y="489" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-296" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: OSRM ]" vertex="1">
+          <mxGeometry height="24" width="22" x="991" y="494" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-297" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F51B5;strokeWidth=2;verticalAlign=top;align=left;arcSize=6;spacingLeft=12;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#1A237E" value="DriverService  -  :8086   (livreurs, vehicules, GPS)" vertex="1">
+          <mxGeometry height="100" width="430" x="760" y="575" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-298" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontColor=#3F51B5;fontSize=9" value="" vertex="1">
+          <mxGeometry height="44" width="52" x="780" y="609" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-299" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Spring ]" vertex="1">
+          <mxGeometry height="24" width="60" x="838" y="619" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-300" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="driver_db schema par tenant" vertex="1">
+          <mxGeometry height="60" width="110" x="1055" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-301" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: PostgreSQL ]" vertex="1">
+          <mxGeometry height="14" width="102" x="1059" y="578" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-302" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3F51B5;strokeWidth=2;verticalAlign=top;align=left;arcSize=6;spacingLeft=12;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#1A237E" value="AssistantService  -  :8087   (RAG - HTTP uniquement)" vertex="1">
+          <mxGeometry height="120" width="430" x="760" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-303" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontColor=#3F51B5;fontSize=9" value="" vertex="1">
+          <mxGeometry height="44" width="52" x="780" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-304" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Spring ]" vertex="1">
+          <mxGeometry height="24" width="60" x="838" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-305" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="assistant_db pgvector - tenant_id" vertex="1">
+          <mxGeometry height="60" width="110" x="1055" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-306" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: pgvector ]" vertex="1">
+          <mxGeometry height="14" width="102" x="1059" y="715" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-307" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F7FA;strokeColor=#00838F;fontColor=#006064;fontSize=10;fontStyle=1;verticalAlign=middle;align=left;arcSize=12;spacingLeft=30" value="LLM externe - Gemini / OpenAI" vertex="1">
+          <mxGeometry height="30" width="240" x="780" y="794" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-308" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: AI ]" vertex="1">
+          <mxGeometry height="22" width="22" x="786" y="798" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-309" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFDF7;strokeColor=#EF6C00;strokeWidth=2;dashed=1;dashPattern=6 4;verticalAlign=top;align=left;arcSize=6;spacingLeft=12;spacingTop=8;fontSize=12;fontStyle=1;fontColor=#E65100" value="ErpAdapterService  -  :8088   (INTERNE, hors gateway)" vertex="1">
+          <mxGeometry height="100" width="430" x="760" y="865" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-310" parent="1" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontColor=#3F51B5;fontSize=9" value="" vertex="1">
+          <mxGeometry height="44" width="52" x="780" y="899" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-311" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Spring ]" vertex="1">
+          <mxGeometry height="24" width="60" x="838" y="909" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-312" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECEFF1;strokeColor=#78909C;fontColor=#37474F;fontSize=9;fontStyle=1;verticalAlign=bottom;spacingBottom=1" value="H2 (fichier) idempotence / mappings" vertex="1">
+          <mxGeometry height="60" width="110" x="1060" y="891" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-313" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: H2 ]" vertex="1">
+          <mxGeometry height="14" width="102" x="1059" y="868" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-314" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;direction=north;size=10;fillColor=#FFE0B2;strokeColor=#FB8C00;fontColor=#E65100;fontSize=13;fontStyle=1;verticalAlign=middle;align=center" value="Bus d&#39;evenements RabbitMQ  exchanges topic routage par cle (point-a-point)  commandes + evenements DLX / DLQ" vertex="1">
+          <mxGeometry height="715" width="100" x="1300" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-315" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: RabbitMQ ]" vertex="1">
+          <mxGeometry height="32" width="90" x="1305" y="262" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-316" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontColor=#4A148C;fontSize=11;fontStyle=1;verticalAlign=middle;align=center;arcSize=10" value="ERP du client Odoo / ERPNext" vertex="1">
+          <mxGeometry height="95" width="150" x="1270" y="1050" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-317" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;dashed=1;dashPattern=3 3;fontColor=#9E9E9E;fontSize=9;fontStyle=2;arcSize=20" value="[ logo: Odoo ]" vertex="1">
+          <mxGeometry height="44" width="55" x="1348" y="1035" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-318" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-275" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.12;" target="SGPfUHSgG8945-kM_Nen-281" value="REST">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-319" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-277" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.42;" target="SGPfUHSgG8945-kM_Nen-281" value="REST + WebSocket">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-320" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-279" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.72;" target="SGPfUHSgG8945-kM_Nen-281" value="suivi public">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-321" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-275" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.7;exitY=0;entryX=0.5;entryY=1;" target="SGPfUHSgG8945-kM_Nen-270" value="OIDC">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="260" />
+              <mxPoint x="390" y="200" />
+              <mxPoint x="891" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-322" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-277" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.35;exitY=0;entryX=0.35;entryY=1;" target="SGPfUHSgG8945-kM_Nen-270" value="OIDC">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="340" y="440" />
+              <mxPoint x="340" y="180" />
+              <mxPoint x="859.57" y="180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-323" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;entryX=0.85;entryY=1;" target="SGPfUHSgG8945-kM_Nen-270" value="JWKS">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="515.06" y="230" />
+              <mxPoint x="964.47" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-324" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.08;entryX=0;entryY=0.5;" target="SGPfUHSgG8945-kM_Nen-283" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="460.71" />
+              <mxPoint x="640" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-325" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.32;entryX=0;entryY=0.35;" target="SGPfUHSgG8945-kM_Nen-288" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="575.06" y="540" />
+              <mxPoint x="667.53" y="540" />
+              <mxPoint x="667.53" y="439.29" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-326" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.57;entryX=0;entryY=0.5;" target="SGPfUHSgG8945-kM_Nen-297" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="550" />
+              <mxPoint x="660" y="550" />
+              <mxPoint x="660" y="625.06" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-327" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-281" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.79;entryX=0;entryY=0.5;" target="SGPfUHSgG8945-kM_Nen-302" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="640" y="588.33" />
+              <mxPoint x="640" y="770" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-328" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-309" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#1565C0;strokeWidth=2;endArrow=block;fontSize=10;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="SGPfUHSgG8945-kM_Nen-316" value="JSON-RPC / REST">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="975" y="1000" />
+              <mxPoint x="1375" y="1000" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-329" edge="1" parent="1" style="edgeStyle=none;rounded=0;html=1;strokeColor=#90A4AE;strokeWidth=1.5;endArrow=block;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1013" y="314" as="sourcePoint" />
+            <mxPoint x="1058" y="314" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-330" edge="1" parent="1" style="edgeStyle=none;rounded=0;html=1;strokeColor=#90A4AE;strokeWidth=1.5;endArrow=block;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1006" y="449" as="sourcePoint" />
+            <mxPoint x="1051" y="449" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-331" edge="1" parent="1" style="edgeStyle=none;rounded=0;html=1;strokeColor=#90A4AE;strokeWidth=1.5;endArrow=block;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="625" as="sourcePoint" />
+            <mxPoint x="1055" y="625" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-332" edge="1" parent="1" style="edgeStyle=none;rounded=0;html=1;strokeColor=#90A4AE;strokeWidth=1.5;endArrow=block;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1010" y="780" as="sourcePoint" />
+            <mxPoint x="1055" y="780" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-333" edge="1" parent="1" style="edgeStyle=none;rounded=0;html=1;strokeColor=#90A4AE;strokeWidth=1.5;endArrow=block;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1015" y="921" as="sourcePoint" />
+            <mxPoint x="1060" y="921" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-334" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#546E7A;fontColor=#546E7A;fontSize=14" value="✉" vertex="1">
+          <mxGeometry height="26" width="30" x="1240" y="287" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-335" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-283" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E65100;strokeWidth=2.5;dashed=1;dashPattern=6 4;endArrow=block;startArrow=block;fontSize=10;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.070;" target="SGPfUHSgG8945-kM_Nen-314" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-336" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#546E7A;fontColor=#546E7A;fontSize=14" value="✉" vertex="1">
+          <mxGeometry height="26" width="30" x="1240" y="427" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-337" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-288" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E65100;strokeWidth=2.5;dashed=1;dashPattern=6 4;endArrow=block;startArrow=block;fontSize=10;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.266;" target="SGPfUHSgG8945-kM_Nen-314" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1220" y="462.5" />
+              <mxPoint x="1220" y="975" />
+              <mxPoint x="1326.67" y="975" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-338" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#546E7A;fontColor=#546E7A;fontSize=14" value="✉" vertex="1">
+          <mxGeometry height="26" width="30" x="1240" y="612" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-339" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-297" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E65100;strokeWidth=2.5;dashed=1;dashPattern=6 4;endArrow=block;startArrow=block;fontSize=10;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.524;" target="SGPfUHSgG8945-kM_Nen-314" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1260" y="625" />
+              <mxPoint x="1260" y="975" />
+              <mxPoint x="1352.33" y="975" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-340" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#546E7A;fontColor=#546E7A;fontSize=14" value="✉" vertex="1">
+          <mxGeometry height="26" width="30" x="1240" y="902" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-341" edge="1" parent="1" source="SGPfUHSgG8945-kM_Nen-309" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E65100;strokeWidth=2.5;dashed=1;dashPattern=6 4;endArrow=block;startArrow=block;fontSize=10;fontColor=#E65100;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.930;" target="SGPfUHSgG8945-kM_Nen-314" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-342" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=13;fontColor=#37474F" value="Legende" vertex="1">
+          <mxGeometry height="22" width="120" x="40" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-343" edge="1" parent="1" style="html=1;strokeColor=#1565C0;strokeWidth=3;endArrow=none;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="40" y="838" as="sourcePoint" />
+            <mxPoint x="82" y="838" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-344" parent="1" style="text;html=1;align=left;fontSize=11;fontColor=#455A64" value="HTTP synchrone (REST / OIDC)" vertex="1">
+          <mxGeometry height="20" width="210" x="88" y="828" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-345" edge="1" parent="1" style="html=1;strokeColor=#E65100;strokeWidth=3;endArrow=none;dashed=1;dashPattern=6 4;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="270" y="838" as="sourcePoint" />
+            <mxPoint x="312" y="838" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-346" parent="1" style="text;html=1;align=left;fontSize=11;fontColor=#455A64" value="Evenement asynchrone - RabbitMQ" vertex="1">
+          <mxGeometry height="20" width="210" x="318" y="828" as="geometry" />
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-347" edge="1" parent="1" style="html=1;strokeColor=#90A4AE;strokeWidth=3;endArrow=none;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="550" y="838" as="sourcePoint" />
+            <mxPoint x="592" y="838" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="SGPfUHSgG8945-kM_Nen-348" parent="1" style="text;html=1;align=left;fontSize=11;fontColor=#455A64" value="Acces base (JDBC)" vertex="1">
+          <mxGeometry height="20" width="210" x="598" y="828" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
