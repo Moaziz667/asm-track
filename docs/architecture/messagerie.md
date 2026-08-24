@@ -164,6 +164,39 @@ stateDiagram-v2
 
 ---
 
+## Deux étages de reprise, à ne pas confondre
+
+Ces 15 tentatives ne concernent **que la publication** : elles couvrent le cas où RabbitMQ est
+injoignable. Une fois le message publié, l'outbox a terminé son travail et passe l'événement à
+`PROCESSED` — quoi qu'il advienne ensuite chez l'ERP.
+
+La suite relève d'un **second compteur**, côté consommateur, aux valeurs bien plus courtes. Les
+confondre fait croire qu'une panne d'Odoo est tolérée pendant 21 heures ; elle l'est en réalité
+pendant **30 secondes**.
+
+| | Étage outbox | Étage consommateur |
+|---|---|---|
+| **Qui** | `OutboxProcessor` (Service Livraison) | `ErpSyncCommandConsumer` (Adaptateur ERP) |
+| **Couvre la panne de** | RabbitMQ | l'ERP (Odoo / ERPNext) |
+| **Tentatives** | 15 | **5** |
+| **Attentes** | 2ⁿ × 5 s, plafond 4 h | 2 s → 4 s → 8 s → 16 s, plafond 30 s |
+| **Durée totale** | 21,7 h | **≈ 30 s** |
+| **À l'épuisement** | `FAILED` en base | message vers `erp.sync.command.dlq` |
+
+!!! warning "Odoo n'est toléré que 30 secondes"
+    Passé ce délai, la commande part en file de rebut. Elle n'est pas perdue : le consommateur de
+    rebut publie aussitôt un résultat en échec, la commande passe à `SYNC_FAILED` et l'administrateur
+    est notifié — elle ne reste jamais bloquée sur « synchronisation en cours ». Mais la reprise
+    devient **manuelle** (bouton *Resynchroniser*), elle n'est plus automatique.
+
+    C'est un choix à assumer : une panne ERP de plus de trente secondes demande un geste humain.
+
+Un troisième compteur existe, à ne pas ajouter aux deux autres : `ErpResyncService` autorise 10
+tentatives, mais il s'agit de la reprise **déclenchée par un opérateur** sur une commande déjà
+`SYNC_FAILED` — une escalade, pas une boucle automatique.
+
+---
+
 ## Le cycle complet d'une synchronisation ERP
 
 ```mermaid
@@ -186,11 +219,24 @@ sequenceDiagram
     Note over D,MQ: (asynchrone à partir d'ici)
     D->>MQ: erp.sync.command
     MQ->>E: consomme
-    E->>O: valide le transfert (JSON-RPC)
-    O-->>E: ok
-    E->>MQ: erp.sync.result
-    MQ->>D: consomme
-    D->>DB: order.erpSyncStatus = SYNCED
+    alt Odoo répond
+        E->>O: valide le transfert (JSON-RPC)
+        O-->>E: ok
+        E->>MQ: erp.sync.result (succès)
+        MQ->>D: consomme
+        D->>DB: order.erpSyncStatus = SYNCED
+    else Odoo injoignable
+        loop 5 tentatives — 2 s, 4 s, 8 s, 16 s
+            E->>O: valide le transfert
+            O--xE: échec
+        end
+        E->>MQ: erp.sync.command.dlq
+        MQ->>E: consomme la file de rebut
+        E->>MQ: erp.sync.result (échec)
+        MQ->>D: consomme
+        D->>DB: order.erpSyncStatus = SYNC_FAILED
+        D->>D: notifie l'administrateur
+    end
 ```
 
 **Le point essentiel : le livreur n'attend jamais l'ERP.** Il valide, l'écran répond, il repart. Un
