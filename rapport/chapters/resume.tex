@@ -1,0 +1,109 @@
+% =====================================================================
+%  Quatrième de couverture — page imposée par le modèle ISIMS.
+%  Ordre du modèle : الخلاصة, puis Résumé, puis Abstract, puis les mots clés dans les trois langues.
+%
+%  Cette page exige XeLaTeX (voir preamble.tex) : l'arabe ne se compose pas sous pdfLaTeX.
+% =====================================================================
+\clearpage
+\thispagestyle{empty}
+% Comme la couverture, cette page est imposée et doit tenir sur une seule feuille : avec
+% l'interligne 1,5 du corps, les trois résumés et le pied de page débordaient.
+\singlespacing
+
+\begin{center}
+  {\bfseries\large Système intelligent de suivi de livraison}
+\end{center}
+\vspace{-0.2cm}
+\noindent\textcolor{isimsblue}{\rule{\textwidth}{1pt}}
+
+\begin{center}
+  {\Large\bfseries\itshape Mohamed Aziz Hadjkacem}
+\end{center}
+\vspace{-0.2cm}
+\noindent\textcolor{isimsblue}{\rule{\textwidth}{1pt}}
+
+\vspace{0.3cm}
+% Le guide de rédaction plafonne chaque résumé à 10 lignes (règle 6) : à ce format, en corps 12
+% normal, les trois versions ci-dessous tiennent sans avoir besoin de réduire la police.
+
+% --- Arabe -----------------------------------------------------------------
+% Le titre est aligné à droite et le paragraphe composé de droite à gauche : dans le modèle, tout le
+% bloc arabe est en RTL, y compris la ponctuation finale.
+\begin{Arabic}
+\begin{flushright}
+\textbf{\underline{الخلاصة}} : تقدّم هذه المذكّرة منصّة لتتبّع عمليات التوصيل في الكيلومتر الأخير،
+قابلة للاستعمال من قِبَل عدّة مؤسسات ومندمجة مع أنظمة تخطيط مواردها. تغطّي المنصّة استيراد الطلبات
+من نظام تخطيط الموارد، وتخطيط الجولات، والتنفيذ الميداني عبر تطبيق جوّال يعمل دون اتصال بالإنترنت،
+وإثبات التسليم، وإدارة الإرجاع. تعتمد البنية على الخدمات المصغّرة مع عزل البيانات حسب المخطّط،
+ومصادقة مفوّضة عبر OAuth2/OIDC، ومُهايئ محايد لأنظمة تخطيط الموارد تم التحقّق منه على Odoo
+وERPNext. تمّت النمذجة باستخدام UML وفق منهجية Scrum.
+\end{flushright}
+\end{Arabic}
+
+\vspace{0.15cm}
+
+% --- Français --------------------------------------------------------------
+\noindent\textbf{\underline{Résumé}} : Ce mémoire présente une plateforme de suivi de livraison du
+dernier kilomètre, exploitable par plusieurs entreprises clientes et intégrée à leurs progiciels de
+gestion. Elle couvre l'import des commandes depuis l'ERP, la planification des tournées, l'exécution
+sur le terrain via une application mobile fonctionnant hors connexion, la preuve de livraison et la
+gestion des retours. L'architecture, orientée microservices, isole les données par schéma, délègue
+l'authentification en OAuth2/OIDC et intègre un adaptateur ERP agnostique validé sur Odoo et
+ERPNext. La modélisation a été réalisée en UML et le développement conduit selon la méthode Scrum.
+
+\vspace{0.15cm}
+
+% --- Anglais ---------------------------------------------------------------
+\noindent\textbf{\underline{Abstract}}: This thesis presents a last-mile delivery tracking platform,
+usable by several client companies and integrated with their enterprise resource planning systems.
+It covers order import from the ERP, route planning, field execution through an offline-capable
+mobile application, proof of delivery and returns management. The microservice-oriented architecture
+isolates data by schema, delegates authentication to OAuth2/OIDC, and integrates an ERP-agnostic
+adapter validated against both Odoo and ERPNext. Conceptual modelling was carried out using UML and
+development followed the Scrum agile method.
+
+\vspace{0.15cm}
+
+\begin{Arabic}
+\begin{flushright}
+\textbf{\underline{الكلمات المفاتيح}} : التوصيل في الكيلومتر الأخير، التتبّع الآني، تعدّد
+المستأجرين، تكامل أنظمة تخطيط الموارد، الخدمات المصغّرة، العمل دون اتصال، UML.
+\end{flushright}
+\end{Arabic}
+
+\vspace{0.15cm}
+
+\noindent\textbf{Mots clés} : livraison du dernier kilomètre, suivi en temps réel, multi-tenance,
+intégration ERP, Odoo, ERPNext, microservices, mode hors ligne, UML.
+
+\vspace{0.15cm}
+
+\noindent\textbf{Keywords}: last-mile delivery, real-time tracking, multi-tenancy, ERP integration,
+Odoo, ERPNext, microservices, offline mode, UML.
+
+% \vfill poussait le pied de page tout en bas de la page disponible et ne lui laissait plus la
+% place de s'y tenir : TeX le renvoyait alors, seul, sur une seconde feuille par ailleurs vide.
+\vspace{0.5cm}
+
+% --- Pied de page institutionnel (repris du modèle) ---
+\noindent\textcolor{isimsblue}{\rule{\textwidth}{0.8pt}}\\[4pt]
+\noindent
+\begin{minipage}[c]{0.36\textwidth}
+  \footnotesize
+  www.isimsf.rnu.tn~\raisebox{-2pt}{\includegraphics[height=10pt]{ico-globe}}\\[4pt]
+  % Coupure imposée : laissée au fil du texte, l'adresse cassait après « route de » et rejetait
+  % l'icône seule sur une troisième ligne.
+  Pôle technologique de Sfax\\
+  route de Tunis km 10, B.P. 242 - 3021 Sfax~\raisebox{-2pt}{\includegraphics[height=10pt]{ico-pin}}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.20\textwidth}
+  \centering
+  \includegraphics[width=0.9\linewidth]{isims-logo-pied}
+\end{minipage}
+\hfill
+\begin{minipage}[c]{0.30\textwidth}
+  \raggedleft\footnotesize
+  +216 74 862 432~\raisebox{-2pt}{\includegraphics[height=10pt]{ico-tel}}\\[4pt]
+  +216 74 862 233~\raisebox{-2pt}{\includegraphics[height=10pt]{ico-fax}}
+\end{minipage}

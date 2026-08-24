@@ -1,0 +1,169 @@
+% =====================================================================
+%  Préambule — mise en forme, packages, commandes maison.
+%  Rien de spécifique au contenu ici : le texte vit dans chapters/.
+% =====================================================================
+
+% ---------- Langue et écriture ----------
+%
+%  COMPILER AVEC XeLaTeX  (xelatex main.tex), pas pdflatex.
+%
+%  Le modèle de l'institut impose un résumé en arabe sur la dernière page. pdfLaTeX ne sait pas
+%  composer l'arabe : il ne gère ni le sens droite-à-gauche ni les ligatures contextuelles. On passe
+%  donc par XeTeX, fontspec et polyglossia, qui lisent directement les polices système. C'est aussi
+%  pourquoi babel, inputenc et fontenc ont disparu : ils sont incompatibles avec polyglossia et
+%  inutiles sous XeTeX, dont l'entrée est nativement UTF-8.
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setmainlanguage{french}
+\setotherlanguage{arabic}
+% Times New Roman, corps 12 : imposé par le guide de rédaction de l'institut (règle 1).
+\setmainfont{Times New Roman}
+\newfontfamily\arabicfont[Script=Arabic]{Amiri}  % naskh académique, fourni par MiKTeX
+\usepackage{csquotes}          % requis par biblatex pour les guillemets
+
+% ---------- Typographie ----------
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing                % interligne 1,5 — attendu par la plupart des jurys
+\usepackage{parskip}
+
+% ---------- Géométrie ----------
+% Largeur et hauteur de texte imposées par le guide de rédaction (règle 3) : 160 × 250 mm sur A4
+% (210 × 297 mm). Ne pas fixer les marges directement : sans elles, geometry centre le bloc de
+% texte pour obtenir cette largeur et cette hauteur exactement, ce qui est le résultat demandé.
+\usepackage[a4paper,textwidth=160mm,textheight=250mm]{geometry}
+
+% ---------- Figures et tableaux ----------
+\usepackage{graphicx}
+\graphicspath{{figures/}{../diagrams/drawio/}{../diagrams/svg/}{../docs/assets/uml/}}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage[table]{xcolor}
+
+% Colonnes de largeur fixe, alignées à gauche / centrées / à droite.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% ---------- Mise en page libre (couverture, page de résumé) ----------
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+% ---------- Couleurs ----------
+% Les deux premières sont relevées sur la charte ISIMS (bande de couverture) : la couverture doit
+% rester conforme au modèle de l'institut, ce n'est pas un choix esthétique.
+\definecolor{isimsblue}{HTML}{1F6CA0}
+\definecolor{isimsyellow}{HTML}{D9DE28}
+\definecolor{primary}{HTML}{1B5E20}
+\definecolor{accent}{HTML}{00897B}
+\definecolor{codebg}{HTML}{F5F5F5}
+
+% ---------- En-têtes ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------- Titres de chapitre ----------
+% Motif carré noir + numéro blanc, titre à côté, filet en dessous : observé identique dans deux
+% mémoires ISIMS réels (couverture de ce document et le mémoire InvisiThreat pris comme modèle),
+% sur les titres de chapitre ET les titres de section non numérotés (Dédicace, Remerciements, Table
+% des matières...). C'est la convention de l'institut, pas un choix esthétique — d'où l'abandon du
+% vert utilisé dans une version précédente : rien dans le modèle observé n'est en couleur.
+%
+% titlesec ne permet pas facilement de mettre une étiquette et un titre côte à côte à la même
+% hauteur (son mode [display] les empile verticalement) ; on redéfinit donc directement les
+% macros internes de la classe report, qui donnent un contrôle total sur la mise en page.
+\newcommand{\chapitrebadge}[1]{%
+  \tikz[baseline=-0.5ex]{\node[fill=black,text=white,font=\bfseries\Large,
+    minimum width=1.2cm,minimum height=1.2cm,inner sep=0pt]{#1};}%
+}
+\makeatletter
+% Chapitre numéroté (corps du mémoire).
+\def\@makechapterhead#1{%
+  \vspace*{10\p@}%
+  \parindent\z@\raggedright
+  \begin{minipage}[b]{2.1cm}
+    % \chaptertitlename n'existe pas en LaTeX standard — c'est un alias fourni par titlesec, qui
+    % n'est plus chargé ici. \@chapapp est la vraie macro du noyau (report.cls) : elle vaut
+    % « Chapitre » ou « Annexe » selon qu'on est dans \appendix ou non, et suit la langue active.
+    % Largeur 2,1cm : à 1,5cm, « CHAPITRE » en dépassait de 0,5cm (overfull hbox).
+    \normalfont\small\bfseries\MakeUppercase{\@chapapp}\\[6pt]
+    \chapitrebadge{\thechapter}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[b]{0.70\textwidth}
+    \raggedright\normalfont\Large\bfseries #1
+  \end{minipage}\par\nobreak
+  \vskip 10\p@
+  \noindent\rule{\textwidth}{1pt}
+  \vskip 24\p@
+}
+% Chapitre non numéroté (\chapter*{...} : Dédicace, Remerciements, Annexes...) : même filet, mais
+% un carré plein sans numéro à la place du badge, comme dans le modèle.
+\def\@makeschapterhead#1{%
+  \vspace*{10\p@}%
+  \parindent\z@\raggedright
+  \tikz{\node[fill=black,minimum width=0.4cm,minimum height=1.1cm,inner sep=0pt]{};}%
+  \hspace{10pt}%
+  {\normalfont\Large\bfseries #1}\par\nobreak
+  \vskip 10\p@
+  \noindent\rule{\textwidth}{1pt}
+  \vskip 24\p@
+}
+\makeatother
+
+% ---------- Code source ----------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{primary}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{accent},
+  numbers=left, numberstyle=\tiny\color{gray}, numbersep=8pt,
+  breaklines=true, showstringspaces=false,
+  frame=single, rulecolor=\color{gray!40},
+  captionpos=b,
+  % Les extraits contiennent des accents (commentaires en français).
+  extendedchars=true, literate={é}{{\'e}}1 {è}{{\`e}}1 {à}{{\`a}}1 {ê}{{\^e}}1 {ç}{{\c c}}1 {û}{{\^u}}1 {ô}{{\^o}}1 {î}{{\^\i}}1
+}
+
+% ---------- Éviter un pied de page orphelin ----------
+\usepackage{needspace}
+
+% ---------- Listes ----------
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt}
+
+% ---------- Liens ----------
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle={ASM Track — Rapport de Projet de Fin d'Études},
+  pdfauthor={Mohamed Aziz Hadj Kacem},
+  bookmarksnumbered=true
+}
+
+% ---------- Bibliographie ----------
+% Le guide de rédaction (règle 4) impose un corps 10 et un style par abréviation entre crochets —
+% [ROU 99] pour Paul Rouet, 1999 — plutôt qu'une numérotation. Le style « alphabetic » de biblatex
+% produit nativement ce type d'étiquette (3 lettres du nom + 2 chiffres de l'année) ; \bibfont est
+% le point d'entrée officiel de biblatex pour la taille de police de la liste de références.
+\usepackage[backend=biber,style=alphabetic,sorting=none]{biblatex}
+\renewcommand*{\bibfont}{\small}          % ≈ corps 10 sur un document en corps 12
+\addbibresource{bibliography/refs.bib}
+
+% ---------- Raccourcis maison ----------
+% Un terme technique cité pour la première fois.
+\newcommand{\terme}[1]{\emph{#1}}
+% Un identifiant de code (classe, table, endpoint).
+\newcommand{\code}[1]{\texttt{\small #1}}

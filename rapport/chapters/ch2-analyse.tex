@@ -1,0 +1,585 @@
+% Budget : 17 pages — voir rapport/PLAN.md
+%
+% Figures : exports PDF de draw.io, laisses dans diagrams/drawio/ et atteints par le
+% \graphicspath du preambule — uc-global.pdf et class-domain.pdf.
+% Toujours exporter en PDF plutot qu'en PNG : vectoriel, net a l'impression, bien plus leger.
+\chapter{Sprint 0 — Initialisation, besoins et étude technique}
+\label{ch:sprint0}
+
+\section{Introduction}
+
+Le chapitre précédent a posé le cadre : une entreprise de services numériques, un besoin de suivi de
+livraison adossé à des progiciels de gestion hétérogènes, et une méthode de travail itérative. Reste
+à transformer ce cadre en un plan de travail exécutable.
+
+C'est l'objet du sprint~0. Contrairement aux cinq sprints qui le suivent, il ne livre aucune
+fonctionnalité~: il produit les décisions sans lesquelles les autres ne pourraient pas commencer.
+Qui utilise le système et avec quels droits, ce qu'il doit savoir faire, dans quel ordre le
+construire, et avec quels outils.
+
+Ce chapitre restitue ces quatre travaux dans cet ordre. Il se termine sur trois exigences qui, sans
+être des fonctionnalités, ont pesé plus lourd que toutes les autres sur les choix qui ont suivi.
+
+\section{Identification des acteurs}
+
+Un acteur est un rôle joué par une personne ou un système extérieur qui interagit avec la solution.
+Le découpage retenu ne décalque pas l'organigramme de l'entreprise cliente~: il suit les
+\emph{permissions réellement distinctes}. Deux fonctions qui accèdent aux mêmes écrans et déclenchent
+les mêmes opérations ne forment qu'un seul acteur, quel que soit leur intitulé sur la fiche de poste.
+
+Ce principe a une conséquence concrète, détaillée au chapitre~\ref{ch:socle}~: le système distingue
+trois rôles internes et non quatre, parce que superviser et exploiter ne mobilisent pas les mêmes
+droits, tandis que deux intitulés qui exploitent de la même façon ne justifient pas deux rôles
+séparés.
+
+\begin{table}[H]
+\centering
+\caption{Acteurs du système et périmètre de chacun}
+\label{tab:acteurs}
+\begin{tabular}{L{3.1cm}L{5.2cm}L{6.2cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Acteur} & \textbf{Description} & \textbf{Périmètre d'action} \\
+\hline
+Administrateur & Responsable du paramétrage de l'installation pour son entreprise. &
+Comptes et rôles, correspondance des champs avec le progiciel, référentiel des chauffeurs et des
+véhicules. Hérite de toutes les actions du dispatcheur. \\
+\hline
+Dispatcheur & Il transforme au quotidien les commandes en tournées et arbitre les aléas. & Import des commandes, planification, affectation, validation, traitement des exceptions et
+des retours, contrôle des remises de caisse, zones et dépôts. Hérite des consultations du
+responsable. \\
+\hline
+Responsable & Supervise l'activité sans intervenir dessus. &
+Consultation des livraisons, des tournées et des rapports. Aucune action de modification. \\
+\hline
+Livreur & Exécute les tournées sur le terrain depuis l'application mobile. &
+Consultation de sa tournée du jour, changements de statut, preuve de livraison, déclaration d'échec,
+encaissement, transfert de garde. \\
+\hline
+Destinataire & Client final du chargeur. &
+Consultation de l'avancement de son colis par un lien public, sans compte ni authentification. \\
+\hline
+\end{tabular}
+\end{table}
+
+Deux systèmes extérieurs complètent ce tableau sans être des acteurs au sens strict, puisqu'ils
+n'ont ni intention ni objectif propre~: le \textbf{progiciel de gestion} de l'entreprise cliente
+— Odoo ou ERPNext —, source des commandes et destinataire des statuts, et le \textbf{serveur
+d'identité} Keycloak, qui authentifie les utilisateurs internes. Ils apparaissent dans le diagramme
+des cas d'utilisation sous forme de composants stéréotypés, à droite de la frontière du système.
+
+\section{Analyse et spécification des besoins}
+\label{sec:besoins}
+
+\subsection{Besoins fonctionnels}
+
+Les besoins fonctionnels décrivent ce que le système doit savoir faire. Ils sont regroupés en huit
+domaines, qui serviront ensuite de découpage au \emph{product backlog}.
+
+\paragraph*{Gestion des identités et des accès.} Le système doit authentifier les utilisateurs
+internes, leur attribuer un rôle, et n'autoriser chaque opération que si le rôle porte la permission
+correspondante. Il doit également héberger plusieurs entreprises clientes sur une même installation,
+sans qu'aucune ne puisse atteindre les données d'une autre.
+
+\paragraph*{Intégration au progiciel de gestion.} Le système doit importer les commandes prêtes à
+être livrées, puis renvoyer les statuts de livraison, les quantités réellement livrées et les preuves
+associées. Cette intégration doit fonctionner avec des progiciels différents, et avec des versions
+différentes d'un même progiciel, sans réécriture du cœur applicatif. L'administrateur doit pouvoir
+établir lui-même la correspondance entre les champs de son progiciel et ceux du système.
+
+\paragraph*{Référentiel logistique.} Le système doit gérer les chauffeurs, les véhicules et les zones
+de couverture. Les dépôts, en revanche, ne sont pas saisis~: ils reflètent les entrepôts du
+progiciel et sont récupérés par synchronisation, afin d'éviter un double référentiel qui divergerait
+au premier changement.
+
+\paragraph*{Planification et affectation.} Le dispatcheur doit pouvoir construire une tournée à partir
+d'un ensemble de livraisons, y affecter un chauffeur et un véhicule, réordonner les arrêts, demander
+une optimisation automatique du parcours, puis valider la tournée pour la rendre visible au
+chauffeur.
+
+\paragraph*{Exécution terrain.} Le chauffeur doit consulter sa tournée, déclarer son départ, marquer
+son arrivée à chaque arrêt, livrer ou déclarer un échec motivé, et collecter une preuve de livraison
+comportant le nom du destinataire, une photographie du colis et une photographie du bon signé. Un
+transfert de garde entre deux chauffeurs doit être possible en cours de journée, avec confirmation
+du receveur.
+
+\paragraph*{Encaissement et remise de caisse.} Lorsque la commande est payable à la livraison, le
+chauffeur doit enregistrer le montant encaissé et son mode de règlement. En fin de tournée, il
+déclare le total remis~; une autre personne compte la somme reçue et arbitre l'écart éventuel.
+
+\paragraph*{Suivi et traitement des aléas.} Le dispatcheur doit voir l'avancement des livraisons en
+temps réel, être alerté des retards et des échecs, réaffecter une livraison bloquée, et enregistrer
+les retours de marchandise. Le destinataire doit pouvoir suivre son colis par un lien public.
+
+\paragraph*{Pilotage et exploitation.} Le responsable doit disposer d'indicateurs — taux de réussite,
+motifs d'échec, respect des délais, performance par chauffeur et par zone — et pouvoir exporter des
+documents. L'administrateur doit disposer d'une console de santé qui expose l'état de l'intégration et
+permet de relancer une synchronisation en échec.
+
+\subsection{Besoins non fonctionnels}
+
+Les besoins non fonctionnels ne décrivent pas des fonctions mais des qualités attendues du système.
+Trois d'entre eux ont pesé plus lourd que les autres sur l'architecture et sont signalés comme tels.
+
+\begin{table}[H]
+\centering
+\caption{Besoins non fonctionnels}
+\label{tab:besoins-nf}
+\begin{tabular}{L{3.4cm}L{11.1cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Besoin} & \textbf{Exigence} \\
+\hline
+\textbf{Agnosticité ERP} & Le cœur métier ne doit connaître aucun progiciel en particulier. Ajouter
+un progiciel, ou prendre en charge une nouvelle version, ne doit pas modifier le code métier.
+\emph{Structurant.} \\
+\hline
+\textbf{Isolation par client} & Les données de chaque entreprise cliente doivent être séparées de
+façon structurelle, et non par un simple filtre applicatif qu'un oubli suffirait à contourner.
+\emph{Structurant.} \\
+\hline
+\textbf{Continuité hors ligne} & L'application chauffeur doit rester utilisable sans réseau. Les
+actions réalisées hors couverture doivent être rejouées à la reconnexion sans produire de doublon.
+\emph{Structurant.} \\
+\hline
+Sécurité & Communications chiffrées, jetons d'accès à durée limitée, contrôle des droits appliqué à
+la fois à la passerelle et dans chaque service. \\
+\hline
+Traçabilité & Toute opération sensible doit laisser une trace horodatée et attribuée à son auteur,
+consultable a posteriori. \\
+\hline
+Temps réel & Un changement d'état survenu sur le terrain doit se refléter sur le poste du
+dispatcheur sans rechargement manuel. \\
+\hline
+Performance & Les listes doivent être renvoyées par pages plutôt qu'en bloc, et tout critère de
+recherche exposé à l'utilisateur doit être indexé. \\
+\hline
+Portabilité & L'ensemble doit se déployer sur une machine unique par conteneurs, sans installation
+manuelle de dépendances. \\
+\hline
+Ergonomie & Interface d'administration en français, arabe et anglais~; application chauffeur
+conçue pour un usage à une main. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Diagramme global des cas d'utilisation}
+
+Le diagramme de la figure~\ref{fig:uc-global} synthétise les besoins fonctionnels sous forme de cas
+d'utilisation et les rattache à leurs acteurs. Il reste volontairement au premier niveau~: le
+système compte une trentaine de cas, les représenter tous rendrait la figure illisible. Le détail
+est porté par les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}.
+
+\begin{figure}[H]
+\centering
+% Diagramme bien plus haut que large : le borner à la seule largeur donnerait 227 mm de hauteur
+% et ferait déborder la page. On borne les deux dimensions et keepaspectratio retient la plus
+% contraignante.
+\includegraphics[width=\textwidth,height=0.86\textheight,keepaspectratio]{uc-global}
+\caption{Diagramme global des cas d'utilisation}
+\label{fig:uc-global}
+\end{figure}
+
+Trois éléments de lecture méritent d'être soulignés.
+
+Les flèches entre acteurs sont des \textbf{généralisations}~: l'administrateur est un dispatcheur qui
+dispose en plus du paramétrage, et le dispatcheur est un responsable qui dispose en plus des actions
+d'exploitation. Cette hiérarchie évite de redessiner vingt-quatre traits~; surtout, elle traduit
+fidèlement l'inclusion des permissions décrite au chapitre~\ref{ch:socle}.
+
+Les liens \emph{«~include~»} vers le cas \emph{S'authentifier} ne sont tracés que depuis les points
+d'entrée. L'authentification est en réalité une précondition de tous les cas internes~; la relier à
+chacun surchargerait la figure sans rien apprendre au lecteur. Le destinataire, lui, en est
+véritablement exempt~: son suivi passe par un lien public et n'exige aucun compte.
+
+Les deux liens \emph{«~extend~»} signalent des cas facultatifs. \emph{Optimiser l'ordre des arrêts}
+étend \emph{Planifier une tournée}, parce que le dispatcheur peut toujours ordonner ses arrêts
+lui-même. \emph{Encaisser un paiement} étend \emph{Livrer une commande}, parce que toutes les
+commandes ne sont pas payables à la livraison.
+
+\subsection{Diagramme de classes global}
+
+Le diagramme de la figure~\ref{fig:class-global} présente les concepts manipulés par le système et
+leurs relations. Il fixe le vocabulaire employé dans tout le reste du rapport.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.86\textheight,keepaspectratio]{class-domain}
+\caption{Diagramme de classes global}
+\label{fig:class-global}
+\end{figure}
+
+Il se lit de haut en bas, du référentiel vers l'exécution. La partie haute regroupe ce qui existe
+avant toute commande~: dépôts, chauffeurs, véhicules et zones. Au centre, une \textbf{Commande}
+issue du progiciel se décompose en une ou plusieurs \textbf{Livraisons}~; le losange plein indique
+une composition, c'est-à-dire que les livraisons n'ont pas d'existence propre en dehors de leur
+commande. En parallèle, un chauffeur exécute des \textbf{Tournées}, elles-mêmes composées
+d'\textbf{Arrêts}.
+
+La classe \emph{Arrêt} est abstraite, et c'est le point le moins évident du modèle. Un arrêt de
+retrait désigne un dépôt où le chauffeur charge~; un arrêt de livraison désigne une livraison à
+remettre. Ce ne sont pas les mêmes objets, d'où la généralisation~: les représenter par un simple
+attribut « type » aurait masqué une différence de structure réelle.
+
+La partie basse porte les traces laissées par l'exécution~: une \textbf{PreuveDeLivraison}, un
+\textbf{Encaissement} lorsque le client règle à la porte, et un \textbf{Retour} si la marchandise
+revient. Les encaissements d'un chauffeur sont ensuite regroupés dans une \textbf{RemiseDeCaisse},
+ce qui matérialise la séparation des responsabilités~: celui qui déclare la somme n'est pas celui
+qui la valide.
+
+Enfin, la classe \textbf{Entreprise} n'est reliée à rien, et c'est délibéré. L'appartenance d'une
+donnée à une entreprise cliente n'est pas portée par une clé étrangère mais par un schéma de base de
+données distinct. Le chapitre~\ref{ch:archi} détaille ce mécanisme.
+
+\section{Gestion du projet avec Scrum}
+
+\subsection{Product Backlog}
+
+Le \emph{product backlog} traduit les besoins fonctionnels en éléments réalisables et priorisés. Ils
+ont été formulés sous forme de \emph{user stories}, selon le gabarit « en tant que \emph{rôle}, je
+veux \emph{action}, afin de \emph{bénéfice} », puis regroupés en huit épopées correspondant aux
+domaines de la section précédente.
+
+Deux échelles complètent chaque élément. La \textbf{priorité} suit la méthode MoSCoW —
+\emph{Must~have} pour l'indispensable, \emph{Should~have} pour l'important non bloquant,
+\emph{Could~have} pour le souhaitable. L'\textbf{estimation} est exprimée en points de complexité
+selon la suite de Fibonacci~; il s'agit d'une complexité relative entre éléments, non d'une durée.
+
+\begin{longtable}{L{1.1cm}L{8.2cm}C{1.5cm}C{1.1cm}C{1.3cm}}
+\caption{Product Backlog du projet}
+\label{tab:backlog} \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Réf.} & \textbf{User story} & \textbf{Priorité} & \textbf{Est.} & \textbf{Sprint} \\
+\hline
+\endfirsthead
+\multicolumn{5}{c}{\tablename\ \thetable{} — \emph{suite}} \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Réf.} & \textbf{User story} & \textbf{Priorité} & \textbf{Est.} & \textbf{Sprint} \\
+\hline
+\endhead
+\hline
+\multicolumn{5}{r}{\emph{suite page suivante}} \\
+\endfoot
+\hline
+\endlastfoot
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 1 — Identités, autorisations et multi-tenance}} \\
+\hline
+US-01 & En tant qu'utilisateur, je veux m'authentifier par un compte unique afin d'accéder aux écrans
+correspondant à mon rôle. & Must & 8 & 1 \\
+\hline
+US-02 & En tant qu'administrateur, je veux créer des comptes et leur attribuer un rôle afin de
+contrôler qui accède à quoi. & Must & 5 & 1 \\
+\hline
+US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le
+rôle de l'utilisateur afin que personne ne puisse dépasser ses droits. & Must & 8 & 1 \\
+\hline
+US-04 & En tant qu'entreprise cliente, je veux que mes données soient inaccessibles aux autres
+entreprises hébergées afin de garantir ma confidentialité. & Must & 13 & 1 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 2 — Intégration au progiciel de gestion}} \\
+\hline
+US-05 & En tant que dispatcheur, je veux importer les commandes prêtes depuis le progiciel afin de ne
+pas les ressaisir. & Must & 13 & 2 \\
+\hline
+US-06 & En tant qu'administrateur, je veux relier les champs de mon progiciel à ceux du système afin
+d'adapter l'intégration à mon paramétrage. & Must & 13 & 2 \\
+\hline
+US-07 & En tant qu'entreprise, je veux pouvoir brancher la solution sur n'importe quel progiciel de
+gestion afin de ne dépendre d'aucun éditeur. & Must & 21 & 2 \\
+\hline
+US-08 & En tant que dispatcheur, je veux que le statut d'une livraison remonte automatiquement dans le
+progiciel afin que la facturation suive. & Must & 8 & 2 \\
+\hline
+US-09 & En tant que dispatcheur, je veux qu'une synchronisation interrompue soit réessayée puis
+signalée afin qu'aucune information ne se perde silencieusement. & Must & 13 & 2 \\
+\hline
+US-10 & En tant que dispatcheur, je veux récupérer les entrepôts du progiciel comme dépôts afin
+d'éviter un double référentiel. & Should & 5 & 2 \\
+\hline
+US-11 & En tant qu'administrateur, je veux que le système fonctionne avec plusieurs versions du même
+progiciel afin de ne pas imposer de montée de version au client. & Should & 13 & 2 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 3 — Référentiel logistique}} \\
+\hline
+US-12 & En tant qu'administrateur, je veux gérer la liste des chauffeurs afin de refléter l'équipe
+réelle. & Must & 5 & 3 \\
+\hline
+US-13 & En tant qu'administrateur, je veux gérer le parc de véhicules avec leur capacité afin de
+pouvoir les affecter. & Should & 5 & 3 \\
+\hline
+US-14 & En tant que dispatcheur, je veux définir des zones géographiques afin de regrouper les
+livraisons par secteur. & Should & 8 & 3 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 4 — Planification et affectation}} \\
+\hline
+US-15 & En tant que dispatcheur, je veux construire une tournée à partir de livraisons afin
+d'organiser la journée. & Must & 13 & 3 \\
+\hline
+US-16 & En tant que dispatcheur, je veux affecter un chauffeur et un véhicule à une tournée afin d'en
+désigner le responsable. & Must & 8 & 3 \\
+\hline
+US-17 & En tant que dispatcheur, je veux obtenir un ordre de passage optimisé afin de réduire la
+distance parcourue. & Should & 13 & 3 \\
+\hline
+US-18 & En tant que dispatcheur, je veux valider une tournée afin de la rendre visible au chauffeur.
+& Must & 5 & 3 \\
+\hline
+US-19 & En tant que dispatcheur, je veux connaître l'heure d'arrivée estimée à chaque arrêt afin de
+détecter les retards. & Should & 8 & 3 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 5 — Exécution terrain}} \\
+\hline
+US-20 & En tant que chauffeur, je veux consulter ma tournée du jour sur mon téléphone afin de savoir
+où aller. & Must & 8 & 4 \\
+\hline
+US-21 & En tant que chauffeur, je veux déclarer une livraison réussie ou échouée avec un motif afin
+que le bureau soit informé. & Must & 8 & 4 \\
+\hline
+US-22 & En tant que chauffeur, je veux enregistrer une preuve de livraison avec photographies afin de
+couvrir l'entreprise en cas de litige. & Must & 13 & 4 \\
+\hline
+US-23 & En tant que chauffeur, je veux continuer à travailler sans réseau et voir mes actions
+transmises au retour de la couverture afin de ne jamais être bloqué. & Must & 21 & 4 \\
+\hline
+US-24 & En tant que chauffeur, je veux transmettre un colis à un collègue avec confirmation afin que
+la responsabilité soit tracée. & Should & 13 & 4 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 6 — Encaissement et remise de caisse}} \\
+\hline
+US-25 & En tant que chauffeur, je veux enregistrer le montant encaissé et son mode de règlement afin
+d'en garder la trace. & Must & 8 & 4 \\
+\hline
+US-26 & En tant que chauffeur, je veux déclarer le total remis en fin de tournée afin de clore ma
+journée. & Must & 5 & 4 \\
+\hline
+US-27 & En tant que dispatcheur, je veux compter la somme reçue et arbitrer l'écart afin que la
+caisse soit vérifiable. & Must & 8 & 4 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 7 — Suivi, aléas et retours}} \\
+\hline
+US-28 & En tant que dispatcheur, je veux voir l'avancement des livraisons sans recharger la page afin
+de réagir immédiatement. & Must & 13 & 3 \\
+\hline
+US-29 & En tant que dispatcheur, je veux être alerté des retards et des échecs afin de traiter les
+exceptions en priorité. & Must & 8 & 3 \\
+\hline
+US-30 & En tant que dispatcheur, je veux réaffecter une livraison bloquée à un autre chauffeur afin
+de sauver la journée. & Must & 8 & 3 \\
+\hline
+US-31 & En tant que dispatcheur, je veux enregistrer un retour de marchandise et son état afin de
+déclencher la reprise en stock. & Should & 13 & 3 \\
+\hline
+US-32 & En tant que destinataire, je veux suivre mon colis par un lien reçu afin de connaître son
+avancement sans créer de compte. & Should & 8 & 3 \\
+\hline
+
+\multicolumn{5}{l}{\cellcolor{isimsblue!5}\textbf{Épopée 8 — Pilotage et exploitation}} \\
+\hline
+US-33 & En tant que responsable, je veux consulter les indicateurs de performance afin de piloter
+l'activité. & Should & 13 & 5 \\
+\hline
+US-34 & En tant que responsable, je veux exporter un rapport de tournée afin de le transmettre ou de
+l'archiver. & Should & 8 & 5 \\
+\hline
+US-35 & En tant qu'administrateur, je veux une console indiquant l'état de l'intégration afin de
+distinguer une panne du progiciel d'une panne du système. & Must & 13 & 5 \\
+\hline
+US-36 & En tant qu'administrateur, je veux relancer une synchronisation en échec afin de réparer sans
+intervention technique. & Must & 8 & 5 \\
+\hline
+US-37 & En tant qu'administrateur, je veux consulter le journal des opérations sensibles afin de
+pouvoir répondre à un audit. & Should & 8 & 5 \\
+\hline
+US-38 & En tant qu'utilisateur, je veux interroger une assistance interne sur le fonctionnement du
+système afin de trouver une réponse sans quitter l'application. & Could & 13 & 5 \\
+\hline
+\end{longtable}
+
+Le backlog totalise trente-huit éléments pour 382 points de complexité. Il a été tenu dans
+\textbf{GitLab Issues}, chaque épopée correspondant à une étiquette et chaque sprint à un tableau
+kanban dédié.
+
+\subsection{Planification des sprints}
+
+Le projet s'est déroulé du 2~mars au 17~août 2026, soit vingt-quatre semaines. Il a été découpé en un
+sprint d'initialisation et cinq sprints fonctionnels de trois à cinq semaines, chacun clos par une
+revue et une rétrospective avant l'engagement du suivant.
+
+L'ordre des sprints obéit à une contrainte simple~: chaque sprint ne doit dépendre que de ce qui a
+déjà été livré. L'isolation par entreprise et le contrôle des droits viennent en premier, parce que
+toute donnée créée ensuite doit déjà être rattachée à un client et protégée — les rajouter après coup
+aurait imposé de reprendre l'ensemble du code écrit entre-temps. L'intégration au progiciel vient
+juste après, parce qu'elle alimente le système en commandes~: sans elle, les sprints suivants
+auraient travaillé sur des données saisies à la main, donc sur un cas qui n'existe pas en
+production.
+
+\begin{table}[H]
+\centering
+\caption{Planification des sprints}
+\label{tab:planning}
+% Colonne « Objectif » élargie et intitulés raccourcis pour qu'aucune ligne ne passe sur deux
+% lignes : le tableau tient alors dans la place laissée par le texte au lieu d'être repoussé.
+\small
+\begin{tabular}{L{1.5cm}L{5.6cm}C{3.2cm}C{1.5cm}C{1.4cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Sprint} & \textbf{Objectif} & \textbf{Période} & \textbf{Durée} & \textbf{Points} \\
+\hline
+Sprint 0 & Cadrage, besoins et étude technique & 2 — 20 mars & 3 sem. & — \\
+\hline
+Sprint 1 & Identité, autorisation et multi-tenance & 23 mars — 17 avril & 4 sem. & 34 \\
+\hline
+Sprint 2 & Intégration ERP agnostique & 20 avril — 22 mai & 5 sem. & 86 \\
+\hline
+Sprint 3 & Planification et suivi temps réel & 25 mai — 19 juin & 4 sem. & 115 \\
+\hline
+Sprint 4 & Application chauffeur et hors ligne & 22 juin — 17 juillet & 4 sem. & 84 \\
+\hline
+Sprint 5 & Exploitation, résilience et assistance & 20 juillet — 7 août & 3 sem. & 63 \\
+\hline
+\multicolumn{2}{l}{Recette, rédaction et soutenance} & 10 — 17 août & 1 sem. & — \\
+\hline
+\end{tabular}
+\end{table}
+
+Les sprints~2 et~3 concentrent à eux seuls plus de la moitié des points. Le premier parce que
+l'indépendance vis-à-vis du progiciel exige une couche d'abstraction complète avant le moindre gain
+visible~; le second parce qu'il porte le cœur métier de la solution.
+
+\section{Étude technique}
+
+\subsection{Environnement matériel}
+
+Le développement a été mené sur un poste unique, qui a également hébergé l'ensemble des services
+conteneurisés — bases de données, courtier de messages, serveur d'identité, moteur de calcul
+d'itinéraires et instances de progiciel de test. Cette dernière contrainte explique le
+dimensionnement en mémoire.
+
+\begin{table}[H]
+\centering
+\caption{Environnement matériel de développement}
+\label{tab:materiel}
+\begin{tabular}{L{4.5cm}L{10cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Élément} & \textbf{Caractéristique} \\
+\hline
+Processeur & Intel Core i5-12450H, 12\textsuperscript{e} génération \\
+\hline
+Mémoire vive & 24 Go \\
+\hline
+Système d'exploitation & Windows 11 Professionnel \\
+\hline
+Exécution des services & Docker Desktop, moteur WSL~2 \\
+\hline
+Essais mobiles & Appareil Android physique et émulateur \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Environnement logiciel de développement}
+
+\begin{table}[H]
+\centering
+\caption{Outils de développement et de collaboration}
+\label{tab:outils}
+\begin{tabular}{L{4.5cm}L{10cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Outil} & \textbf{Usage dans le projet} \\
+\hline
+Visual Studio Code & Éditeur principal pour le code Java, TypeScript et Dart \\
+\hline
+Android Studio & Compilation, émulation et débogage de l'application chauffeur \\
+\hline
+Git et GitLab & Gestion de versions, suivi du backlog par issues et tableaux, intégration continue \\
+\hline
+Docker Desktop & Exécution locale de l'ensemble des services et de leurs dépendances \\
+\hline
+Postman & Essais manuels des interfaces de programmation \\
+\hline
+DBeaver & Inspection des schémas et des données PostgreSQL \\
+\hline
+draw.io & Conception des diagrammes UML du présent rapport \\
+\hline
+\LaTeX{} (XeLaTeX) & Rédaction du rapport \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Technologies retenues}
+
+Le choix des technologies a été arrêté au terme du sprint~0, chaque brique étant retenue pour une
+raison rattachable à un besoin de la section~\ref{sec:besoins}. Le chapitre~\ref{ch:archi} en détaille
+la mise en œuvre.
+
+\begin{table}[H]
+\centering
+\caption{Technologies retenues et motif du choix}
+\label{tab:technos}
+\begin{tabular}{L{2.5cm}L{3.4cm}L{8.6cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Couche} & \textbf{Technologie} & \textbf{Motif du choix} \\
+\hline
+Services & Spring Boot 3.3.5, Java 17 & Écosystème mature pour les architectures en services, avec
+prise en charge native de la sécurité par jetons et du multi-schéma \\
+\hline
+Passerelle & Spring Cloud Gateway & Point d'entrée unique~: validation des jetons et application des
+droits avant tout accès aux services \\
+\hline
+Interface web & React 19, Vite, TypeScript & Rendu réactif adapté à un tableau de dispatch qui se met
+à jour en continu \\
+\hline
+Application mobile & Flutter & Base de code unique, et stockage local performant sur lequel repose le
+mode hors ligne \\
+\hline
+Base de données & PostgreSQL 16 & Schéma par entreprise cliente pour l'isolation, type
+\texttt{jsonb} pour les données de forme variable, absence de coût de licence \\
+\hline
+Messagerie & RabbitMQ 4 & Découplage des échanges avec le progiciel, relances et file de rebut
+intégrées \\
+\hline
+Identité & Keycloak & Serveur OpenID Connect éprouvé, gestion native des organisations \\
+\hline
+Fichiers & MinIO & Stockage compatible S3 des photographies de preuve, déployable localement \\
+\hline
+Itinéraires & OSRM & Moteur de calcul auto-hébergé, sans coût par requête ni dépendance à un service
+externe \\
+\hline
+\end{tabular}
+\end{table}
+
+\paragraph*{Sur le choix de la base de données.} PostgreSQL a été retenu pour deux raisons directement
+liées aux besoins structurants. La première est l'isolation par entreprise cliente~: PostgreSQL
+permet de créer un schéma par client au sein d'une même base et d'en changer dynamiquement à chaque
+requête, mécanisme sur lequel repose toute la multi-tenance décrite au chapitre~\ref{ch:archi}. La
+seconde est le stockage semi-structuré~: le détail des lignes de commande et les champs
+supplémentaires propres à chaque client varient d'un progiciel à l'autre, ce que le type
+\texttt{jsonb} absorbe sans multiplier les tables. S'y ajoute l'absence de coût de licence, cohérente avec une solution
+destinée à être déployée chez plusieurs clients.
+
+\section{Conclusion}
+
+Ce sprint d'initialisation a produit quatre livrables~: la liste des acteurs et de leurs droits, la
+spécification des besoins fonctionnels et non fonctionnels, les deux diagrammes qui fixent le
+vocabulaire du système, et un backlog de trente-huit éléments réparti sur cinq sprints.
+
+Son apport principal n'est pourtant pas cette production documentaire. Il tient à trois exigences que
+l'analyse a fait remonter au rang de contraintes structurantes~: l'ouverture à plusieurs progiciels,
+l'hébergement de plusieurs entreprises clientes sur une même installation, et la continuité de
+service en l'absence de réseau. Aucune n'est une fonctionnalité visible pour l'utilisateur, et
+pourtant toutes trois ont déterminé l'architecture, l'ordre des sprints et une partie des choix
+technologiques.
+
+Le chapitre suivant présente cette architecture. Les cinq chapitres qui lui succèdent déroulent
+ensuite les sprints dans l'ordre du tableau~\ref{tab:planning}.

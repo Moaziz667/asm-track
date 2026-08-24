@@ -1,0 +1,52 @@
+% =====================================================================
+%  ASM Track — Rapport de Projet de Fin d'Études
+%  Compilation :  latexmk -pdf main.tex        (ou pdflatex ×3 + biber)
+%
+%  Cible : ~140 pages  =  12 liminaires + 118 corps + 10 annexes/biblio.
+%  Le budget de pages de chaque chapitre est rappelé en tête de son fichier.
+% =====================================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+\input{preamble}
+
+\begin{document}
+
+% ---------- Pages liminaires (numérotation romaine) ----------
+\pagenumbering{roman}
+\include{chapters/couverture}
+\include{chapters/dedicace}
+\include{chapters/remerciements}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\include{chapters/acronymes}
+
+% ---------- Corps (numérotation arabe) ----------
+\cleardoublepage
+\pagenumbering{arabic}
+\pagestyle{fancy}
+
+\include{chapters/introduction}
+\include{chapters/ch1-contexte}
+\include{chapters/ch2-analyse}
+\include{chapters/ch3-architecture}
+\include{chapters/ch4-sprint1-socle}
+\include{chapters/ch5-sprint2-erp}
+\include{chapters/ch6-sprint3-tournees}
+\include{chapters/ch7-sprint4-mobile}
+\include{chapters/ch8-sprint5-exploitation}
+\include{chapters/ch9-validation}
+\include{chapters/conclusion}
+
+% ---------- Bibliographie et annexes ----------
+\printbibliography[heading=bibintoc,title={Bibliographie et webographie}]
+
+\appendix
+\include{chapters/annexes}
+
+% Quatrième de couverture imposée par l'institut : résumé arabe, français et anglais. Elle ferme le
+% mémoire — ce n'est pas une page liminaire.
+\include{chapters/resume}
+
+\end{document}

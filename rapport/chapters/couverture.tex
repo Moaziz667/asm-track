@@ -1,0 +1,131 @@
+% =====================================================================
+%  Page de garde — conforme au modèle officiel ISIMS Sfax.
+%
+%  Les éléments graphiques (bande latérale, filigrane, logo) ont été extraits du PDF fourni par
+%  l'institut : la couverture est imposée, elle ne se redessine pas « à peu près ».
+%
+%  Les valeurs à confirmer sont en rouge — voir rapport/PLAN.md, section « Reste à décider ».
+% =====================================================================
+
+% La couverture réclame environ 26 cm de hauteur utile, la mise en page du corps n'en offre que
+% 24,7 : le bloc central débordait et LaTeX le renvoyait entier sur la page suivante, laissant une
+% couverture vide sous l'en-tête. On lui donne sa propre géométrie plutôt que de rogner le contenu
+% imposé par le modèle.
+\newgeometry{top=1.2cm,bottom=1.2cm,left=3cm,right=2cm}
+
+\begin{titlepage}
+\thispagestyle{empty}
+% L'interligne 1,5 et parskip du corps ajoutaient près de quatre centimètres cumulés ici. La
+% couverture se compose serrée : ses espacements sont posés explicitement, un par un.
+\singlespacing
+\setlength{\parskip}{0pt}
+
+% La bande décorative occupe ~4,2 cm une fois portée à la hauteur de la page ; tout le contenu est
+% donc décalé au-delà, sinon le bloc institutionnel passe dessous.
+\newlength{\bandeoffset}\setlength{\bandeoffset}{1.6cm}
+
+% --- Décor : bande à gauche, filigrane à droite ---
+\begin{tikzpicture}[remember picture, overlay]
+  \node[anchor=north west, inner sep=0] at (current page.north west)
+       {\includegraphics[height=\paperheight]{isims-bande-gauche}};
+  \node[anchor=east, inner sep=0] at ($(current page.east)+(0,1.2cm)$)
+       {\includegraphics[height=0.28\paperheight]{isims-filigrane-droite}};
+\end{tikzpicture}
+
+% --- Bandeau d'en-tête : institution / logo / nature du document ---
+\noindent\hspace*{\bandeoffset}%
+\begin{minipage}[t]{0.30\textwidth}
+  \centering\footnotesize
+  République Tunisienne\\
+  Ministère de l'Enseignement Supérieur\\
+  et de la Recherche Scientifique\\[1pt]
+  \rule{2cm}{0.8pt}\\[1pt]
+  Université de Sfax\\[1pt]
+  \rule{2cm}{0.8pt}\\[1pt]
+  Institut Supérieur d'Informatique\\
+  et de Multimédia de Sfax
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.20\textwidth}
+  \centering
+  \vspace{0.2cm}
+  \includegraphics[width=\linewidth]{isims-logo}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.24\textwidth}
+  \centering\footnotesize
+  Mémoire d'ingénieur\\
+  en Informatique\\[1pt]
+  \rule{1.6cm}{0.8pt}\\[1pt]
+  N\textsuperscript{o} d'ordre : \textcolor{red}{2026 - XXX}
+\end{minipage}
+
+\vspace{0.3cm}
+\noindent\hspace*{\bandeoffset}\textcolor{isimsblue}{\rule{0.88\textwidth}{1.2pt}}
+
+\vspace{1.1cm}
+
+% Le bloc central est décalé de la même quantité que l'en-tête : il se centre dans la zone restante,
+% pas dans la page, sinon le titre paraît déporté par rapport au filet ci-dessus.
+\noindent\hspace*{\bandeoffset}%
+\begin{minipage}{0.88\textwidth}
+\centering
+
+  {\fontsize{30}{34}\selectfont\bfseries MÉMOIRE}
+
+  \vspace{1.0cm}
+  {\footnotesize Présenté à}
+
+  \vspace{0.4cm}
+  {\bfseries\itshape L'Institut Supérieur d'Informatique\\ et de Multimédia de Sfax}
+
+  \vspace{0.9cm}
+  {\footnotesize En vue de la validation de}
+
+  \vspace{0.4cm}
+  {\bfseries\itshape DIPLÔME NATIONAL D'INGÉNIEUR EN INFORMATIQUE}
+
+  \vspace{0.9cm}
+  {\footnotesize Intitulé}
+
+  \vspace{0.4cm}
+  \rule{0.76\linewidth}{1.2pt}
+
+  \vspace{0.55cm}
+  {\Large\bfseries\itshape Système intelligent\\[2pt] de suivi de livraison}
+
+  \vspace{0.55cm}
+  \rule{0.76\linewidth}{1.2pt}
+
+  \vspace{1.1cm}
+  {\footnotesize élaboré par}
+
+  \vspace{0.4cm}
+  {\large\bfseries\itshape Mohamed Aziz Hadjkacem}
+
+  \vspace{1.2cm}
+  {\footnotesize Soutenu le \textcolor{red}{XX/06/2026} devant le jury composé de}
+
+  \vspace{0.7cm}
+  % Noms à gauche, rôles alignés à droite — comme le modèle.
+  \begin{minipage}[t]{0.52\linewidth}
+    \raggedright\bfseries\itshape
+    \textcolor{red}{M. XXX}\\[3pt]
+    \textcolor{red}{M. XXX}\\[3pt]
+    M. Bassem Bouaziz\\[3pt]
+    \textcolor{red}{M. XXX}
+  \end{minipage}%
+  \begin{minipage}[t]{0.46\linewidth}
+    \raggedleft
+    Président\\[3pt]
+    Rapporteur\\[3pt]
+    Encadrant académique\\[3pt]
+    Encadrant professionnel
+  \end{minipage}
+
+  \vspace{1.3cm}
+  {\bfseries\small Année universitaire : 2025 / 2026}
+\end{minipage}
+\end{titlepage}
+
+\restoregeometry
