@@ -88,7 +88,10 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'STOPS_TRANSFERRED_IN':  { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
   'ROUTE_STARTED':         { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
   'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
-  'erp.sync_failed':       { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
+  // Lands on System Health, not on the shipment: the shipment itself is fine — it was delivered and
+  // its proof is stored — and its detail page offers nothing to act on. What failed is the push to
+  // the ERP, and the only control that repairs it (Resync, single or bulk) lives on System Health.
+  'erp.sync_failed':       { category: 'erp',      severity: 'critical', navigateTo: () => '/system-health' },
   'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import?tab=ready' },
   // Absent from this table, so it was dropped by addNotification's unknown-event filter and the
   // client's return never rang the bell at all.

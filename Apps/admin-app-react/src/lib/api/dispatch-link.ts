@@ -51,6 +51,17 @@ export function notifDestination(n: {
     const rmaId = n.eventParams?.rmaId;
     return rmaId ? `/returns?rma=${encodeURIComponent(rmaId)}` : '/returns';
   }
+  /*
+   * An ERP sync failure belongs on System Health, not the dispatch queue.
+   *
+   * <p>The alert carries a deliveryId, so it fell through to the generic branch below and opened the
+   * dispatch desk — a screen whose actions (reassign, replan, acknowledge) all concern a shipment
+   * still to be made. Here the shipment already happened and its proof is stored; what failed is the
+   * push to the ERP, and the only control that repairs it — Resync, single or bulk — is on System
+   * Health.
+   */
+  if (n.event === 'erp.sync_failed') return '/system-health';
+
   // A delivered / partially-delivered shipment has no queue action — open the per-delivery page.
   // (Both DELIVERED and PARTIALLY_DELIVERED are published as `delivery.completed`.)
   if (n.deliveryId && n.event && NOTIF_DETAIL_EVENTS.has(n.event)) {
