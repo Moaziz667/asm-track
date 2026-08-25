@@ -46,11 +46,11 @@ Comptes et rôles, correspondance des champs avec le progiciel, référentiel de
 véhicules. Hérite de toutes les actions du dispatcheur. \\
 \hline
 Dispatcheur & Il transforme au quotidien les commandes en tournées et arbitre les aléas. & Import des commandes, planification, affectation, validation, traitement des exceptions et
-des retours, contrôle des remises de caisse, zones et dépôts. Hérite des consultations du
-responsable. \\
+des retours, comptage et arbitrage des remises de caisse, zones et dépôts. \\
 \hline
 Responsable & Supervise l'activité sans intervenir dessus. &
-Consultation des livraisons, des tournées et des rapports. Aucune action de modification. \\
+Consultation des livraisons, des tournées, des rapports, des espèces en circulation et du journal
+d'audit. Aucune action de modification. \\
 \hline
 Livreur & Exécute les tournées sur le terrain depuis l'application mobile. &
 Consultation de sa tournée du jour, changements de statut, preuve de livraison, déclaration d'échec,
@@ -182,10 +182,16 @@ est porté par les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:so
 
 Trois éléments de lecture méritent d'être soulignés.
 
-Les flèches entre acteurs sont des \textbf{généralisations}~: l'administrateur est un dispatcheur qui
-dispose en plus du paramétrage, et le dispatcheur est un responsable qui dispose en plus des actions
-d'exploitation. Cette hiérarchie évite de redessiner vingt-quatre traits~; surtout, elle traduit
-fidèlement l'inclusion des permissions décrite au chapitre~\ref{ch:socle}.
+\textbf{Une seule généralisation relie les acteurs}~: l'administrateur est un dispatcheur qui dispose
+en plus du paramétrage, et ses permissions incluent effectivement toutes celles du dispatcheur. La
+flèche évite de redessiner une douzaine de traits.
+
+Le responsable, lui, reste rattaché à ses propres cas. Il croise le dispatcheur sur les consultations
+sans jamais le contenir ni en dériver~: il est seul à accéder au journal d'audit, et n'a aucune des
+permissions d'action. Superviser suppose de pouvoir relire ce que font ceux qui opèrent, sans
+pouvoir opérer soi-même~; c'est pourquoi les rôles sont déclarés à plat dans l'annuaire, chacun
+portant sa liste explicite, plutôt qu'en chaîne d'héritage. Le chapitre~\ref{ch:socle} détaille ce
+modèle.
 
 Les liens \emph{«~include~»} vers le cas \emph{S'authentifier} ne sont tracés que depuis les points
 d'entrée. L'authentification est en réalité une précondition de tous les cas internes~; la relier à

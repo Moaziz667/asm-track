@@ -28,9 +28,11 @@
     { "methods": ["*"],   "pathPrefix": "/api/v1/admin/notifications", "require": { "authenticated": true } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/fleet",       "require": { "perm": "perm:driver:view" } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/returns",     "require": { "perm": "perm:delivery:view" } },
-    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/system/health", "require": { "perm": "perm:report:view" } },
+    { "methods": ["GET"], "pathPrefix": "/api/v1/admin/system/health", "require": { "perm": "perm:dispatch:operate" } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/routes",      "require": { "perm": "perm:route:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/routes",      "require": { "perm": "perm:route:manage" } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/deliveries",  "require": { "perm": "perm:delivery:view" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/admin/deliveries",  "require": { "perm": "perm:delivery:manage" } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/cash",        "require": { "perm": "perm:cash:view" } },
     { "methods": ["*"],   "pathPrefix": "/api/v1/admin/cash",        "require": { "perm": "perm:cash:manage" } },
     { "methods": ["GET"], "pathPrefix": "/api/v1/admin/dlq",         "require": { "perm": "perm:dispatch:operate" } },
@@ -41,6 +43,7 @@
 
     { "methods": ["*"],   "pathPrefix": "/api/v1/profile/", "require": { "role": "CLIENT" } },
     { "methods": ["*"],   "pathPrefix": "/api/v1/settings/internal/", "require": { "role": "SERVICE" } },
+    { "methods": ["*"],   "pathPrefix": "/api/v1/settings/erp", "require": { "perm": "perm:erp:config" } },
     { "methods": ["*"],   "pathPrefix": "/api/v1/settings/", "require": { "perm": "perm:settings:manage" } },
 
     { "methods": ["*"],   "pathPrefix": "/api/v1/deliveries/", "require": { "anyOf": [ { "role": "DRIVER" }, { "perm": "perm:delivery:view" } ] } },

@@ -82,9 +82,9 @@ flowchart TB
         E["ERP du transporteur"]
     end
     subgraph Int["Utilisateurs"]
-        D["Dispatcher<br/>planifie, arbitre les incidents"]
+        D["Dispatcheur<br/>planifie, arbitre les incidents"]
         L["Livreur<br/>exécute la tournée"]
-        M["Responsable<br/>consulte les rapports"]
+        M["Responsable<br/>supervise, sans opérer"]
         A["Administrateur<br/>comptes, paramètres, ERP"]
     end
 
@@ -97,9 +97,9 @@ flowchart TB
 
 | Acteur | Outil | Ce qu'il attend |
 |---|---|---|
-| **Dispatcher** | back-office | construire des tournées vite, voir les incidents tôt |
+| **Dispatcheur** | back-office | construire des tournées vite, voir les incidents tôt |
 | **Livreur** | application mobile | une liste claire, qui fonctionne sans réseau |
-| **Responsable** | back-office | des chiffres justes sur la journée écoulée |
+| **Responsable** | back-office | des chiffres justes sur la journée écoulée, les espèces encore chez les livreurs, et la trace de qui a fait quoi |
 | **Administrateur** | back-office | brancher l'ERP sans développeur |
 | **Client final** | lien de suivi | savoir où est son colis, sans créer de compte |
 

@@ -45,7 +45,8 @@ flowchart TD
 |---|---|---|
 | `/api/v1/admin/deliveries` | dispatcher, admin | `perm:delivery:view` / `perm:dispatch:operate` |
 | `/api/v1/admin/routes` | dispatcher | `perm:route:view` / `perm:route:manage` |
-| `/api/v1/admin/cash` | comptoir, manager | `perm:dispatch:operate` |
+| `/api/v1/admin/cash` | comptoir, manager | `perm:cash:view` / `perm:cash:manage` |
+| `/api/v1/admin/dlq`, `/api/v1/admin/system/erp-sync` | admin | `perm:erp:resync` en écriture |
 | `/api/v1/driver/**` | livreur | rôle `DRIVER` |
 | `/api/v1/public/**` | tout le monde | aucune — limité en débit |
 | `/internal/**` | services | rôle `SERVICE`, non routé par la gateway |

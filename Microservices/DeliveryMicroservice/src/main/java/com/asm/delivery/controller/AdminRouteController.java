@@ -33,6 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -156,6 +157,11 @@ public class AdminRouteController {
 
     @PutMapping("/{id}/validate")
     @Operation(summary = "Validate route")
+    // Validation is the moment a draft becomes an engagement: the driver is notified and the
+    // deliveries are bound to him. It therefore carries its own permission, distinct from the route
+    // editing that precedes it — preparing and committing are not the same responsibility. The
+    // gateway cannot express this rule: its policy matches path prefixes, and this one is a suffix.
+    @PreAuthorize("hasAuthority('perm:route:validate')")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> validate(@PathVariable UUID id) {
         return ResponseEntity.ok(routePlanningService.validate(id));

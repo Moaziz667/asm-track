@@ -202,7 +202,7 @@ interne RAG (pgvector).
 | Migrations Flyway (Delivery) | 49 |
 | Tests backend | 549 `@Test` |
 | CI | 5 étages, 14 jobs |
-| RBAC | 15 permissions, 3 rôles composites |
+| RBAC | 18 permissions, 3 rôles composites |
 | ADR rédigés | 4 |
 
 > `context.md` à la racine affirme que le système n'est **pas** multi-tenant : c'est faux et périmé.

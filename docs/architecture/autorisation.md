@@ -25,7 +25,11 @@ Personne ne peut la donner, et personne ne peut vérifier qu'un endroit n'a pas 
 { "methods": ["*"],   "pathPrefix": "/api/v1/admin/",          "require": { "perm": "perm:dispatch:operate" } }
 ```
 
-30 règles, 40 lignes, lisibles par un non-développeur.
+45 règles, une par ligne, lisibles par un non-développeur.
+
+L'ordre compte : la première règle qui correspond l'emporte. Les lectures sont donc déclarées avant
+les écritures d'un même préfixe, et la règle la plus large ferme la liste. Une route non déclarée
+n'est jamais ouverte par défaut — elle tombe sur la dernière règle, qui exige `perm:dispatch:operate`.
 
 ```mermaid
 flowchart TD
@@ -109,12 +113,17 @@ visible.
 
 ## Les permissions viennent de Keycloak
 
+Un rôle composite ne porte aucun droit en propre : il n'est qu'un sac de permissions. Le DISPATCHER
+en contient onze, réparties en trois familles — ce qu'il consulte, ce qu'il modifie, et ce qu'il
+déclenche vers l'extérieur.
+
 ```mermaid
 flowchart LR
     subgraph KC["Keycloak"]
-        R["Rôle composite<br/>DISPATCHER"] --> P1["perm:route:manage"]
-        R --> P2["perm:delivery:view"]
-        R --> P3["perm:dispatch:operate"]
+        R["Rôle composite<br/>DISPATCHER<br/>11 permissions"]
+        R --> V["Consultation<br/>route:view · delivery:view<br/>driver:view · cash:view<br/>report:view"]
+        R --> M["Action<br/>route:manage · route:validate<br/>delivery:manage · cash:manage<br/>dispatch:operate"]
+        R --> E["Intégration<br/>erp:sync"]
     end
     KC -->|"realm_access.roles<br/>dans le JWT"| T["Jeton"]
     T --> GW["Gateway + services<br/>évaluent rbac-policy.json"]
@@ -122,6 +131,10 @@ flowchart LR
 
     style KC fill:#fce4ec,stroke:#c2185b
 ```
+
+Les trois rôles se répartissent ainsi : **ADMIN** détient les dix-huit permissions, **DISPATCHER**
+les onze ci-dessus, **MANAGER** six permissions de lecture — dont `audit:view`, qu'aucun autre rôle
+opérationnel ne possède : superviser suppose de relire les actions de ceux qui opèrent.
 
 **Une seule source de vérité.** L'interface masque un bouton en lisant les mêmes chaînes `perm:*` que
 le backend utilise pour refuser l'appel. L'UI ne peut donc pas dériver de ce que le backend autorise
