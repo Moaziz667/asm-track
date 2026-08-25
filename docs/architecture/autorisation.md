@@ -71,6 +71,12 @@ public static boolean isAuthorized(String path, Set<String> roles, HttpMethod me
     Un endpoint ajouté et oublié dans la politique est **inaccessible**, pas ouvert. L'erreur se
     manifeste par un 403 pendant le développement — jamais par une fuite en production.
 
+Quelques routes se contentent de `{ "authenticated": true }` : le profil de l'utilisateur connecté,
+ses notifications. « Authentifié » y veut dire **porteur d'un jeton valide** — l'utilisateur anonyme,
+que Spring Security considère pourtant comme *authentifié* au sens technique, est écarté avant
+l'évaluation. Sans cette précision, ces quelques routes auraient été les seules ouvertes sans jeton
+à un appel qui atteindrait un service directement.
+
 ---
 
 ## Répliquée, pas partagée à l'exécution

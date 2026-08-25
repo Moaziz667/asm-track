@@ -23,7 +23,13 @@ public class RbacAuthorizationManager implements AuthorizationManager<RequestAut
     @Override
     public AuthorizationDecision check(Supplier<Authentication> authentication, RequestAuthorizationContext context) {
         Authentication auth = authentication.get();
-        if (auth == null || !auth.isAuthenticated()) {
+        // Anonymous counts as unauthenticated. An AnonymousAuthenticationToken answers true to
+        // isAuthenticated(), so without this an caller with no token at all would satisfy every
+        // rule written as {"authenticated": true} — /api/v1/admin/me, /api/v1/admin/notifications
+        // and the assistant among them. The gateway rejects such a call upstream; this is what
+        // holds when a service is reached directly, which is the whole point of bundling the policy.
+        if (auth == null || !auth.isAuthenticated()
+                || auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
             return new AuthorizationDecision(false);
         }
         // Normalize to the gateway's raw-realm-roles form: strip Spring's ROLE_ prefix, keep perm:* as-is.

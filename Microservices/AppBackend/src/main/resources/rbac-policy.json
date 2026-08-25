@@ -7,7 +7,7 @@
     { "methods": ["*"],   "pathPrefix": "/api/v1/driver/",  "require": { "role": "DRIVER" } },
 
     { "methods": ["*"],   "pathPrefix": "/api/assistant/admin", "require": { "perm": "perm:settings:manage" } },
-    { "methods": ["*"],   "pathPrefix": "/api/assistant/",  "require": { "authenticated": true } },
+    { "methods": ["*"],   "pathPrefix": "/api/assistant/",  "require": { "anyOf": [ { "role": "ADMIN" }, { "role": "DISPATCHER" }, { "role": "MANAGER" } ] } },
 
     { "methods": ["*"],   "pathExact": "/api/v1/admin/me",           "require": { "authenticated": true } },
     { "methods": ["*"],   "pathPrefix": "/api/v1/admin/me/",         "require": { "authenticated": true } },

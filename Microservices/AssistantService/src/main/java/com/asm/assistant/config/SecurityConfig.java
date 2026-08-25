@@ -56,10 +56,10 @@ public class SecurityConfig {
                         // Every application request is authorized by the single canonical policy
                         // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules
                         // re-encoded here. The policy already says what this service needs:
-                        // /api/assistant/ requires an authenticated caller, since the answer is
-                        // restricted at the source (every retrieval and every live tool call is
-                        // scoped to the caller's tenant and permissions), while
-                        // /api/assistant/admin requires perm:settings:manage.
+                        // /api/assistant/ is reachable by the three operator roles only, since the
+                        // assistant reads across the whole tenant and its live tools call the admin
+                        // API; a CLIENT or a DRIVER has no business there. /api/assistant/admin,
+                        // which rebuilds the corpus, additionally requires perm:settings:manage.
                         .anyRequest().access(rbac)
                 )
                 .oauth2ResourceServer(rs -> rs
