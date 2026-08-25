@@ -1,6 +1,7 @@
 package com.asm.assistant.config;
 
 import com.asm.assistant.security.JwtAuthConverter;
+import com.asm.assistant.security.RbacAuthorizationManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +39,7 @@ public class SecurityConfig {
     private String jwkSetUri;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RbacAuthorizationManager rbac) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -52,16 +53,14 @@ public class SecurityConfig {
                                 "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/internal/**").hasRole("SERVICE")
-                        // Asking a question requires nothing more than being authenticated: the
-                        // answer is already restricted at the source, since every retrieval and
-                        // every live tool call is scoped to the caller's tenant and permissions.
-                        // Naming roles here would say the same thing less well — a custom role
-                        // would be refused however many permissions it carries — and would
-                        // contradict the gateway, which guards this prefix on `authenticated`.
-                        // The one privileged route, /api/assistant/admin, carries its own
-                        // perm:settings:manage on both layers.
-                        .requestMatchers("/api/assistant/**").authenticated()
-                        .anyRequest().authenticated()
+                        // Every application request is authorized by the single canonical policy
+                        // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules
+                        // re-encoded here. The policy already says what this service needs:
+                        // /api/assistant/ requires an authenticated caller, since the answer is
+                        // restricted at the source (every retrieval and every live tool call is
+                        // scoped to the caller's tenant and permissions), while
+                        // /api/assistant/admin requires perm:settings:manage.
+                        .anyRequest().access(rbac)
                 )
                 .oauth2ResourceServer(rs -> rs
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))

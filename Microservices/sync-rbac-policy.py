@@ -21,6 +21,7 @@ TARGETS = [
     ROOT / "DeliveryMicroservice" / "src" / "main" / "resources" / "rbac-policy.json",
     ROOT / "DriverService" / "src" / "main" / "resources" / "rbac-policy.json",
     ROOT / "AppBackend" / "src" / "main" / "resources" / "rbac-policy.json",
+    ROOT / "AssistantService" / "src" / "main" / "resources" / "rbac-policy.json",
 ]
 
 def main():

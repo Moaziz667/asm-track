@@ -6,6 +6,7 @@
     { "methods": ["*"],   "pathPrefix": "/api/v1/users/",   "require": { "role": "CLIENT" } },
     { "methods": ["*"],   "pathPrefix": "/api/v1/driver/",  "require": { "role": "DRIVER" } },
 
+    { "methods": ["*"],   "pathPrefix": "/api/assistant/admin", "require": { "perm": "perm:settings:manage" } },
     { "methods": ["*"],   "pathPrefix": "/api/assistant/",  "require": { "authenticated": true } },
 
     { "methods": ["*"],   "pathExact": "/api/v1/admin/me",           "require": { "authenticated": true } },
