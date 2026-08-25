@@ -150,6 +150,24 @@
         <mxCell id="8678IPkY4jTNQRagu0T6-68" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Choisir le nouveau chauffeur" vertex="1">
           <mxGeometry height="56" width="270" x="1360" y="1046" as="geometry" />
         </mxCell>
+        <mxCell id="s3-uc-retour" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Traiter un retour" vertex="1">
+          <mxGeometry height="56" width="280" x="430" y="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-e-di-retour" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-retour" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-uc-depots" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Synchroniser les dépôts" vertex="1">
+          <mxGeometry height="56" width="280" x="430" y="1110" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s3-uc-depots" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-depots" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-uc-zones" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les zones" vertex="1">
+          <mxGeometry height="56" width="280" x="430" y="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="e-s3-uc-zones" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-zones" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
