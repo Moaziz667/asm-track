@@ -9,7 +9,7 @@ Chaque exigence est suivie de **ce qui la satisfait dans le code**, et de ce qui
 | Exigence | Mise en œuvre | Statut |
 |---|---|---|
 | Authentification déléguée, pas de mot de passe stocké | Keycloak 26, OIDC, JWT RS256 | ✅ |
-| Autorisation vérifiable dans son ensemble | `rbac-policy.json`, 30 règles, *fail-closed* | ✅ |
+| Autorisation vérifiable dans son ensemble | `rbac-policy.json`, 45 règles, *fail-closed* | ✅ |
 | Défense indépendante de la topologie | politique évaluée à la gateway **et** dans le service | ✅ |
 | Impossibilité d'usurper un locataire | en-têtes de contexte supprimés puis reconstruits depuis le jeton | ✅ |
 | Isolation des données entre clients | schéma PostgreSQL par client, `SET search_path` | ✅ |

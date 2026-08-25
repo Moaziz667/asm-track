@@ -353,8 +353,8 @@ export function AppSidebar() {
             );
           })}
 
-          {/* Settings */}
-          {hasPermReactive('perm:settings:manage') && (
+          {/* Settings — same condition as the panel group it opens */}
+          {(hasPermReactive('perm:settings:manage') || hasPermReactive('perm:erp:config')) && (
             <button
               type="button"
               className={cn(s.iconRail__item, activeGroup === 'settings' && s['iconRail__item--active'])}
@@ -558,8 +558,11 @@ export function AppSidebar() {
             );
           })}
 
-          {/* Settings Group */}
-          {hasPermReactive('perm:settings:manage') && (
+          {/* Settings Group — opens for whoever holds at least one of the settings permissions.
+              Branching the ERP answers to perm:erp:config, the rest to perm:settings:manage; gating
+              the whole group on the latter would hide the only way to reach a page its holder is
+              allowed to open. Each link below carries its own condition. */}
+          {(hasPermReactive('perm:settings:manage') || hasPermReactive('perm:erp:config')) && (
             <div className={s.navPanel__group}>
               <button
                 type="button"
@@ -580,6 +583,7 @@ export function AppSidebar() {
                 </div>
               </button>
               <div className={cn(s['navPanel__items'], activeGroup !== 'settings' && s['navPanel__items--collapsed'])}>
+                {hasPermReactive('perm:settings:manage') && (
                 <Link
                   to="/settings"
                   className={cn(
@@ -594,6 +598,8 @@ export function AppSidebar() {
                   </span>
                   <span className={s['navPanel__itemLabel']}>{t.settingsPage.generalConfig || 'Général'}</span>
                 </Link>
+                )}
+                {hasPermReactive('perm:erp:config') && (
                 <Link
                   to="/settings/erp"
                   className={cn(
@@ -608,6 +614,7 @@ export function AppSidebar() {
                   </span>
                   <span className={s['navPanel__itemLabel']}>{tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}</span>
                 </Link>
+                )}
               </div>
             </div>
           )}

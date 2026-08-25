@@ -145,8 +145,8 @@ annoncées · plan du mémoire.
 
 ### Chapitre 4 — Sprint 1 : socle d'identité, d'autorisation et de multi-tenance (15 p)
 Concepts : OAuth2 / OIDC, JWT, JWKS, RBAC, isolation par schéma.
-Contenu : Keycloak (realm `asm`, Organizations) · politique RBAC unique — 15 permissions, 3 rôles
-composites — répliquée dans 4 services · passerelle API, 45 routes, validation JWKS · thème
+Contenu : Keycloak (realm `asm`, Organizations) · politique RBAC unique — 18 permissions, 3 rôles
+composites, 45 règles — répliquée dans 4 services · passerelle API, 45 routes, validation JWKS · thème
 Keycloakify · isolation des données démontrée par test.
 
 ### Chapitre 5 — Sprint 2 : intégration ERP agnostique (16 p)

@@ -115,7 +115,11 @@ const router = createBrowserRouter([
       { path: "/overview", element: guard('perm:report:view', <OverviewCalendarPage />) },
       { path: "/performance", element: guard('perm:report:view', <PerformancePage />) },
       { path: "/settings", element: guard('perm:settings:manage', <SettingsPage />) },
-      { path: "/settings/erp", element: guard('perm:settings:manage', <ErpIntegrationPage />) },
+      // Branching the ERP is its own responsibility, and the API says so: /api/v1/settings/erp
+      // answers to perm:erp:config while the rest of the settings answer to perm:settings:manage.
+      // The screen asks for the same permission as the endpoints behind it, so the day an integrator
+      // is trusted with the ERP without being handed the whole configuration, the page opens for him.
+      { path: "/settings/erp", element: guard('perm:erp:config', <ErpIntegrationPage />) },
       { path: "/audit-logs", element: guard('perm:audit:view', <AuditLogsPage />) },
       { path: "/import", element: guard('perm:erp:sync', <ImportPage />) },
       { path: "/notifications", element: guard(ANY, <NotificationsPage />) },

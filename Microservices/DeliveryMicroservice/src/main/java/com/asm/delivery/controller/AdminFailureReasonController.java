@@ -36,8 +36,12 @@ public class AdminFailureReasonController {
         return ResponseEntity.ok(active ? service.listActive() : service.listForAdmin());
     }
 
+    // A failure reason is referential data, configured once and reused by every driver: it belongs to
+    // the same permission as the other settings screens, which is what the interface already requires
+    // to open this page. Guarding it by a role instead would leave the service and the screen
+    // disagreeing, and would put the decision outside the permission model.
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     @Operation(summary = "Create a failure reason")
     public ResponseEntity<FailureReasonResponse> create(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -49,7 +53,7 @@ public class AdminFailureReasonController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     @Operation(summary = "Update a failure reason")
     public ResponseEntity<FailureReasonResponse> update(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -62,7 +66,7 @@ public class AdminFailureReasonController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     @Operation(summary = "Deactivate a failure reason", description = "Soft-delete: keeps historical deliveries intact.")
     public ResponseEntity<Void> deactivate(
             @AuthenticationPrincipal UserPrincipal principal,

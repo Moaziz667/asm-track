@@ -77,7 +77,8 @@ développement, où les services sont joignables sur leurs ports, elle est déj�
 
 ### Un serveur de politique (OPA, Keycloak Authorization Services)
 Le bon outil à une autre échelle. Ici, il ajouterait un composant à déployer, à surveiller et à
-maintenir disponible, pour évaluer 30 règles. Le coût d'exploitation dépasse le bénéfice.
+maintenir disponible, pour évaluer quelques dizaines de règles. Le coût d'exploitation dépasse le
+bénéfice.
 
 ---
 

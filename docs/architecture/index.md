@@ -7,7 +7,7 @@ autre — vérifiable : aucune configuration ne pointe vers la base d'un voisin.
 
 ```mermaid
 flowchart TB
-    dispatcher(["Dispatcher"])
+    dispatcher(["Dispatcheur"])
     livreur(["Livreur"])
     destinataire(["Destinataire"])
 

@@ -61,7 +61,7 @@ il faut trois pages et on rate les transitions inverses.
 ```mermaid
 sequenceDiagram
     autonumber
-    actor D as Dispatcher
+    actor D as Dispatcheur
     actor L as Livreur
     participant API as Backend
     participant E as ERP

@@ -52,8 +52,15 @@ public class SecurityConfig {
                                 "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/internal/**").hasRole("SERVICE")
-                        .requestMatchers("/api/assistant/**")
-                                .hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                        // Asking a question requires nothing more than being authenticated: the
+                        // answer is already restricted at the source, since every retrieval and
+                        // every live tool call is scoped to the caller's tenant and permissions.
+                        // Naming roles here would say the same thing less well — a custom role
+                        // would be refused however many permissions it carries — and would
+                        // contradict the gateway, which guards this prefix on `authenticated`.
+                        // The one privileged route, /api/assistant/admin, carries its own
+                        // perm:settings:manage on both layers.
+                        .requestMatchers("/api/assistant/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(rs -> rs
