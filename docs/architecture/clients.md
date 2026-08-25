@@ -65,7 +65,7 @@ lib/src/features/
 ├── home/          tournée du jour, statut
 ├── routes/        détail de tournée, arrêts
 ├── deliveries/    exécution : accepter, transit, échec
-├── pod/           preuve de livraison : photos, signature
+├── pod/           preuve de livraison : photo du bon signé, photo du colis
 ├── cash/          encaissement et remise
 └── profile/       profil, disponibilité
 ```
@@ -78,7 +78,7 @@ lib/src/features/
 | Jetons | flutter_secure_storage |
 | Position | geolocator |
 | QR (transfert) | mobile_scanner |
-| Signature | signature |
+| Photos | image_picker |
 
 ### Le mode hors ligne
 

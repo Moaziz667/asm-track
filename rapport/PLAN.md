@@ -164,7 +164,7 @@ RabbitMQ · suivi public destinataire.
 
 ### Chapitre 7 — Sprint 4 : application mobile chauffeur et mode hors ligne (12 p)
 Concepts : architecture offline-first, file de rejeu, idempotence client, horloge d'action.
-Contenu : Flutter / Riverpod / Hive · preuve de livraison (photo, signature, MinIO) · file d'attente
+Contenu : Flutter / Riverpod / Hive · preuve de livraison — photo du bon de livraison signé par le destinataire + photo du colis remis, dans MinIO (le document signé fait foi, pas un tracé sur écran) · file d'attente
 hors ligne, projection optimiste, `X-Client-Timestamp` · transfert de garde · encaissement COD et
 remise de caisse.
 

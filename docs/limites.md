@@ -93,6 +93,21 @@ ne s'est mis en ligne depuis l'application, la réaffectation ne propose personn
 Ce n'est pas un défaut de conception — un livreur hors service ne doit pas être proposé — mais un
 piège sur un environnement de démonstration.
 
+### Le géorepérage est écrit mais neutralisé
+
+`DriverDeliveryService.validateGeofence()` refuse une preuve de livraison déposée à plus de 4 km du
+point de livraison — distance de Haversine, coordonnées prises au moment de la photo. Le contrôle
+est **désactivé** : son corps est commenté, pour que la démonstration reste possible depuis un poste
+qui n'est pas sur le terrain.
+
+**Impact.** Rien n'empêche aujourd'hui de prouver une livraison depuis le dépôt. Le GPS est bien
+enregistré sur la preuve — la position est donc *constatable a posteriori*, simplement pas opposable
+au moment du dépôt.
+
+**Piste.** Décommenter avant la mise en service. Le seuil de 4 km est délibérément large : une
+adresse mal géocodée est fréquente, et refuser une livraison réelle coûte plus cher que d'accepter
+une preuve à corriger.
+
 ### Aucun test de charge
 
 Les choix évitent des goulots connus, sans preuve chiffrée de tenue en charge.
