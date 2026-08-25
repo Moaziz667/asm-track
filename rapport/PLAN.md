@@ -166,7 +166,8 @@ RabbitMQ · suivi public destinataire.
 Concepts : architecture offline-first, file de rejeu, idempotence client, horloge d'action.
 Contenu : Flutter / Riverpod / Hive · preuve de livraison — photo du bon de livraison signé par le destinataire + photo du colis remis, dans MinIO (le document signé fait foi, pas un tracé sur écran) · file d'attente
 hors ligne, projection optimiste, `X-Client-Timestamp` · transfert de garde · encaissement COD et
-remise de caisse.
+remise de caisse · collecte de retour (RMA) — le mouvement inverse emprunte la même tournée, le même
+écran et la même preuve, sans bon de livraison à photographier.
 
 ### Chapitre 8 — Sprint 5 : exploitation, résilience et assistant interne (11 p)
 Concepts : observabilité, file de rebut, rejeu, RAG.

@@ -46,6 +46,15 @@
         <mxCell id="R-0UT9n3BoZlzd82pqQj-14" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer sa disponibilité" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="1260" as="geometry" />
         </mxCell>
+        <mxCell id="s4-uc-retour" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Collecter un retour" vertex="1">
+          <mxGeometry height="56" width="280" x="430" y="1340" as="geometry" />
+        </mxCell>
+        <mxCell id="s4-e-ch-retour" edge="1" parent="1" source="R-0UT9n3BoZlzd82pqQj-2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="s4-uc-retour">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s4-note-retour" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Le colis repart du destinataire vers le dépôt : même tournée,&#xa;même écran, même preuve — mais sans photo du bon de&#xa;livraison, ce document n'existant pas pour un mouvement inverse." vertex="1">
+          <mxGeometry height="76" width="330" x="800" y="1330" as="geometry" />
+        </mxCell>
         <mxCell id="R-0UT9n3BoZlzd82pqQj-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Solder la remise" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="1440" as="geometry" />
         </mxCell>
