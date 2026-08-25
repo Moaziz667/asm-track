@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram name="Cas d&#39;utilisation — sprint 5" id="jFib-DGDmFHfOSwDmJJi">
-    <mxGraphModel dx="2623" dy="1754" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1300" dy="866" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -106,16 +106,16 @@
         <mxCell id="G-cPC9QCjkOw1FCnFxe_-267" edge="1" parent="1" source="G-cPC9QCjkOw1FCnFxe_-251" style="html=1;endArrow=none;rounded=0;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" target="G-cPC9QCjkOw1FCnFxe_-247">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="G-cPC9QCjkOw1FCnFxe_-269" edge="1" parent="1" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;" value="">
+        <mxCell id="S8p4dRV2YHNLI_JckH24-1" edge="1" parent="1" source="G-cPC9QCjkOw1FCnFxe_-232" target="G-cPC9QCjkOw1FCnFxe_-231" style="endArrow=block;endFill=0;endSize=14;html=1;rounded=0;strokeColor=#37474F;strokeWidth=1.5;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <mxPoint x="204.29" y="710" as="sourcePoint" />
-            <mxPoint x="204.29" y="480" as="targetPoint" />
+            <mxPoint x="204.29" y="716" as="sourcePoint" />
+            <mxPoint x="204.29" y="486" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="G-cPC9QCjkOw1FCnFxe_-271" edge="1" parent="1" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;" value="">
+        <mxCell id="S8p4dRV2YHNLI_JckH24-2" edge="1" parent="1" source="G-cPC9QCjkOw1FCnFxe_-233" target="G-cPC9QCjkOw1FCnFxe_-232" style="endArrow=block;endFill=0;endSize=14;html=1;rounded=0;strokeColor=#37474F;strokeWidth=1.5;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" value="">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
-            <mxPoint x="204.5" y="984" as="sourcePoint" />
-            <mxPoint x="204.5" y="870" as="targetPoint" />
+            <mxPoint x="204.29" y="970" as="sourcePoint" />
+            <mxPoint x="204.29" y="868" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>

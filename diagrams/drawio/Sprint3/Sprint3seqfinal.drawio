@@ -1,6 +1,6 @@
 <mxfile host="Electron">
-  <diagram name="Sequence - Construction et optimisation tournee" id="K9u8tJ-YTR-_Z2g36Y4_">
-    <mxGraphModel dx="1820" dy="1212" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram name="Séquence — Construction et optimisation d&#39;une tournée" id="K9u8tJ-YTR-_Z2g36Y4_">
+    <mxGraphModel dx="2275" dy="1515" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -413,7 +413,7 @@
             <mxPoint x="960" y="1802" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-91" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Vérifie la précédence enlèvement → livraison, la capacité et que la tournée n&#39;est pas vide">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-91" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Vérifie la précédence enlèvement → livraison,&amp;nbsp;&lt;div&gt;la capacité et que la tournée n&#39;est pas vide&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1110" y="1836" />

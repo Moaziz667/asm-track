@@ -1,0 +1,422 @@
+<mxfile host="Electron">
+  <diagram name="Séquence — Synchronisation ERP et reprise sur panne" id="lm6lp2KheiBgabLNR6so">
+    <mxGraphModel dx="628" dy="418" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-192" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#263238;" value="Diagramme de séquence — Synchronisation ERP et reprise sur panne" vertex="1">
+          <mxGeometry height="30" width="1100" x="60" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-193" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="60" width="30" x="105" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-194" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Livreur" vertex="1">
+          <mxGeometry height="24" width="140" x="50" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-195" parent="1" style="shape=umlBoundary;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="44" width="60" x="370" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-196" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Application livreur&#xa;(Flutter)" vertex="1">
+          <mxGeometry height="30" width="160" x="320" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-197" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="54" width="50" x="655" y="96" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-198" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Service Livraison" vertex="1">
+          <mxGeometry height="24" width="160" x="600" y="158" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-199" parent="1" style="ellipse;shape=umlEntity;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="54" width="50" x="935" y="96" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-200" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Livraison" vertex="1">
+          <mxGeometry height="24" width="160" x="880" y="158" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-201" parent="1" style="ellipse;shape=umlEntity;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="54" width="50" x="1215" y="96" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-202" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Événement à synchroniser&#xa;(outbox)" vertex="1">
+          <mxGeometry height="30" width="200" x="1140" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-203" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="54" width="50" x="1495" y="96" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-204" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Publieur d&#39;événements&#xa;(toutes les 20 s)" vertex="1">
+          <mxGeometry height="30" width="190" x="1425" y="156" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-205" parent="1" style="shape=umlBoundary;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="44" width="60" x="1770" y="104" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-206" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="RabbitMQ" vertex="1">
+          <mxGeometry height="24" width="160" x="1720" y="158" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-207" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="54" width="50" x="2055" y="96" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-208" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Adaptateur ERP" vertex="1">
+          <mxGeometry height="24" width="160" x="2000" y="158" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-209" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;fontColor=#46495D;verticalAlign=middle;" value="« système externe »&#xa;Odoo / ERPNext" vertex="1">
+          <mxGeometry height="56" width="170" x="2275" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-210" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="60" width="30" x="2625" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-211" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Admin" vertex="1">
+          <mxGeometry height="24" width="140" x="2570" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-212" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="120" y="184" as="sourcePoint" />
+            <mxPoint x="120" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-213" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="400" y="184" as="sourcePoint" />
+            <mxPoint x="400" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-214" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="184" as="sourcePoint" />
+            <mxPoint x="680" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-215" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="960" y="184" as="sourcePoint" />
+            <mxPoint x="960" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-216" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1240" y="184" as="sourcePoint" />
+            <mxPoint x="1240" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-217" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1520" y="184" as="sourcePoint" />
+            <mxPoint x="1520" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-218" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1800" y="184" as="sourcePoint" />
+            <mxPoint x="1800" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-219" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="184" as="sourcePoint" />
+            <mxPoint x="2080" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-220" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2360" y="184" as="sourcePoint" />
+            <mxPoint x="2360" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-221" edge="1" parent="1" style="endArrow=none;html=1;dashed=1;strokeColor=#788AA3;strokeWidth=1;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2640" y="184" as="sourcePoint" />
+            <mxPoint x="2640" y="1876" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-222" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="290" width="10" x="115" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-223" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="290" width="10" x="395" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-224" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="28" width="10" x="2635" y="1538" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-225" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="250" width="10" x="675" y="288" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-226" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="58" width="10" x="955" y="326" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-227" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="58" width="10" x="1235" y="402" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-228" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="260" width="10" x="1515" y="631" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-229" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="240" width="10" x="1235" y="631" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-230" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="800" width="10" x="1795" y="734" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-231" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="580" width="10" x="2075" y="954" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-232" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="370" width="10" x="2355" y="1004" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-233" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="70" width="10" x="955" y="1196" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-234" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="70" width="10" x="955" y="1486" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-235" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="100" width="10" x="2635" y="1676" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-236" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="90" width="10" x="675" y="1681" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-237" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
+          <mxGeometry height="50" width="10" x="1235" y="1719" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-238" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 1 — Enregistrement de la livraison : les deux écritures dans une seule transaction" vertex="1">
+          <mxGeometry height="26" width="2700" x="60" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-239" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Valide la livraison (photo + signature)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="120" y="257" as="sourcePoint" />
+            <mxPoint x="400" y="257" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-240" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Transmet la preuve de livraison">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="400" y="295" as="sourcePoint" />
+            <mxPoint x="680" y="295" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-241" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Enregistre le statut « Livrée »">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="333" as="sourcePoint" />
+            <mxPoint x="960" y="333" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-242" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Livraison enregistrée">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="960" y="371" as="sourcePoint" />
+            <mxPoint x="680" y="371" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-243" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Crée l&#39;événement à synchroniser (en attente)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="409" as="sourcePoint" />
+            <mxPoint x="1240" y="409" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-244" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Événement enregistré">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1240" y="447" as="sourcePoint" />
+            <mxPoint x="680" y="447" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-245" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#2E7D32;dashed=1;fontSize=11;fontStyle=2;fontColor=#2E7D32;verticalAlign=top;align=right;spacingRight=8;spacingTop=2;" value="une seule transaction — les deux écritures réussissent, ou aucune" vertex="1">
+          <mxGeometry height="146" width="680" x="640" y="316" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-246" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Confirmation immédiate">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="485" as="sourcePoint" />
+            <mxPoint x="400" y="485" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-247" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Écran suivant —&lt;div&gt;&amp;nbsp;le livreur repart (il n&#39;attend jamais l&#39;ERP)&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="400" y="523" as="sourcePoint" />
+            <mxPoint x="120" y="523" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-248" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 2 — Publication du message (asynchrone)" vertex="1">
+          <mxGeometry height="26" width="2700" x="60" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-249" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=70;height=26;fontSize=12;fontStyle=1;container=0;" value="loop" vertex="1">
+          <mxGeometry height="310" width="2610" x="90" y="596" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-250" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ toutes les 20 secondes ]" vertex="1">
+          <mxGeometry height="18" width="260" x="170" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-251" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Réclame un lot d&#39;événements&lt;div&gt;&amp;nbsp;en attente (verrou, 10 max)&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1520" y="638" as="sourcePoint" />
+            <mxPoint x="1240" y="638" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-252" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Événements marqués « en cours de traitement »">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1240" y="676" as="sourcePoint" />
+            <mxPoint x="1520" y="676" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-253" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="alt" vertex="1">
+          <mxGeometry height="196" width="2570" x="110" y="698" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-254" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ RabbitMQ répond ]" vertex="1">
+          <mxGeometry height="18" width="260" x="180" y="702" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-255" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Publie la commande de synchronisation">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1520" y="740" as="sourcePoint" />
+            <mxPoint x="1800" y="740" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-256" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Marque l&#39;événement « publié »&lt;div&gt;&amp;nbsp;— le travail de l&#39;outbox est terminé&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1520" y="778" as="sourcePoint" />
+            <mxPoint x="1240" y="778" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-257" parent="1" style="shape=line;strokeColor=#666666;dashed=1;html=1;" value="" vertex="1">
+          <mxGeometry height="8" width="2568" x="111" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-258" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ RabbitMQ injoignable ]" vertex="1">
+          <mxGeometry height="18" width="300" x="180" y="804" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-259" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet en attente, compteur +1,&lt;div&gt;&amp;nbsp;délai doublé à chaque essai (jusqu&#39;à 4 h)&lt;/div&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="1520" y="842" as="sourcePoint" />
+            <mxPoint x="1240" y="842" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-260" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Au-delà de 15 essais (≈ 22 h), l&#39;événement est marqué en échec définitif : visible et rejouable, jamais perdu." vertex="1">
+          <mxGeometry height="70" width="280" x="330" y="826" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-261" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 3 — Application dans l&#39;ERP du client" vertex="1">
+          <mxGeometry height="26" width="2700" x="60" y="926" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-262" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Livre la commande de synchronisation">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1805" y="970" as="sourcePoint" />
+            <mxPoint x="2085" y="970" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-263" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="alt" vertex="1">
+          <mxGeometry height="600" width="2610" x="90" y="982" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-264" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;ERP répond ]" vertex="1">
+          <mxGeometry height="18" width="260" x="170" y="986" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-265" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Lit l&#39;état actuel du transfert">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1014" as="sourcePoint" />
+            <mxPoint x="2360" y="1014" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-266" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Transfert non encore validé">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2360" y="1052" as="sourcePoint" />
+            <mxPoint x="2080" y="1052" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-267" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Valide le transfert de stock">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1090" as="sourcePoint" />
+            <mxPoint x="2360" y="1090" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-268" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Transfert validé">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2360" y="1128" as="sourcePoint" />
+            <mxPoint x="2080" y="1128" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-269" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Publie le résultat (succès)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1166" as="sourcePoint" />
+            <mxPoint x="1800" y="1166" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-270" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Livraison marquée « synchronisée »">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1800" y="1204" as="sourcePoint" />
+            <mxPoint x="960" y="1204" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-271" parent="1" style="shape=line;strokeColor=#666666;dashed=1;html=1;" value="" vertex="1">
+          <mxGeometry height="8" width="2608" x="91" y="1226" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-272" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;ERP est injoignable ]" vertex="1">
+          <mxGeometry height="18" width="300" x="170" y="1230" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-273" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=70;height=26;fontSize=12;fontStyle=1;container=0;" value="loop" vertex="1">
+          <mxGeometry height="120" width="700" x="1980" y="1252" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-274" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ 5 essais : 2 s → 4 s → 8 s → 16 s ]" vertex="1">
+          <mxGeometry height="18" width="300" x="2060" y="1256" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-275" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Relit l&#39;état, puis tente la validation">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1294" as="sourcePoint" />
+            <mxPoint x="2360" y="1294" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-276" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=open;rounded=0;edgeStyle=none;fontSize=12;fontColor=#C62828;labelBackgroundColor=#FFFFFF;strokeColor=#C62828;dashed=1;dashPattern=6 4;" value="Aucune réponse">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2360" y="1332" as="sourcePoint" />
+            <mxPoint x="2080" y="1332" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-277" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Écarte le message vers la file de rebut">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1394" as="sourcePoint" />
+            <mxPoint x="1800" y="1394" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-278" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Livre le message de rebut">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1800" y="1432" as="sourcePoint" />
+            <mxPoint x="2080" y="1432" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-279" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Publie le résultat (échec)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2080" y="1470" as="sourcePoint" />
+            <mxPoint x="1800" y="1470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-280" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Livraison marquée « échec de synchronisation »">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1800" y="1508" as="sourcePoint" />
+            <mxPoint x="960" y="1508" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-281" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Notifie l&#39;opérateur — l&#39;échec devient visible, il n&#39;est jamais silencieux">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="960" y="1546" as="sourcePoint" />
+            <mxPoint x="2640" y="1546" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-282" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Avant chaque tentative, l&#39;adaptateur relit l&#39;état dans l&#39;ERP. Un transfert déjà validé n&#39;est jamais revalidé : le stock ne sort pas deux fois, même si une réponse s&#39;est perdue." vertex="1">
+          <mxGeometry height="90" width="300" x="1400" y="1036" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-283" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 4 — Reprise manuelle" vertex="1">
+          <mxGeometry height="26" width="2700" x="60" y="1612" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-284" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="opt" vertex="1">
+          <mxGeometry height="150" width="2610" x="90" y="1646" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-285" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;opérateur relance une synchronisation en échec ]" vertex="1">
+          <mxGeometry height="18" width="420" x="170" y="1650" as="geometry" />
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-286" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Clique sur « Resynchroniser »">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="2640" y="1688" as="sourcePoint" />
+            <mxPoint x="680" y="1688" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-287" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet l&#39;événement en attente">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="1726" as="sourcePoint" />
+            <mxPoint x="1240" y="1726" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-288" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Reprise confirmée — la boucle de la phase 2 recommence">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="680" y="1764" as="sourcePoint" />
+            <mxPoint x="2640" y="1764" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
