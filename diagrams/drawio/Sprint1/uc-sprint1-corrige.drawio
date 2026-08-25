@@ -1,11 +1,11 @@
 <mxfile host="Electron">
-  <diagram name="Cas d&#39;utilisation — sprint 1 (corrigé)" id="tCVwPGj5FPaWeWQXFjiI">
+  <diagram name="Cas d'utilisation — sprint 1 (corrigé)" id="tCVwPGj5FPaWeWQXFjiI">
     <mxGraphModel dx="2647" dy="1212" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="ASM Track — Sprint 1 · Identité, autorisation, multi-tenance" vertex="1">
-          <mxGeometry height="1030" width="900" x="360" y="600" as="geometry" />
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="" vertex="1">
+          <mxGeometry height="1160" width="900" x="360" y="600" as="geometry" />
         </mxCell>
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-2" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Administrateur" vertex="1">
           <mxGeometry height="90" width="50" x="120" y="1250" as="geometry" />
@@ -19,7 +19,7 @@
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-5" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Livreur" vertex="1">
           <mxGeometry height="90" width="50" x="60" y="990" as="geometry" />
         </mxCell>
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-6" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;fontStyle=2;" value="« Utilisateur »&#xa;(authentifié)" vertex="1">
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-6" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=13;fontStyle=2;" value="« Utilisateur »&#10;(authentifié)" vertex="1">
           <mxGeometry height="90" width="50" x="140" y="710" as="geometry" />
         </mxCell>
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Créer un compte utilisateur" vertex="1">
@@ -34,10 +34,10 @@
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-10" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Activer ou désactiver un compte" vertex="1">
           <mxGeometry height="60" width="280" x="440" y="1290" as="geometry" />
         </mxCell>
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-11" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Réinitialiser le mot de passe d&#39;un utilisateur" vertex="1">
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-11" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Réinitialiser le mot de passe d'un utilisateur" vertex="1">
           <mxGeometry height="60" width="280" x="440" y="1365" as="geometry" />
         </mxCell>
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-12" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Forcer la déconnexion d&#39;un utilisateur" vertex="1">
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-12" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Forcer la déconnexion d'un utilisateur" vertex="1">
           <mxGeometry height="60" width="280" x="440" y="1440" as="geometry" />
         </mxCell>
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-13" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Se déconnecter" vertex="1">
@@ -49,7 +49,7 @@
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Se déconnecter de ses autres appareils" vertex="1">
           <mxGeometry height="60" width="280" x="430" y="880" as="geometry" />
         </mxCell>
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-16" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;«&amp;nbsp;système externe&amp;nbsp;»&lt;/i&gt;&lt;br&gt;&lt;b&gt;Keycloak&lt;/b&gt;&lt;br&gt;(serveur d&#39;identité)" vertex="1">
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-16" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;«&amp;nbsp;système externe&amp;nbsp;»&lt;/i&gt;&lt;br&gt;&lt;b&gt;Keycloak&lt;/b&gt;&lt;br&gt;(serveur d'identité)" vertex="1">
           <mxGeometry height="90" width="230" x="1320" y="940" as="geometry" />
         </mxCell>
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-17" edge="1" parent="1" source="wm1W1xsBFH4Y-tB01sDJ-2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="wm1W1xsBFH4Y-tB01sDJ-7">
@@ -109,7 +109,7 @@
             <mxPoint x="130" y="820" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-32" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#1A237E;strokeWidth=2;fontSize=13;fontStyle=1;" value="S&#39;authentifier" vertex="1">
+        <mxCell id="wm1W1xsBFH4Y-tB01sDJ-32" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#1A237E;strokeWidth=2;fontSize=13;fontStyle=1;" value="S'authentifier" vertex="1">
           <mxGeometry height="60" width="280" x="940" y="1080" as="geometry" />
         </mxCell>
         <mxCell id="wm1W1xsBFH4Y-tB01sDJ-33" edge="1" parent="1" source="wm1W1xsBFH4Y-tB01sDJ-13" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="wm1W1xsBFH4Y-tB01sDJ-32" value="«include»">
@@ -166,13 +166,7 @@
             <mxPoint x="966" y="1593" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="s1-uc-vehicules" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les véhicules" vertex="1">
-          <mxGeometry height="56" width="280" x="440" y="1515" as="geometry" />
-        </mxCell>
-        <mxCell id="s1-e-adm-vehicules" parent="1" edge="1" source="wm1W1xsBFH4Y-tB01sDJ-2" target="s1-uc-vehicules" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=1;entryX=0;entryY=0.5;" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-      </root>
+      <mxCell id="s1-uc-vehicules" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les véhicules" vertex="1"><mxGeometry height="56" width="280" x="440" y="1515" as="geometry" /></mxCell><mxCell id="e-adm-s1-uc-vehicules" parent="1" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="" edge="1" source="wm1W1xsBFH4Y-tB01sDJ-2" target="s1-uc-vehicules"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="e-inc-s1-uc-vehicules" parent="1" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="«include»" edge="1" source="s1-uc-vehicules" target="wm1W1xsBFH4Y-tB01sDJ-32"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="s1-uc-zones" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les zones" vertex="1"><mxGeometry height="56" width="280" x="440" y="1665" as="geometry" /></mxCell><mxCell id="e-adm-s1-uc-zones" parent="1" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="" edge="1" source="wm1W1xsBFH4Y-tB01sDJ-2" target="s1-uc-zones"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="e-inc-s1-uc-zones" parent="1" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="«include»" edge="1" source="s1-uc-zones" target="wm1W1xsBFH4Y-tB01sDJ-32"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="s1-uc-chauffeurs" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les chauffeurs" vertex="1"><mxGeometry height="56" width="280" x="440" y="1590" as="geometry" /></mxCell><mxCell id="e-adm-s1-uc-chauffeurs" parent="1" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="" edge="1" source="wm1W1xsBFH4Y-tB01sDJ-2" target="s1-uc-chauffeurs"><mxGeometry relative="1" as="geometry" /></mxCell><mxCell id="e-inc-s1-uc-chauffeurs" parent="1" style="html=1;dashed=1;endArrow=open;endFill=0;rounded=0;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="«include»" edge="1" source="s1-uc-chauffeurs" target="wm1W1xsBFH4Y-tB01sDJ-32"><mxGeometry relative="1" as="geometry" /></mxCell></root>
     </mxGraphModel>
   </diagram>
 </mxfile>

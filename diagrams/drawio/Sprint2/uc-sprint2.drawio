@@ -1,15 +1,11 @@
 <mxfile host="app.diagrams.net">
-  <diagram name="Cas d&#39;utilisation — sprint 2" id="uc-sprint2">
+  <diagram name="Cas d'utilisation — sprint 2" id="uc-sprint2">
     <mxGraphModel dx="1530" dy="967" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#263238;" value="Cas d&#39;utilisation — sprint 2 · Intégration ERP" vertex="1">
-          <mxGeometry height="30" width="700" x="120" y="20" as="geometry" />
-        </mxCell>
-
-        <mxCell id="sys" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=18;fontStyle=1;spacingTop=10;fillColor=none;strokeColor=#36393d;" value="ASM Track" vertex="1">
+        <mxCell id="sys" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=18;fontStyle=1;spacingTop=10;fillColor=none;strokeColor=#36393d;" value="" vertex="1">
           <mxGeometry height="800" width="700" x="350" y="70" as="geometry" />
         </mxCell>
 
@@ -23,14 +19,14 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="ERP" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;fontStyle=1;verticalAlign=middle;" value="«&#160;système externe&#160;»&#xa;Progiciel du client&#xa;(Odoo / ERPNext)" vertex="1">
+        <mxCell id="ERP" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;fontStyle=1;verticalAlign=middle;" value="« système externe »&#10;Progiciel du client&#10;(Odoo / ERPNext)" vertex="1">
           <mxGeometry height="80" width="170" x="1120" y="420" as="geometry" />
         </mxCell>
 
-        <mxCell id="UC_CONN" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer la connexion à l&#39;ERP" vertex="1">
+        <mxCell id="UC_CONN" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer la connexion à l'ERP" vertex="1">
           <mxGeometry height="70" width="250" x="430" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="UC_CERT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Certifier l&#39;instance (test de conformité)" vertex="1">
+        <mxCell id="UC_CERT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Certifier l'instance (test de conformité)" vertex="1">
           <mxGeometry height="70" width="250" x="760" y="150" as="geometry" />
         </mxCell>
         <mxCell id="UC_MAP" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer les correspondances de champs" vertex="1">
@@ -40,13 +36,13 @@
           <mxGeometry height="70" width="250" x="430" y="350" as="geometry" />
         </mxCell>
 
-        <mxCell id="UC_LIST" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Consulter les commandes en attente dans l&#39;ERP" vertex="1">
+        <mxCell id="UC_LIST" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Consulter les commandes en attente dans l'ERP" vertex="1">
           <mxGeometry height="70" width="250" x="430" y="510" as="geometry" />
         </mxCell>
         <mxCell id="UC_PREVIEW" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Prévisualiser une commande" vertex="1">
           <mxGeometry height="70" width="250" x="760" y="510" as="geometry" />
         </mxCell>
-        <mxCell id="UC_IMPORT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Importer des commandes depuis l&#39;ERP" vertex="1">
+        <mxCell id="UC_IMPORT" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Importer des commandes depuis l'ERP" vertex="1">
           <mxGeometry height="70" width="250" x="430" y="620" as="geometry" />
         </mxCell>
         <mxCell id="UC_ONE" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Importer une seule commande" vertex="1">
@@ -71,10 +67,10 @@
         <mxCell id="e1" edge="1" parent="1" source="UC_CERT" target="ERP" style="html=1;endArrow=none;rounded=0;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#37474F;" value=""><mxGeometry relative="1" as="geometry" /></mxCell>
         <mxCell id="e2" edge="1" parent="1" source="UC_PREVIEW" target="ERP" style="html=1;endArrow=none;rounded=0;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;strokeColor=#37474F;" value=""><mxGeometry relative="1" as="geometry" /></mxCell>
 
-        <mxCell id="note" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="La synchronisation d&#39;une livraison vers l&#39;ERP n&#39;apparaît pas ici : elle est déclenchée par le système, sans action humaine. Son déroulé est décrit par le diagramme de séquence du sprint." vertex="1">
+        <mxCell id="note" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="La synchronisation d'une livraison vers l'ERP n'apparaît pas ici : elle est déclenchée par le système, sans action humaine. Son déroulé est décrit par le diagramme de séquence du sprint." vertex="1">
           <mxGeometry height="90" width="250" x="1120" y="640" as="geometry" />
         </mxCell>
-      </root>
+      <mxCell id="s2-uc-depots" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Synchroniser les dépôts" vertex="1"><mxGeometry height="70" width="250" x="430" y="430" as="geometry" /></mxCell><mxCell id="e-disp-depots" parent="1" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="" edge="1" source="DISP" target="s2-uc-depots"><mxGeometry relative="1" as="geometry" /></mxCell></root>
     </mxGraphModel>
   </diagram>
 </mxfile>

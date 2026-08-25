@@ -1,5 +1,5 @@
 <mxfile host="Electron">
-  <diagram name="Séquence — Construction et optimisation d&#39;une tournée" id="K9u8tJ-YTR-_Z2g36Y4_">
+  <diagram name="Séquence — Construction et optimisation d'une tournée" id="K9u8tJ-YTR-_Z2g36Y4_">
     <mxGraphModel dx="2275" dy="1515" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
@@ -13,9 +13,6 @@
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-28" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="365" width="10" x="675" y="290" as="geometry" />
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-1" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#263238;" value="Diagramme de séquence — Construction et optimisation d&#39;une tournée" vertex="1">
-          <mxGeometry height="30" width="1000" x="60" y="50" as="geometry" />
-        </mxCell>
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-2" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="60" width="30" x="105" y="98" as="geometry" />
         </mxCell>
@@ -25,7 +22,7 @@
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-4" parent="1" style="shape=umlBoundary;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="44" width="60" x="370" y="104" as="geometry" />
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-5" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="App admin&#xa;(React)" vertex="1">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-5" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="App admin&#10;(React)" vertex="1">
           <mxGeometry height="30" width="140" x="330" y="158" as="geometry" />
         </mxCell>
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-6" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
@@ -49,7 +46,7 @@
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-12" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="54" width="50" x="1495" y="96" as="geometry" />
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-13" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="OSRM&#xa;(moteur d&#39;itinéraire, externe)" vertex="1">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-13" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="OSRM&#10;(moteur d'itinéraire, externe)" vertex="1">
           <mxGeometry height="30" width="160" x="1440" y="156" as="geometry" />
         </mxCell>
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-14" parent="1" style="ellipse;shape=umlEntity;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
@@ -181,7 +178,7 @@
             <mxPoint x="960" y="337" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-48" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="&lt;font style=&quot;font-size: 11px;&quot;&gt;Vérifie le chauffeur (actif, sans conflit d&#39;horaire), la capacité et l&#39;épinglage des arrêts&lt;/font&gt;">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-48" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="&lt;font style=&quot;font-size: 11px;&quot;&gt;Vérifie le chauffeur (actif, sans conflit d'horaire), la capacité et l'épinglage des arrêts&lt;/font&gt;">
           <mxGeometry relative="1" x="0.0741" y="-60" as="geometry">
             <mxPoint x="60" y="60" as="offset" />
             <Array as="points">
@@ -234,7 +231,7 @@
             <mxPoint x="400" y="615" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-58" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche le message d&#39;erreur">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-58" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche le message d'erreur">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="645" as="sourcePoint" />
             <mxPoint x="120" y="645" as="targetPoint" />
@@ -246,7 +243,7 @@
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-60" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="opt" vertex="1">
           <mxGeometry height="578" width="1770" x="50" y="726" as="geometry" />
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-61" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ le dispatcheur choisit d&#39;optimiser ]" vertex="1">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-61" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ le dispatcheur choisit d'optimiser ]" vertex="1">
           <mxGeometry height="18" width="320" x="160" y="726" as="geometry" />
         </mxCell>
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-62" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Clique sur « Optimiser »">
@@ -255,7 +252,7 @@
             <mxPoint x="400" y="770" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-63" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Demande l&#39;optimisation">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-63" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Demande l'optimisation">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="792" as="sourcePoint" />
             <mxPoint x="680" y="792" as="targetPoint" />
@@ -309,7 +306,7 @@
             <mxPoint x="1240" y="1074" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-73" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Choisit l&#39;ordre optimal (« charger avant livrer »)">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-73" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Choisit l'ordre optimal (« charger avant livrer »)">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1390" y="1108" />
@@ -341,7 +338,7 @@
             <mxPoint x="400" y="1240" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-78" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche l&#39;ordre proposé et les gains">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-78" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche l'ordre proposé et les gains">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="1278" as="sourcePoint" />
             <mxPoint x="120" y="1278" as="targetPoint" />
@@ -350,13 +347,13 @@
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-79" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 3a — Accepter ou ajuster (ordre + fenêtres horaires) — reste en brouillon" vertex="1">
           <mxGeometry height="26" width="1860" x="60" y="1330" as="geometry" />
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-80" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Accepte l&#39;ordre, ou réordonne / ajuste les fenêtres">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-80" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Accepte l'ordre, ou réordonne / ajuste les fenêtres">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="120" y="1375" as="sourcePoint" />
             <mxPoint x="400" y="1375" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-81" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Applique l&#39;ordre et les fenêtres">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-81" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Applique l'ordre et les fenêtres">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="1413" as="sourcePoint" />
             <mxPoint x="680" y="1413" as="targetPoint" />
@@ -368,7 +365,7 @@
             <mxPoint x="960" y="1451" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-83" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Enregistre l&#39;ordre et les fenêtres (reste brouillon)">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-83" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Enregistre l'ordre et les fenêtres (reste brouillon)">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="960" y="1489" as="sourcePoint" />
             <mxPoint x="1800" y="1489" as="targetPoint" />
@@ -386,7 +383,7 @@
             <mxPoint x="400" y="1565" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-86" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche l&#39;ordre appliqué">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-86" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Affiche l'ordre appliqué">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="1603" as="sourcePoint" />
             <mxPoint x="120" y="1603" as="targetPoint" />
@@ -413,7 +410,7 @@
             <mxPoint x="960" y="1802" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-91" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Vérifie la précédence enlèvement → livraison,&amp;nbsp;&lt;div&gt;la capacité et que la tournée n&#39;est pas vide&lt;/div&gt;">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-91" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Vérifie la précédence enlèvement → livraison,&amp;nbsp;&lt;div&gt;la capacité et que la tournée n'est pas vide&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1110" y="1836" />
@@ -471,7 +468,7 @@
             <mxPoint x="120" y="2148" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LAI04rVfE2wS_ZMXysgZ-102" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="L&#39;optimiseur suggère un ordre ; le dispatcheur l&#39;accepte ou l&#39;ajuste — jamais d&#39;application automatique (d&#39;où le cadre opt)." vertex="1">
+        <mxCell id="LAI04rVfE2wS_ZMXysgZ-102" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="L'optimiseur suggère un ordre ; le dispatcheur l'accepte ou l'ajuste — jamais d'application automatique (d'où le cadre opt)." vertex="1">
           <mxGeometry height="80" width="300" x="1650" y="740" as="geometry" />
         </mxCell>
         <mxCell id="LAI04rVfE2wS_ZMXysgZ-104" parent="1" style="rounded=0;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">

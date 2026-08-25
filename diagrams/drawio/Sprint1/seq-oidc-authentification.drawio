@@ -117,7 +117,7 @@
             <mxPoint x="740" y="432" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="30EquVEB4WAhW3cPFlBx-174" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Retourne un code d&#39;autorisation">
+        <mxCell id="30EquVEB4WAhW3cPFlBx-174" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Retourne un code d'autorisation">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="740" y="474" as="sourcePoint" />
             <mxPoint x="430" y="474" as="targetPoint" />
@@ -218,9 +218,6 @@
             <mxPoint x="430" y="1228" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="30EquVEB4WAhW3cPFlBx-191" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" value="Diagramme de séquence — Authentification OpenID Connect (Keycloak)" vertex="1">
-          <mxGeometry height="30" width="900" x="60" y="53" as="geometry" />
-        </mxCell>
         <mxCell id="30EquVEB4WAhW3cPFlBx-192" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;" value="alt" vertex="1">
           <mxGeometry height="182" width="830" x="50" y="452" as="geometry" />
         </mxCell>
@@ -233,7 +230,7 @@
         <mxCell id="30EquVEB4WAhW3cPFlBx-195" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ identifiants invalides ]" vertex="1">
           <mxGeometry height="18" width="220" x="150" y="594" as="geometry" />
         </mxCell>
-        <mxCell id="30EquVEB4WAhW3cPFlBx-196" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Erreur d&#39;authentification">
+        <mxCell id="30EquVEB4WAhW3cPFlBx-196" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Erreur d'authentification">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="740" y="612" as="sourcePoint" />
             <mxPoint x="130" y="612" as="targetPoint" />

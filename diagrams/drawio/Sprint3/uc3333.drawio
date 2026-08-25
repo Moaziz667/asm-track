@@ -1,25 +1,25 @@
 <mxfile host="Electron">
-  <diagram name="Cas d&#39;utilisation — sprint 3" id="Oa3FDgJl7ZTnVU_w7TEA">
-    <mxGraphModel dx="2275" dy="1515" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram name="Cas d'utilisation — sprint 3" id="Oa3FDgJl7ZTnVU_w7TEA">
+    <mxGraphModel dx="1517" dy="1010" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="8678IPkY4jTNQRagu0T6-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="ASM Track — Sprint 3 · Planification, exécution et suivi temps réel" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=17;fontStyle=1;fillColor=none;strokeColor=#37474F;spacingTop=10;" value="" vertex="1">
           <mxGeometry height="1430" width="1380" x="320" y="60" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-2" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Responsable&#xa;(supervision)" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-2" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Responsable&#10;(supervision)" vertex="1">
           <mxGeometry height="90" width="50" x="110" y="150" as="geometry" />
         </mxCell>
         <mxCell id="8678IPkY4jTNQRagu0T6-3" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Dispatcheur" vertex="1">
-          <mxGeometry height="90" width="50" x="110" y="560" as="geometry" />
+          <mxGeometry height="90" width="50" x="50" y="610" as="geometry" />
         </mxCell>
         <mxCell id="8678IPkY4jTNQRagu0T6-5" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Destinataire" vertex="1">
-          <mxGeometry height="90" width="50" x="110" y="1250" as="geometry" />
+          <mxGeometry height="90" width="50" x="110" y="1360" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;« système externe »&lt;/i&gt;&lt;br&gt;&lt;b&gt;OSRM&lt;/b&gt;&lt;br&gt;(moteur d&#39;itinéraire)" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;" value="&lt;i&gt;« système externe »&lt;/i&gt;&lt;br&gt;&lt;b&gt;OSRM&lt;/b&gt;&lt;br&gt;(moteur d'itinéraire)" vertex="1">
           <mxGeometry height="80" width="190" x="1730" y="540" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Suivre les tournées&#xa;en temps réel" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-7" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Suivre les tournées&#10;en temps réel" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="120" as="geometry" />
         </mxCell>
         <mxCell id="8678IPkY4jTNQRagu0T6-8" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" target="8678IPkY4jTNQRagu0T6-7" value="Consulter les SLA" vertex="1">
@@ -43,19 +43,19 @@
         <mxCell id="8678IPkY4jTNQRagu0T6-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Retirer / annuler un arrêt" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="850" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-22" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;" value="Suivre sa livraison&#xa;(page publique)" vertex="1">
-          <mxGeometry height="56" width="280" x="430" y="1250" as="geometry" />
+        <mxCell id="8678IPkY4jTNQRagu0T6-22" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;" value="Suivre sa livraison&#10;(page publique)" vertex="1">
+          <mxGeometry height="56" width="280" x="430" y="1360" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-23" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Sélectionner les livraisons&#xa;à planifier" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-23" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Sélectionner les livraisons&#10;à planifier" vertex="1">
           <mxGeometry height="56" width="270" x="860" y="490" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-24" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Vérifier la précédence&#xa;enlèvement → livraison" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-24" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Vérifier la précédence&#10;enlèvement → livraison" vertex="1">
           <mxGeometry height="56" width="270" x="880" y="794" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-25" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Définir les fenêtres horaires&#xa;des arrêts (créneaux)" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-25" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Définir les fenêtres horaires&#10;des arrêts (créneaux)" vertex="1">
           <mxGeometry height="56" width="270" x="860" y="585" as="geometry" />
         </mxCell>
-        <mxCell id="8678IPkY4jTNQRagu0T6-26" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Affecter un chauffeur&#xa;et un véhicule" vertex="1">
+        <mxCell id="8678IPkY4jTNQRagu0T6-26" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#F7FAFC;strokeColor=#1F6CA0;fontSize=13;" value="Affecter un chauffeur&#10;et un véhicule" vertex="1">
           <mxGeometry height="56" width="270" x="870" y="670" as="geometry" />
         </mxCell>
         <mxCell id="8678IPkY4jTNQRagu0T6-31" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;fontStyle=2;" value="Traiter une exception de livraison" vertex="1">
@@ -153,22 +153,10 @@
         <mxCell id="s3-uc-retour" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Traiter un retour" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="1040" as="geometry" />
         </mxCell>
-        <mxCell id="s3-e-di-retour" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-retour" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
+        <mxCell id="s3-e-di-retour" edge="1" parent="1" source="8678IPkY4jTNQRagu0T6-3" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="s3-uc-retour" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="s3-uc-depots" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Synchroniser les dépôts" vertex="1">
-          <mxGeometry height="56" width="280" x="430" y="1110" as="geometry" />
-        </mxCell>
-        <mxCell id="e-s3-uc-depots" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-depots" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="s3-uc-zones" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=13;" value="Gérer les zones" vertex="1">
-          <mxGeometry height="56" width="280" x="430" y="1180" as="geometry" />
-        </mxCell>
-        <mxCell id="e-s3-uc-zones" parent="1" edge="1" source="8678IPkY4jTNQRagu0T6-3" target="s3-uc-zones" style="html=1;endArrow=none;rounded=0;edgeStyle=none;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-      </root>
+        </root>
     </mxGraphModel>
   </diagram>
 </mxfile>

@@ -4,31 +4,28 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-82" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#263238;" value="Diagramme d&#39;états — Cycle de vie d&#39;une livraison" vertex="1">
-          <mxGeometry height="30" width="700" x="40" y="16" as="geometry" />
-        </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-83" parent="1" style="ellipse;fillColor=#000000;strokeColor=#000000;html=1;" value="" vertex="1">
           <mxGeometry height="18" width="18" x="392" y="60" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-84" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#607D8B;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;UNSCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;dans le pool&lt;/font&gt;" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-84" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#607D8B;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;UNSCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#607D8B'&gt;dans le pool&lt;/font&gt;" vertex="1">
           <mxGeometry height="52" width="180" x="310" y="100" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-85" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;SCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;affectée à un livreur&lt;/font&gt;" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-85" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;SCHEDULED&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#607D8B'&gt;affectée à un livreur&lt;/font&gt;" vertex="1">
           <mxGeometry height="52" width="180" x="310" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-86" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;PICKED_UP&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;chargée au dépôt&lt;/font&gt;" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-86" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;PICKED_UP&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#607D8B'&gt;chargée au dépôt&lt;/font&gt;" vertex="1">
           <mxGeometry height="52" width="180" x="310" y="340" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-87" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;IN_TRANSIT&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;en route vers le client&lt;/font&gt;" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-87" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#37474F;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;IN_TRANSIT&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#607D8B'&gt;en route vers le client&lt;/font&gt;" vertex="1">
           <mxGeometry height="52" width="180" x="310" y="460" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-88" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;AWAITING_HANDOFF&lt;/b&gt;&lt;br&gt;&lt;font style=&#39;font-size:10px;color:#607D8B&#39;&gt;transfert de garde&lt;/font&gt;" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-88" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#EF6C00;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;AWAITING_HANDOFF&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px;color:#607D8B'&gt;transfert de garde&lt;/font&gt;" vertex="1">
           <mxGeometry height="52" width="200" x="650" y="450" as="geometry" />
         </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-89" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#90A4AE;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;CANCELLED&lt;/b&gt;" vertex="1">
           <mxGeometry height="48" width="170" x="650" y="229" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-90" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=10;" value="issue de&#xa;l&#39;arrêt" vertex="1">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-90" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=10;" value="issue de&#10;l'arrêt" vertex="1">
           <mxGeometry height="72" width="96" x="352" y="566" as="geometry" />
         </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-91" parent="1" style="rounded=1;arcSize=30;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=13;verticalAlign=middle;align=center;" value="&lt;b&gt;DELIVERED&lt;/b&gt;" vertex="1">
@@ -52,7 +49,7 @@
         <mxCell id="OrKNSyZFihMAZe4Zaij6-97" parent="1" style="ellipse;shape=endState;fillColor=#000000;strokeColor=#000000;html=1;" value="" vertex="1">
           <mxGeometry height="24" width="24" x="860" y="241" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-98" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-83" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-84" value="import depuis l&#39;ERP">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-98" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-83" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-84" value="import depuis l'ERP">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-99" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-84" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-85" value="affectée à un livreur">
@@ -64,16 +61,16 @@
         <mxCell id="OrKNSyZFihMAZe4Zaij6-101" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-86" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-87" value="départ vers le destinataire">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-102" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-87" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-90" value="le livreur clôture l&#39;arrêt">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-102" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-87" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#37474F;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-90" value="le livreur clôture l'arrêt">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-103" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-90" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#2E7D32;fontSize=11;fontColor=#1B5E20;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-91" value="[ tout remis ]&#xa;/ preuve de livraison">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-103" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-90" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#2E7D32;fontSize=11;fontColor=#1B5E20;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-91" value="[ tout remis ]&#10;/ preuve de livraison">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-104" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-90" style="html=1;rounded=0;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#1565C0;fontSize=11;fontColor=#0D47A1;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-92" value="&lt;span&gt;&lt;span style=&quot;color: rgb(21, 101, 192);&quot;&gt;[ partie remise ]&lt;br&gt;&lt;/span&gt;&lt;span style=&quot;color: light-dark(rgb(21, 101, 192), rgb(43, 130, 218));&quot;&gt;/&amp;nbsp;&lt;span&gt;preuve de livraison + motif&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="OrKNSyZFihMAZe4Zaij6-105" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-90" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#C62828;fontSize=11;fontColor=#B71C1C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-93" value="[ rien remis ]&#xa;/ motif d&#39;échec">
+        <mxCell id="OrKNSyZFihMAZe4Zaij6-105" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-90" style="html=1;rounded=1;edgeStyle=orthogonalEdgeStyle;endArrow=open;endSize=10;strokeColor=#C62828;fontSize=11;fontColor=#B71C1C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-93" value="[ rien remis ]&#10;/ motif d'échec">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="OrKNSyZFihMAZe4Zaij6-106" edge="1" parent="1" source="OrKNSyZFihMAZe4Zaij6-91" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#2E7D32;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="OrKNSyZFihMAZe4Zaij6-94" value="">

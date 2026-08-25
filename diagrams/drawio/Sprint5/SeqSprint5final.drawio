@@ -4,9 +4,6 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-192" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#263238;" value="Diagramme de séquence — Synchronisation ERP et reprise sur panne" vertex="1">
-          <mxGeometry height="30" width="1100" x="60" y="50" as="geometry" />
-        </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-193" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="60" width="30" x="105" y="98" as="geometry" />
         </mxCell>
@@ -16,7 +13,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-195" parent="1" style="shape=umlBoundary;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="44" width="60" x="370" y="104" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-196" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Application livreur&#xa;(Flutter)" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-196" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Application livreur&#10;(Flutter)" vertex="1">
           <mxGeometry height="30" width="160" x="320" y="156" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-197" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
@@ -34,13 +31,13 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-201" parent="1" style="ellipse;shape=umlEntity;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="54" width="50" x="1215" y="96" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-202" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Événement à synchroniser&#xa;(outbox)" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-202" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Événement à synchroniser&#10;(outbox)" vertex="1">
           <mxGeometry height="30" width="200" x="1140" y="156" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-203" parent="1" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
           <mxGeometry height="54" width="50" x="1495" y="96" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-204" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Publieur d&#39;événements&#xa;(toutes les 20 s)" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-204" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Publieur d'événements&#10;(toutes les 20 s)" vertex="1">
           <mxGeometry height="30" width="190" x="1425" y="156" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-205" parent="1" style="shape=umlBoundary;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
@@ -55,7 +52,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-208" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#46495D;" value="Adaptateur ERP" vertex="1">
           <mxGeometry height="24" width="160" x="2000" y="158" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-209" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;fontColor=#46495D;verticalAlign=middle;" value="« système externe »&#xa;Odoo / ERPNext" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-209" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;fontColor=#46495D;verticalAlign=middle;" value="« système externe »&#10;Odoo / ERPNext" vertex="1">
           <mxGeometry height="56" width="170" x="2275" y="100" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-210" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="" vertex="1">
@@ -199,7 +196,7 @@
             <mxPoint x="680" y="371" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-243" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Crée l&#39;événement à synchroniser (en attente)">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-243" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Crée l'événement à synchroniser (en attente)">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="680" y="409" as="sourcePoint" />
             <mxPoint x="1240" y="409" as="targetPoint" />
@@ -220,7 +217,7 @@
             <mxPoint x="400" y="485" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-247" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Écran suivant —&lt;div&gt;&amp;nbsp;le livreur repart (il n&#39;attend jamais l&#39;ERP)&lt;/div&gt;">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-247" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Écran suivant —&lt;div&gt;&amp;nbsp;le livreur repart (il n'attend jamais l'ERP)&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="400" y="523" as="sourcePoint" />
             <mxPoint x="120" y="523" as="targetPoint" />
@@ -235,7 +232,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-250" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ toutes les 20 secondes ]" vertex="1">
           <mxGeometry height="18" width="260" x="170" y="600" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-251" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Réclame un lot d&#39;événements&lt;div&gt;&amp;nbsp;en attente (verrou, 10 max)&lt;/div&gt;">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-251" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Réclame un lot d'événements&lt;div&gt;&amp;nbsp;en attente (verrou, 10 max)&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="1520" y="638" as="sourcePoint" />
             <mxPoint x="1240" y="638" as="targetPoint" />
@@ -259,7 +256,7 @@
             <mxPoint x="1800" y="740" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-256" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Marque l&#39;événement « publié »&lt;div&gt;&amp;nbsp;— le travail de l&#39;outbox est terminé&lt;/div&gt;">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-256" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Marque l'événement « publié »&lt;div&gt;&amp;nbsp;— le travail de l'outbox est terminé&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="1520" y="778" as="sourcePoint" />
             <mxPoint x="1240" y="778" as="targetPoint" />
@@ -271,17 +268,17 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-258" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ RabbitMQ injoignable ]" vertex="1">
           <mxGeometry height="18" width="300" x="180" y="804" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-259" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet en attente, compteur +1,&lt;div&gt;&amp;nbsp;délai doublé à chaque essai (jusqu&#39;à 4 h)&lt;/div&gt;">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-259" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet en attente, compteur +1,&lt;div&gt;&amp;nbsp;délai doublé à chaque essai (jusqu'à 4 h)&lt;/div&gt;">
           <mxGeometry relative="1" as="geometry">
             <mxPoint as="offset" />
             <mxPoint x="1520" y="842" as="sourcePoint" />
             <mxPoint x="1240" y="842" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-260" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Au-delà de 15 essais (≈ 22 h), l&#39;événement est marqué en échec définitif : visible et rejouable, jamais perdu." vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-260" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Au-delà de 15 essais (≈ 22 h), l'événement est marqué en échec définitif : visible et rejouable, jamais perdu." vertex="1">
           <mxGeometry height="70" width="280" x="330" y="826" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-261" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 3 — Application dans l&#39;ERP du client" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-261" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 3 — Application dans l'ERP du client" vertex="1">
           <mxGeometry height="26" width="2700" x="60" y="926" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-262" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Livre la commande de synchronisation">
@@ -293,10 +290,10 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-263" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="alt" vertex="1">
           <mxGeometry height="600" width="2610" x="90" y="982" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-264" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;ERP répond ]" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-264" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l'ERP répond ]" vertex="1">
           <mxGeometry height="18" width="260" x="170" y="986" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-265" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Lit l&#39;état actuel du transfert">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-265" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Lit l'état actuel du transfert">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="2080" y="1014" as="sourcePoint" />
             <mxPoint x="2360" y="1014" as="targetPoint" />
@@ -335,7 +332,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-271" parent="1" style="shape=line;strokeColor=#666666;dashed=1;html=1;" value="" vertex="1">
           <mxGeometry height="8" width="2608" x="91" y="1226" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-272" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;ERP est injoignable ]" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-272" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l'ERP est injoignable ]" vertex="1">
           <mxGeometry height="18" width="300" x="170" y="1230" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-273" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=70;height=26;fontSize=12;fontStyle=1;container=0;" value="loop" vertex="1">
@@ -344,7 +341,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-274" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ 5 essais : 2 s → 4 s → 8 s → 16 s ]" vertex="1">
           <mxGeometry height="18" width="300" x="2060" y="1256" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-275" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Relit l&#39;état, puis tente la validation">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-275" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Relit l'état, puis tente la validation">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="2080" y="1294" as="sourcePoint" />
             <mxPoint x="2360" y="1294" as="targetPoint" />
@@ -380,13 +377,13 @@
             <mxPoint x="960" y="1508" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-281" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Notifie l&#39;opérateur — l&#39;échec devient visible, il n&#39;est jamais silencieux">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-281" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;dashed=1;dashPattern=6 4;" value="Notifie l'opérateur — l'échec devient visible, il n'est jamais silencieux">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="960" y="1546" as="sourcePoint" />
             <mxPoint x="2640" y="1546" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-282" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Avant chaque tentative, l&#39;adaptateur relit l&#39;état dans l&#39;ERP. Un transfert déjà validé n&#39;est jamais revalidé : le stock ne sort pas deux fois, même si une réponse s&#39;est perdue." vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-282" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=11;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;" value="Avant chaque tentative, l'adaptateur relit l'état dans l'ERP. Un transfert déjà validé n'est jamais revalidé : le stock ne sort pas deux fois, même si une réponse s'est perdue." vertex="1">
           <mxGeometry height="90" width="300" x="1400" y="1036" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-283" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 4 — Reprise manuelle" vertex="1">
@@ -395,7 +392,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-284" parent="1" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#666666;width=60;height=26;fontSize=12;fontStyle=1;container=0;" value="opt" vertex="1">
           <mxGeometry height="150" width="2610" x="90" y="1646" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-285" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l&#39;opérateur relance une synchronisation en échec ]" vertex="1">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-285" parent="1" style="text;html=1;align=left;fontSize=11;fontStyle=2;fontColor=#333333;" value="[ l'opérateur relance une synchronisation en échec ]" vertex="1">
           <mxGeometry height="18" width="420" x="170" y="1650" as="geometry" />
         </mxCell>
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-286" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Clique sur « Resynchroniser »">
@@ -404,7 +401,7 @@
             <mxPoint x="680" y="1688" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-287" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet l&#39;événement en attente">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-287" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Remet l'événement en attente">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="680" y="1726" as="sourcePoint" />
             <mxPoint x="1240" y="1726" as="targetPoint" />

@@ -1,12 +1,9 @@
 <mxfile host="Electron">
-  <diagram name="Cas d&#39;utilisation global" id="dyk4-2fB9uPxRKN39mey">
+  <diagram name="Cas d'utilisation global" id="dyk4-2fB9uPxRKN39mey">
     <mxGraphModel dx="3640" dy="2424" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-207" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=18;fontStyle=1;spacingTop=10;fillColor=#f9f7ed;strokeColor=#36393d;" value="ASM Track" vertex="1">
-          <mxGeometry height="2110" width="770" x="350" y="20" as="geometry" />
-        </mxCell>
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-208" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fontSize=14;" value="Administrateur" vertex="1">
           <mxGeometry height="90" width="50" x="140" y="210" as="geometry" />
         </mxCell>
@@ -25,7 +22,7 @@
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-213" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les comptes et les rôles" vertex="1">
           <mxGeometry height="70" width="240" x="420" y="70" as="geometry" />
         </mxCell>
-        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-214" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer l&#39;intégration ERP" vertex="1">
+        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-214" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Configurer l'intégration ERP" vertex="1">
           <mxGeometry height="70" width="240" x="420" y="170" as="geometry" />
         </mxCell>
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-215" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Gérer les chauffeurs" vertex="1">
@@ -79,10 +76,10 @@
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-231" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Suivre son colis" vertex="1">
           <mxGeometry height="70" width="240" x="420" y="2030" as="geometry" />
         </mxCell>
-        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-232" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Optimiser l&#39;ordre des arrêts" vertex="1">
+        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-232" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Optimiser l'ordre des arrêts" vertex="1">
           <mxGeometry height="70" width="240" x="840" y="700" as="geometry" />
         </mxCell>
-        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-233" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="S&#39;authentifier" vertex="1">
+        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-233" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="S'authentifier" vertex="1">
           <mxGeometry height="70" width="240" x="700" y="1010" as="geometry" />
         </mxCell>
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-234" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=14;" value="Encaisser un paiement" vertex="1">
@@ -206,7 +203,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-267" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=18;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;align=left;spacingLeft=8;spacingRight=8;verticalAlign=middle;" value="Tous les cas d&#39;utilisation internes s&#39;exécutent dans une session authentifiée : l&#39;authentification est une précondition, elle n&#39;est reliée qu&#39;aux points d&#39;entrée pour ne pas surcharger la figure. Seul « Suivre son colis » est accessible sans compte, par lien public." vertex="1">
+        <mxCell id="lw9-I9UKK2hEc0dtsbbZ-267" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=18;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=13;align=left;spacingLeft=8;spacingRight=8;verticalAlign=middle;" value="Tous les cas d'utilisation internes s'exécutent dans une session authentifiée : l'authentification est une précondition, elle n'est reliée qu'aux points d'entrée pour ne pas surcharger la figure. Seul « Suivre son colis » est accessible sans compte, par lien public." vertex="1">
           <mxGeometry height="130" width="540" x="140" y="2200" as="geometry" />
         </mxCell>
         <mxCell id="lw9-I9UKK2hEc0dtsbbZ-268" edge="1" parent="1" source="lw9-I9UKK2hEc0dtsbbZ-267" style="html=1;endArrow=none;dashed=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.1;entryY=1;entryDx=0;entryDy=0;" target="lw9-I9UKK2hEc0dtsbbZ-207">

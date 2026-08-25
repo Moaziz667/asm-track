@@ -61,9 +61,9 @@ Consignes reçues le 2026-08-18, appliquées dans `preamble.tex` et `chapters/re
 | 1 | Cadre général du projet | 10 |
 | 2 | Sprint 0 — Initialisation, besoins et étude technique | 17 |
 | 3 | Architecture et conception générale | 13 |
-| 4 | Sprint 1 — Socle d'identité, d'autorisation et de multi-tenance | 15 |
+| 4 | Sprint 1 — Socle d'identité, d'autorisation et référentiels | 15 |
 | 5 | Sprint 2 — Intégration ERP agnostique | 16 |
-| 6 | Sprint 3 — Planification, exécution et suivi temps réel | 14 |
+| 6 | Sprint 3 — Planification des tournées et suivi temps réel | 14 |
 | 7 | Sprint 4 — Application mobile chauffeur et mode hors ligne | 12 |
 | 8 | Sprint 5 — Exploitation, résilience et assistant interne | 11 |
 | 9 | Validation globale, qualité et déploiement | 9 |
@@ -143,31 +143,35 @@ annoncées · plan du mémoire.
 8. Architecture de déploiement Docker
 9. Conclusion
 
-### Chapitre 4 — Sprint 1 : socle d'identité, d'autorisation et de multi-tenance (15 p)
+### Chapitre 4 — Sprint 1 : socle d'identité, d'autorisation et référentiels (15 p)
 Concepts : OAuth2 / OIDC, JWT, JWKS, RBAC, isolation par schéma.
 Contenu : Keycloak (realm `asm`, Organizations) · politique RBAC unique — 18 permissions, 3 rôles
 composites, 46 règles — répliquée dans 5 services · passerelle API, 45 routes, validation JWKS · thème
-Keycloakify · isolation des données démontrée par test.
+Keycloakify · isolation des données démontrée par test · référentiels d'exploitation (chauffeurs,
+véhicules, zones), chacun derrière l'authentification.
 
 ### Chapitre 5 — Sprint 2 : intégration ERP agnostique (16 p)
 Concepts : ports & adaptateurs, contrat canonique, outbox transactionnel, idempotence, JSON-RPC vs REST.
 Contenu : les quatre ports (`ErpSyncPort`, `ErpLookupPort`, `ErpOrderPort`, `ErpChangePort`) ·
 contrat canonique de 27 champs · mapping guidé et **système de types** (SAFE / LOSSY / UNSUPPORTED,
 5 types canoniques, 10 types source) · Odoo JSON-RPC et ERPNext REST · outbox transactionnel ·
-idempotence · tests contre **Odoo 16 et 19 simultanément** en CI.
+idempotence · synchronisation des dépôts depuis les entrepôts du progiciel · tests contre
+**Odoo 16 et 19 simultanément** en CI.
 
-### Chapitre 6 — Sprint 3 : planification, exécution et suivi temps réel (14 p)
+### Chapitre 6 — Sprint 3 : planification des tournées et suivi temps réel (14 p)
 Concepts : problème de tournées, OSRM, machines à états, WebSocket/STOMP, SLA.
-Contenu : dépôts et zones · construction et optimisation de tournée · dispatch et chauffeur le plus
-proche · machines à états (livraison, tournée, arrêt) · moteur SLA · temps réel via relais STOMP
-RabbitMQ · suivi public destinataire.
+Contenu : construction et optimisation de tournée · dispatch et chauffeur le plus proche · machines
+à états (livraison, tournée, arrêt) · moteur SLA · temps réel via relais STOMP RabbitMQ · suivi
+public destinataire · traitement des retours (approbation, remise en stock).
 
 ### Chapitre 7 — Sprint 4 : application mobile chauffeur et mode hors ligne (12 p)
 Concepts : architecture offline-first, file de rejeu, idempotence client, horloge d'action.
 Contenu : Flutter / Riverpod / Hive · preuve de livraison — photo du bon de livraison signé par le destinataire + photo du colis remis, dans MinIO (le document signé fait foi, pas un tracé sur écran) · file d'attente
 hors ligne, projection optimiste, `X-Client-Timestamp` · transfert de garde · encaissement COD et
 remise de caisse · collecte de retour (RMA) — le mouvement inverse emprunte la même tournée, le même
-écran et la même preuve, sans bon de livraison à photographier.
+écran et la même preuve, sans bon de livraison à photographier · exécution de la tournée (démarrage,
+enlèvement au dépôt, transit, arrivée) · calendrier des tournées planifiées · centre de
+synchronisation (relancer ou abandonner une écriture morte).
 
 ### Chapitre 8 — Sprint 5 : exploitation, résilience et assistant interne (11 p)
 Concepts : observabilité, file de rebut, rejeu, RAG.
