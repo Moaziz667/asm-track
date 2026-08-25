@@ -25,7 +25,7 @@ Personne ne peut la donner, et personne ne peut vérifier qu'un endroit n'a pas 
 { "methods": ["*"],   "pathPrefix": "/api/v1/admin/",          "require": { "perm": "perm:dispatch:operate" } }
 ```
 
-45 règles, une par ligne, lisibles par un non-développeur.
+46 règles, une par ligne, lisibles par un non-développeur.
 
 L'ordre compte : la première règle qui correspond l'emporte. Les lectures sont donc déclarées avant
 les écritures d'un même préfixe, et la règle la plus large ferme la liste. Une route non déclarée
@@ -84,10 +84,12 @@ flowchart TB
     SYNC --> A["AppBackend"]
     SYNC --> D["DeliveryMicroservice"]
     SYNC --> V["DriverService"]
+    SYNC --> S["AssistantService"]
 
     G -.->|"même empreinte MD5"| A
     A -.-> D
     D -.-> V
+    V -.-> S
 
     style SRC fill:#e8eaf6,stroke:#3f51b5
 ```
@@ -97,7 +99,7 @@ Chaque service **embarque** sa copie plutôt que d'interroger la gateway à l'ex
 - pas d'appel réseau sur le chemin critique de chaque requête ;
 - pas de point de défaillance unique — une gateway indisponible n'empêche pas un service d'autoriser.
 
-Les quatre copies portent la **même empreinte MD5**. Elles ne peuvent pas diverger sans que ce soit
+Les cinq copies portent la **même empreinte MD5**. Elles ne peuvent pas diverger sans que ce soit
 visible.
 
 !!! warning "Le coût assumé"

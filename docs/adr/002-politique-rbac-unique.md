@@ -1,6 +1,6 @@
 # ADR-002 — Une politique d'autorisation déclarative, unique et *fail-closed*
 
-**Statut :** acceptée · **Portée :** ApiGateway, AppBackend, DeliveryMicroservice, DriverService
+**Statut :** acceptée · **Portée :** ApiGateway, AppBackend, DeliveryMicroservice, DriverService, AssistantService
 
 ---
 
@@ -51,7 +51,7 @@ Un endpoint ajouté et oublié dans la politique est **inaccessible**, pas ouver
 manifeste par un 403 pendant le développement, jamais par une fuite en production.
 
 **3. Le fichier est répliqué à l'identique dans chaque service**, par le script
-`sync-rbac-policy.py`. Les quatre copies portent la même empreinte MD5. Chaque service embarque sa
+`sync-rbac-policy.py`. Les cinq copies portent la même empreinte MD5. Chaque service embarque sa
 copie plutôt que d'interroger la gateway à l'exécution : pas d'appel réseau sur le chemin critique,
 et pas de point de défaillance unique.
 
@@ -85,7 +85,7 @@ bénéfice.
 ## Conséquences
 
 **Ce qu'on gagne.** La politique tient en 40 lignes lisibles par un non-développeur. Un audit se fait
-en lisant un fichier. Un oubli échoue de manière sûre. Les quatre services ne peuvent pas diverger,
+en lisant un fichier. Un oubli échoue de manière sûre. Les cinq services ne peuvent pas diverger,
 puisqu'ils partagent l'octet près le même fichier.
 
 **Ce que ça coûte.** Les règles sont fondées sur des **préfixes de chemin**, donc l'URL porte une

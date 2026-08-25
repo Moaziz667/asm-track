@@ -48,7 +48,7 @@ l'événement part en file morte et attend un rejeu manuel.
 
 ### Pas de vérification de la synchronisation RBAC en CI
 
-`rbac-policy.json` est répliqué dans quatre services par un script. **Rien ne vérifie** que les
+`rbac-policy.json` est répliqué dans cinq services par un script. **Rien ne vérifie** que les
 copies sont identiques au moment du build.
 
 **Impact.** Une resynchronisation oubliée ferait diverger la gateway et un service sur les règles
