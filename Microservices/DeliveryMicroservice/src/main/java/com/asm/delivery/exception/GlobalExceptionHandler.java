@@ -72,6 +72,21 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), "Access denied", "ACCESS_DENIED", Map.of()));
     }
 
+    /**
+     * An URL that matches no controller. Spring reports it as "no static resource", which the
+     * catch-all below would turn into a 500 — telling a caller that the server broke when in fact
+     * the address simply does not exist. A wrong path is the caller's mistake, not a failure.
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex,
+            HttpServletRequest request) {
+        log.debug("No endpoint for {} {}", request.getMethod(), request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), "No endpoint for this path",
+                        "ENDPOINT_NOT_FOUND", Map.of("path", request.getRequestURI())));
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         String message = "Invalid request parameter";
