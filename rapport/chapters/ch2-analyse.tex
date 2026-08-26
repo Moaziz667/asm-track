@@ -381,8 +381,8 @@ exceptions en priorité. & Must & 8 & 3 \\
 US-30 & En tant que dispatcheur, je veux réaffecter une livraison bloquée à un autre chauffeur afin
 de sauver la journée. & Must & 8 & 3 \\
 \hline
-US-31 & En tant que dispatcheur, je veux enregistrer un retour de marchandise et son état afin de
-déclencher la reprise en stock. & Should & 13 & 3 \\
+US-31 & En tant que dispatcheur, je veux approuver ou refuser une demande de retour et déclencher
+la reprise en stock afin de garder la main sur ce qui revient. & Should & 8 & 3 \\
 \hline
 US-32 & En tant que destinataire, je veux suivre mon colis par un lien reçu afin de connaître son
 avancement sans créer de compte. & Should & 8 & 3 \\
@@ -407,10 +407,14 @@ pouvoir répondre à un audit. & Should & 8 & 5 \\
 \hline
 US-38 & En tant qu'utilisateur, je veux interroger une assistance interne sur le fonctionnement du
 système afin de trouver une réponse sans quitter l'application. & Could & 13 & 5 \\
+US-39 & En tant que destinataire, je veux demander le retour d'un article reçu afin de ne pas avoir
+à téléphoner. & Should & 5 & 3 \
+US-40 & En tant que chauffeur, je veux collecter un retour chez le destinataire afin de le ramener
+au dépôt. & Should & 5 & 4 \\
 \hline
 \end{longtable}
 
-Le backlog totalise trente-huit éléments pour 382 points de complexité. Il a été tenu dans
+Le backlog totalise quarante éléments pour 387 points de complexité. Il a été tenu dans
 \textbf{GitLab Issues}, chaque épopée correspondant à une étiquette et chaque sprint à un tableau
 kanban dédié.
 
@@ -578,7 +582,7 @@ destinée à être déployée chez plusieurs clients.
 
 Ce sprint d'initialisation a produit quatre livrables~: la liste des acteurs et de leurs droits, la
 spécification des besoins fonctionnels et non fonctionnels, les deux diagrammes qui fixent le
-vocabulaire du système, et un backlog de trente-huit éléments réparti sur cinq sprints.
+vocabulaire du système, et un backlog de quarante éléments réparti sur cinq sprints.
 
 Son apport principal n'est pourtant pas cette production documentaire. Il tient à trois exigences que
 l'analyse a fait remonter au rang de contraintes structurantes~: l'ouverture à plusieurs progiciels,
