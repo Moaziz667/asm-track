@@ -64,10 +64,12 @@ La deuxième est l'application mobile. Les chauffeurs envoient des positions et 
 statut à un rythme sans commune mesure avec le trafic du bureau. Séparer le service qui les reçoit
 évite qu'une journée chargée sur le terrain ne ralentisse l'écran du dispatcheur.
 
-La troisième est l'assistant. Il interroge un modèle de langage hébergé à l'extérieur, dont une
-réponse demande plusieurs secondes. Dans une application unique, ces attentes occuperaient les mêmes
-ressources que les écrans du dispatcheur~: quelques questions simultanées suffiraient à ralentir tout
-le monde. Isolé, l'assistant ne ralentit que lui-même.
+La troisième est la possibilité de remplacer une partie sans toucher au reste. Un service ne montre
+à ses voisins que son interface~: ce qu'il fait à l'intérieur, la base qu'il utilise, la
+bibliothèque sur laquelle il s'appuie ne regardent que lui. On peut donc le réécrire, changer sa
+base ou son moteur de calcul sans que les autres s'en aperçoivent. Dans une application unique, la
+même opération suppose de démêler des dépendances qui se sont installées un peu partout dans le
+code, faute d'une frontière qui les empêche de le faire.
 
 Le découpage suit les \textbf{domaines métier} identifiés au chapitre précédent, et non les couches
 techniques. Il n'existe pas de « service base de données » ni de « service interface »~: chaque
@@ -95,8 +97,8 @@ la chaîne.
 
 Trois raisons d'un côté, trois coûts de l'autre~: la balance ne se lit pas au nombre. Les coûts sont
 techniques, ils se paient une fois et le même mécanisme sert partout ensuite. Les raisons, elles,
-reviennent chaque semaine~: un client qui met son progiciel à jour, une journée chargée sur le
-terrain, une question posée à l'assistant. C'est ce qui a fait pencher la décision.
+reviennent à chaque évolution du système~: un client qui met son progiciel à jour, une journée
+chargée sur le terrain, un composant à remplacer. C'est ce qui a fait pencher la décision.
 
 Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges} montrent comment ces trois points
 sont traités plutôt qu'ignorés.
