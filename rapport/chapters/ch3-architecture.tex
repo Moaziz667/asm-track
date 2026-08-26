@@ -326,10 +326,15 @@ une entreprise par défaut, jamais de valeur devinée. Quatre situations conduis
 jeton ne porte aucune entreprise, l'utilisateur est rattaché à plusieurs entreprises, l'identifiant
 n'a pas la forme attendue, ou l'en-tête manque à l'entrée du service.
 
-Le deuxième cas mérite une explication. Un utilisateur appartenant à deux entreprises obtiendrait,
-d'une requête à l'autre, tantôt l'une tantôt l'autre, sans qu'aucune erreur ne soit signalée~: les
-données de deux clients se mélangeraient en silence. La règle est donc stricte~: un utilisateur
+Le deuxième cas mérite une explication. Le problème n'est pas qu'un utilisateur travaille pour deux
+entreprises~; c'est que sa requête ne dit pas laquelle des deux elle concerne. Le système devrait
+alors deviner, et il devinerait mal~: l'utilisateur verrait tantôt les données de l'une, tantôt celles
+de l'autre, sans qu'aucune erreur ne soit signalée. La règle est donc stricte~: un utilisateur
 appartient à une entreprise et à une seule.
+
+Prendre en charge le cas contraire ne demanderait d'ailleurs pas de revoir ce mécanisme, mais de
+faire choisir son entreprise à l'utilisateur au moment de la connexion, afin que le jeton n'en porte
+qu'une. C'est le choix qui manque aujourd'hui, non la capacité à l'appliquer.
 
 Le quatrième cas garantit que la protection tient même si la passerelle est contournée. Un service
 appelé directement, sans en-tête d'entreprise, refuse la requête au lieu de servir des données.
