@@ -35,7 +35,12 @@
 
 % ---------- Figures et tableaux ----------
 \usepackage{graphicx}
-\graphicspath{{figures/}{../diagrams/drawio/}{../diagrams/svg/}{../docs/assets/uml/}}
+% Les diagrammes sont ranges par sprint depuis leur reorganisation : chaque dossier est
+% declare ici, sinon \includegraphics ne trouve rien a la racine de drawio/.
+\graphicspath{{figures/}{../diagrams/drawio/}{../diagrams/drawio/Sprint0/}
+  {../diagrams/drawio/Sprint1/}{../diagrams/drawio/Sprint2/}{../diagrams/drawio/Sprint3/}
+  {../diagrams/drawio/Sprint4/}{../diagrams/drawio/Sprint5/}{../diagrams/drawio/Architecture/}
+  {../diagrams/svg/}{../docs/assets/uml/}}
 \usepackage{float}
 \usepackage{caption}
 \usepackage{subcaption}

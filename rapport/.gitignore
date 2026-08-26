@@ -12,3 +12,7 @@
 *.synctex.gz
 build.log
 main.pdf
+*.xdv
+*.fdb_latexmk
+*.fls
+*-SAVE-ERROR

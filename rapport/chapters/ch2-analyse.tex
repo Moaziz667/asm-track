@@ -23,14 +23,10 @@ Ce chapitre restitue ces quatre travaux dans cet ordre. Il se termine sur trois 
 \section{Identification des acteurs}
 
 Un acteur est un rôle joué par une personne ou un système extérieur qui interagit avec la solution.
-Le découpage retenu ne décalque pas l'organigramme de l'entreprise cliente~: il suit les
-\emph{permissions réellement distinctes}. Deux fonctions qui accèdent aux mêmes écrans et déclenchent
-les mêmes opérations ne forment qu'un seul acteur, quel que soit leur intitulé sur la fiche de poste.
-
-Ce principe a une conséquence concrète, détaillée au chapitre~\ref{ch:socle}~: le système distingue
-trois rôles internes et non quatre, parce que superviser et exploiter ne mobilisent pas les mêmes
-droits, tandis que deux intitulés qui exploitent de la même façon ne justifient pas deux rôles
-séparés.
+Les acteurs retenus ne reprennent pas l'organigramme de l'entreprise cliente~: ils suivent les
+\emph{droits}. Deux postes qui ouvrent les mêmes écrans et font les mêmes opérations forment un seul
+acteur, même si leurs intitulés diffèrent. C'est pourquoi le système compte trois rôles internes et
+non quatre, comme le détaille le chapitre~\ref{ch:socle}.
 
 \begin{table}[H]
 \centering
@@ -42,11 +38,12 @@ séparés.
 \textbf{Acteur} & \textbf{Description} & \textbf{Périmètre d'action} \\
 \hline
 Administrateur & Responsable du paramétrage de l'installation pour son entreprise. &
-Comptes et rôles, correspondance des champs avec le progiciel, référentiel des chauffeurs et des
-véhicules. Hérite de toutes les actions du dispatcheur. \\
+Comptes et rôles, correspondance des champs avec le progiciel, référentiels d'exploitation~:
+chauffeurs, véhicules et zones. Hérite de toutes les actions du dispatcheur. \\
 \hline
 Dispatcheur & Il transforme au quotidien les commandes en tournées et arbitre les aléas. & Import des commandes, planification, affectation, validation, traitement des exceptions et
-des retours, comptage et arbitrage des remises de caisse, zones et dépôts. \\
+des retours, comptage et arbitrage des remises de caisse, synchronisation des dépôts depuis le
+progiciel. \\
 \hline
 Responsable & Supervise l'activité sans intervenir dessus. &
 Consultation des livraisons, des tournées, des rapports, des espèces en circulation et du journal
@@ -54,10 +51,11 @@ d'audit. Aucune action de modification. \\
 \hline
 Livreur & Exécute les tournées sur le terrain depuis l'application mobile. &
 Consultation de sa tournée du jour, changements de statut, preuve de livraison, déclaration d'échec,
-encaissement, transfert de garde. \\
+encaissement, transfert de garde, collecte des retours. \\
 \hline
 Destinataire & Client final du chargeur. &
-Consultation de l'avancement de son colis par un lien public, sans compte ni authentification. \\
+Consultation de l'avancement de son colis par un lien public, sans compte ni authentification, et
+demande de retour d'un article reçu. \\
 \hline
 \end{tabular}
 \end{table}
@@ -99,7 +97,7 @@ chauffeur.
 
 \paragraph*{Exécution terrain.} Le chauffeur doit consulter sa tournée, déclarer son départ, marquer
 son arrivée à chaque arrêt, livrer ou déclarer un échec motivé, et collecter une preuve de livraison
-comportant le nom du destinataire, une photographie du colis et une photographie du bon signé. Un
+comportant une photographie du colis et une photographie du bon signé. Un
 transfert de garde entre deux chauffeurs doit être possible en cours de journée, avec confirmation
 du receveur.
 
@@ -114,7 +112,9 @@ les retours de marchandise. Le destinataire doit pouvoir suivre son colis par un
 \paragraph*{Pilotage et exploitation.} Le responsable doit disposer d'indicateurs — taux de réussite,
 motifs d'échec, respect des délais, performance par chauffeur et par zone — et pouvoir exporter des
 documents. L'administrateur doit disposer d'une console de santé qui expose l'état de l'intégration et
-permet de relancer une synchronisation en échec.
+permet de relancer une synchronisation en échec. Un assistant interne doit enfin permettre à
+chacun d'interroger l'activité de son entreprise en langage naturel, dans la limite de ce que
+son rôle l'autorise à consulter.
 
 \subsection{Besoins non fonctionnels}
 
@@ -167,15 +167,16 @@ conçue pour un usage à une main. \\
 
 Le diagramme de la figure~\ref{fig:uc-global} synthétise les besoins fonctionnels sous forme de cas
 d'utilisation et les rattache à leurs acteurs. Il reste volontairement au premier niveau~: le
-système compte une trentaine de cas, les représenter tous rendrait la figure illisible. Le détail
+système en compte près de quatre-vingts une fois détaillés, les représenter tous rendrait la
+figure illisible. Le détail
 est porté par les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}.
 
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
 % Diagramme bien plus haut que large : le borner à la seule largeur donnerait 227 mm de hauteur
 % et ferait déborder la page. On borne les deux dimensions et keepaspectratio retient la plus
 % contraignante.
-\includegraphics[width=\textwidth,height=0.86\textheight,keepaspectratio]{uc-global}
+\includegraphics[width=\textwidth,height=0.86\textheight,keepaspectratio]{ucglobalFINAL}
 \caption{Diagramme global des cas d'utilisation}
 \label{fig:uc-global}
 \end{figure}
@@ -208,7 +209,7 @@ commandes ne sont pas payables à la livraison.
 Le diagramme de la figure~\ref{fig:class-global} présente les concepts manipulés par le système et
 leurs relations. Il fixe le vocabulaire employé dans tout le reste du rapport.
 
-\begin{figure}[H]
+\begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth,height=0.86\textheight,keepaspectratio]{class-domain}
 \caption{Diagramme de classes global}
@@ -402,13 +403,15 @@ distinguer une panne du progiciel d'une panne du système. & Must & 13 & 5 \\
 US-36 & En tant qu'administrateur, je veux relancer une synchronisation en échec afin de réparer sans
 intervention technique. & Must & 8 & 5 \\
 \hline
-US-37 & En tant qu'administrateur, je veux consulter le journal des opérations sensibles afin de
-pouvoir répondre à un audit. & Should & 8 & 5 \\
+US-37 & En tant qu'administrateur, je veux savoir qui a fait quoi et quand sur les données
+sensibles afin de pouvoir répondre à un audit. & Should & 8 & 5 \\
 \hline
-US-38 & En tant qu'utilisateur, je veux interroger une assistance interne sur le fonctionnement du
-système afin de trouver une réponse sans quitter l'application. & Could & 13 & 5 \\
-US-39 & En tant que destinataire, je veux demander le retour d'un article reçu afin de ne pas avoir
-à téléphoner. & Should & 5 & 3 \
+US-38 & En tant qu'utilisateur, je veux poser une question en langage naturel sur l'activité de
+mon entreprise afin d'obtenir la réponse sans parcourir plusieurs écrans. & Could & 13 & 5 \\
+\hline
+US-39 & En tant que destinataire, je veux demander le retour d'un article reçu afin que ma demande
+soit enregistrée et suivie. & Should & 5 & 3 \\
+\hline
 US-40 & En tant que chauffeur, je veux collecter un retour chez le destinataire afin de le ramener
 au dépôt. & Should & 5 & 4 \\
 \hline
@@ -446,13 +449,13 @@ production.
 \hline
 Sprint 0 & Cadrage, besoins et étude technique & 2 — 20 mars & 3 sem. & — \\
 \hline
-Sprint 1 & Identité, autorisation et multi-tenance & 23 mars — 17 avril & 4 sem. & 34 \\
+Sprint 1 & Identité, autorisation et référentiels & 23 mars — 17 avril & 4 sem. & 52 \\
 \hline
 Sprint 2 & Intégration ERP agnostique & 20 avril — 22 mai & 5 sem. & 86 \\
 \hline
-Sprint 3 & Planification et suivi temps réel & 25 mai — 19 juin & 4 sem. & 115 \\
+Sprint 3 & Planification des tournées et suivi temps réel & 25 mai — 19 juin & 4 sem. & 97 \\
 \hline
-Sprint 4 & Application chauffeur et hors ligne & 22 juin — 17 juillet & 4 sem. & 84 \\
+Sprint 4 & Application chauffeur et hors ligne & 22 juin — 17 juillet & 4 sem. & 89 \\
 \hline
 Sprint 5 & Exploitation, résilience et assistance & 20 juillet — 7 août & 3 sem. & 63 \\
 \hline
@@ -471,8 +474,8 @@ visible~; le second parce qu'il porte le cœur métier de la solution.
 
 Le développement a été mené sur un poste unique, qui a également hébergé l'ensemble des services
 conteneurisés — bases de données, courtier de messages, serveur d'identité, moteur de calcul
-d'itinéraires et instances de progiciel de test. Cette dernière contrainte explique le
-dimensionnement en mémoire.
+d'itinéraires et instances de progiciel de test. Faire tourner tout cela
+ensemble est ce qui a imposé les 24~Go de mémoire.
 
 \begin{table}[H]
 \centering
