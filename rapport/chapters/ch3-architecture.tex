@@ -259,9 +259,11 @@ numéroté, appliqué automatiquement au démarrage du service et jamais modifi�
 correction donne lieu à un nouveau fichier. Le projet en compte cent cinquante-neuf, dont la grande
 majorité pour le service de livraison.
 
-L'intérêt dépasse la commodité. Comme la base de chaque environnement est reconstruite à partir de la
-même suite de fichiers, celle des essais et celle de l'exécution ne peuvent pas diverger~: une
-anomalie constatée quelque part est reproductible ailleurs.
+L'intérêt ne se limite pas à la simplicité. Chaque environnement reconstruit sa base de données à
+partir des mêmes fichiers de migration. Ainsi, les bases de test et d'exécution conservent la même
+structure et ne risquent pas de diverger. Lorsqu'un problème apparaît dans un environnement, il est
+donc possible de reproduire les mêmes conditions dans un autre afin de l'identifier et de le corriger
+plus facilement.
 
 \section{L'isolation des entreprises clientes}
 \label{sec:archi-tenance}
