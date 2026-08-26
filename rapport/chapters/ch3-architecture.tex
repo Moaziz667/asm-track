@@ -71,6 +71,13 @@ base ou son moteur de calcul sans que les autres s'en aperçoivent. Dans une app
 même opération suppose de démêler des dépendances qui se sont installées un peu partout dans le
 code, faute d'une frontière qui les empêche de le faire.
 
+Cette frontière vaut aussi vers l'extérieur. Ce qui se trouve derrière l'interface d'un service n'a
+pas à être du code écrit ici~: un prestataire peut prendre sa place, du moment qu'on écrit le service
+qui parle à son interface. Une entreprise qui préférerait confier ses tournées à un transporteur
+plutôt qu'à ses propres chauffeurs n'aurait donc rien à changer dans le reste du système. Ce n'est
+pas une hypothèse~: c'est exactement le rôle que joue déjà l'adaptateur vis-à-vis du progiciel du
+client.
+
 Le découpage suit les \textbf{domaines métier} identifiés au chapitre précédent, et non les couches
 techniques. Il n'existe pas de « service base de données » ni de « service interface »~: chaque
 service porte un domaine complet, de son interface HTTP jusqu'à ses tables. Un développeur qui doit
@@ -229,18 +236,17 @@ la livraison est rangée dans la base des livraisons et le chauffeur dans celle 
 relation existe toujours dans le métier~; elle ne peut plus être une clé étrangère.
 
 Elle devient un \textbf{simple identifiant}~: la livraison conserve l'identifiant du chauffeur, sans
-que la base ne garantisse quoi que ce soit à son sujet. Trois différences en découlent, qu'il faut
+que la base ne garantisse quoi que ce soit à son sujet. Deux différences en découlent, qu'il faut
 accepter en connaissance de cause.
 
 La base ne vérifie plus que la valeur correspond à quelque chose. C'est au service d'interroger son
 voisin, ou de réagir au message qui lui apprend qu'un chauffeur a disparu.
 
-Aucune jointure n'est possible entre les deux. Afficher une tournée avec le nom de son chauffeur
-demande un appel supplémentaire, là où une jointure aurait suffi.
-
-Une donnée peut enfin être brièvement incohérente entre deux services, le temps qu'un message soit
-traité. Cette tolérance est acceptable ici parce qu'aucune décision métier ne dépend de la lecture
-immédiate d'une information appartenant à un autre service.
+La jointure disparaît, elle aussi. Tant que les deux tables vivaient ensemble, afficher une tournée
+avec le nom de son chauffeur tenait en une requête~: la base rapprochait les deux d'elle-même.
+Il faut désormais lire la tournée dans sa base, puis demander le nom au service Chauffeur. Deux
+opérations au lieu d'une, et un aller-retour sur le réseau à la place d'un rapprochement que la base
+faisait gratuitement.
 
 \subsection{L'évolution du schéma}
 
