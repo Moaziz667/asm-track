@@ -53,16 +53,21 @@ Complexité & Concentrée dans le code & Déplacée vers les échanges entre ser
 \end{tabular}
 \end{table}
 
-Les services séparés ont été retenus pour deux raisons propres à ce projet.
+Les services séparés ont été retenus pour trois raisons propres à ce projet.
 
 La première est l'intégration au progiciel du client. Le code qui parle à Odoo ou à ERPNext est le
 plus instable du système~: il change à chaque nouveau client et à chaque montée de version. L'isoler
 dans un service à part permet de le modifier sans redéployer le cœur métier, et de le laisser tomber
 en panne sans arrêter les livraisons du jour.
 
-La seconde est l'application mobile. Les chauffeurs envoient des positions et des changements de
+La deuxième est l'application mobile. Les chauffeurs envoient des positions et des changements de
 statut à un rythme sans commune mesure avec le trafic du bureau. Séparer le service qui les reçoit
 évite qu'une journée chargée sur le terrain ne ralentisse l'écran du dispatcheur.
+
+La troisième est l'assistant. Il interroge un modèle de langage hébergé à l'extérieur, dont une
+réponse demande plusieurs secondes. Dans une application unique, ces attentes occuperaient les mêmes
+ressources que les écrans du dispatcheur~: quelques questions simultanées suffiraient à ralentir tout
+le monde. Isolé, l'assistant ne ralentit que lui-même.
 
 Le découpage suit les \textbf{domaines métier} identifiés au chapitre précédent, et non les couches
 techniques. Il n'existe pas de « service base de données » ni de « service interface »~: chaque
@@ -87,6 +92,11 @@ prévoir une opération de rattrapage.
 Le troisième est le \textbf{coût d'exploitation}~: plus de conteneurs à démarrer, plus de journaux à
 consulter, et une panne plus longue à localiser puisqu'elle peut venir de n'importe quel maillon de
 la chaîne.
+
+Trois raisons d'un côté, trois coûts de l'autre~: la balance ne se lit pas au nombre. Les coûts sont
+techniques, ils se paient une fois et le même mécanisme sert partout ensuite. Les raisons, elles,
+reviennent chaque semaine~: un client qui met son progiciel à jour, une journée chargée sur le
+terrain, une question posée à l'assistant. C'est ce qui a fait pencher la décision.
 
 Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges} montrent comment ces trois points
 sont traités plutôt qu'ignorés.
