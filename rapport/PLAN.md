@@ -63,8 +63,8 @@ Consignes reçues le 2026-08-18, appliquées dans `preamble.tex` et `chapters/re
 | 3 | Architecture et conception générale | 13 |
 | 4 | Sprint 1 — Socle d'identité, d'autorisation et référentiels | 15 |
 | 5 | Sprint 2 — Intégration ERP agnostique | 16 |
-| 6 | Sprint 3 — Planification des tournées et suivi temps réel | 14 |
-| 7 | Sprint 4 — Application mobile chauffeur et mode hors ligne | 12 |
+| 6 | Sprint 3 — Planification des tournées et suivi temps réel | 13 |
+| 7 | Sprint 4 — Application mobile chauffeur et mode hors ligne | 13 |
 | 8 | Sprint 5 — Exploitation, résilience et assistant interne | 11 |
 | 9 | Validation globale, qualité et déploiement | 9 |
 | — | Conclusion générale et perspectives | 3 |
@@ -158,13 +158,13 @@ contrat canonique de 27 champs · mapping guidé et **système de types** (SAFE 
 idempotence · synchronisation des dépôts depuis les entrepôts du progiciel · tests contre
 **Odoo 16 et 19 simultanément** en CI.
 
-### Chapitre 6 — Sprint 3 : planification des tournées et suivi temps réel (14 p)
+### Chapitre 6 — Sprint 3 : planification des tournées et suivi temps réel (13 p)
 Concepts : problème de tournées, OSRM, machines à états, WebSocket/STOMP, SLA.
 Contenu : construction et optimisation de tournée · dispatch et chauffeur le plus proche · machines
 à états (livraison, tournée, arrêt) · moteur SLA · temps réel via relais STOMP RabbitMQ · suivi
-public destinataire · traitement des retours (approbation, remise en stock).
+public destinataire · cycle du retour — demande du destinataire, approbation, remise en stock.
 
-### Chapitre 7 — Sprint 4 : application mobile chauffeur et mode hors ligne (12 p)
+### Chapitre 7 — Sprint 4 : application mobile chauffeur et mode hors ligne (13 p)
 Concepts : architecture offline-first, file de rejeu, idempotence client, horloge d'action.
 Contenu : Flutter / Riverpod / Hive · preuve de livraison — photo du bon de livraison signé par le destinataire + photo du colis remis, dans MinIO (le document signé fait foi, pas un tracé sur écran) · file d'attente
 hors ligne, projection optimiste, `X-Client-Timestamp` · transfert de garde · encaissement COD et
