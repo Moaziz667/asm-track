@@ -215,10 +215,12 @@ La figure~\ref{fig:donnees-par-service} montre cette répartition.
 \label{fig:donnees-par-service}
 \end{figure}
 
-La règle est simple et sans exception~: \textbf{un service ne lit que sa propre base}. Aucun service
-ne se connecte à la base d'un autre, même en lecture seule, même pour un besoin ponctuel. Un tel
-raccourci fonctionne le jour où on l'écrit, puis interdit toute modification du schéma concerné,
-puisqu'on ne sait plus qui en dépend.
+La règle est simple et sans exception~: \textbf{un service ne lit que sa propre base}. Aucun ne va
+chercher une donnée directement dans la base d'un autre, même en lecture seule.
+
+Ce raccourci est pourtant tentant, parce qu'il marche tout de suite. Le problème vient après~: dès
+qu'il existe, plus personne ne peut modifier ces tables sans risquer de casser un service qu'il
+n'avait pas vu.
 
 \subsection{Ce que devient une relation entre deux services}
 
