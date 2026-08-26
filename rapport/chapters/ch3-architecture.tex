@@ -341,10 +341,12 @@ appelé directement, sans en-tête d'entreprise, refuse la requête au lieu de s
 
 \subsection{Le cas des traitements asynchrones}
 
-Un message traité plus tard, par un autre service, n'a plus ni requête ni jeton. L'entreprise voyage
-donc avec le message~: elle est écrite dans son en-tête au moment de la publication, et relue à la
-réception avant tout traitement. Le consommateur retrouve ainsi le schéma dans lequel l'action avait
-été demandée.
+Lorsqu'un message est traité ultérieurement par un autre service, la requête HTTP et le jeton
+d'authentification d'origine ne sont plus disponibles. Pour conserver le contexte de l'entreprise,
+son identifiant est donc ajouté dans l'en-tête du message au moment de sa publication. À sa
+réception, le service consommateur lit cet identifiant avant tout traitement et détermine ainsi le
+schéma correspondant à l'entreprise concernée. L'opération est alors exécutée dans le même contexte
+que celui dans lequel elle avait été demandée.
 
 \section{Les échanges entre services}
 \label{sec:archi-echanges}
