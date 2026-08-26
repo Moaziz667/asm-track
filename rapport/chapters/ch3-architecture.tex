@@ -1,7 +1,395 @@
 % Budget : 13 pages — voir rapport/PLAN.md
+%
+% Figures : dossier diagrams/drawio/Architecture/, atteint par le \graphicspath du preambule.
+% architecture-globale est vectorielle (PDF) ; les trois autres sont des images matricielles,
+% faute de fichier source. C'est pourquoi elles ne sont jamais agrandies au-dela de la largeur
+% du texte : au-dela, la trame devient visible.
 \chapter{Architecture et conception générale}
 \label{ch:archi}
 
 \section{Introduction}
 
+Le sprint~0 a dit ce que le système doit faire et pour qui. Il reste à décider comment il est
+construit. C'est l'objet de ce chapitre, placé avant les sprints parce que les décisions qu'il
+contient ont été prises une fois, au début, et n'ont plus été remises en cause ensuite~: chaque
+sprint s'est inséré dans cette structure au lieu de la redéfinir.
+
+Quatre questions sont traitées dans l'ordre où elles se sont posées. Faut-il une application unique
+ou plusieurs services~? Où vivent les données une fois le système découpé~? Comment les données
+d'une entreprise cliente restent-elles hors de portée des autres~? Et comment les services se
+transmettent-ils l'information~?
+
+\section{Une application unique ou plusieurs services}
+
+Le premier choix engage tous les autres. Une application unique — un \emph{monolithe} — regroupe tout
+le code dans un seul programme, avec une seule base de données. Une architecture en services découpe
+le programme en plusieurs applications autonomes, chacune avec sa base, qui communiquent par le
+réseau.
+
+Le tableau~\ref{tab:mono-vs-micro} résume ce que chaque approche apporte et ce qu'elle coûte.
+
+\begin{table}[H]
+\centering
+\caption{Application unique ou services séparés}
+\label{tab:mono-vs-micro}
+\small
+\begin{tabular}{L{3.2cm}L{5.5cm}L{5.5cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Critère} & \textbf{Application unique} & \textbf{Services séparés} \\
+\hline
+Mise en route & Immédiate & Plus longue : réseau, messagerie, configuration \\
+\hline
+Déploiement & Tout ou rien & Un service à la fois \\
+\hline
+Panne & Tout s'arrête & Le reste continue de fonctionner \\
+\hline
+Données & Une base, jointures libres & Une base par service, pas de jointure entre services \\
+\hline
+Montée en charge & On duplique l'ensemble & On duplique la partie sollicitée \\
+\hline
+Complexité & Concentrée dans le code & Déplacée vers les échanges entre services \\
+\hline
+\end{tabular}
+\end{table}
+
+Les services séparés ont été retenus pour deux raisons propres à ce projet.
+
+La première est l'intégration au progiciel du client. Le code qui parle à Odoo ou à ERPNext est le
+plus instable du système~: il change à chaque nouveau client et à chaque montée de version. L'isoler
+dans un service à part permet de le modifier sans redéployer le cœur métier, et de le laisser tomber
+en panne sans arrêter les livraisons du jour.
+
+La seconde est l'application mobile. Les chauffeurs envoient des positions et des changements de
+statut à un rythme sans commune mesure avec le trafic du bureau. Séparer le service qui les reçoit
+évite qu'une journée chargée sur le terrain ne ralentisse l'écran du dispatcheur.
+
+Le découpage suit les \textbf{domaines métier} identifiés au chapitre précédent, et non les couches
+techniques. Il n'existe pas de « service base de données » ni de « service interface »~: chaque
+service porte un domaine complet, de son interface HTTP jusqu'à ses tables. Un développeur qui doit
+corriger le calcul d'une tournée sait donc où aller, sans traverser trois applications.
+
+Ce choix a un prix, assumé~: un appel entre deux services peut échouer, là où un appel de méthode
+dans un monolithe ne le peut pas. Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges}
+expliquent comment cette éventualité est traitée plutôt qu'ignorée.
+
+\section{Vue d'ensemble}
+
+La figure~\ref{fig:archi-globale} présente l'ensemble du système~: les applications qui l'utilisent à
+gauche, les services au centre, les composants d'infrastructure autour.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{architecture-globale}
+\caption{Vue d'ensemble de l'architecture}
+\label{fig:archi-globale}
+\end{figure}
+
+Trois trajets se lisent sur cette figure.
+
+Le \textbf{trajet ordinaire} part d'une application cliente, traverse la passerelle et atteint un
+service, qui répond en interrogeant sa base. C'est le chemin de presque toutes les requêtes.
+
+Le \textbf{trajet asynchrone}, en pointillés, ne passe par la passerelle ni par personne d'autre~: un
+service dépose un message sur le bus et poursuit son travail sans attendre. Le destinataire le
+traitera quand il le pourra.
+
+Le \textbf{trajet vers le progiciel du client} est le seul à sortir du système. Il est entièrement
+confié à l'adaptateur, qui est aussi le seul service à ne pas être exposé par la passerelle~: aucune
+application, aucun navigateur ne peut l'appeler directement.
+
+\subsection{La passerelle}
+
+Toutes les requêtes venues de l'extérieur entrent par la passerelle, qui remplit quatre rôles.
+
+Elle \textbf{achemine} la requête vers le bon service d'après le début de son adresse~:
+quarante-cinq règles couvrent l'ensemble des routes exposées.
+
+Elle \textbf{vérifie le jeton} d'authentification auprès du serveur d'identité, et refuse la requête
+si la signature ou la date de validité ne conviennent pas.
+
+Elle \textbf{contrôle les droits} avant de transmettre. Si le rôle de l'utilisateur ne porte pas la
+permission attendue, la requête n'atteint jamais le service. Ce contrôle est ensuite refait à
+l'intérieur de chaque service, pour la raison exposée au chapitre~\ref{ch:socle}.
+
+Elle \textbf{réécrit les en-têtes d'identité}. Ceux qui arrivent du client sont effacés, puis
+reconstruits à partir du contenu du jeton. Un appelant ne peut donc pas se déclarer administrateur en
+ajoutant un en-tête à sa requête.
+
+\subsection{Les services}
+
+Le tableau~\ref{tab:services} récapitule les six services, ce dont chacun est responsable et où il
+range ses données.
+
+\begin{table}[H]
+\centering
+\caption{Les services et leurs responsabilités}
+\label{tab:services}
+\small
+\begin{tabular}{L{2.9cm}L{6.6cm}L{4.5cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Service} & \textbf{Responsabilité} & \textbf{Données} \\
+\hline
+Passerelle & Acheminement, vérification du jeton, droits, en-têtes d'identité & Aucune \\
+\hline
+Comptes & Utilisateurs, rôles, entreprises clientes, pilotage du serveur d'identité & Base des comptes \\
+\hline
+Livraison & Cœur métier : commandes, livraisons, tournées, preuves, encaissements, retours & Base des livraisons ; photographies dans le stockage d'objets \\
+\hline
+Chauffeur & Fiches des chauffeurs, disponibilité, positions & Base des chauffeurs \\
+\hline
+Assistant & Questions posées en langage naturel sur l'activité de l'entreprise & Base avec index vectoriel \\
+\hline
+Adaptateur ERP & Seul point de contact avec le progiciel du client & Base locale des correspondances \\
+\hline
+\end{tabular}
+\end{table}
+
+Le service de livraison est nettement plus gros que les autres. Ce n'est pas un défaut de découpage
+mais le reflet du métier~: la commande, la livraison, la tournée et la preuve forment un tout dont
+les parties se modifient ensemble. Les séparer aurait imposé des transactions réparties sur plusieurs
+services, c'est-à-dire remplacé une difficulté simple par une difficulté beaucoup plus lourde.
+
+\subsection{Les composants d'infrastructure}
+
+Quatre composants ne portent aucune règle métier mais rendent un service à tous les autres.
+
+Le \textbf{serveur d'identité} détient les comptes et délivre les jetons. Aucun service ne conserve
+de mot de passe.
+
+Le \textbf{bus de messages} transporte les échanges asynchrones et conserve les messages tant qu'ils
+n'ont pas été traités.
+
+Le \textbf{stockage d'objets} reçoit les photographies des preuves de livraison. Elles ne sont pas
+mises en base~: un fichier de plusieurs centaines de kilo-octets n'a rien à faire dans une table.
+
+Le \textbf{moteur d'itinéraires} calcule distances et durées entre deux points à partir de données
+cartographiques libres. Il est hébergé avec le reste plutôt qu'appelé chez un fournisseur, ce qui
+évite de payer à la requête et de dépendre d'un service extérieur.
+
+\section{Du modèle de classes aux bases de données}
+\label{sec:archi-donnees}
+
+Le chapitre~\ref{ch:sprint0} a présenté un modèle de classes unique, où toutes les entités
+apparaissent ensemble. C'est le modèle du métier, et il reste valable. Mais le découpage en services
+lui impose une contrainte que ce diagramme ne montre pas~: ces entités ne vivent pas dans la même
+base.
+
+La figure~\ref{fig:donnees-par-service} montre cette répartition.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,keepaspectratio]{donnees-par-service}
+\caption{Répartition des données entre les services}
+\label{fig:donnees-par-service}
+\end{figure}
+
+La règle est simple et sans exception~: \textbf{un service ne lit que sa propre base}. Aucun service
+ne se connecte à la base d'un autre, même en lecture seule, même pour un besoin ponctuel. Un tel
+raccourci fonctionne le jour où on l'écrit, puis interdit toute modification du schéma concerné,
+puisqu'on ne sait plus qui en dépend.
+
+\subsection{Ce que devient une relation entre deux services}
+
+Cette règle a une conséquence directe sur le modèle. Une livraison est affectée à un chauffeur, mais
+la livraison est rangée dans la base des livraisons et le chauffeur dans celle des chauffeurs. La
+relation existe toujours dans le métier~; elle ne peut plus être une clé étrangère.
+
+Elle devient un \textbf{simple identifiant}~: la livraison conserve l'identifiant du chauffeur, sans
+que la base ne garantisse quoi que ce soit à son sujet. Trois différences en découlent, qu'il faut
+accepter en connaissance de cause.
+
+La base ne vérifie plus que la valeur correspond à quelque chose. C'est au service d'interroger son
+voisin, ou de réagir au message qui lui apprend qu'un chauffeur a disparu.
+
+Aucune jointure n'est possible entre les deux. Afficher une tournée avec le nom de son chauffeur
+demande un appel supplémentaire, là où une jointure aurait suffi.
+
+Une donnée peut enfin être brièvement incohérente entre deux services, le temps qu'un message soit
+traité. Cette tolérance est acceptable ici parce qu'aucune décision métier ne dépend de la lecture
+immédiate d'une information appartenant à un autre service.
+
+\subsection{L'évolution du schéma}
+
+Les tables ne sont pas créées à la main. Chaque modification du schéma est écrite dans un fichier
+numéroté, appliqué automatiquement au démarrage du service et jamais modifié une fois livré~: une
+correction donne lieu à un nouveau fichier. Le projet en compte cent cinquante-neuf, dont la grande
+majorité pour le service de livraison.
+
+L'intérêt dépasse la commodité. Comme la base de chaque environnement est reconstruite à partir de la
+même suite de fichiers, celle des essais et celle de l'exécution ne peuvent pas diverger~: une
+anomalie constatée quelque part est reproductible ailleurs.
+
+\section{L'isolation des entreprises clientes}
+\label{sec:archi-tenance}
+
+Une même installation héberge plusieurs entreprises clientes. Chacune doit voir ses données, et
+uniquement les siennes. C'est l'exigence la plus contraignante du projet~: une seule fuite, une seule
+fois, suffirait à disqualifier la solution.
+
+\subsection{Trois façons de séparer, une seule retenue}
+
+La première consiste à ajouter une colonne « entreprise » à chaque table et à filtrer dessus. Elle
+est simple, et c'est sa faiblesse~: la séparation ne tient qu'à la présence d'une condition dans
+chaque requête. Une seule requête écrite sans elle, et une entreprise voit les données d'une autre.
+Rien, dans la base, ne s'y oppose.
+
+La deuxième consiste à donner une base complète à chaque entreprise. La séparation devient
+matérielle, donc incontestable, mais le coût suit le nombre de clients~: autant de bases à
+sauvegarder, à migrer et à surveiller, et autant de connexions ouvertes en permanence.
+
+La troisième, retenue ici, est le \textbf{schéma par entreprise}. Une base unique contient autant de
+schémas que d'entreprises, chacun avec son jeu complet de tables. Une requête envoyée dans un schéma
+ne peut pas atteindre les tables d'un autre, sans qu'aucune condition n'ait à être écrite. Les
+sauvegardes et les migrations, elles, restent celles d'une base unique.
+
+Le nom du schéma est déduit de l'identifiant de l'entreprise~: le préfixe \texttt{company\_} suivi des
+trente-deux caractères de cet identifiant. Cette déduction est faite à un seul endroit du code, à
+partir d'un identifiant déjà reconnu comme tel, ce qui écarte la possibilité d'y glisser un nom de
+schéma arbitraire.
+
+\subsection{Le trajet d'une requête}
+
+Encore faut-il que le bon schéma soit choisi à chaque requête, sans que le développeur ait à y penser.
+La figure~\ref{fig:routage-multitenant} détaille les huit étapes de ce trajet.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,keepaspectratio]{routage-multitenant}
+\caption{Le choix du schéma, de la requête jusqu'à la base}
+\label{fig:routage-multitenant}
+\end{figure}
+
+Les quatre premières étapes se déroulent dans la passerelle. Elle efface les en-têtes d'identité
+présents dans la requête, vérifie le jeton, y lit l'entreprise à laquelle l'utilisateur appartient,
+puis ajoute cette information à la requête qu'elle transmet. L'entreprise vient donc du jeton signé
+par le serveur d'identité, jamais de ce que l'appelant a bien voulu déclarer.
+
+Les quatre suivantes se déroulent dans le service. Un filtre lit l'entreprise transmise et la place
+dans le contexte de la requête. Au moment d'ouvrir la connexion à la base, ce contexte est traduit en
+nom de schéma et la connexion bascule sur ce schéma. Le code métier, lui, écrit ses requêtes sans
+jamais mentionner l'entreprise ni le schéma~: il ne peut donc pas oublier de le faire.
+
+Le basculement porte sur la connexion que la transaction va réellement utiliser, et il est annulé
+avant que cette connexion ne retourne au réservoir partagé. Sans cette remise à zéro, la requête
+suivante hériterait du schéma de la précédente.
+
+\subsection{Le refus plutôt que le repli}
+
+Une règle traverse tout ce mécanisme~: en cas de doute, la requête est rejetée. Jamais de repli sur
+une entreprise par défaut, jamais de valeur devinée. Quatre situations conduisent à un refus~: le
+jeton ne porte aucune entreprise, l'utilisateur est rattaché à plusieurs entreprises, l'identifiant
+n'a pas la forme attendue, ou l'en-tête manque à l'entrée du service.
+
+Le deuxième cas mérite une explication. Un utilisateur appartenant à deux entreprises obtiendrait,
+d'une requête à l'autre, tantôt l'une tantôt l'autre, sans qu'aucune erreur ne soit signalée~: les
+données de deux clients se mélangeraient en silence. La règle est donc stricte~: un utilisateur
+appartient à une entreprise et à une seule.
+
+Le quatrième cas garantit que la protection tient même si la passerelle est contournée. Un service
+appelé directement, sans en-tête d'entreprise, refuse la requête au lieu de servir des données.
+
+\subsection{Le cas des traitements asynchrones}
+
+Un message traité plus tard, par un autre service, n'a plus ni requête ni jeton. L'entreprise voyage
+donc avec le message~: elle est écrite dans son en-tête au moment de la publication, et relue à la
+réception avant tout traitement. Le consommateur retrouve ainsi le schéma dans lequel l'action avait
+été demandée.
+
+\section{Les échanges entre services}
+\label{sec:archi-echanges}
+
+Deux services peuvent communiquer de deux manières, et le choix entre les deux n'est pas affaire de
+goût.
+
+L'\textbf{appel direct} convient lorsque l'appelant a besoin de la réponse pour continuer. Il est
+simple à écrire et à suivre, mais il lie les deux services~: si le second est arrêté, le premier
+échoue.
+
+Le \textbf{message} convient lorsque l'appelant n'attend pas de réponse immédiate. Il dépose son
+message et continue. Le destinataire peut être arrêté~; le message l'attendra.
+
+La règle appliquée dans le projet tient en une phrase~: appel direct quand la réponse est nécessaire
+tout de suite, message dans tous les autres cas. La figure~\ref{fig:messagerie} montre la topologie
+qui en résulte.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,keepaspectratio]{topologie-messagerie}
+\caption{Topologie de la messagerie}
+\label{fig:messagerie}
+\end{figure}
+
+Quatre familles de messages circulent. Les demandes de synchronisation partent du service de
+livraison vers l'adaptateur, et les résultats reviennent par le chemin inverse. Les événements du
+chauffeur — changement de statut, position — remontent vers le service de livraison. Les opérations
+sensibles alimentent le journal d'audit. Les créations de comptes, enfin, sont transmises au service
+qui pilote le serveur d'identité.
+
+\subsection{Quand un message ne passe pas}
+
+Un message peut échouer parce que le service destinataire est arrêté, parce que la base est
+indisponible, ou parce que le message lui-même est incorrect. Le traitement est le même dans tous
+les cas.
+
+Le message est d'abord \textbf{réessayé} cinq fois, avec une attente qui double à chaque tentative~:
+deux secondes, puis quatre, huit et seize. Cet espacement croissant laisse à une panne passagère le
+temps de se résorber, sans saturer un service déjà en difficulté.
+
+Si les cinq tentatives échouent, le message est déplacé dans une \textbf{file de rebut}. Il n'est ni
+perdu ni rejoué indéfiniment~: il attend, consultable, que la cause soit corrigée. Sans ce mécanisme,
+un message définitivement invalide serait repris sans fin et bloquerait tous ceux qui le suivent.
+
+\section{La mise en marche}
+
+L'ensemble est installé par conteneurs. Chaque service, chaque base, chaque composant
+d'infrastructure est décrit dans un fichier unique qui indique son image, sa configuration et ses
+dépendances. Une seule commande démarre les dix-sept conteneurs que compte l'installation, répartis
+comme l'indique le tableau~\ref{tab:conteneurs}.
+
+\begin{table}[H]
+\centering
+\caption{Les conteneurs de l'installation}
+\label{tab:conteneurs}
+\small
+\begin{tabular}{L{4.2cm}C{1.6cm}L{8.2cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Groupe} & \textbf{Nombre} & \textbf{Contenu} \\
+\hline
+Services applicatifs & 6 & Passerelle, comptes, livraison, chauffeur, assistant, adaptateur ERP \\
+\hline
+Bases de données & 5 & Une par service qui en possède une, plus celle du serveur d'identité \\
+\hline
+Infrastructure & 3 & Serveur d'identité, bus de messages, stockage d'objets \\
+\hline
+Moteur d'itinéraires & 3 & Téléchargement de la carte, préparation, puis exécution \\
+\hline
+\end{tabular}
+\end{table}
+
+Deux points méritent d'être signalés.
+
+L'\textbf{ordre de démarrage} est déclaré, et non espéré. Un service n'est lancé qu'une fois sa base
+déclarée en bon état~; le serveur d'identité attend la sienne. Sans cette précaution, un service
+démarrant plus vite que sa base échouerait dès le premier accès.
+
+Les \textbf{données survivent aux conteneurs}. Chaque base, le stockage d'objets et le bus écrivent
+dans un volume nommé, indépendant du conteneur qui l'utilise~; reconstruire une image ne détruit donc
+aucune donnée.
+
+Ce mode d'installation répond à une exigence posée au chapitre~\ref{ch:sprint0}~: le système doit
+pouvoir être installé chez un client sans y installer manuellement une seule dépendance. Le
+chapitre~\ref{ch:validation} revient sur son déroulement réel et sur les essais qui l'accompagnent.
+
 \section{Conclusion}
+
+Ce chapitre a fixé la structure dans laquelle les cinq sprints se sont inscrits~: six services
+découpés par domaine métier, chacun maître de sa base~; une passerelle qui vérifie l'identité et les
+droits avant de transmettre~; une isolation des entreprises clientes obtenue par un schéma dédié
+plutôt que par une condition à ne pas oublier~; des échanges par message lorsque la réponse peut
+attendre, avec réessais et file de rebut~; une installation par conteneurs reproductible.
+
+Ces décisions expliquent une bonne part de ce qui suit. Le chapitre~\ref{ch:socle} met en place
+l'identité, les droits et l'isolation qui viennent d'être décrits.
