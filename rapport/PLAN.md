@@ -133,15 +133,26 @@ annoncées · plan du mémoire.
 8. Conclusion
 
 ### Chapitre 3 — Architecture et conception générale (13 p)
-1. Introduction
-2. Microservices ou monolithe — décision argumentée
-3. Vue globale de l'architecture — 7 services, passerelle, 4 PostgreSQL, RabbitMQ, MinIO, OSRM, Keycloak
-4. Description des services et de leurs responsabilités
-5. **Multi-tenance par schéma** — `company_<32hex>`, routage Hibernate, Keycloak Organizations
-6. Modèle de données global — entités du domaine, 49 migrations Flyway
-7. Choix technologiques — Spring Boot 3.3.5 / Java 17, React 19 + Vite, Flutter, PostgreSQL 16, RabbitMQ 4
-8. Architecture de déploiement Docker
-9. Conclusion
+1. Introduction — ½ p
+2. Microservices ou monolithe — décision argumentée, et pourquoi ce découpage par métier — 1,5 p
+3. Vue d'ensemble — 6 services, passerelle, Keycloak, RabbitMQ, MinIO, OSRM — 2,5 p
+   → figure `Architecture/architecture-globale.pdf`
+4. Du modèle de classes aux bases — 2 p → figure `Architecture/donnees-par-service.png`
+   Répartition des entités du chapitre 2 sur quatre bases, ce que deviennent les relations qui
+   traversent une frontière de service (référence par identifiant, aucune jointure), Flyway comme
+   mécanisme de version (159 migrations, dont 139 pour DeliveryMicroservice).
+   **Pas de nouveau diagramme de classes** : celui du chapitre 2 fait foi, le répéter serait
+   compté comme redondance.
+5. **Multi-tenance par schéma** — 3 p — `company_<32hex>`, routage Hibernate, Keycloak
+   Organizations, les trois rejets explicites, et pourquoi ni `tenant_id` ni une base par client
+   → figure `Architecture/routage-multitenant.jpg`
+6. Communication entre services — 2 p — REST synchrone contre événements, files de rebut,
+   relance automatique → figure `Architecture/topologie-messagerie.png`
+7. Déploiement Docker — 1 p — 17 conteneurs, ordre de démarrage, volumes (sans figure)
+8. Conclusion — ½ p
+
+> Les choix technologiques restent au chapitre 2 (« Étude technique ») : les traiter deux fois
+> ferait doublon. Le chapitre 3 justifie des choix d'*architecture*, pas d'outils.
 
 ### Chapitre 4 — Sprint 1 : socle d'identité, d'autorisation et référentiels (15 p)
 Concepts : OAuth2 / OIDC, JWT, JWKS, RBAC, isolation par schéma.
