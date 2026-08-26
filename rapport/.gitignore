@@ -11,8 +11,10 @@
 *.run.xml
 *.synctex.gz
 build.log
-main.pdf
 *.xdv
 *.fdb_latexmk
 *.fls
 *-SAVE-ERROR
+
+# main.pdf est volontairement suivi : le rapport rendu doit rester telechargeable
+# depuis le depot, et chaque version remise laisse une trace.
