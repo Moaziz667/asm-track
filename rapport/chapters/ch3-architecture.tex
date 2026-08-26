@@ -72,11 +72,15 @@ même opération suppose de démêler des dépendances qui se sont installées u
 code, faute d'une frontière qui les empêche de le faire.
 
 Cette frontière vaut aussi vers l'extérieur. Ce qui se trouve derrière l'interface d'un service n'a
-pas à être du code écrit ici~: un prestataire peut prendre sa place, du moment qu'on écrit le service
-qui parle à son interface. Une entreprise qui préférerait confier ses tournées à un transporteur
-plutôt qu'à ses propres chauffeurs n'aurait donc rien à changer dans le reste du système. Ce n'est
-pas une hypothèse~: c'est exactement le rôle que joue déjà l'adaptateur vis-à-vis du progiciel du
-client.
+pas à être du code écrit ici. Le service Chauffeur, par exemple, expose des chauffeurs, leur
+disponibilité et leur position~; le reste du système n'en sait rien de plus, et n'a pas à savoir d'où
+vient l'information.
+
+Une entreprise qui préférerait confier ses tournées à un transporteur plutôt qu'à ses propres
+chauffeurs n'aurait donc qu'à mettre, à cette place, un service qui parle à l'interface de ce
+transporteur. Le service de livraison, la passerelle et le back-office continueraient de fonctionner
+sans une ligne de changement. Le système est prêt à s'appuyer sur des prestataires extérieurs sans
+être réécrit pour autant.
 
 Le découpage suit les \textbf{domaines métier} identifiés au chapitre précédent, et non les couches
 techniques. Il n'existe pas de « service base de données » ni de « service interface »~: chaque
