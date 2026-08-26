@@ -239,14 +239,14 @@ Elle devient un \textbf{simple identifiant}~: la livraison conserve l'identifian
 que la base ne garantisse quoi que ce soit à son sujet. Deux différences en découlent, qu'il faut
 accepter en connaissance de cause.
 
-La base ne vérifie plus que la valeur correspond à quelque chose. C'est au service d'interroger son
-voisin, ou de réagir au message qui lui apprend qu'un chauffeur a disparu.
+\textbf{La base ne vérifie plus rien.} Dans une application unique, une clé étrangère interdit
+d'affecter une livraison à un chauffeur qui n'existe pas~: la base refuse l'écriture. Ici, rien ne
+s'y oppose~; c'est au service de le vérifier lui-même, en interrogeant son voisin ou en réagissant au
+message qui lui apprend qu'un chauffeur a été supprimé.
 
-La jointure disparaît, elle aussi. Tant que les deux tables vivaient ensemble, afficher une tournée
-avec le nom de son chauffeur tenait en une requête~: la base rapprochait les deux d'elle-même.
-Il faut désormais lire la tournée dans sa base, puis demander le nom au service Chauffeur. Deux
-opérations au lieu d'une, et un aller-retour sur le réseau à la place d'un rapprochement que la base
-faisait gratuitement.
+\textbf{La jointure disparaît.} Dans une application unique, une seule requête suffit pour afficher
+une tournée avec le nom de son chauffeur. Ici il en faut deux~: le service lit la tournée dans sa
+base, puis appelle le service Chauffeur pour obtenir le nom.
 
 \subsection{L'évolution du schéma}
 
