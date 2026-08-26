@@ -69,9 +69,27 @@ techniques. Il n'existe pas de « service base de données » ni de « service i
 service porte un domaine complet, de son interface HTTP jusqu'à ses tables. Un développeur qui doit
 corriger le calcul d'une tournée sait donc où aller, sans traverser trois applications.
 
-Ce choix a un prix, assumé~: un appel entre deux services peut échouer, là où un appel de méthode
-dans un monolithe ne le peut pas. Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges}
-expliquent comment cette éventualité est traitée plutôt qu'ignorée.
+Ce choix a un prix, et il vaut mieux le nommer que le laisser découvrir au lecteur. Il tient en
+trois points.
+
+Le premier est l'\textbf{incertitude sur le résultat d'un appel}. Un appel de méthode dans une
+application unique peut évidemment échouer~; mais on sait toujours qu'il a échoué, et la transaction
+en cours annule tout d'un bloc. Un appel entre deux services peut, lui, expirer sans réponse~:
+l'appelant ne sait pas si le travail a été fait ou non. C'est ce doute, et non la panne, qui coûte
+cher~: réessayer risque de faire l'opération deux fois, ne pas réessayer risque de ne pas la faire du
+tout. Il faut donc rendre les opérations rejouables sans double effet, ce que le chapitre~\ref{ch:erp}
+détaille.
+
+Le deuxième est l'\textbf{absence de transaction commune}. Deux écritures dans deux services ne
+peuvent pas être annulées ensemble. Il faut soit accepter un décalage passager entre les deux, soit
+prévoir une opération de rattrapage.
+
+Le troisième est le \textbf{coût d'exploitation}~: plus de conteneurs à démarrer, plus de journaux à
+consulter, et une panne plus longue à localiser puisqu'elle peut venir de n'importe quel maillon de
+la chaîne.
+
+Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges} montrent comment ces trois points
+sont traités plutôt qu'ignorés.
 
 \section{Vue d'ensemble}
 
