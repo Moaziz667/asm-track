@@ -5,7 +5,6 @@ import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.server.resource.authentication.AbstractOAuth2TokenAuthenticationToken;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.stereotype.Component;
 
@@ -23,16 +22,20 @@ public class RbacAuthorizationManager implements AuthorizationManager<RequestAut
     @Override
     public AuthorizationDecision check(Supplier<Authentication> authentication, RequestAuthorizationContext context) {
         Authentication auth = authentication.get();
-        // "Authenticated" in the policy means: bearer of a validated token. Nothing else qualifies.
+        // "Authenticated" in the policy means: someone signed in. The anonymous identity does not
+        // count, however technically authenticated Spring considers it.
         //
-        // Stated as a whitelist on purpose. Spring never leaves a request without an identity: with
-        // no token it installs an anonymous one, which answers true to isAuthenticated(). A rule
-        // written {"authenticated": true} — the profile, the notifications — was therefore satisfied
-        // by a caller holding nothing at all, for anyone reaching a service directly instead of
-        // through the gateway. Excluding anonymous by name would fix that one case; requiring the
-        // token type fixes the class, including whatever Spring may install later (remember-me,
-        // pre-authentication, a test principal) without anyone having to think about it again.
-        if (!(auth instanceof AbstractOAuth2TokenAuthenticationToken<?>) || !auth.isAuthenticated()) {
+        // Spring never leaves a request without one: with no token it installs an anonymous
+        // principal, and that principal answers true to isAuthenticated(). A rule written
+        // {"authenticated": true} — the profile, the notifications — was therefore satisfied by a
+        // caller holding nothing at all, for anyone reaching a service directly instead of through
+        // the gateway.
+        //
+        // Excluded by type rather than by requiring a bearer token: JwtAuthConverter hands us a
+        // UsernamePasswordAuthenticationToken carrying the UserPrincipal, so demanding an OAuth2
+        // token type here would refuse every real user.
+        if (auth == null || !auth.isAuthenticated()
+                || auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken) {
             return new AuthorizationDecision(false);
         }
         Set<String> roles = auth.getAuthorities().stream()

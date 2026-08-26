@@ -8,9 +8,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
 import java.time.Instant;
@@ -26,14 +24,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  * routes were open to a caller holding nothing, for anyone reaching a service directly instead of
  * through the gateway.
  *
- * <p>This test reads the policy rather than a hard-coded list of paths: a rule added later with the
- * same {@code authenticated} requirement is covered the day it ships, without anyone remembering
- * this file exists. That is the part that lasts — the fix in
- * {@link RbacAuthorizationManager} only holds until someone rewrites the line.
+ * <p>Two things make this test worth its lines:
+ *
+ * <p>It reads the policy rather than a hard-coded list of paths, so a rule added later with the
+ * same requirement is covered the day it ships.
+ *
+ * <p>And it builds its principals with the real {@link JwtAuthConverter} rather than a token typed
+ * by hand. That is not a detail: the converter returns a {@code UsernamePasswordAuthenticationToken}
+ * carrying the {@code UserPrincipal}, not a {@code JwtAuthenticationToken}. A hand-made fixture once
+ * hid a guard that demanded the OAuth2 token type and therefore refused every real user — green
+ * tests, and the whole platform answering 403.
  */
 class AnonymousIsNotAuthenticatedTest {
 
     private final RbacAuthorizationManager manager = new RbacAuthorizationManager();
+    private final JwtAuthConverter converter = new JwtAuthConverter();
 
     /** Every path in the canonical policy whose rule is satisfied by the mere fact of being authenticated. */
     @SuppressWarnings("unchecked")
@@ -61,14 +66,17 @@ class AnonymousIsNotAuthenticatedTest {
                 AuthorityUtils.createAuthorityList("ROLE_ANONYMOUS"));
     }
 
-    private static Authentication bearer() {
+    /** A signed-in user, built exactly as the filter chain builds one. */
+    private Authentication signedIn(String realmRole) {
         Jwt jwt = Jwt.withTokenValue("token")
                 .header("alg", "none")
-                .claim("sub", "1c9e2f4a-0000-0000-0000-000000000001")
+                .subject("1c9e2f4a-0000-0000-0000-000000000001")
+                .claim("realm_access", Map.of("roles", List.of(realmRole)))
+                .claim("org_id", "aaaaaaaa-0000-0000-0000-000000000001")
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plusSeconds(300))
                 .build();
-        return new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_DISPATCHER")));
+        return converter.convert(jwt);
     }
 
     @Test
@@ -81,16 +89,17 @@ class AnonymousIsNotAuthenticatedTest {
     @Test
     void anonymousIsRefusedEverywhereAuthenticationAloneWouldSuffice() throws Exception {
         for (String path : authenticatedOnlyPaths()) {
-            assertThat(manager.check(AnonymousIsNotAuthenticatedTest::anonymousStatic, get(path)).isGranted())
+            assertThat(manager.check(AnonymousIsNotAuthenticatedTest::anonymous, get(path)).isGranted())
                     .as("a caller with no token must not reach %s", path)
                     .isFalse();
         }
     }
 
     @Test
-    void aRealBearerTokenIsAccepted() throws Exception {
+    void aSignedInUserIsAccepted() throws Exception {
+        Authentication dispatcher = signedIn("DISPATCHER");
         for (String path : authenticatedOnlyPaths()) {
-            assertThat(manager.check(AnonymousIsNotAuthenticatedTest::bearerStatic, get(path)).isGranted())
+            assertThat(manager.check(() -> dispatcher, get(path)).isGranted())
                     .as("a signed-in operator must still reach %s", path)
                     .isTrue();
         }
@@ -102,29 +111,24 @@ class AnonymousIsNotAuthenticatedTest {
      */
     @Test
     void aValidTokenIsNotEnoughForAGuardedRoute() {
-        assertThat(manager.check(AnonymousIsNotAuthenticatedTest::clientStatic, get("/api/assistant/query")).isGranted())
-                .as("the assistant answers to the operator roles, not to any bearer")
+        Authentication client = signedIn("CLIENT");
+        Authentication dispatcher = signedIn("DISPATCHER");
+        assertThat(manager.check(() -> client, get("/api/assistant/query")).isGranted())
+                .as("the assistant answers to the operator roles, not to any signed-in user")
                 .isFalse();
-        assertThat(manager.check(AnonymousIsNotAuthenticatedTest::bearerStatic, get("/api/assistant/query")).isGranted())
+        assertThat(manager.check(() -> dispatcher, get("/api/assistant/query")).isGranted())
                 .as("a dispatcher does reach it")
                 .isTrue();
     }
 
-    private static Authentication anonymousStatic() {
-        return anonymous();
-    }
-
-    private static Authentication bearerStatic() {
-        return bearer();
-    }
-
-    private static Authentication clientStatic() {
-        Jwt jwt = Jwt.withTokenValue("token")
-                .header("alg", "none")
-                .claim("sub", "1c9e2f4a-0000-0000-0000-000000000002")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(300))
-                .build();
-        return new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_CLIENT")));
+    /**
+     * Guards the assumption the whole file rests on. If the converter ever starts returning another
+     * token type, the tests above would still pass while the running service refused everyone.
+     */
+    @Test
+    void theConverterReturnsTheTokenTypeTheGuardExpects() {
+        assertThat(signedIn("DISPATCHER"))
+                .isInstanceOf(org.springframework.security.authentication.UsernamePasswordAuthenticationToken.class);
+        assertThat(signedIn("DISPATCHER").isAuthenticated()).isTrue();
     }
 }
