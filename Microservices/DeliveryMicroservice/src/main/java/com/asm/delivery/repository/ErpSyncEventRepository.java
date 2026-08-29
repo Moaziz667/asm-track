@@ -29,6 +29,10 @@ public interface ErpSyncEventRepository extends JpaRepository<ErpSyncEvent, UUID
             """)
     List<ErpSyncEvent> recent(@Param("failedOnly") boolean failedOnly, Pageable page);
 
+    /** Total number of journal rows matching the same filter, for the console's pagination. */
+    @Query("SELECT COUNT(e) FROM ErpSyncEvent e WHERE (:failedOnly = false OR e.success = false)")
+    long countRecent(@Param("failedOnly") boolean failedOnly);
+
     /** Everything this one order has been through, newest first — the per-delivery drill-down. */
     List<ErpSyncEvent> findByOrderIdOrderByOccurredAtDesc(UUID orderId);
 

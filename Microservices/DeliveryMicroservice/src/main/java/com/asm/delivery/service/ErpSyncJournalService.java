@@ -30,21 +30,28 @@ public class ErpSyncJournalService {
     private final SystemSettingsService settingsService;
 
     /**
-     * The most recent attempts, newest first, with a 24h success/failure tally for the card header.
+     * A page of attempts, newest first, with a 24h success/failure tally for the card header and the
+     * total row count so the console can paginate.
      *
-     * @param limit      how many rows to return, clamped to {@value #MAX_LIMIT}
+     * @param page       zero-based page index, clamped to {@code >= 0}
+     * @param size       page size, clamped to {@value #MAX_LIMIT}
      * @param failedOnly when true, only the rejected attempts
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> recent(int limit, boolean failedOnly) {
-        int capped = Math.min(Math.max(limit, 1), MAX_LIMIT);
-        List<ErpSyncEvent> events = repo.recent(failedOnly, PageRequest.of(0, capped));
+    public Map<String, Object> recent(int page, int size, boolean failedOnly) {
+        int capped = Math.min(Math.max(size, 1), MAX_LIMIT);
+        int pageIndex = Math.max(page, 0);
+        List<ErpSyncEvent> events = repo.recent(failedOnly, PageRequest.of(pageIndex, capped));
 
         LocalDateTime dayAgo = LocalDateTime.now().minusDays(1);
         Map<String, Object> out = new HashMap<>();
         out.put("events", events.stream().map(ErpSyncJournalService::toMap).toList());
         out.put("total24h", repo.countByOccurredAtAfter(dayAgo));
         out.put("failed24h", repo.countBySuccessFalseAndOccurredAtAfter(dayAgo));
+        // The whole journal, not just the page, so the console knows how many pages there are.
+        out.put("total", repo.countRecent(failedOnly));
+        out.put("page", pageIndex);
+        out.put("size", capped);
         // The console names the ERP rather than assuming Odoo — the journal is the only place that
         // knows which one this tenant actually talks to.
         out.put("provider", settingsService.get("erp.provider"));

@@ -48,9 +48,10 @@ public class AdminSystemHealthController {
             description = "Unlike /health, which reports the current state, this returns every recorded "
                     + "attempt — including failures that were later retried successfully.")
     public ResponseEntity<Map<String, Object>> erpSyncHistory(
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "false") boolean failedOnly) {
-        return ResponseEntity.ok(syncJournalService.recent(limit, failedOnly));
+        return ResponseEntity.ok(syncJournalService.recent(page, limit, failedOnly));
     }
 
     @GetMapping("/erp-sync/history/{orderId}")

@@ -47,7 +47,10 @@ interface SyncEvent {
 }
 interface JournalPayload {
   events: SyncEvent[]; total24h: number; failed24h: number; provider: string | null;
+  total?: number; page?: number; size?: number;
 }
+
+const JOURNAL_PAGE_SIZE = 50;
 
 const PROVIDER_LABELS: Record<string, string> = { odoo: 'Odoo', erpnext: 'ERPNext' };
 
@@ -181,6 +184,7 @@ export default function SystemHealthPage() {
   const [data, setData] = useState<HealthPayload | null>(null);
   const [journal, setJournal] = useState<JournalPayload | null>(null);
   const [onlyFailed, setOnlyFailed] = useState(false);
+  const [journalPage, setJournalPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [replaying, setReplaying] = useState<string | null>(null);
   const [resyncing, setResyncing] = useState<string | null>(null);
@@ -238,7 +242,7 @@ export default function SystemHealthPage() {
     try {
       const [snapRes, journalRes] = await Promise.all([
         api.get<HealthPayload>('/admin/system/health'),
-        api.get<JournalPayload>('/admin/system/erp-sync/history', { params: { limit: 50, failedOnly: onlyFailed } })
+        api.get<JournalPayload>('/admin/system/erp-sync/history', { params: { page: journalPage, limit: JOURNAL_PAGE_SIZE, failedOnly: onlyFailed } })
           .catch(() => ({ data: null as JournalPayload | null })),
       ]);
       setData(snapRes.data);
@@ -251,7 +255,7 @@ export default function SystemHealthPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [dd, onlyFailed]);
+  }, [dd, onlyFailed, journalPage]);
 
   useEffect(() => {
     // Silent on mount: the visible spinner belongs to an explicit refresh, and a non-silent call
@@ -334,6 +338,8 @@ export default function SystemHealthPage() {
 
   const groups = groupServices(breakers, getFriendlyService);
   const events = journal?.events ?? [];
+  const journalTotal = journal?.total ?? events.length;
+  const journalTotalPages = Math.max(1, Math.ceil(journalTotal / JOURNAL_PAGE_SIZE));
   const loading = data === null && connected;
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -459,7 +465,7 @@ export default function SystemHealthPage() {
           aside={
             <SegmentedControl<'all' | 'failed'>
               value={onlyFailed ? 'failed' : 'all'}
-              onChange={(v) => setOnlyFailed(v === 'failed')}
+              onChange={(v) => { setOnlyFailed(v === 'failed'); setJournalPage(0); }}
               options={[{ value: 'all', label: dd.journalAll }, { value: 'failed', label: dd.journalOnlyFailed }]}
             />
           }
@@ -501,6 +507,33 @@ export default function SystemHealthPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {journalTotal > JOURNAL_PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-[var(--border)]">
+              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                {dd.journalPage.replace('{page}', String(journalPage + 1)).replace('{total}', String(journalTotalPages))}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={journalPage === 0}
+                  onClick={() => setJournalPage(p => Math.max(0, p - 1))}
+                  className="px-2.5 py-1 rounded-[var(--radius)] border border-[var(--border)] text-xs hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {dd.journalPrev}
+                </button>
+                <button
+                  type="button"
+                  disabled={journalPage + 1 >= journalTotalPages}
+                  onClick={() => setJournalPage(p => p + 1)}
+                  className="px-2.5 py-1 rounded-[var(--radius)] border border-[var(--border)] text-xs hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {dd.journalNext}
+                </button>
+              </div>
             </div>
           )}
         </Section>
