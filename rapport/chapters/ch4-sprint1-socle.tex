@@ -1,7 +1,538 @@
 % Budget : 15 pages — voir rapport/PLAN.md
+%
+% Figures : diagrammes dans diagrams/drawio/Sprint1/ (uc-sprint1-corrige, class-conception-tenant-core,
+% seq-oidc-authentification), atteints par le \graphicspath du preambule. Les captures d'ecran du
+% back-office et de la CI sont des emplacements a completer (macro \captureaplacer ci-dessous).
 \chapter{Sprint 1 — Socle d'identité, d'autorisation et de multi-tenance}
 \label{ch:socle}
 
+% Emplacement de capture a completer : dessine un cadre gris a la place de l'image, de sorte que le
+% document compile avant que la copie d'ecran ne soit fournie. Remplacer par \includegraphics le moment venu.
+\newcommand{\captureaplacer}[2]{%
+  \begin{center}
+  \setlength{\fboxsep}{0pt}%
+  \fcolorbox{gray!50}{gray!8}{\begin{minipage}[c][0.26\textheight][c]{0.86\textwidth}
+    \centering\itshape\color{gray!80}%
+    [\,Capture à insérer\,]\\[6pt]\code{#1}\\[10pt]\normalfont\itshape #2
+  \end{minipage}}
+  \end{center}%
+}
+
 \section{Introduction}
 
+Le chapitre précédent a fixé la structure du système. Ce sprint la remplit par le bas~: avant
+d'ouvrir la moindre fonction métier, il faut savoir \emph{qui} parle au système, \emph{ce qu'il a le
+droit de faire}, et \emph{de quelle entreprise il relève}. Ces trois questions se répondent une fois,
+au même endroit, et tout le reste du logiciel s'appuie sur ces réponses.
+
+Le sprint livre donc un socle en trois volets. Le premier est l'\textbf{identité}~: une connexion
+unique, déléguée à un serveur spécialisé, qui délivre un jeton signé. Le deuxième est
+l'\textbf{autorisation}~: une politique déclarative qui dit, règle par règle, quelle permission
+ouvre quelle route. Le troisième est l'\textbf{isolation}~: chaque entreprise cliente ne voit que
+ses propres données, garanties par un schéma de base de données qui lui est réservé.
+
+Sur ce socle, le sprint pose déjà les premiers écrans exploitables~: la gestion des comptes et des
+rôles, puis trois référentiels — chauffeurs, véhicules et zones — qui seront le point de départ des
+tournées du sprint~3.
+
+\section{Objectifs du sprint et planification des tâches}
+
+\subsection{Objectifs attendus}
+
+Ce sprint vise un socle sur lequel les quatre suivants pourront se greffer sans le remettre en cause.
+Cinq résultats sont attendus~:
+
+\begin{itemize}
+  \item une \textbf{authentification centralisée}, sans code maison de gestion de mots de passe~;
+  \item une \textbf{autorisation lisible et unique}, la même pour la passerelle et pour chaque
+        service~;
+  \item une \textbf{isolation des entreprises clientes} vérifiée, et non supposée~;
+  \item la \textbf{gestion des comptes et des rôles} depuis le back-office~;
+  \item trois \textbf{référentiels d'exploitation} — chauffeurs, véhicules, zones — chacun derrière
+        l'authentification et les permissions.
+\end{itemize}
+
+Le périmètre couvre sept \terme{user stories} — US-01 à US-04 pour le socle, US-12 à US-14 pour les
+référentiels — soit \textbf{46 points} d'effort. Le tableau~\ref{tab:backlog-s1} en donne la
+décomposition en tâches.
+
+\subsection{Sprint backlog}
+
+Le tableau~\ref{tab:backlog-s1} détaille les tâches du sprint, regroupées par \terme{user story}, avec
+leur priorité relative. Les tâches de sécurité et d'isolation sont en priorité haute~: elles
+conditionnent tout le reste.
+
+\begin{small}
+\begin{longtable}{L{1.1cm}L{4.4cm}L{1.2cm}L{5.6cm}L{1.4cm}}
+\caption{Sprint backlog — sprint 1}\label{tab:backlog-s1}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endfirsthead
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endhead
+\hline
+\endfoot
+
+US-01 & En tant qu'utilisateur, je veux m'authentifier par un compte unique afin d'accéder aux écrans correspondant à mon rôle. (8 pts) & T1-01 & Configurer le realm \code{asm} et les organisations dans Keycloak & Haute \\
+\hline
+      &  & T1-02 & Intégrer le flux Authorization Code + PKCE au back-office React & Haute \\
+\hline
+      &  & T1-03 & Personnaliser le thème de connexion (Keycloakify)~: langue et mode sombre de l'application & Moyenne \\
+\hline
+      &  & T1-04 & Valider la signature des jetons par JWKS à la passerelle & Haute \\
+\hline
+US-02 & En tant qu'administrateur, je veux créer des comptes et leur attribuer un rôle afin de contrôler qui accède à quoi. (3 pts) & T1-05 & Créer, modifier un compte et lui attribuer un rôle & Haute \\
+\hline
+      &  & T1-06 & Activer ou désactiver un compte, réinitialiser le mot de passe, forcer la déconnexion & Moyenne \\
+\hline
+      &  & T1-07 & Provisionner une nouvelle entreprise cliente (organisation, schémas et compte administrateur) avec annulation en cas d'échec & Haute \\
+\hline
+US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger la politique déclarative unique — 46 règles, 18 permissions & Haute \\
+\hline
+      &  & T1-09 & Appliquer la même politique d'autorisation à la passerelle et à chaque service, contrôlée en CI & Haute \\
+\hline
+      &  & T1-10 & Modéliser les trois rôles composites dans Keycloak & Haute \\
+\hline
+      &  & T1-11 & Évaluer la politique à la passerelle et la re-vérifier dans chaque service & Haute \\
+\hline
+US-04 & En tant qu'entreprise cliente, je veux que mes données soient inaccessibles aux autres entreprises hébergées afin de garantir ma confidentialité. (13 pts) & T1-12 & Concevoir le module partagé \code{asm-tenant-core} (routage Hibernate par schéma) & Haute \\
+\hline
+      &  & T1-13 & Déduire l'en-tête d'entreprise du contenu du jeton & Haute \\
+\hline
+      &  & T1-14 & Propager le locataire dans les messages asynchrones & Haute \\
+\hline
+      &  & T1-15 & Provisionner et migrer les schémas au démarrage & Haute \\
+\hline
+US-12 & En tant qu'administrateur, je veux gérer la liste des chauffeurs afin de refléter l'équipe réelle. (3 pts) & T1-16 & Modéliser et exposer le référentiel des chauffeurs & Moyenne \\
+\hline
+      &  & T1-17 & Réaliser l'écran back-office des chauffeurs & Moyenne \\
+\hline
+US-13 & En tant qu'administrateur, je veux gérer le parc de véhicules avec leur capacité afin de pouvoir les affecter. (3 pts) & T1-18 & Modéliser et exposer le référentiel des véhicules & Moyenne \\
+\hline
+US-14 & En tant qu'administrateur, je veux définir des zones géographiques afin de regrouper les livraisons par secteur. (8 pts) & T1-19 & Modéliser et exposer le référentiel des zones & Basse \\
+\hline
+\end{longtable}
+\end{small}
+
+\section{Concepts et mécanismes utilisés}
+
+Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement, dans l'ordre où le jeton d'un
+utilisateur les rencontre.
+
+\paragraph{OAuth2 et OpenID Connect~:} L'authentification n'est pas écrite dans le projet~: elle est
+déléguée à \textbf{Keycloak}, un serveur d'identité spécialisé. \terme{OpenID Connect} est le
+protocole standard par lequel une application obtient, de ce serveur, la preuve qu'un utilisateur est
+bien celui qu'il prétend être. L'application ne voit jamais le mot de passe~: elle reçoit, à la place,
+un jeton. Écrire soi-même cette mécanique — rotation des clés, expiration, révocation, verrouillage
+après échecs — aurait multiplié les occasions de mal faire, sans rien apporter de propre à une
+plateforme de livraison.
+
+\paragraph{Le jeton JWT~:} Le jeton délivré est un \terme{JSON Web Token}~: un petit document signé qui
+porte l'identité de l'utilisateur, son rôle et son entreprise. Sa signature en empêche toute
+altération. Comme il se suffit à lui-même, un service qui le reçoit peut décider seul, sans rappeler
+le serveur d'identité à chaque requête.
+
+\paragraph{La validation par JWKS~:} Encore faut-il vérifier cette signature. Keycloak publie ses clés
+publiques à une adresse connue — le \terme{JWKS}. La passerelle les récupère une fois, les garde en
+mémoire, et s'en sert pour valider chaque jeton. Elle ne détient donc \textbf{aucun secret partagé}~:
+elle vérifie une signature avec une clé publique, exactement comme on vérifie un sceau sans posséder
+le tampon qui l'a apposé.
+
+\paragraph{Le contrôle d'accès par rôles (RBAC)~:} Un jeton valide dit \emph{qui} parle~; il reste à
+décider \emph{ce qu'il peut faire}. Le projet suit le modèle \terme{RBAC}~: des permissions
+élémentaires — lire les chauffeurs, gérer les tournées — sont regroupées dans des rôles. Un rôle
+n'est qu'un sac de permissions. La figure~\ref{fig:matrice-perms} donne la répartition exacte des
+dix-huit permissions sur les trois rôles de la plateforme.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{rbacTableau}
+\caption{Matrice des permissions par rôle}
+\label{fig:matrice-perms}
+\end{figure}
+
+Cette matrice se lit ligne à ligne. L'\textbf{administrateur} détient les dix-huit permissions~: il
+gouverne son entreprise. Le \textbf{dispatcheur} en détient onze — celles qui font tourner
+l'exploitation au quotidien, y compris déclencher un import depuis le progiciel du client. Le
+\textbf{responsable} en détient six, toutes de lecture, plus l'accès au journal d'audit~: il
+supervise et relit les actions des autres, mais n'opère pas lui-même. La séparation entre le
+dispatcheur et le responsable est délibérée~: superviser n'est pas exécuter.
+
+\paragraph{Les organisations Keycloak~:} Keycloak sait regrouper ses utilisateurs en
+\terme{organisations}. Le projet s'en sert pour représenter les entreprises clientes~: chaque
+entreprise est une organisation, chaque utilisateur en est membre, et cette appartenance est inscrite
+dans son jeton. La notion de client de la plateforme n'a donc pas eu à être réinventée~: elle est
+portée par une fonctionnalité native du serveur d'identité, et c'est elle qui, à l'étape suivante,
+désigne le schéma de l'entreprise.
+
+\paragraph{L'isolation par schéma~:} L'entreprise inscrite dans le jeton désigne
+un \terme{schéma} de base de données réservé à ce client. Chaque requête s'exécute alors dans ce
+schéma, sans que le développeur ait à écrire la moindre condition de filtrage. Ce
+mécanisme, décrit au chapitre~\ref{ch:archi}, est mis en \oe uvre concrètement dans ce sprint.
+
+\section{Analyse et spécification des besoins}
+
+\subsection{Diagramme de cas d'utilisation du sprint}
+
+La figure~\ref{fig:uc-s1} présente les cas d'utilisation du sprint. Elle distingue ce que fait tout
+utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrateur peut faire.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{uc-sprint1-corrige}
+\caption{Diagramme de cas d'utilisation du sprint 1}
+\label{fig:uc-s1}
+\end{figure}
+
+Trois lectures s'en dégagent. D'abord, tout part de \textbf{S'authentifier}~: chaque autre cas
+l'inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
+authentifié} — administrateur, dispatcheur, responsable ou livreur — gère son propre compte~: mot de
+passe, profil, déconnexion de ses autres appareils. Enfin, l'\textbf{administrateur} concentre les
+actions de gouvernance~: créer et modifier des comptes, attribuer des rôles, et administrer les trois
+référentiels (chauffeurs, véhicules, zones). Keycloak apparaît comme un système externe~: c'est lui
+qui porte les comptes et délivre les jetons.
+
+\subsection{Description détaillée des cas d'utilisation}
+
+Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authentifier}), le plus sensible
+(\emph{Créer un compte utilisateur}) et un référentiel représentatif (\emph{Ajouter un chauffeur}).
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « S'authentifier »}
+\label{tab:cu-auth}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & S'authentifier \\
+\hline
+\textbf{Acteur} & Utilisateur (administrateur, dispatcheur, responsable, livreur) \\
+\hline
+\textbf{Résumé} & Obtenir un jeton d'accès signé auprès de Keycloak afin d'atteindre les ressources protégées de la plateforme. \\
+\hline
+\textbf{Préconditions} & Le compte existe dans le realm \code{asm} et il est actif. \\
+\hline
+\textbf{Postconditions} & L'utilisateur détient un jeton signé portant son rôle et son entreprise~; une session est établie. \\
+\hline
+\textbf{Scénario nominal} & 1. L'utilisateur ouvre le back-office. \newline 2. L'application le redirige vers Keycloak (Authorization Code + PKCE). \newline 3. Il saisit ses identifiants. \newline 4. Keycloak renvoie un code d'autorisation. \newline 5. L'application échange le code contre les jetons. \newline 6. Les requêtes suivantes portent le jeton, validé par JWKS à la passerelle. \\
+\hline
+\textbf{Scénarios alternatifs} & 3a. Identifiants invalides~: Keycloak affiche une erreur, aucun jeton n'est délivré. \newline 6a. Jeton expiré~: l'application le renouvelle silencieusement puis rejoue la requête. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Créer un compte utilisateur »}
+\label{tab:cu-comptes}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Créer un compte utilisateur \\
+\hline
+\textbf{Acteur} & Administrateur \\
+\hline
+\textbf{Résumé} & Créer un compte et lui attribuer le rôle qui fixe ses permissions. \\
+\hline
+\textbf{Préconditions} & L'administrateur est authentifié et détient la permission \code{user:manage}. \\
+\hline
+\textbf{Postconditions} & Le compte est créé dans Keycloak et rattaché à l'organisation de l'entreprise~; le rôle choisi fixe ses permissions. \\
+\hline
+\textbf{Scénario nominal} & 1. L'administrateur ouvre la section « Identités et accès ». \newline 2. Il choisit « Nouveau compte ». \newline 3. Il renseigne le nom et l'adresse électronique. \newline 4. Il choisit un rôle dans la liste. \newline 5. Il valide~; le compte est créé et ajouté à l'organisation de l'entreprise. \\
+\hline
+\textbf{Scénarios alternatifs} & 5a. L'adresse électronique est déjà utilisée~: la création est refusée. \newline 1a. Permission \code{user:manage} absente~: l'accès est refusé (403). \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Ajouter un chauffeur »}
+\label{tab:cu-chauffeurs}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Ajouter un chauffeur \\
+\hline
+\textbf{Acteur} & Administrateur \\
+\hline
+\textbf{Résumé} & Ajouter un chauffeur au référentiel de l'entreprise. \\
+\hline
+\textbf{Préconditions} & L'administrateur est authentifié et détient la permission \code{driver:manage}. \\
+\hline
+\textbf{Postconditions} & Le chauffeur est enregistré dans le schéma de l'entreprise courante. \\
+\hline
+\textbf{Scénario nominal} & 1. L'administrateur ouvre l'écran des chauffeurs. \newline 2. Il choisit « Ajouter un chauffeur ». \newline 3. Il renseigne la fiche. \newline 4. Il valide~; la fiche est enregistrée. \\
+\hline
+\textbf{Scénarios alternatifs} & 1a. L'utilisateur ne détient que \code{driver:view} (consultation)~: l'ajout est refusé (403). \newline 3a. Un champ obligatoire manque ou une saisie est invalide (téléphone, adresse électronique)~: l'erreur est signalée et la fiche n'est pas enregistrée. \newline 4a. Un chauffeur au même numéro de téléphone existe déjà dans l'entreprise~: la création est refusée. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Modélisation conceptuelle}
+
+\subsection{Diagramme de classes}
+
+Le c\oe ur du sprint tient dans un petit module partagé, \code{asm-tenant-core}, qui porte la mécanique
+d'isolation par schéma. La figure~\ref{fig:class-tenant} en donne le diagramme de classes de
+conception.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{class-conception-tenant-core}
+\caption{Diagramme de classes du module \code{asm-tenant-core}}
+\label{fig:class-tenant}
+\end{figure}
+
+Le module s'articule autour de deux interfaces d'Hibernate. \code{TenantIdentifierResolver} répond à
+la question « quel est le locataire courant~? » en lisant le contexte de la requête~;
+\code{SchemaMultiTenantConnectionProvider} traduit ce locataire en nom de schéma et l'applique à la
+connexion de base de données. Autour, trois classes remplissent ce contexte, c'est-à-dire y déposent
+l'entreprise de la requête en cours. Le \code{TenantContextFilter} le fait au début de chaque requête
+HTTP, en lisant l'entreprise dans l'en-tête reçu. Les deux post-processeurs font de même pour les
+messages échangés entre services~: l'un ajoute l'entreprise au message au moment de l'envoi, l'autre
+la relit à la réception, avant que le message ne soit traité. Enfin, \code{TenantSchema} traduit
+l'identifiant de l'entreprise en nom de schéma.
+
+Un point mérite d'être souligné~: ce module n'est pas un service, mais une \textbf{bibliothèque}
+consommée par quatre services à la fois. La même mécanique d'isolation s'applique ainsi partout, sans
+être réécrite ni risquer de diverger d'un service à l'autre.
+
+\subsection{Diagrammes de séquence}
+
+La figure~\ref{fig:seq-oidc} suit une requête, de la connexion de l'utilisateur jusqu'à l'accès à une
+ressource protégée.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{seq-oidc-authentification}
+\caption{Séquence d'authentification OpenID Connect et d'accès à une ressource}
+\label{fig:seq-oidc}
+\end{figure}
+
+La séquence se lit en deux phases. La \textbf{première} est l'authentification proprement dite~:
+l'application redirige l'utilisateur vers Keycloak, qui vérifie ses identifiants et renvoie un code,
+lequel est échangé contre un jeton. Le jeton ne transite jamais par l'URL grâce au flux Authorization
+Code, tandis que PKCE protège le code d'autorisation contre une éventuelle interception.
+
+La \textbf{seconde} phase est l'accès à une ressource. La requête, porteuse du jeton, atteint la
+passerelle. Celle-ci récupère les clés publiques de Keycloak — une seule fois, puis les garde en
+cache — vérifie alors deux choses~: que la signature du jeton est valide, et que l'utilisateur porte
+la permission requise. Elle ne transmet la requête au service que si ces deux conditions sont
+réunies~; sinon, elle la rejette elle-même et le service n'est jamais sollicité. Un dernier cas ne se
+produit que si le jeton a expiré~: l'application le renouvelle alors sans que l'utilisateur ne s'en
+aperçoive, puis rejoue la requête d'origine.
+
+\section{Réalisation}
+
+Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
+montrée.
+
+La figure~\ref{fig:s1-login} montre l'écran de connexion Keycloak, habillé aux couleurs de
+l'application. Le thème reçoit la langue et le mode d'affichage du back-office, pour que le passage
+par le serveur d'identité ne soit pas visible par l'utilisateur.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-login-keycloak}
+\caption{Écran de connexion Keycloak (thème ASM)}\label{fig:s1-login}\end{figure}
+
+La figure~\ref{fig:s1-comptes} présente la liste des comptes, dans la section « Identités et accès »
+des paramètres. Chaque ligne indique le rôle du compte et son état.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-comptes-liste}
+\caption{Liste des comptes et de leurs rôles}\label{fig:s1-comptes}\end{figure}
+
+La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, le menu de choix du
+rôle déroulé. C'est ici que se lit, concrètement, la matrice de permissions présentée plus haut~: le
+rôle choisi détermine tout ce que le compte pourra faire.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-comptes-creation}
+\caption{Création d'un compte et attribution d'un rôle}\label{fig:s1-creation}\end{figure}
+
+La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs, et la
+figure~\ref{fig:s1-zones} celui des zones. Ces deux référentiels, avec celui des véhicules,
+alimenteront la planification des tournées au sprint~3.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-chauffeurs}
+\caption{Référentiel des chauffeurs}\label{fig:s1-chauffeurs}\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-zones}
+\caption{Référentiel des zones}\label{fig:s1-zones}\end{figure}
+
+Enfin, la figure~\ref{fig:s1-refus} illustre le contrôle d'accès en situation~: un compte responsable
+tente d'atteindre le constructeur de tournées, réservé à qui détient \code{route:manage}. L'accès est
+refusé. L'interface, elle, avait déjà masqué l'entrée~; mais le refus réel a lieu côté serveur.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s1-acces-refuse}
+\caption{Accès refusé à une action non permise}\label{fig:s1-refus}\end{figure}
+
+\section{Tests et validation}
+
+\subsection{Scénarios de validation}
+
+Trois scénarios couvrent les trois volets du socle~: l'authentification, l'autorisation et
+l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:tc-s1-03}.
+
+\begin{table}[H]
+\centering
+\caption{TC-S1-01 — Authentification et rejet de l'anonyme}
+\label{tab:tc-s1-01}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S1-01 \\
+\hline
+\textbf{Description} & Un utilisateur muni d'identifiants valides obtient un jeton~; un appel sans jeton est rejeté. \\
+\hline
+\textbf{Précondition} & Un compte actif existe dans le realm \code{asm}. \\
+\hline
+\textbf{Scénario} & 1. Se connecter avec des identifiants valides. \newline 2. Appeler une route protégée avec le jeton. \newline 3. Rappeler la même route sans jeton. \\
+\hline
+\textbf{Résultat attendu} & Étape 2~: réponse \code{200}. Étape 3~: réponse \code{401}, sans atteindre le service. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S1-02 — Autorisation : lecture, écriture et cloisonnement des API}
+\label{tab:tc-s1-02}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S1-02 \\
+\hline
+\textbf{Description} & Un droit de lecture (\code{driver:view}) ne permet pas d'écrire~; et le compte de l'application livreur (rôle \code{DRIVER}) ne peut pas atteindre le back-office. \\
+\hline
+\textbf{Précondition} & Un compte détenant \code{driver:view} et un compte de rôle \code{DRIVER}. \\
+\hline
+\textbf{Scénario} & 1. Avec \code{driver:view}, lire puis tenter d'écrire un chauffeur. \newline 2. Avec le rôle \code{DRIVER}, appeler une route du back-office. \\
+\hline
+\textbf{Résultat attendu} & Lecture \code{200}, écriture \code{403}~; route back-office refusée au livreur. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S1-03 — Isolation des données entre deux entreprises}
+\label{tab:tc-s1-03}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S1-03 \\
+\hline
+\textbf{Description} & Une donnée écrite pour l'entreprise A est invisible pour l'entreprise B, et inversement. \\
+\hline
+\textbf{Précondition} & Deux entreprises provisionnées, chacune avec son schéma. \\
+\hline
+\textbf{Scénario} & 1. Écrire un enregistrement sous A. \newline 2. Sous B, lister les enregistrements. \newline 3. Écrire sous B, puis relire sous A. \\
+\hline
+\textbf{Résultat attendu} & B ne voit jamais la donnée de A~; chaque entreprise ne voit que la sienne. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Tests automatisés}
+
+Les trois scénarios ci-dessus sont aussi vérifiés par des tests automatisés, rejoués à chaque
+intégration. Le socle du sprint compte \textbf{47 méthodes de test}, réparties en deux familles~:
+\textbf{40 tests unitaires} sur 6 classes, et \textbf{7 tests d'intégration} sur 3 classes, qui
+s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépare les deux.
+
+\begin{table}[H]
+\centering
+\caption{Tests automatisés du sprint 1}
+\label{tab:tests-s1}
+\small
+\begin{tabular}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 6 classes, 40 méthodes}} \\
+\hline
+\code{RbacPolicyTest} (passerelle) & 8 & L'évaluation de la politique d'autorisation \\
+\hline
+\code{RbacPolicyTest} (service Chauffeur) & 8 & La même politique, re-vérifiée dans le service \\
+\hline
+\code{JwtAuthConverterTest} & 8 & L'extraction de l'identité et de l'entreprise depuis le jeton \\
+\hline
+\code{TenantOnboardingServiceTest} & 6 & Le provisionnement d'une entreprise et son annulation \\
+\hline
+\code{TenantSchemaTest} & 5 & La dérivation du nom de schéma \\
+\hline
+\code{AnonymousIsNotAuthenticatedTest} & 5 & Le rejet de l'appelant sans jeton \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'intégration (base PostgreSQL réelle) — 3 classes, 7 méthodes}} \\
+\hline
+\code{AuthorizationIT} & 3 & L'accès réservé aux rôles opérateurs \\
+\hline
+\code{TenantIsolationIT} (livraison) & 2 & L'isolation sur base réelle \\
+\hline
+\code{TenantIsolationIT} (assistant) & 2 & L'isolation sur base réelle \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Total} & \textbf{47} & \textbf{9 classes} \\
+\hline
+\end{tabular}
+\end{table}
+
+Le nombre de tests compte moins que ce qu'ils protègent. Trois classes méritent qu'on les explique en
+clair.
+
+\code{RbacPolicyTest} vérifie cinq règles de l'autorisation. Un chemin qu'aucune règle ne couvre est
+refusé. L'API du livreur et le back-office restent séparés. Lire et écrire un même chemin sont deux
+droits distincts. L'administrateur passe par ses permissions, et non par un statut de
+super-utilisateur. Enfin, l'ordre des règles est respecté~: ce point n'est pas un détail, car l'ordre
+décide quelle règle s'applique à un chemin, et donc les droits réellement accordés.
+
+\code{JwtAuthConverterTest} protège le moment le plus sensible~: la lecture de l'entreprise dans le
+jeton. Une erreur ici ne déclenche aucune alarme~: la requête réussit, mais sur le mauvais schéma. Les
+tests exigent donc que l'entreprise soit lue correctement quand elle est là, et laissée \textbf{vide
+plutôt que devinée} quand elle manque ou est mal formée.
+
+\code{TenantIsolationIT} écrit vraiment sous une première entreprise, vérifie que rien n'apparaît sous
+une seconde, puis fait l'inverse. Ce sont le vrai mécanisme d'Hibernate et le vrai \code{search\_path}
+de PostgreSQL qui sont mis à l'épreuve~: une base simulée testerait l'imitation, pas l'isolation.
+
+Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'intégration continue à
+chaque \emph{commit}. Les figures~\ref{fig:s1-ci-rbac} et~\ref{fig:s1-ci-iso} en montrent deux
+étapes~: le job qui s'assure que les cinq services portent la même politique — même empreinte, 46
+règles, 18 permissions — et la suite d'isolation passant au vert.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-rbac-check}
+\caption{Contrôle en CI de l'unicité de la politique d'autorisation}\label{fig:s1-ci-rbac}\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-isolation}
+\caption{Exécution en CI des tests d'isolation}\label{fig:s1-ci-iso}\end{figure}
+
 \section{Conclusion}
+
+Ce sprint a posé le socle sur lequel tout le reste s'appuie. L'identité est déléguée à un serveur
+spécialisé et prouvée par un jeton signé. L'autorisation tient dans une politique unique, lisible et
+répliquée à l'identique, qui distingue dix-huit permissions et trois rôles. L'isolation des
+entreprises clientes est obtenue par un schéma dédié, et vérifiée sur une base réelle plutôt que
+supposée. Sur ce socle, la gestion des comptes et trois référentiels d'exploitation sont déjà
+livrés.
+
+Le sprint suivant met à profit cette base pour l'apport le plus original du projet~: l'intégration à
+n'importe quel progiciel de gestion, sans dépendre de son éditeur.

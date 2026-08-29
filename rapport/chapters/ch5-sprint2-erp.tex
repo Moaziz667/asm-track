@@ -1,7 +1,527 @@
-% Budget : 16 pages — voir rapport/PLAN.md
+% Budget : 16 pages — voir rapport/PLAN.md (chapitre le plus long : l'apport le plus original)
+%
+% Diagrammes dans diagrams/drawio/Sprint2/ (uc-sprint2, PORTADAPTER, Seq2FINALoh, etattarns),
+% atteints par le \graphicspath du preambule. La macro \captureaplacer est definie au chapitre 4.
 \chapter{Sprint 2 — Intégration ERP agnostique}
 \label{ch:erp}
 
 \section{Introduction}
 
+Le socle du sprint précédent sait qui parle au système et ce qu'il a le droit de faire. Il reste à le
+relier au progiciel de gestion de chaque client. C'est l'objet de ce sprint, et l'apport le plus
+original du projet.
+
+Le problème n'est pas de parler à \emph{un} progiciel, mais à \emph{n'importe lequel}. Deux
+variations doivent être absorbées. D'abord, les clients n'ont pas tous le même progiciel~: Odoo domine
+le marché tunisien des PME, mais pas seul. Ensuite, un même progiciel change d'une version à l'autre~:
+entre Odoo~16 et~19, un champ et une méthode changent de nom.
+
+Si ces variations remontent dans le code métier, chaque règle de livraison finit entourée de
+conditions sur le fournisseur et sa version. Ce sprint met en place une frontière qui les tient à
+distance~: le métier exprime ce dont il a besoin, et des adaptateurs traduisent vers chaque progiciel.
+S'y ajoutent deux mécanismes~: le \textbf{mapping des champs}, qui relie le vocabulaire du client à
+celui du système en vérifiant qu'un champ relié produit bien une donnée exploitable, et une
+synchronisation qui survit à une panne du progiciel du client.
+
+\section{Objectifs du sprint et planification des tâches}
+
+\subsection{Objectifs attendus}
+
+Ce sprint vise une intégration qui ne dépend d'aucun éditeur. Six résultats sont attendus~:
+
+\begin{itemize}
+  \item une \textbf{frontière stable} entre le métier et le progiciel, décrite par quelques
+        interfaces qui ne nomment aucun fournisseur.
+  \item deux \textbf{connecteurs} — Odoo et ERPNext — derrière cette frontière commune.
+  \item un \textbf{mapping guidé} des champs du progiciel vers un contrat canonique, appuyé par un
+        système de types qui refuse un mapping incohérent avant qu'il ne produise une donnée fausse.
+  \item l'\textbf{import des commandes} prêtes, avec un aperçu sur de vraies données.
+  \item une \textbf{synchronisation} du résultat terrain vers le progiciel, qui survit à une panne.
+  \item la prise en charge de \textbf{plusieurs versions} d'un même progiciel, sans code par version.
+\end{itemize}
+
+Le périmètre couvre sept \terme{user stories} — US-05 à US-11 — soit \textbf{86 points} d'effort. Le
+tableau~\ref{tab:backlog-s2} en donne la décomposition en tâches.
+
+\subsection{Sprint backlog}
+
+Le tableau~\ref{tab:backlog-s2} détaille les tâches du sprint, regroupées par \terme{user story}.
+
+\begin{small}
+\begin{longtable}{L{1.1cm}L{4.3cm}L{1.2cm}L{5.7cm}L{1.3cm}}
+\caption{Sprint backlog — sprint 2}\label{tab:backlog-s2}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endfirsthead
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endhead
+\hline
+\endfoot
+
+US-05 & En tant que dispatcheur, je veux importer les commandes prêtes depuis le progiciel afin de ne pas les ressaisir. (13 pts) & T2-01 & Lire la liste des commandes en attente depuis le progiciel & Haute \\
+\hline
+      &  & T2-02 & Prévisualiser le détail d'une commande, champ par champ, avant de l'importer & Haute \\
+\hline
+      &  & T2-03 & Importer une commande, ou un lot de commandes & Haute \\
+\hline
+US-06 & En tant qu'administrateur, je veux relier les champs de mon progiciel à ceux du système afin d'adapter l'intégration à mon paramétrage. (13 pts) & T2-04 & Définir le contrat canonique (27 champs, 5 types, portée en-tête ou ligne) & Haute \\
+\hline
+      &  & T2-05 & Construire le système de types (types source, convertisseurs, verdicts) & Haute \\
+\hline
+      &  & T2-06 & Imposer la compatibilité au choix du champ, à l'enregistrement et à l'aperçu & Haute \\
+\hline
+      &  & T2-07 & Réaliser l'écran de mapping et la confirmation de perte & Moyenne \\
+\hline
+      &  & T2-08 & Signaler qu'un champ a changé de type après la mise en service & Basse \\
+\hline
+US-07 & En tant qu'entreprise, je veux pouvoir brancher la solution sur n'importe quel progiciel de gestion afin de ne dépendre d'aucun éditeur. (21 pts) & T2-09 & Définir les quatre ports d'intégration & Haute \\
+\hline
+      &  & T2-10 & Implémenter l'adaptateur Odoo (JSON-RPC) & Haute \\
+\hline
+      &  & T2-11 & Implémenter l'adaptateur ERPNext (REST) & Haute \\
+\hline
+      &  & T2-12 & Router vers le bon adaptateur et refuser une intégration non certifiée & Haute \\
+\hline
+US-08 & En tant que dispatcheur, je veux que le statut d'une livraison remonte automatiquement dans le progiciel afin que la facturation suive. (8 pts) & T2-13 & Écrire le fait métier et son intention de synchronisation dans la même transaction & Haute \\
+\hline
+      &  & T2-14 & Publier les événements vers le progiciel de façon rejouable & Haute \\
+\hline
+US-09 & En tant que dispatcheur, je veux qu'une synchronisation interrompue soit réessayée puis signalée afin qu'aucune information ne se perde silencieusement. (13 pts) & T2-15 & Réessayer avec espacement croissant, puis basculer en file morte & Haute \\
+\hline
+      &  & T2-16 & Refléter l'état de synchronisation sur la commande et alerter en cas d'échec & Haute \\
+\hline
+US-10 & En tant que dispatcheur, je veux récupérer les entrepôts du progiciel comme dépôts afin d'éviter un double référentiel. (5 pts) & T2-17 & Synchroniser les dépôts depuis les entrepôts du progiciel & Moyenne \\
+\hline
+US-11 & En tant qu'administrateur, je veux que le système fonctionne avec plusieurs versions du même progiciel afin de ne pas imposer de montée de version au client. (13 pts) & T2-18 & Déclarer les capacités par liste de candidats & Haute \\
+\hline
+      &  & T2-19 & Résoudre chaque capacité par la présence, jamais par le numéro de version & Haute \\
+\hline
+      &  & T2-20 & Piloter les assistants de confirmation d'Odoo & Haute \\
+\hline
+\end{longtable}
+\end{small}
+
+\section{Concepts et mécanismes utilisés}
+
+Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement.
+
+\paragraph{Ports et adaptateurs~:} c'est le patron qui rend l'intégration agnostique. Un \terme{port}
+est une interface qui décrit ce dont le métier a besoin, sans nommer aucun progiciel~: pousser un
+résultat de livraison, lire des commandes en attente. Un \terme{adaptateur} est une classe qui
+réalise cette interface pour un progiciel donné. Le métier ne connaît que le port~; changer de
+progiciel revient à changer d'adaptateur, sans toucher au reste.
+
+\paragraph{Le contrat canonique~:} le système nomme les données dont il a besoin, indépendamment de
+tout progiciel — \code{CUSTOMER\_PHONE}, \code{ITEM\_QUANTITY}, \code{SCHEDULED\_AT}. L'intégrateur
+relie les champs de son progiciel \emph{vers} ce vocabulaire. Chaque champ canonique déclare une seule
+fois sa portée (en-tête de commande ou ligne d'article) et son type. Ce type est le même pour tous les
+clients~: un client choisit \emph{d'où} vient une valeur, jamais \emph{ce qu'elle est}.
+
+\paragraph{Le système de types~:} un humain relie les champs, mais rien ne garantit qu'un champ texte
+puisse remplir une quantité. Le système compare le type du champ source au type canonique attendu et
+rend un verdict, décrit plus loin~: \code{SAFE}, \code{LOSSY} ou \code{UNSUPPORTED}. Un mapping
+incohérent est ainsi refusé avant de produire une donnée fausse.
+
+\paragraph{Le moteur de capacités~:} pour absorber les versions, les différences ne sont pas écrites
+dans le code mais \emph{déclarées}. Pour chaque besoin, une liste de noms de champs candidats est
+donnée. Le connecteur demande au progiciel quels champs il expose réellement, puis choisit le premier
+présent. Il ne teste jamais un numéro de version~: il teste la présence. Une version intermédiaire non
+prévue fonctionne donc sans modification.
+
+\paragraph{La communication asynchrone par messages~:} le service de livraison ne parle pas
+directement au progiciel~; il émet un \terme{événement} sur un \terme{courtier de messages}, que
+l'adaptateur consomme de son côté. Cette \textbf{architecture pilotée par les événements} apporte un
+\terme{découplage temporel}~: l'émetteur et le destinataire n'ont pas besoin d'être disponibles au
+même instant. Un progiciel lent ou arrêté ne bloque donc jamais le terrain — le message attend dans la
+file. Le courtier joue ainsi deux rôles~: il \textbf{amortit les afflux de messages} quand beaucoup de
+livraisons sont validées en même temps, et il \textbf{ne perd aucun message} — ceux qui échouent
+définitivement sont mis de côté dans une file de rebut, consultable et rejouable.
+
+\paragraph{L'outbox transactionnel et l'idempotence~:} valider une livraison et prévenir le progiciel
+sont deux écritures dans deux systèmes distincts. Pour ne jamais faire l'une sans l'autre, le fait
+métier et son intention de synchronisation sont écrits dans \textbf{la même transaction} de base de
+données. Un processus séparé lit ensuite les intentions en attente et parle au progiciel. Comme il
+peut réessayer, chaque opération est rendue \terme{idempotente}~: la rejouer produit le même résultat
+que l'exécuter une fois.
+
+\section{Analyse et spécification des besoins}
+
+\subsection{Diagramme de cas d'utilisation du sprint}
+
+La figure~\ref{fig:uc-s2} présente les cas d'utilisation du sprint~: la configuration de
+l'intégration, l'import des commandes, la prévisualisation, la synchronisation des dépôts et le rejeu
+d'une synchronisation en échec.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{uc-sprint2}
+\caption{Diagramme de cas d'utilisation du sprint 2}
+\label{fig:uc-s2}
+\end{figure}
+
+Deux acteurs se partagent ces cas. L'\textbf{administrateur} prépare l'intégration~: il connecte le
+progiciel, le fait certifier, puis relie les champs. Le \textbf{dispatcheur} l'exploite au
+quotidien~: il importe les commandes, en prévisualise une, synchronise les dépôts et rejoue au besoin
+une synchronisation qui a échoué. Le progiciel du client apparaît comme un système externe.
+
+\subsection{Description détaillée des cas d'utilisation}
+
+Trois cas d'utilisation sont détaillés~: la préparation (\emph{Configurer et certifier la connexion}),
+le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Importer les commandes}).
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Configurer et certifier la connexion ERP »}
+\label{tab:cu-erp-config}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Configurer et certifier la connexion ERP \\
+\hline
+\textbf{Acteur} & Administrateur \\
+\hline
+\textbf{Résumé} & Renseigner le fournisseur et les identifiants du progiciel, puis vérifier que la connexion fonctionne avant toute utilisation. \\
+\hline
+\textbf{Préconditions} & L'administrateur est authentifié et détient la permission \code{erp:config}. \\
+\hline
+\textbf{Postconditions} & L'intégration passe au statut \code{CONNECTED}~; les synchronisations deviennent possibles. \\
+\hline
+\textbf{Scénario nominal} & 1. L'administrateur choisit le fournisseur (Odoo ou ERPNext). \newline 2. Il saisit l'adresse et les identifiants. \newline 3. Il lance la certification. \newline 4. Le système exécute une vérification en lecture seule et confirme la connexion. \\
+\hline
+\textbf{Scénarios alternatifs} & 3a. Identifiants ou adresse invalides~: la certification échoue, le statut reste non connecté. \newline 4a. Tant que le statut n'est pas \code{CONNECTED}, toute synchronisation est refusée explicitement. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Mapper les champs vers le contrat canonique »}
+\label{tab:cu-erp-mapping}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Mapper les champs vers le contrat canonique \\
+\hline
+\textbf{Acteur} & Administrateur \\
+\hline
+\textbf{Résumé} & Relier chaque champ dont le système a besoin à un champ du progiciel, avec un contrôle de compatibilité de type. \\
+\hline
+\textbf{Préconditions} & L'intégration est certifiée~; l'administrateur détient la permission \code{erp:config}. \\
+\hline
+\textbf{Postconditions} & Chaque champ relié produit une donnée d'un type exploitable~; les correspondances sont enregistrées. \\
+\hline
+\textbf{Scénario nominal} & 1. L'administrateur ouvre l'écran de mapping. \newline 2. Pour un champ canonique, il choisit un champ source. \newline 3. Le système affiche le verdict de compatibilité. \newline 4. Il valide un champ compatible. \\
+\hline
+\textbf{Scénarios alternatifs} & 3a. Le champ source est incompatible (\code{UNSUPPORTED})~: il est grisé, le motif est affiché, la sélection est refusée. \newline 3b. La conversion perd de l'information (\code{LOSSY})~: une confirmation indique exactement ce qui est perdu avant d'accepter. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Importer les commandes »}
+\label{tab:cu-erp-import}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Importer les commandes \\
+\hline
+\textbf{Acteur} & Dispatcheur \\
+\hline
+\textbf{Résumé} & Récupérer les commandes prêtes du progiciel et les faire entrer dans le système, sans ressaisie. \\
+\hline
+\textbf{Préconditions} & L'intégration est certifiée et les champs nécessaires sont reliés~; le dispatcheur détient la permission \code{erp:sync}. \\
+\hline
+\textbf{Postconditions} & Les commandes importées existent dans le système, prêtes à être planifiées. \\
+\hline
+\textbf{Scénario nominal} & 1. Le dispatcheur ouvre l'écran d'import. \newline 2. La liste des commandes prêtes s'affiche. \newline 3. Il prévisualise une commande~: chaque champ montre sa valeur lue, ou « vide dans le progiciel », ou « illisible » — présent, mais qu'aucune conversion ne sait lire. \newline 4. Il importe une commande ou un lot. \\
+\hline
+\textbf{Scénarios alternatifs} & 3a. Un champ est illisible~: l'aperçu affiche la raison, sans bloquer l'import des autres. \newline 2a. Le progiciel est injoignable~: l'erreur est signalée, aucune commande n'est importée. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Modélisation conceptuelle}
+
+\subsection{Diagramme de classes}
+
+La figure~\ref{fig:class-erp} présente la conception « ports et adaptateurs »~: les quatre interfaces
+au centre, et les familles d'adaptateurs qui les réalisent.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{PORTADAPTER}
+\caption{Ports et adaptateurs de l'intégration ERP}
+\label{fig:class-erp}
+\end{figure}
+
+Quatre ports décrivent les besoins du métier. \code{ErpSyncPort} pousse un résultat terrain — livré,
+partiel, échoué, annulé. \code{ErpLookupPort} lit des commandes en attente, des clients, des dépôts.
+\code{ErpOrderPort} crée et résout des références de commande. \code{ErpChangePort} détecte qu'une
+commande a changé côté progiciel. Aucune de ces interfaces ne nomme un progiciel.
+
+Deux familles d'adaptateurs les réalisent. L'adaptateur \textbf{Odoo} parle en JSON-RPC~; il est le
+plus volumineux, car Odoo expose des assistants de confirmation à piloter et plusieurs versions à
+couvrir. L'adaptateur \textbf{ERPNext} parle en REST, une interface plus uniforme.
+
+Le choix de l'adaptateur ne dépend pas de l'appelant, mais du progiciel configuré pour l'entreprise
+courante. Ajouter un progiciel revient à créer des classes nommées d'après lui~; aucun code existant
+n'est modifié. C'est cette propriété qui a été vérifiée en ajoutant ERPNext après Odoo, sans toucher
+aux ports.
+
+\subsection{Diagrammes de séquence}
+
+La figure~\ref{fig:seq-erp} suit une synchronisation, de la validation d'une livraison jusqu'à son
+écriture dans le progiciel, avec la reprise en cas de panne.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.58\textheight,keepaspectratio]{Seq2FINALoh}
+\caption{Séquence de synchronisation ERP et reprise sur panne}
+\label{fig:seq-erp}
+\end{figure}
+
+La séquence commence dans la même transaction que le fait métier~: la livraison passe à son nouvel
+état et un événement d'intention de synchronisation est enregistré, ensemble ou pas du tout. Cette
+garantie ne repose pas sur la vigilance du développeur~: la méthode qui enregistre l'événement exige
+une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'avoir une livraison validée
+sans son événement en attente.
+
+Un processus séparé lit ensuite les événements en attente et les publie sur un \textbf{courtier de
+messages}. Ce choix — une \textbf{communication asynchrone} pilotée par les événements, plutôt qu'un
+appel direct au progiciel — est ce qui rend tout le reste possible. Il apporte un \terme{découplage
+temporel}~: l'émetteur (le service de livraison) et le destinataire (l'adaptateur) n'ont pas besoin
+d'être disponibles au même instant. Le service dépose sa commande et poursuit~; l'adaptateur la traite
+quand il le peut, et un progiciel lent ou arrêté ne bloque jamais le terrain — le message
+\textbf{attend dans la file} au lieu de faire échouer la livraison.
+
+Ce processus prend les événements par petits lots et les verrouille au passage, pour que deux
+instances du service ne traitent jamais le même deux fois. L'identifiant de l'événement sert de
+\textbf{clé d'idempotence} dans l'adaptateur~: avant d'agir, celui-ci vérifie s'il a déjà traité cet
+identifiant et, si oui, renvoie le résultat mémorisé sans refaire l'opération. Un message rejoué après
+une panne ne produit donc pas d'écriture en double.
+
+La reprise sur panne se joue à \textbf{deux étages qu'il ne faut pas confondre}. Le premier protège la
+remise du message au courtier~: si celui-ci est indisponible, l'outbox réessaie, avec un espacement
+croissant, jusqu'à réussir à le déposer. Le second étage, \textbf{le plus important, protège contre
+une panne du progiciel}~: l'adaptateur, qui consomme la commande, réessaie \textbf{cinq fois sur une
+trentaine de secondes} de joindre Odoo. Passé ce délai, la commande part dans une file de rebut, un
+résultat d'échec revient, et la commande passe à « échec de synchronisation »~: l'administrateur est
+prévenu, et la reprise devient un geste manuel — le bouton « resynchroniser ». En cas de succès, au
+contraire, la commande passe à « synchronisée ». Dans tous les cas, le livreur n'a jamais attendu~: il
+a validé, l'écran a répondu, il est reparti.
+
+La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox} — celui du
+premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{etattarns}
+\caption{Automate d'états d'un événement de synchronisation}
+\label{fig:etat-erp}
+\end{figure}
+
+Un événement naît \emph{en attente}. Il passe \emph{en cours} le temps d'être traité, puis
+\emph{traité} en cas de succès. En cas d'échec, il retourne \emph{en attente}, mais avec un délai
+avant la prochaine tentative. Ce délai \textbf{double à chaque essai}~: les premières tentatives sont
+rapprochées, pour rattraper une coupure de quelques secondes sans que personne ne le remarque, puis
+l'espacement grandit pour ne pas marteler un courtier hors service.
+
+Deux garde-fous complètent cet automate. D'abord, un événement resté \emph{en cours} après un arrêt
+brutal du service est ramené \emph{en attente} au redémarrage, pour ne pas rester bloqué. Ensuite,
+après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file morte~: la
+commande est alors marquée « échec de synchronisation », un dispatcheur est prévenu, et l'événement
+reste consultable et rejouable depuis le back-office. Un échec définitif est donc visible et
+réparable, jamais perdu dans un journal.
+
+\section{Réalisation}
+
+Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
+montrée.
+
+La figure~\ref{fig:s2-connexion} montre l'écran de connexion au progiciel~: le choix du fournisseur,
+l'adresse, les identifiants, et le statut de certification.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-connexion}
+\caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
+
+La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel et
+affiche les champs et méthodes qu'il expose réellement. Le connecteur choisit alors le champ présent,
+au lieu de le deviner d'après un numéro de version~: une version qu'il n'a jamais vue fonctionne sans
+modification, tant qu'elle expose les champs attendus.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-compatibilite}
+\caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
+
+La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ y
+affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la raison.
+Une cellule sans valeur indique ainsi laquelle des deux causes s'applique — vide à la source, ou
+présente mais illisible — au lieu de laisser un blanc que personne ne saurait expliquer.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-apercu}
+\caption{Aperçu d'une commande avant l'import}\label{fig:s2-apercu}\end{figure}
+
+La figure~\ref{fig:s2-import} présente l'écran d'import des commandes prêtes~: la liste, et l'import
+d'une commande ou d'un lot.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-import}
+\caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
+
+Enfin, la figure~\ref{fig:s2-dlq} montre la file morte~: les synchronisations définitivement en échec,
+consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-dlq}
+\caption{File morte des synchronisations en échec}\label{fig:s2-dlq}\end{figure}
+
+\section{Tests et validation}
+
+\subsection{Scénarios de validation}
+
+Trois scénarios couvrent les trois apports du sprint~: l'agnosticité, le contrôle de mapping et la
+reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref{tab:tc-s2-03}.
+
+\begin{table}[H]
+\centering
+\caption{TC-S2-01 — Agnosticité vis-à-vis du progiciel}
+\label{tab:tc-s2-01}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S2-01 \\
+\hline
+\textbf{Description} & Un client configuré sur un progiciel n'est jamais servi par l'adaptateur d'un autre~; le même parcours métier fonctionne sur Odoo et sur ERPNext. \\
+\hline
+\textbf{Précondition} & Deux entreprises, l'une sur Odoo, l'autre sur ERPNext, toutes deux certifiées. \\
+\hline
+\textbf{Scénario} & 1. Déclencher une synchronisation pour chaque entreprise. \newline 2. Observer l'adaptateur retenu pour chacune. \\
+\hline
+\textbf{Résultat attendu} & Chaque entreprise est servie par l'adaptateur de son propre progiciel~; le métier appelé est identique. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S2-02 — Verdict de compatibilité d'un mapping}
+\label{tab:tc-s2-02}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S2-02 \\
+\hline
+\textbf{Description} & Un type incompatible est refusé~; un type qui convertit en perdant de l'information exige une confirmation. \\
+\hline
+\textbf{Précondition} & Une intégration certifiée, sur l'écran de mapping. \\
+\hline
+\textbf{Scénario} & 1. Relier un champ texte à une quantité (\code{char} → \code{INTEGER}). \newline 2. Relier un champ décimal à une quantité (\code{float} → \code{INTEGER}). \\
+\hline
+\textbf{Résultat attendu} & Étape 1~: refusé (\code{UNSUPPORTED}), avec motif. Étape 2~: accepté après confirmation (\code{LOSSY}), qui nomme la perte. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S2-03 — Reprise d'une synchronisation en panne}
+\label{tab:tc-s2-03}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S2-03 \\
+\hline
+\textbf{Description} & Une synchronisation vers un progiciel indisponible est réessayée, puis basculée en file morte, sans jamais bloquer le terrain. \\
+\hline
+\textbf{Précondition} & Une livraison validée, le progiciel du client rendu injoignable. \\
+\hline
+\textbf{Scénario} & 1. Valider la livraison. \newline 2. Laisser les tentatives s'épuiser. \newline 3. Consulter la file morte, puis rejouer. \\
+\hline
+\textbf{Résultat attendu} & La livraison est enregistrée sans attendre~; la commande passe en échec de synchronisation~; l'événement reste rejouable. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Tests automatisés}
+
+L'intégration est le composant le plus testé du projet, parce que c'est le plus exposé aux différences
+entre progiciels. Les tests se répartissent en deux familles~: des tests unitaires du mapping et de la
+résolution de capacités, et une suite d'intégration exécutée contre \textbf{deux versions d'Odoo}. Le
+tableau~\ref{tab:tests-s2} en donne un aperçu ciblé.
+
+\begin{table}[H]
+\centering
+\caption{Tests automatisés du sprint 2 (extrait)}
+\label{tab:tests-s2}
+\small
+\begin{tabular}{L{5.8cm}C{1.8cm}L{5.8cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — mapping, types, capacités}} \\
+\hline
+\code{OdooFieldMappingResolverTest} & 22 & La résolution d'un champ Odoo vers le contrat \\
+\hline
+\code{ErpNextFieldMappingResolverTest} & 17 & La même résolution pour ERPNext \\
+\hline
+\code{CanonicalConversionContractTest} & 16 & Les verdicts SAFE / LOSSY / UNSUPPORTED \\
+\hline
+\code{MethodResolverTest} & 13 & Le choix d'une méthode par présence \\
+\hline
+\code{CapabilityResolverTest} & 9 & Le choix d'un champ par présence, pas par version \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'intégration — Odoo 16 et 19}} \\
+\hline
+Suite bi-version — \code{OdooInfrastructureIT} et les trois \code{Workflow*IT} & 28 & Le contrat Odoo réel, éprouvé sur les versions 16 et 19 (100\% de réussite) \\
+\hline
+\end{tabular}
+\end{table}
+
+La suite d'intégration mérite une explication, car elle porte la preuve de l'agnosticité aux versions.
+Elle réunit \textbf{28 tests}, exécutés contre \textbf{une instance Odoo~16 et une instance Odoo~19 en
+même temps}, démarrées par l'intégration continue — tous au vert. Les deux extrémités de la plage supportée étant couvertes, les versions
+intermédiaires le sont par construction~: le connecteur ne teste pas un numéro de version, mais la
+présence des champs et des méthodes. La suite épingle précisément ce qui change d'une version à
+l'autre — un champ et une méthode qui sont renommés, et la conduite des \emph{assistants de
+confirmation} d'Odoo, ces fenêtres que valider un transfert fait apparaître et qu'il faut piloter une
+à une par RPC.
+
+La figure~\ref{fig:s2-ci-biversion} montre le job d'intégration continue qui lance cette suite contre
+les deux versions d'Odoo, toutes deux au vert.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s2-ci-biversion}
+\caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
+
+Un dernier contrôle mérite d'être cité, car il agit avant même les tests. Si un champ canonique
+déclare un type qu'aucun convertisseur ne sait produire, l'application \textbf{ne démarre pas} et liste
+les champs concernés. Un convertisseur manquant importerait une famille entière de champs en blanc~;
+l'échec appartient donc à l'écran d'un développeur, jamais à une livraison.
+
 \section{Conclusion}
+
+Ce sprint a livré l'apport le plus original du projet~: une intégration qui ne dépend d'aucun éditeur.
+Quatre ports tiennent le progiciel à distance du métier, et deux connecteurs, Odoo et ERPNext, les
+réalisent. Un mapping guidé, appuyé par un contrat canonique et un système de types, garantit qu'un
+champ relié par un humain produit une donnée exploitable, ou est refusé avant de nuire. Une
+synchronisation par outbox fait remonter le résultat terrain sans jamais bloquer le livreur, et survit
+à une panne du progiciel. Enfin, un moteur de capacités absorbe les
+versions en testant la présence plutôt que le numéro.
+
+Le sprint suivant s'appuie sur ces commandes importées pour construire les tournées et suivre les
+livraisons en temps réel.
