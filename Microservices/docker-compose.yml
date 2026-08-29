@@ -329,8 +329,8 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       # JVM sizing: the Java-17 default (MaxRAMPercentage=25% ≈ 128M heap under the old 512M cap) starved
       # this Spring Boot app's ~300M working set into permanent full-GCs, pegging the CPUs and making boot
-      # crawl (5+ min). With OSRM out of the VM there's room, so the cap is raised to 768M (below) and the
-      # heap set to a balanced ~65% (leaving ~250M for metaspace/code-cache/threads so it can't cgroup-OOM),
+      # crawl (5+ min). With OSRM out of the VM there's room, so the cap is raised to 1.5G (below) and the
+      # heap set to a balanced ~65% (leaving ~540M for metaspace/code-cache/threads so it can't cgroup-OOM),
       # with the single-threaded collector so GC never fans out across cores. No image rebuild needed.
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:+UseSerialGC"
       DB_HOST: postgres-delivery
@@ -376,7 +376,7 @@ services:
       resources:
         limits:
           cpus: "1.5"
-          memory: 768M
+          memory: 1536M
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8082"]
       interval: 10s
