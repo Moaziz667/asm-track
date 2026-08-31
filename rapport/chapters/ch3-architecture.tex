@@ -21,7 +21,7 @@ transmettent-ils l'information~?
 
 \section{Une application unique ou plusieurs services}
 
-Le premier choix engage tous les autres. Une application unique — un \emph{monolithe} — regroupe tout
+Le premier choix engage tous les autres. Une application unique, appelée \emph{monolithe}, regroupe tout
 le code dans un seul programme, avec une seule base de données. Une architecture en services découpe
 le programme en plusieurs applications autonomes, chacune avec sa base, qui communiquent par le
 réseau.
@@ -374,7 +374,7 @@ qui en résulte.
 
 Quatre familles de messages circulent. Les demandes de synchronisation partent du service de
 livraison vers l'adaptateur, et les résultats reviennent par le chemin inverse. Les événements du
-chauffeur — changement de statut, position — remontent vers le service de livraison. Les opérations
+chauffeur, changement de statut et position, remontent vers le service de livraison. Les opérations
 sensibles alimentent le journal d'audit. Les créations de comptes, enfin, sont transmises au service
 qui pilote le serveur d'identité.
 
