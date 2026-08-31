@@ -71,33 +71,39 @@ flowchart TD
 
 ---
 
-## Le calcul des ETA
+## Les fenêtres horaires
 
 ```mermaid
 sequenceDiagram
     autonumber
+    actor D as Dispatcher
     participant R as RouteOptimizationService
     participant O as OSRM
+    participant UI as Aperçu d'optimisation
     participant DB as PostgreSQL
 
-    R->>R: point de départ = dépôt
-    loop pour chaque arrêt, dans l'ordre
-        R->>O: itinéraire point → point
-        O-->>R: distance + durée
-        R->>R: ETA = heure précédente + trajet + temps d'arrêt
-        R->>R: compare à la fenêtre de livraison
-    end
-    R->>DB: enregistre ETA, distance, durée, statut SLA par arrêt
+    D->>R: demande une optimisation
+    R->>O: matrice des durées et distances
+    O-->>R: durée + distance par tronçon
+    R-->>UI: ordre proposé + durée par tronçon
+    UI->>UI: cumule depuis l'heure de départ<br/>→ fenêtre suggérée par arrêt
+    D->>DB: accepte ou corrige, puis enregistre
 ```
+
+**Le système n'enregistre jamais une heure d'arrivée qu'il a calculée lui-même.** Côté serveur,
+`stop.etaAt` reste `null` : OSRM fournit la distance, la durée et la géométrie, et c'est l'aperçu
+d'optimisation qui en dérive une **fenêtre suggérée** par arrêt. Ce qui est persisté, et ce sur quoi
+le SLA se mesure ensuite, est la fenêtre que le dispatcher a acceptée ou corrigée.
 
 **OSRM tourne en local**, sur les données OpenStreetMap de la Tunisie. Deux raisons : aucun appel
 externe facturé par requête, et les temps de trajet reflètent le réseau routier réel plutôt qu'une
 distance à vol d'oiseau.
 
-!!! warning "Ce qu'OSRM ne sait pas"
-    Il ne connaît ni le trafic en temps réel, ni les habitudes locales. Les ETA sont une **base de
-    planification**, pas une promesse au client. C'est pourquoi le SLA se compare à une fenêtre et
-    non à une minute.
+!!! warning "Pourquoi la suggestion n'est pas un engagement"
+    OSRM ne connaît ni le trafic du jour, ni les habitudes locales. Juger un livreur sur une durée
+    calculée sur une carte reviendrait à l'évaluer sur une prévision que personne n'a validée. Une
+    fenêtre lue et engagée par un dispatcher est, elle, une promesse assumée — d'où le choix de
+    mesurer le SLA sur la fenêtre et non sur une ETA machine.
 
 ---
 

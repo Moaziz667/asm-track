@@ -26,8 +26,8 @@ flowchart LR
 ```
 
 Le géocodage est nécessaire parce qu'un ERP stocke une **adresse**, pas des coordonnées. Or
-l'optimisation d'itinéraire et le calcul des ETA partent du dépôt : sans latitude et longitude, une
-tournée n'a pas de point de départ mesurable.
+l'optimisation d'itinéraire et les fenêtres horaires suggérées partent du dépôt : sans latitude et
+longitude, une tournée n'a pas de point de départ mesurable.
 
 !!! warning "Un dépôt sans coordonnées ne bloque pas l'import"
     Il reste importé, mais il ne peut pas servir de point de départ tant qu'il n'est pas localisé —
