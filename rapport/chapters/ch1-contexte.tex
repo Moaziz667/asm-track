@@ -26,7 +26,7 @@ Dakar~\cite{asm-apropos}.
 Ce positionnement est directement pertinent pour ce projet : ASM n'est pas seulement le
 commanditaire, elle est elle-même éditrice d'un ERP. Une plateforme de suivi de livraison qui
 s'intègre à un ERP sans s'y enfermer profite à ses clients quel que soit le progiciel qu'ils
-exploitent, et son architecture — un contrat d'adaptateur commun à tout ERP — est conçue pour qu'un autre système
+exploitent, et son architecture, bâtie sur un contrat d'adaptateur commun à tout ERP, est conçue pour qu'un autre système
 puisse s'y brancher sans remettre en cause le reste de la plateforme.
 
 \begin{table}[H]
@@ -58,8 +58,8 @@ applications mobiles, systèmes de point de vente \\
 \subsection{Contexte du projet}
 
 Un ERP, quel qu'il soit, gère efficacement les commandes, les stocks et la facturation, mais
-s'arrête à la porte de l'entrepôt. Ce qui se passe ensuite — l'affectation d'un livreur, le suivi de
-sa tournée, la collecte de la preuve de remise, un éventuel retour — reste hors de sa portée, ou
+s'arrête à la porte de l'entrepôt. Tout ce qui se passe ensuite, l'affectation d'un livreur, le suivi
+de sa tournée, la collecte de la preuve de remise et un éventuel retour, reste hors de sa portée, ou
 suppose de développer un module spécifique à chaque ERP concerné. Or les entreprises que
 sert ASM n'exploitent pas toutes le même système, et ce choix ne devrait pas
 déterminer si elles peuvent, ou non, suivre leurs livraisons.
@@ -82,17 +82,17 @@ la commande jusqu'à la preuve de sa remise, à travers :
 
 \begin{itemize}
   \item une architecture \textbf{multi-tenant}, où chaque entreprise cliente dispose de ses propres
-  données isolées au sein d'une même plateforme ;
+  données isolées au sein d'une même plateforme.
   \item une intégration ERP \textbf{agnostique}, opérationnelle sur Odoo et ERPNext par un
   adaptateur commun plutôt qu'un développement spécifique à chacun, et conçue pour qu'un autre ERP
-  puisse s'y brancher sans toucher au reste du système ;
+  puisse s'y brancher sans toucher au reste du système.
   \item une application mobile chauffeur fonctionnant en \textbf{mode hors ligne}, pour que la
-  perte de réseau sur le terrain n'interrompe pas la livraison ;
+  perte de réseau sur le terrain n'interrompe pas la livraison.
   \item un suivi en \textbf{temps réel} des tournées, de la planification jusqu'à la remise au
-  client final ;
+  client final.
   \item une \textbf{chaîne d'encaissement} traitée comme un circuit de responsabilité, de la
   collecte des espèces à la porte du client jusqu'à leur remise au dépôt et l'arbitrage des
-  écarts ;
+  écarts.
   \item un \textbf{assistant interne} auquel un opérateur pose ses questions en langage naturel,
   et qui répond sur l'activité de son entreprise sans jamais lui donner accès à ce que son rôle
   ne l'autorise pas à consulter.
@@ -100,8 +100,8 @@ la commande jusqu'à la preuve de sa remise, à travers :
 
 \subsection{Périmètre du projet}
 
-Le projet couvre le cycle complet d'une livraison — import, planification de tournée, exécution
-terrain, preuve de livraison, encaissement et retours — pour un nombre quelconque d'entreprises
+Le projet couvre le cycle complet d'une livraison, de l'import à la planification de tournée, puis
+l'exécution terrain, la preuve de livraison, l'encaissement et les retours, pour un nombre quelconque d'entreprises
 clientes. Il se limite au dernier kilomètre : la gestion des stocks, la facturation et la production
 restent du ressort de l'ERP, que la plateforme consulte et met à jour sans s'y substituer.
 
@@ -142,8 +142,8 @@ légère et multi-ERP.
 
 \textbf{Le module de livraison natif d'un ERP} (par exemple Odoo Inventory) constitue la troisième
 approche possible. Il a l'avantage d'être déjà connecté aux données de commande et de stock, mais il
-enferme l'entreprise dans cet ERP précis : le changer, ou en exploiter plusieurs à la fois — un cas
-concret chez les clients d'ASM — n'est pas pris en charge.
+enferme l'entreprise dans cet ERP précis : le changer, ou en exploiter plusieurs à la fois, ce qui
+est un cas concret chez les clients d'ASM, n'est pas pris en charge.
 
 \subsection{Synthèse comparative et solution proposée}
 
@@ -151,8 +151,8 @@ Le fonctionnement hors connexion, longtemps distinctif, est aujourd'hui proposé
 matures du marché. Ce qui les sépare de notre approche tient à deux points : la profondeur de
 l'intégration ERP, générique chez elles alors que le projet vise un contrat commun réellement
 implémenté sur plusieurs ERP, et le traitement de l'encaissement à la livraison. Sur ce second
-point, la distinction porte moins sur la collecte du paiement — Bringg documente une action
-chauffeur de prise de paiement et un montant restant dû — que sur ce qui vient après : la remise de
+point, la distinction porte moins sur la collecte du paiement, que Bringg documente à travers une
+action chauffeur de prise de paiement et un montant restant dû, que sur ce qui vient après : la remise de
 la caisse du livreur, son comptage contradictoire et l'arbitrage des écarts. Ce maillon est
 déterminant sur le marché tunisien, où le
 paiement en espèces à la remise reste le mode dominant.
@@ -214,7 +214,7 @@ Module ERP natif & Non & Non & Partiel & Non & Non & Enferme l'entreprise dans u
 La colonne « versions ERP » mérite un mot. Un progiciel évolue, et ses versions majeures modifient
 la structure des données qu'il expose : une intégration construite sur une version peut cesser de
 fonctionner chez un client qui met la sienne à jour. Les plateformes étudiées échappent à cette
-difficulté en restant à la surface, à travers une API générique — d'où la mention « sans objet » ;
+difficulté en restant à la surface, à travers une API générique, d'où la mention « sans objet » ;
 un module natif la subit au contraire de plein fouet, puisqu'il doit être porté à chaque version.
 S'intégrer en profondeur tout en résistant aux montées de version est donc une exigence à part
 entière, dont le chapitre~\ref{ch:erp} détaille le traitement.
@@ -223,13 +223,13 @@ Ce constat oriente la conception du système autour de quatre partis pris : un a
 plutôt qu'un développement par ERP, une intégration qui s'adapte à la version rencontrée chez le
 client plutôt que d'en supposer une seule, une isolation des données par entreprise cliente plutôt
 qu'un déploiement dédié à chacune, et une chaîne d'encaissement traitée comme un circuit de
-responsabilité — le livreur déclare la somme remise, un tiers la compte, un responsable arbitre les
-écarts — plutôt que comme un simple montant saisi à la livraison.
+responsabilité, où le livreur déclare la somme remise, un tiers la compte et un responsable arbitre
+les écarts, plutôt que comme un simple montant saisi à la livraison.
 
 \section{Méthodologie de développement}
 
 Le projet a été mené par un développeur unique, sur un périmètre fonctionnel qui s'est précisé au
-fil de l'avancement — notamment l'étendue exacte de l'intégration multi-ERP. Une méthode figée dès
+fil de l'avancement, notamment sur l'étendue exacte de l'intégration multi-ERP. Une méthode figée dès
 le départ aurait mal absorbé ces ajustements ; le tableau~\ref{tab:comparatif-methodo} compare les
 approches envisagées.
 
@@ -271,8 +271,8 @@ fonctionnalités.
 
 \subsection{Organisation du travail et outils}
 
-Le projet ayant été mené par un seul développeur, les trois rôles Scrum — Product Owner, Scrum
-Master et équipe de développement — ont été assumés par la même personne. Le suivi du Product
+Le projet ayant été mené par un seul développeur, les trois rôles Scrum, Product Owner, Scrum
+Master et équipe de développement, ont été assumés par la même personne. Le suivi du Product
 Backlog et des Sprint Backlogs a été réalisé avec \textbf{GitLab Issues et Boards}, qui a servi de
 tableau kanban pour chaque sprint.
 

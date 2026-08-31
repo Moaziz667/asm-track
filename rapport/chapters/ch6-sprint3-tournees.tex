@@ -1,6 +1,719 @@
 % Budget : 14 pages — voir rapport/PLAN.md
+%
+% Diagrammes et captures dans diagrams/drawio/Sprint3/ (uc3333, ClassSprint3, Sprint3seqfinal,
+% etatSprint3, routebuilder, optimisateur, perroutepage, dispatchdesk, reassignation, retour,
+% Stompfigure), atteints par le \graphicspath du preambule.
 \chapter{Sprint 3 — Planification, exécution et suivi temps réel}
+\label{ch:tournees}
 
 \section{Introduction}
 
+Le chapitre précédent a relié le système au progiciel de gestion de chaque entreprise cliente~: les
+commandes prêtes sont importées avec leurs lignes, leurs adresses et leurs quantités. Une commande
+importée n'est pourtant pas encore une livraison~: il faut la placer dans une tournée, la confier à
+un chauffeur, suivre son exécution sur le terrain et vérifier que le délai promis au destinataire est
+tenu.
+
+Ce sprint couvre ce parcours, de la construction de la tournée jusqu'à sa clôture. Il comporte trois
+volets. Le premier est la \textbf{planification}~: constituer une tournée à partir des livraisons en
+attente, en respectant la capacité du véhicule, les horaires du chauffeur et la règle qui veut qu'un
+colis soit chargé avant d'être livré. Le deuxième est le \textbf{dispatch}~: affecter la tournée,
+puis la corriger en cours de journée lorsqu'une livraison doit changer de mains. Le troisième est le
+\textbf{suivi}~: l'avancement de chaque livraison apparaît en direct sur l'écran du dispatcheur, un
+moteur d'échéances signale les retards, et le destinataire consulte l'avancement de son colis par un
+simple lien, sans compte.
+
+Ces trois volets reposent sur un même mécanisme. Chaque geste du terrain fait avancer une
+\textbf{machine à états}~: démarrer la tournée, charger au dépôt, partir vers le client, clôturer
+l'arrêt. Ce sont ces transitions, et elles seules, qui alimentent le suivi en direct, le calcul des
+délais et le rapport de fin de journée.
+
+\section{Objectifs du sprint et planification des tâches}
+
+\subsection{Objectifs attendus}
+
+Ce sprint outille le travail quotidien du bureau. Cinq résultats sont attendus~:
+
+\begin{itemize}
+  \item un \textbf{planificateur visuel} qui regroupe les livraisons en attente, leur affecte un
+        chauffeur et un véhicule après contrôle de leur disponibilité, vérifie le poids embarqué, et
+        propose un ordre de passage ainsi qu'une fenêtre horaire par arrêt, que le dispatcheur reste
+        libre d'ajuster.
+  \item un \textbf{centre de dispatch} qui rassemble en un seul écran les retards et les incidents
+        de la journée, et rend la correction immédiate.
+  \item un \textbf{moteur d'échéances} qui mesure le respect des délais à chaque étape de la
+        livraison.
+  \item une \textbf{diffusion en temps réel} qui met les écrans à jour sans rechargement.
+  \item un \textbf{suivi public par lien} pour le destinataire, et le cycle complet du retour,
+        jusqu'à la remise en stock dans le progiciel.
+\end{itemize}
+
+Le périmètre couvre onze \terme{user stories}, US-15 à US-19 et US-28 à US-33, soit \textbf{87
+points} d'effort. Le tableau~\ref{tab:backlog-s3} en donne la décomposition en tâches.
+
+\subsection{Sprint backlog}
+
+Le tableau~\ref{tab:backlog-s3} détaille les tâches du sprint, regroupées par \terme{user story}.
+
+\begin{small}
+\begin{longtable}{L{1.1cm}L{4.4cm}L{1.2cm}L{5.6cm}L{1.4cm}}
+\caption{Sprint backlog — sprint 3}\label{tab:backlog-s3}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endfirsthead
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endhead
+\hline
+\endfoot
+
+US-15 & En tant que dispatcheur, je veux construire une tournée à partir de livraisons afin d'organiser la journée. (13 pts) & T3-01 & Créer une tournée en brouillon & Haute \\
+\hline
+      &  & T3-02 & Ajouter et retirer des livraisons d'une tournée & Haute \\
+\hline
+      &  & T3-03 & Réordonner les arrêts par glisser-déposer & Haute \\
+\hline
+US-16 & En tant que dispatcheur, je veux affecter un chauffeur et un véhicule à une tournée afin d'en désigner le responsable. (8 pts) & T3-04 & Affecter un chauffeur et un véhicule à la tournée & Haute \\
+\hline
+      &  & T3-05 & Contrôler la disponibilité du chauffeur et du véhicule & Haute \\
+\hline
+US-17 & En tant que dispatcheur, je veux obtenir un ordre de passage optimisé afin de réduire la distance parcourue. (13 pts) & T3-06 & Interroger le moteur d'itinéraires pour la matrice des durées et le tracé & Haute \\
+\hline
+      &  & T3-07 & Ordonner les arrêts sous contrainte de précédence (charger avant livrer) & Haute \\
+\hline
+      &  & T3-08 & Restituer les gains en distance et en temps par rapport à l'ordre courant & Moyenne \\
+\hline
+US-18 & En tant que dispatcheur, je veux valider une tournée afin de la rendre visible au chauffeur. (3 pts) & T3-09 & Valider la tournée après contrôle de capacité, de chronologie et de précédence & Haute \\
+\hline
+US-19 & En tant que dispatcheur, je veux connaître l'heure d'arrivée estimée à chaque arrêt afin de détecter les retards. (8 pts) & T3-10 & Proposer une fenêtre horaire par arrêt à partir des temps de trajet calculés & Moyenne \\
+\hline
+US-28 & En tant que dispatcheur, je veux voir l'avancement des livraisons sans recharger la page afin de réagir immédiatement. (13 pts) & T3-11 & Mettre en place la diffusion temps réel cloisonnée par entreprise & Haute \\
+\hline
+      &  & T3-12 & Pousser l'avancement des livraisons sur le centre de dispatch & Haute \\
+\hline
+US-29 & En tant que dispatcheur, je veux être alerté des retards et des échecs afin de traiter les exceptions en priorité. (5 pts) & T3-13 & Évaluer l'échéance de chaque livraison et signaler les retards & Moyenne \\
+\hline
+US-30 & En tant que dispatcheur, je veux réaffecter une livraison bloquée à un autre chauffeur afin de sauver la journée. (5 pts) & T3-14 & Réaffecter une livraison, avec transfert de garde si le colis est déjà en main & Haute \\
+\hline
+US-31 & En tant que destinataire, je veux suivre mon colis par un lien reçu afin de connaître son avancement sans créer de compte. (8 pts) & T3-15 & Exposer le suivi par lien, sans authentification et à débit limité & Moyenne \\
+\hline
+      &  & T3-16 & Fermer le lien quatorze jours après la fin de la livraison & Basse \\
+\hline
+US-32 & En tant que destinataire, je veux demander le retour d'un article reçu afin que ma demande soit enregistrée et suivie. (3 pts) & T3-17 & Enregistrer la demande de retour depuis la page publique & Moyenne \\
+\hline
+US-33 & En tant que dispatcheur, je veux approuver ou refuser une demande de retour et déclencher la reprise en stock afin de garder la main sur ce qui revient. (8 pts) & T3-18 & Approuver ou refuser une demande de retour & Moyenne \\
+\hline
+      &  & T3-19 & Déclencher la remise en stock dans le progiciel & Moyenne \\
+\hline
+\end{longtable}
+\end{small}
+
+\section{Concepts et mécanismes utilisés}
+
+Ce sprint mobilise quatre notions.
+
+\paragraph{Le moteur d'itinéraires~:} organiser une dizaine d'arrêts dans le meilleur ordre est un
+problème de calcul, pas d'intuition. Le système s'appuie sur \terme{OSRM}, un moteur d'itinéraires
+installé sur le serveur du projet et chargé de la carte routière de la Tunisie. Il fournit trois
+choses~: la durée et la distance de trajet entre chaque paire de points, une proposition d'ordre de
+visite, et le tracé des routes à afficher sur la carte. Deux raisons ont conduit à l'héberger
+localement plutôt qu'à appeler un service en ligne~: aucun coût par requête, et les adresses des
+clients ne sortent jamais de l'infrastructure.
+
+\paragraph{Les machines à états~:} une tournée et une livraison ne changent pas d'état librement.
+Chacune suit un cycle de vie dont les transitions sont explicites et vérifiées. Une tournée
+commence en brouillon, devient validée quand le dispatcheur l'engage, passe en cours quand le
+chauffeur démarre, puis se clôture. Une livraison part du \terme{pool} des non affectées, devient
+affectée, chargée, en transit, et se termine en livrée, partiellement livrée ou en échec. Chaque
+transition contrôle sa précondition~: on ne démarre pas une tournée qui n'est pas validée, on ne
+valide pas une tournée dont le chargement dépasse la charge utile du véhicule. L'intérêt n'est pas
+seulement d'interdire l'incohérence~: chaque passage d'un état à l'autre laisse un horodatage, et ce
+sont ces horodatages que le calcul des délais et le rapport de tournée exploitent ensuite.
+
+\paragraph{La diffusion en temps réel~:} le dispatcheur doit voir l'avancement d'une livraison au
+moment où il se produit, sans recharger sa page. Le système utilise \terme{STOMP}, un protocole léger
+qui circule dans une connexion \terme{WebSocket} ouverte en permanence entre le navigateur et le
+serveur. La diffusion elle-même est déléguée à RabbitMQ. Ce point mérite d'être expliqué, car c'est
+le seul choix d'architecture réel de ce mécanisme, et la figure~\ref{fig:stomp} l'illustre.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{Stompfigure}
+\caption{Diffusion temps réel entre plusieurs instances du service}
+\label{fig:stomp}
+\end{figure}
+
+Le courtier intégré à Spring garde la liste des abonnés dans la mémoire de l'instance qui les a
+acceptés. Tant qu'une seule instance tourne, cela fonctionne. Dès qu'une seconde est déployée, un
+dispatcheur connecté à la première ne voit plus rien de ce qui se passe sur la seconde. Confier la
+diffusion à RabbitMQ supprime ce lien à la topologie~: toutes les instances publient dans le même
+courtier, et tout abonné reçoit l'événement quelle que soit l'instance qui le sert.
+
+Il faut être clair sur ce que ce canal apporte et sur ce qu'il n'apporte pas. Il n'est pas un moyen
+de conservation~: un dispatcheur déconnecté au moment de l'émission ne recevra pas l'événement. La
+donnée, elle, reste en base, et les alertes qui doivent survivre à une absence sont enregistrées
+séparément pour rester consultables. Le temps réel évite d'attendre le prochain rafraîchissement, il
+ne remplace pas la base.
+
+\paragraph{Le respect des délais~:} pour chaque livraison, le système compare l'avancement réel à la
+fenêtre horaire engagée sur l'arrêt et rend un verdict~: dans les temps, à risque, ou dépassé. Le
+calcul dépend de l'étape en cours, car ce qui est promis n'est pas le même selon que la livraison
+attend d'être planifiée, attend d'être chargée ou est en route. Ce point est développé à la
+section~\ref{sec:s3-echeances}.
+
+\section{Analyse et spécification des besoins}
+
+\subsection{Diagramme de cas d'utilisation du sprint}
+
+La figure~\ref{fig:uc-s3} présente les cas d'utilisation du sprint~: la construction et la validation
+des tournées, le suivi en temps réel, le traitement des exceptions et le cycle du retour.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{uc3333}
+\caption{Diagramme de cas d'utilisation du sprint 3}
+\label{fig:uc-s3}
+\end{figure}
+
+Trois acteurs se partagent ces cas. Le \textbf{dispatcheur} est l'opérateur principal~: il construit
+les tournées, demande une optimisation, valide, annule, retire un arrêt, et traite les exceptions de
+la journée. Le \textbf{responsable} n'agit pas sur les tournées~; il les observe, consulte le respect
+des délais et lit les rapports de fin de journée. Le \textbf{destinataire} n'entre jamais dans
+l'application~: il suit son colis depuis une page publique et peut y demander un retour. Le moteur
+d'itinéraires apparaît comme système externe, sollicité par le seul cas d'optimisation.
+
+Deux relations méritent d'être lues attentivement. L'optimisation \emph{étend} la construction~: une
+tournée se construit sans elle, et c'est le dispatcheur qui décide de la demander. À l'inverse, le
+choix des livraisons, la définition des fenêtres horaires, l'affectation du chauffeur et le contrôle
+de la précédence sont \emph{inclus} dans la construction~: aucun ne peut être omis. Enfin,
+« traiter une exception » est un cas abstrait, réalisé de deux manières selon la situation~:
+réaffecter à un autre chauffeur, ou replanifier à une autre date.
+
+\subsection{Description détaillée des cas d'utilisation}
+
+Trois cas sont détaillés~: le plus structurant du sprint, le plus délicat en cours de journée, et
+celui qui ouvre le système sur l'extérieur.
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Construire une tournée »}
+\label{tab:cu-construire}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Construire une tournée \\
+\hline
+\textbf{Acteur} & Dispatcheur \\
+\hline
+\textbf{Résumé} & Réunir des livraisons en attente dans une tournée, lui affecter un chauffeur et un véhicule, fixer les fenêtres horaires des arrêts, et éventuellement demander un ordre de passage optimisé. \\
+\hline
+\textbf{Préconditions} & Le dispatcheur est authentifié et détient la permission \code{perm:route:manage}. Des livraisons non affectées existent chez son entreprise. Le chauffeur est actif et le véhicule disponible. \\
+\hline
+\textbf{Postconditions} & La tournée existe en brouillon, avec ses arrêts ordonnés et leurs fenêtres horaires. Elle n'est pas encore visible du chauffeur~; la validation fait l'objet d'un cas distinct. \\
+\hline
+\textbf{Scénario nominal} & 1. Le dispatcheur ouvre le planificateur. \newline 2. Il crée une tournée en choisissant une date, un dépôt de départ, un chauffeur et un véhicule. \newline 3. Il fait glisser des livraisons du pool vers la tournée. \newline 4. Il fixe la fenêtre horaire de chaque arrêt. \newline 5. Il demande une optimisation, examine l'ordre proposé et les gains annoncés, puis l'applique ou l'ajuste. \\
+\hline
+\textbf{Scénarios alternatifs} & 2a. Le chauffeur est déjà engagé sur une autre tournée au même moment~: l'affectation est refusée. \newline 2b. Le véhicule est inactif ou indisponible~: l'affectation est refusée. \newline 3a. L'adresse de la livraison n'est pas géolocalisée~: l'arrêt ne peut pas être placé sur la carte ni ordonné. \newline 4a. Une fenêtre se termine avant de commencer, ou empiète sur la précédente~: le système refuse et désigne l'arrêt en cause. \newline 5a. Le moteur d'itinéraires ne répond pas~: l'ordre en place est conservé, sans blocage. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Réaffecter une livraison à un autre chauffeur »}
+\label{tab:cu-reassign}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Réaffecter une livraison à un autre chauffeur \\
+\hline
+\textbf{Acteur} & Dispatcheur \\
+\hline
+\textbf{Résumé} & Confier une livraison à un autre chauffeur lorsque le titulaire ne peut pas la mener à terme, en distinguant le cas où le colis est encore au dépôt de celui où il est déjà dans le véhicule. \\
+\hline
+\textbf{Préconditions} & La livraison est encore en jeu~: en attente de planification, programmée, chargée ou en transit. La tournée d'accueil, si elle est désignée, appartient bien au chauffeur visé. \\
+\hline
+\textbf{Postconditions} & La livraison est rattachée à la tournée du nouveau chauffeur, à la place et dans la fenêtre horaire indiquées. Si le colis était déjà en main, elle attend un transfert de garde avant de repartir. \\
+\hline
+\textbf{Scénario nominal} & 1. Le dispatcheur ouvre la livraison en difficulté depuis le centre de dispatch. \newline 2. Il demande la réaffectation. \newline 3. Le système lui recommande les chauffeurs en service, classés par le temps de trajet séparant leur position actuelle de l'adresse de livraison. \newline 4. Il en choisit un, désigne la tournée d'accueil, et fixe la position de l'arrêt ainsi que sa fenêtre horaire. Il peut joindre une note de passation, sans y être tenu~; à défaut, une mention par défaut est enregistrée, de sorte qu'un changement de garde laisse toujours une trace. \newline 5. Si le colis est encore au dépôt, la livraison rejoint directement la tournée d'accueil, qui est recalculée, et le nouveau chauffeur en est averti. \newline 6. S'il est déjà dans le véhicule du chauffeur d'origine, le système ouvre un transfert de garde~: la livraison ne repart qu'une fois la remise confirmée entre les deux chauffeurs. \\
+\hline
+\textbf{Scénarios alternatifs} & 2a. La livraison est livrée, annulée ou en échec~: la réaffectation est refusée, car un échec se traite par une replanification à une autre date, non par un changement de porteur. \newline 3a. Aucun chauffeur ne transmet de position récente~: la recommandation reste vide, et le dispatcheur choisit lui-même dans la liste des chauffeurs en service. \newline 4a. L'arrivée de la livraison dépasse la charge utile du véhicule d'accueil~: le système bloque, sauf si le dispatcheur assume explicitement la surcharge. \newline 4b. La fenêtre horaire saisie chevauche celle d'un arrêt voisin, ou se termine avant de commencer~: l'insertion est refusée et l'arrêt en cause est désigné. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Cas d'utilisation « Demander un retour »}
+\label{tab:cu-retour}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Demander un retour \\
+\hline
+\textbf{Acteur} & Destinataire \\
+\hline
+\textbf{Résumé} & Signaler depuis la page publique de suivi qu'un article reçu doit être repris, et déclencher le cycle de traitement du retour. \\
+\hline
+\textbf{Préconditions} & Le destinataire dispose du lien de suivi de sa livraison. Celle-ci est livrée ou partiellement livrée, et le lien n'a pas expiré. \\
+\hline
+\textbf{Postconditions} & Une demande de retour est enregistrée en attente d'arbitrage, avec les articles concernés et les éventuelles photographies~; le bureau en est averti. \\
+\hline
+\textbf{Scénario nominal} & 1. Le destinataire ouvre son lien de suivi. \newline 2. Il choisit les articles à retourner et en indique le motif. Il peut joindre des photographies, sans y être tenu. \newline 3. La demande est enregistrée en attente. \newline 4. Le dispatcheur l'approuve~; une collecte est créée et insérée dans une tournée comme un arrêt ordinaire. \\
+\hline
+\textbf{Scénarios alternatifs} & 1a. La livraison est terminée depuis plus de quatorze jours~: le lien ne répond plus. \newline 3a. Plus de quatre demandes ont été émises en vingt-quatre heures pour cette livraison~: la demande est rejetée. \newline 4a. Le dispatcheur refuse la demande en la motivant~: aucune collecte n'est créée. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Modélisation conceptuelle}
+
+\subsection{Diagramme de classes}
+
+La figure~\ref{fig:class-s3} présente la conception du noyau de planification~: un contrôleur, quatre
+services aux responsabilités séparées, les deux entités du domaine et les composants qui les
+entourent.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{ClassSprint3}
+\caption{Classes de conception du sprint 3}
+\label{fig:class-s3}
+\end{figure}
+
+Le modèle du domaine tient en deux entités. Une \code{Route} porte la date, le dépôt de départ, le
+chauffeur, le véhicule et l'état du cycle de vie. Elle est composée de \code{RouteStop}~: un arrêt
+connaît son rang dans la séquence, son état, la livraison qu'il sert et son type, qui vaut
+chargement au dépôt ou livraison chez un client. Les trois énumérations en marge donnent les valeurs possibles de
+ces états.
+
+Le traitement est réparti entre quatre services, et ce découpage suit les moments réels du travail
+plutôt que les entités. \code{RoutePlanningService} porte tout ce que le dispatcheur fait sur une
+tournée avant qu'elle ne parte. \code{RouteExecutionService} porte ce que la journée lui fait subir
+ensuite~: démarrage, chargement confirmé, arrivée à un arrêt, clôture. \code{RouteOptimizationService}
+n'est appelé que pour proposer un ordre. Enfin, \code{RouteValidator} rassemble les règles qui
+déterminent si une tournée est légale~: chauffeur actif, absence de conflit d'horaire, charge utile
+respectée, fenêtres horaires cohérentes.
+
+Ce dernier point mérite d'être expliqué. Ces contrôles servent à plusieurs opérations~: créer une
+tournée, la modifier, y ajouter un arrêt et la valider. Ils vivaient d'abord au milieu du
+service de planification, mêlés au code qui applique les changements. Les avoir isolés sépare deux
+questions différentes~: « cette tournée est-elle légale~? » et « comment la modifier~? ». Une règle a
+ainsi une seule écriture, et la corriger une fois vaut pour tous les chemins qui l'appellent.
+
+Deux composants complètent l'ensemble. \code{OsrmRoutingService} est le client du moteur
+d'itinéraires~: il fournit la matrice des durées, une proposition d'ordre et les tracés.
+\code{PrecedenceAwareSequencer} est la stratégie qui décide de l'ordre final. Les séparer n'est pas
+gratuit~: le moteur d'itinéraires sait calculer un trajet court, mais il ignore qu'un colis doit être
+chargé avant d'être livré. Le premier fournit donc les coûts, le second choisit l'ordre en tenant
+compte de cette contrainte. La section suivante détaille ce partage.
+
+Enfin, \code{TransportPort} règle une question simple~: la planification a besoin de savoir si un
+chauffeur est actif et où il se trouve, mais ces données appartiennent au service Chauffeur et
+s'obtiennent par le réseau. Plutôt que de disperser cet appel partout, le service de livraison écrit
+d'abord ce dont il a besoin dans une interface courte, sans dire d'où viendra la réponse.
+\code{InternalTransportAdapter} la réalise en interrogeant le service voisin, et un paramètre de
+configuration désigne l'adaptateur à employer. Une entreprise qui confierait ses tournées à un
+transporteur extérieur plutôt qu'à ses propres chauffeurs n'aurait qu'à placer là un adaptateur qui
+parle à ce transporteur~: la planification, qui ne connaît que l'interface, resterait inchangée.
+C'est le patron des ports et adaptateurs du sprint précédent, appliqué cette fois à la flotte.
+
+\subsection{Diagrammes de séquence}
+
+La figure~\ref{fig:seq-s3} suit la construction d'une tournée, depuis la sélection des livraisons
+jusqu'à la validation, en passant par l'optimisation.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{Sprint3seqfinal}
+\caption{Séquence de construction, d'optimisation et de validation d'une tournée}
+\label{fig:seq-s3}
+\end{figure}
+
+La séquence se lit en trois phases. La première crée la tournée en brouillon, après vérification du
+chauffeur, du véhicule, de la charge et du positionnement des arrêts. La deuxième, facultative,
+demande une optimisation. La troisième applique l'ordre retenu, puis engage la tournée.
+
+Le cadre \emph{opt} de la phase 2 traduit la décision centrale du sprint~: \textbf{l'optimiseur
+propose, le dispatcheur dispose}. Une version antérieure appliquait directement l'ordre calculé, et
+elle a été retirée. Un algorithme ignore le client qui n'ouvre qu'à quatorze heures ou la rue en
+travaux~; le dispatcheur les connaît sans pouvoir les saisir. Le cadre \emph{alt} voisin couvre
+l'indisponibilité du moteur d'itinéraires~: l'ordre en place est conservé et la tournée reste
+modifiable. Une panne retire une aide, elle n'empêche pas de planifier la journée.
+
+Le calcul de l'ordre se fait à deux. Le moteur d'itinéraires donne le coût de chaque trajet et
+propose une tournée, mais sa proposition ignore la précédence~: elle peut placer une livraison avant
+le chargement du dépôt qui la fournit. Le séquenceur tranche donc lui-même. Il compare trois
+ordres~: celui en place, celui du moteur et un troisième construit de proche en proche. Il écarte ceux
+qui violent la précédence, et garde le moins coûteux. Comme l'ordre en place est l'un des candidats,
+la suggestion ne peut pas être moins bonne que ce que le dispatcheur a déjà sous les yeux.
+
+Cette règle vient d'un échec concret. L'ancienne méthode prenait l'ordre du moteur et déplaçait tous
+les chargements au début de la liste, avant toutes les livraisons. Le résultat était valide, puisque
+chaque livraison suivait bien son chargement, mais il obligeait le chauffeur à passer par tous les
+dépôts avant de livrer quoi que ce soit~: sur une tournée de Tunis comportant un chargement à Sousse,
+il descendait cent trente kilomètres, puis remontait livrer.
+
+Les heures d'arrivée se règlent au même endroit. Le système part de l'heure de départ, ajoute les
+durées de trajet et le temps passé sur place, et en déduit une \textbf{fenêtre horaire proposée pour
+chaque arrêt}. Mais il n'enregistre jamais l'heure qu'il a calculée. Ce qui est conservé, et ce sur
+quoi les retards seront mesurés, c'est la fenêtre que le dispatcheur a acceptée ou corrigée. Une
+durée lue sur une carte ignore le trafic du jour~; juger un chauffeur là-dessus reviendrait à
+l'évaluer sur une prévision que personne n'a validée. Une fenêtre qu'un dispatcheur a engagée est,
+elle, une promesse assumée.
+
+La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
+font avancer et sur laquelle tout le suivi s'appuie.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{etatSprint3}
+\caption{Machine à états d'une livraison}
+\label{fig:etat-s3}
+\end{figure}
+
+Une livraison naît dans le \terme{pool} à l'import depuis le progiciel. L'affectation à une tournée
+la fait passer en programmée, le chargement au dépôt en chargée, le départ en transit. La clôture de
+l'arrêt par le chauffeur mène à l'un des trois résultats possibles, selon ce qui a réellement été
+remis~: tout, une partie, ou rien.
+
+Trois particularités de ce diagramme portent des décisions de conception.
+
+D'abord, l'issue de l'arrêt est un choix guidé par les quantités, non une déclaration du chauffeur.
+Le résultat se déduit de ce qui a été remis~: si aucune ligne ne l'a été, c'est un échec, pas une
+livraison partielle vide. Cette distinction évite de remonter au progiciel un mouvement de stock sans
+contenu.
+
+Ensuite, la livraison partielle est un état terminal, au même titre que la livraison complète. Le
+reliquat ne prolonge pas la livraison en cours~: il donne lieu à une autre livraison, créée à partir
+de la commande. Une livraison close reste ainsi le compte rendu fidèle d'un passage, et non un
+dossier qu'on rouvre.
+
+Enfin, l'état d'attente de transfert existe pour que la garde du colis ne soit jamais ambiguë.
+Lorsqu'une livraison change de chauffeur alors que le colis est déjà chargé, elle ne passe pas
+directement d'un chauffeur à l'autre~: elle s'arrête dans cet état intermédiaire jusqu'à ce que la
+remise soit confirmée sur le terrain. Sans lui, le système désignerait un porteur pendant qu'un autre
+tiendrait le colis, et l'écart ne se découvrirait qu'au litige.
+
+\subsection{L'évaluation des échéances}
+\label{sec:s3-echeances}
+
+Le suivi des retards demande une précision que le diagramme d'états ne montre pas. Une livraison en
+retard ne l'est pas de la même façon selon l'étape où elle se trouve, et la personne responsable
+change en cours de route.
+
+La figure~\ref{fig:sla-s3} présente les quatre phases retenues~: ce que chacune promet, l'échéance à
+laquelle elle se mesure, et la personne qui en répond.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,keepaspectratio]{slaSprint3}
+\caption{Les quatre phases d'échéance d'une livraison}
+\label{fig:sla-s3}
+\end{figure}
+
+Le déplacement de responsabilité se lit sur la dernière ligne des colonnes~: seule la planification
+engage le bureau, les trois autres engagent le chauffeur. C'est ce qui permet à un responsable de
+distinguer une équipe qui planifie trop tard d'une flotte qui roule trop lentement.
+
+Les deux réserves portées en bas de la figure corrigent des injustices que la version initiale
+produisait. Sans le plafonnement du seuil d'alerte, un créneau de dix minutes passait à l'orange dès
+la première seconde et l'alerte ne voulait plus rien dire. Sans la réserve sur le multi-dépôt, le
+tableau de bord affichait chaque matin des retards imputés à des chauffeurs qui n'avaient pas encore
+pu prendre leur colis, et un indicateur qui accuse à tort finit par n'être plus regardé.
+
+Une dernière décision mérite d'être relevée~: une livraison en échec reçoit elle aussi un verdict.
+Une tentative faite dans les temps mais infructueuse est enregistrée comme respectée, tandis qu'une
+tentative faite hors délai est un dépassement. La distinction sépare ce qui relève de l'organisation
+de ce qui relève du client absent, alors qu'un tiret dans la colonne aurait mélangé les deux.
+
+\section{Réalisation}
+
+Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
+montrée.
+
+La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones. À gauche, la liste
+des tournées de la journée. Au centre, la tournée sélectionnée, ici en brouillon, avec ses arrêts
+dans l'ordre~: référence de la commande, client, adresse, dépôt de chargement et fenêtre horaire. À
+droite, la carte situe ces arrêts, et le tableau placé sous elle donne les commandes restant à
+planifier. Le bandeau supérieur porte les compteurs et les filtres qui permettent de restreindre
+cette liste.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{routebuilder}
+\caption{Planificateur de tournées}\label{fig:s3-builder}\end{figure}
+
+La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation. L'ordre proposé est affiché arrêt par
+arrêt, avec la fenêtre horaire suggérée pour chacun, et le gain annoncé en distance et en durée par
+rapport à l'ordre courant, ici sept kilomètres et demi et dix minutes. La carte trace l'itinéraire
+proposé. Deux boutons closent l'aperçu~: appliquer ou rejeter. Rien n'est enregistré avant ce geste,
+et la tournée reste en brouillon après lui.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{optimisateur}
+\caption{Aperçu d'optimisation, avec les gains et les fenêtres proposées}\label{fig:s3-optim}\end{figure}
+
+La figure~\ref{fig:s3-route} montre la fiche d'une tournée. Un bandeau d'indicateurs en résume
+l'état~: avancement, distance, ponctualité, véhicule et durée totale. En dessous, la carte trace
+l'itinéraire réellement suivi, et la séquence des arrêts est reprise à droite avec, pour chacun, le
+client et le montant concerné.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{perroutepage}
+\caption{Fiche d'une tournée en cours}\label{fig:s3-route}\end{figure}
+
+La figure~\ref{fig:s3-desk} présente le centre de dispatch, l'écran sur lequel arrivent les
+événements poussés en temps réel. La colonne de gauche empile les tournées du jour avec leurs
+livraisons, chacune portant l'état où elle en est. Le panneau central détaille la livraison
+sélectionnée~: le destinataire, ses coordonnées, et la chronologie de son parcours.
+
+La carte, elle, n'appartient pas à cet écran. C'est une fenêtre flottante, que le dispatcheur
+déplace, redimensionne, réduit ou ferme, et qui reste ouverte quelle que soit la page consultée
+tant qu'il ne la ferme pas. Elle suit
+les positions des chauffeurs en direct et peut se centrer sur une tournée ou sur un chauffeur
+désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne consulte pas une carte,
+il la garde sous les yeux pendant qu'il travaille ailleurs.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{dispatchdesk}
+\caption{Centre de dispatch}\label{fig:s3-desk}\end{figure}
+
+La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation. Les chauffeurs en service sont
+classés par le temps de trajet qui sépare leur position actuelle de l'adresse de livraison, avec la
+distance correspondante. Le
+classement s'appuie sur le moteur d'itinéraires, et non sur la distance à vol d'oiseau~: sur un
+réseau routier réel, le chauffeur le plus proche sur la carte n'est pas toujours celui qui arrivera
+le premier. Seuls les chauffeurs dont la position est récente sont proposés, une position ancienne ne
+disant rien de l'endroit où ils se trouvent maintenant.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{reassignation}
+\caption{Réaffectation d'une livraison, chauffeurs classés par temps d'accès}\label{fig:s3-reassign}\end{figure}
+
+La figure~\ref{fig:s3-retour} montre enfin la fiche d'un retour. L'origine y est explicite, « créé
+par le client depuis le suivi public », ce qui distingue une demande du destinataire d'une reprise
+décidée au bureau. Viennent ensuite les articles concernés, chacun jugé revendable ou endommagé, les
+photographies jointes par le client, l'état de la synchronisation avec le progiciel et la
+chronologie de la demande.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{retour}
+\caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
+
+Le cycle du retour mérite un mot, car il illustre une économie de conception. Une collecte de retour
+n'est pas un objet nouveau~: c'est une livraison d'un type particulier. Elle traverse la même machine
+à états, entre dans les mêmes tournées, s'affecte de la même façon et se prouve sur le même écran
+mobile. Créer un objet séparé aurait imposé de redévelopper la planification, l'affectation et la
+preuve pour un mouvement qui n'est, au fond, qu'une livraison parcourue à l'envers.
+
+Le modèle distingue en revanche deux moments que l'on aurait pu confondre. Un retour reçu signifie
+que le colis est physiquement revenu au dépôt~; un retour remis en stock signifie qu'il a été jugé
+revendable et réintégré dans le progiciel. Un article rendu abîmé s'arrête donc au premier moment et
+ne repart jamais vers le stock. C'est cette séparation qui empêche un article détérioré de réapparaître
+comme disponible à la vente.
+
+\section{Tests et validation}
+
+\subsection{Scénarios de test}
+
+Quatre scénarios couvrent les apports du sprint~: l'ordre de passage, la validation d'une tournée,
+la mesure des délais et la réaffectation en cours de journée.
+
+\begin{table}[H]
+\centering
+\caption{TC-S3-01 — Respect de la précédence dans l'optimisation}
+\label{tab:tc-s3-01}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S3-01 \\
+\hline
+\textbf{Description} & L'ordre proposé ne place jamais une livraison avant le chargement du dépôt qui la fournit, et n'est jamais plus coûteux que l'ordre courant. \\
+\hline
+\textbf{Précondition} & Une tournée en brouillon comportant deux dépôts de chargement et plusieurs livraisons rattachées à chacun. \\
+\hline
+\textbf{Scénario} & 1. Demander une optimisation. \newline 2. Comparer l'ordre proposé et son coût à l'ordre initial. \\
+\hline
+\textbf{Résultat attendu} & Chaque livraison suit le chargement dont elle dépend~; le coût annoncé est inférieur ou égal à celui de l'ordre initial. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S3-02 — Refus de validation d'une tournée non conforme}
+\label{tab:tc-s3-02}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S3-02 \\
+\hline
+\textbf{Description} & Une tournée qui dépasse la charge utile du véhicule, ou qui engage un chauffeur déjà pris, ne peut pas être validée. \\
+\hline
+\textbf{Précondition} & Un véhicule de charge utile connue, un chauffeur déjà affecté à une tournée validée sur le même créneau. \\
+\hline
+\textbf{Scénario} & 1. Constituer une tournée dont le poids cumulé dépasse la charge utile, puis la valider. \newline 2. Constituer une seconde tournée avec le chauffeur déjà engagé, puis la valider. \\
+\hline
+\textbf{Résultat attendu} & Les deux validations sont refusées avec un motif explicite~; les tournées restent en brouillon et modifiables. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S3-03 — Mesure des délais et cas du multi-dépôt}
+\label{tab:tc-s3-03}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S3-03 \\
+\hline
+\textbf{Description} & Le verdict de délai suit la fenêtre engagée, et aucun retard n'est imputé à un chauffeur qui n'a pas encore pu charger. \\
+\hline
+\textbf{Précondition} & Une tournée validée à deux dépôts~; une livraison rattachée au second dépôt, dont la fenêtre est déjà ouverte. \\
+\hline
+\textbf{Scénario} & 1. Observer le verdict avant l'heure de la fenêtre. \newline 2. Observer le verdict pendant que le second dépôt n'est pas encore atteint. \newline 3. Observer le verdict une fois la fenêtre dépassée, le chargement fait. \\
+\hline
+\textbf{Résultat attendu} & Étape 1~: dans les temps. Étape 2~: dans les temps, le décompte n'a pas démarré. Étape 3~: dépassé, avec le retard exprimé en minutes. \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{TC-S3-04 — Réaffectation d'une livraison déjà chargée}
+\label{tab:tc-s3-04}
+\small
+\begin{tabular}{L{3.2cm}L{11.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S3-04 \\
+\hline
+\textbf{Description} & Une livraison déjà dans le véhicule ne change pas de chauffeur sans transfert de garde confirmé sur le terrain. \\
+\hline
+\textbf{Précondition} & Une livraison en transit chez un chauffeur~; un second chauffeur en service. \\
+\hline
+\textbf{Scénario} & 1. Réaffecter la livraison au second chauffeur. \newline 2. Observer l'état avant confirmation de la remise. \newline 3. Confirmer la remise entre les deux chauffeurs. \\
+\hline
+\textbf{Résultat attendu} & La livraison attend le transfert et n'est portée par personne d'autre tant que la remise n'est pas confirmée~; elle repart ensuite au nom du second chauffeur. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Tests automatisés}
+
+Trois mécanismes de ce sprint décident à la place d'un humain~: l'ordre de passage, le verdict de
+délai et la légalité d'une tournée. Ce sont eux que les tests visent en priorité, parce qu'une erreur
+y passe inaperçue~: elle ne provoque aucune panne, elle produit une tournée un peu plus longue, un
+retard imputé au mauvais chauffeur, ou un camion chargé au-delà de ce qu'il peut porter.
+
+Le sprint compte \textbf{150 méthodes de test}, réparties en deux familles~: \textbf{141 tests
+unitaires} sur 13 classes, et \textbf{9 tests d'acceptation} sur une classe, qui s'exécutent contre
+une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
+
+\begin{table}[H]
+\centering
+\caption{Tests automatisés du sprint 3}
+\label{tab:tests-s3}
+\small
+\begin{tabular}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 13 classes, 141 méthodes}} \\
+\hline
+\code{SlaEvaluatorTest} & 24 & Les quatre phases, le seuil proportionnel, le multi-dépôt et les verdicts terminaux \\
+\hline
+\code{RouteValidatorTest} & 23 & Les règles de légalité d'une tournée, dont la courbe de charge \\
+\hline
+\code{RmaServiceTest} & 21 & Le cycle du retour, jusqu'à la remise en stock \\
+\hline
+\code{PickupStopReconcilerTest} & 12 & Les arrêts de chargement suivent les dépôts réellement concernés \\
+\hline
+\code{ExceptionRetirementTest} & 10 & La sortie d'une exception de la liste des incidents à traiter \\
+\hline
+\code{ExceptionResolutionReassignTest} & 9 & Les réaffectations permises, et le transfert de garde imposé \\
+\hline
+\code{PrecedenceAwareSequencerTest} & 8 & L'ordre respecte la précédence et n'est jamais pire que celui reçu \\
+\hline
+\code{RouteExecutionServiceTest} & 8 & Les transitions d'exécution et le refus des sauts d'état \\
+\hline
+\code{PublicRmaServiceTest} & 8 & La demande de retour depuis la page publique \\
+\hline
+\code{PublicRmaControllerTest} & 5 & Les points d'entrée publics du retour \\
+\hline
+\code{PublicReturnRateLimiterTest} & 5 & La limite de débit, comptée par adresse et par livraison \\
+\hline
+\code{AssignDriverValidationTest} & 4 & Un chauffeur inexistant est refusé avant toute écriture \\
+\hline
+\code{DeliveryDepotsTest} & 4 & Les dépôts d'une livraison, y compris le cas à deux dépôts \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'acceptation (base PostgreSQL réelle) — 1 classe, 9 méthodes}} \\
+\hline
+\code{DeliveryLifecycleAcceptanceIT} & 9 & Le cycle complet d'une livraison, de l'import à la clôture \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Total} & \textbf{150} & \textbf{14 classes} \\
+\hline
+\end{tabular}
+\end{table}
+
+Le nombre de tests compte moins que ce qu'ils protègent. Trois classes méritent d'être expliquées.
+
+\code{PrecedenceAwareSequencerTest} ne vérifie pas qu'un ordre précis est produit, ce qui
+reviendrait à figer une heuristique. Il vérifie quatre propriétés qui doivent tenir quel que soit le
+résultat~: aucune livraison avant son chargement, un coût jamais supérieur à celui de l'ordre reçu,
+une suggestion irréalisable réparée plutôt que refusée, et un refus net lorsque les contraintes sont
+contradictoires. Un test reprend l'exemple de la tournée de Tunis avec chargement à Sousse et vérifie
+que les deux livraisons de Sousse sont faites avant la remontée.
+
+\code{RouteValidatorTest} met à l'épreuve les règles qui décident si une tournée est réalisable.
+Deux de ses cas s'opposent volontairement, et c'est là que se joue la justesse du contrôle de charge~:
+six cents kilogrammes de colis dans un véhicule de quatre cents. Le premier cas les accepte, parce
+que le premier colis est livré avant que le second ne soit chargé au dépôt distant~; le second les
+refuse, parce que les deux voyagent ensemble. Une simple somme des poids aurait rejeté les deux, et
+interdit une tournée parfaitement réalisable. Le reste de la classe couvre le chauffeur inactif, le
+conflit d'horaire, le brouillon qui ne réserve aucune ressource, et les fenêtres horaires
+incohérentes.
+
+\code{SlaEvaluatorTest} est la classe la plus fournie du service, et ce volume s'explique~: la
+combinaison des quatre phases, des trois verdicts et des cas particuliers du multi-dépôt produit un
+nombre de situations qu'aucune relecture ne couvre de façon fiable. Plusieurs de ces tests portent le
+nom du défaut qu'ils empêchent de revenir, comme celui qui vérifie qu'une fenêtre encore à venir ne
+déclenche pas de retard.
+
+Ces tests, unitaires comme d'acceptation, s'exécutent dans le pipeline d'intégration continue à
+chaque \emph{commit}. La capture ci-dessous en montre l'exécution.
+
+\captureaplacer{s3-ci-tests}{Exécution en intégration continue des tests du sprint 3.}
+
 \section{Conclusion}
+
+Ce sprint a transformé un stock de commandes importées en journées de travail organisées et suivies.
+Le dispatcheur construit ses tournées dans un planificateur qui contrôle la charge, les horaires et
+la cohérence des fenêtres, et qui lui propose un ordre de passage sans jamais le lui imposer. La
+répartition entre le moteur d'itinéraires, qui chiffre les trajets, et le séquenceur, qui décide de
+l'ordre sous contrainte de précédence, permet d'obtenir des tournées réalisables au lieu de tournées
+seulement courtes.
+
+L'exécution est encadrée par une machine à états dont les transitions servent trois usages à la
+fois~: elles alimentent le suivi en direct, fournissent les horodatages sur lesquels les délais sont
+mesurés, et constituent le rapport de fin de journée. Le moteur d'échéances rend un verdict par
+phase, en refusant d'imputer à un chauffeur un retard qu'il ne pouvait pas éviter. Enfin, le
+destinataire entre dans le dispositif par un lien de suivi qui ne demande aucun compte, se ferme
+quatorze jours après la livraison, et depuis lequel il peut demander un retour.
+
+Le bureau dispose désormais de tout ce qu'il faut pour organiser et surveiller la journée. Reste
+l'autre extrémité de la chaîne~: le chauffeur, son téléphone, et les zones où le réseau ne passe pas.
+C'est l'objet du sprint suivant.

@@ -32,7 +32,7 @@ Ce sprint vise une intégration qui ne dépend d'aucun éditeur. Six résultats 
 \begin{itemize}
   \item une \textbf{frontière stable} entre le métier et le progiciel, décrite par quelques
         interfaces qui ne nomment aucun fournisseur.
-  \item deux \textbf{connecteurs} — Odoo et ERPNext — derrière cette frontière commune.
+  \item deux \textbf{connecteurs}, Odoo et ERPNext, derrière cette frontière commune.
   \item un \textbf{mapping guidé} des champs du progiciel vers un contrat canonique, appuyé par un
         système de types qui refuse un mapping incohérent avant qu'il ne produise une donnée fausse.
   \item l'\textbf{import des commandes} prêtes, avec un aperçu sur de vraies données.
@@ -40,7 +40,7 @@ Ce sprint vise une intégration qui ne dépend d'aucun éditeur. Six résultats 
   \item la prise en charge de \textbf{plusieurs versions} d'un même progiciel, sans code par version.
 \end{itemize}
 
-Le périmètre couvre sept \terme{user stories} — US-05 à US-11 — soit \textbf{86 points} d'effort. Le
+Le périmètre couvre sept \terme{user stories}, US-05 à US-11, soit \textbf{86 points} d'effort. Le
 tableau~\ref{tab:backlog-s2} en donne la décomposition en tâches.
 
 \subsection{Sprint backlog}
@@ -117,7 +117,7 @@ réalise cette interface pour un progiciel donné. Le métier ne connaît que le
 progiciel revient à changer d'adaptateur, sans toucher au reste.
 
 \paragraph{Le contrat canonique~:} le système nomme les données dont il a besoin, indépendamment de
-tout progiciel — \code{CUSTOMER\_PHONE}, \code{ITEM\_QUANTITY}, \code{SCHEDULED\_AT}. L'intégrateur
+tout progiciel, à l'image de \code{CUSTOMER\_PHONE}, \code{ITEM\_QUANTITY} ou \code{SCHEDULED\_AT}. L'intégrateur
 relie les champs de son progiciel \emph{vers} ce vocabulaire. Chaque champ canonique déclare une seule
 fois sa portée (en-tête de commande ou ligne d'article) et son type. Ce type est le même pour tous les
 clients~: un client choisit \emph{d'où} vient une valeur, jamais \emph{ce qu'elle est}.
@@ -137,9 +137,9 @@ prévue fonctionne donc sans modification.
 directement au progiciel~; il émet un \terme{événement} sur un \terme{courtier de messages}, que
 l'adaptateur consomme de son côté. Cette \textbf{architecture pilotée par les événements} apporte un
 \terme{découplage temporel}~: l'émetteur et le destinataire n'ont pas besoin d'être disponibles au
-même instant. Un progiciel lent ou arrêté ne bloque donc jamais le terrain — le message attend dans la
+même instant. Un progiciel lent ou arrêté ne bloque donc jamais le terrain~: le message attend dans la
 file. Le courtier joue ainsi deux rôles~: il \textbf{amortit les afflux de messages} quand beaucoup de
-livraisons sont validées en même temps, et il \textbf{ne perd aucun message} — ceux qui échouent
+livraisons sont validées en même temps, et il \textbf{ne perd aucun message}~: ceux qui échouent
 définitivement sont mis de côté dans une file de rebut, consultable et rejouable.
 
 \paragraph{L'outbox transactionnel et l'idempotence~:} valider une livraison et prévenir le progiciel
@@ -242,7 +242,7 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 \hline
 \textbf{Postconditions} & Les commandes importées existent dans le système, prêtes à être planifiées. \\
 \hline
-\textbf{Scénario nominal} & 1. Le dispatcheur ouvre l'écran d'import. \newline 2. La liste des commandes prêtes s'affiche. \newline 3. Il prévisualise une commande~: chaque champ montre sa valeur lue, ou « vide dans le progiciel », ou « illisible » — présent, mais qu'aucune conversion ne sait lire. \newline 4. Il importe une commande ou un lot. \\
+\textbf{Scénario nominal} & 1. Le dispatcheur ouvre l'écran d'import. \newline 2. La liste des commandes prêtes s'affiche. \newline 3. Il prévisualise une commande~: chaque champ montre sa valeur lue, ou « vide dans le progiciel », ou « illisible », c'est-à-dire présent mais qu'aucune conversion ne sait lire. \newline 4. Il importe une commande ou un lot. \\
 \hline
 \textbf{Scénarios alternatifs} & 3a. Un champ est illisible~: l'aperçu affiche la raison, sans bloquer l'import des autres. \newline 2a. Le progiciel est injoignable~: l'erreur est signalée, aucune commande n'est importée. \\
 \hline
@@ -263,8 +263,8 @@ au centre, et les familles d'adaptateurs qui les réalisent.
 \label{fig:class-erp}
 \end{figure}
 
-Quatre ports décrivent les besoins du métier. \code{ErpSyncPort} pousse un résultat terrain — livré,
-partiel, échoué, annulé. \code{ErpLookupPort} lit des commandes en attente, des clients, des dépôts.
+Quatre ports décrivent les besoins du métier. \code{ErpSyncPort} pousse un résultat terrain~: livré,
+partiel, échoué ou annulé. \code{ErpLookupPort} lit des commandes en attente, des clients, des dépôts.
 \code{ErpOrderPort} crée et résout des références de commande. \code{ErpChangePort} détecte qu'une
 commande a changé côté progiciel. Aucune de ces interfaces ne nomme un progiciel.
 
@@ -296,11 +296,11 @@ une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'av
 sans son événement en attente.
 
 Un processus séparé lit ensuite les événements en attente et les publie sur un \textbf{courtier de
-messages}. Ce choix — une \textbf{communication asynchrone} pilotée par les événements, plutôt qu'un
-appel direct au progiciel — est ce qui rend tout le reste possible. Il apporte un \terme{découplage
+messages}. Ce choix d'une \textbf{communication asynchrone} pilotée par les événements, plutôt que
+d'un appel direct au progiciel, est ce qui rend tout le reste possible. Il apporte un \terme{découplage
 temporel}~: l'émetteur (le service de livraison) et le destinataire (l'adaptateur) n'ont pas besoin
 d'être disponibles au même instant. Le service dépose sa commande et poursuit~; l'adaptateur la traite
-quand il le peut, et un progiciel lent ou arrêté ne bloque jamais le terrain — le message
+quand il le peut, et un progiciel lent ou arrêté ne bloque jamais le terrain~: le message
 \textbf{attend dans la file} au lieu de faire échouer la livraison.
 
 Ce processus prend les événements par petits lots et les verrouille au passage, pour que deux
@@ -315,11 +315,11 @@ croissant, jusqu'à réussir à le déposer. Le second étage, \textbf{le plus i
 une panne du progiciel}~: l'adaptateur, qui consomme la commande, réessaie \textbf{cinq fois sur une
 trentaine de secondes} de joindre Odoo. Passé ce délai, la commande part dans une file de rebut, un
 résultat d'échec revient, et la commande passe à « échec de synchronisation »~: l'administrateur est
-prévenu, et la reprise devient un geste manuel — le bouton « resynchroniser ». En cas de succès, au
+prévenu, et la reprise devient un geste manuel, le bouton « resynchroniser ». En cas de succès, au
 contraire, la commande passe à « synchronisée ». Dans tous les cas, le livreur n'a jamais attendu~: il
 a validé, l'écran a répondu, il est reparti.
 
-La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox} — celui du
+La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox}, celui du
 premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
 
 \begin{figure}[H]
@@ -365,8 +365,8 @@ modification, tant qu'elle expose les champs attendus.
 
 La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ y
 affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la raison.
-Une cellule sans valeur indique ainsi laquelle des deux causes s'applique — vide à la source, ou
-présente mais illisible — au lieu de laisser un blanc que personne ne saurait expliquer.
+Une cellule sans valeur indique ainsi laquelle des deux causes s'applique, vide à la source ou
+présente mais illisible, au lieu de laisser un blanc que personne ne saurait expliquer.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,keepaspectratio]{s2-erp-apercu}
@@ -487,17 +487,17 @@ tableau~\ref{tab:tests-s2} en donne un aperçu ciblé.
 \hline
 \multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'intégration — Odoo 16 et 19}} \\
 \hline
-Suite bi-version — \code{OdooInfrastructureIT} et les trois \code{Workflow*IT} & 28 & Le contrat Odoo réel, éprouvé sur les versions 16 et 19 (100\% de réussite) \\
+Suite bi-version~: \code{OdooInfrastructureIT} et les trois \code{Workflow*IT} & 28 & Le contrat Odoo réel, éprouvé sur les versions 16 et 19 (100\% de réussite) \\
 \hline
 \end{tabular}
 \end{table}
 
 La suite d'intégration mérite une explication, car elle porte la preuve de l'agnosticité aux versions.
 Elle réunit \textbf{28 tests}, exécutés contre \textbf{une instance Odoo~16 et une instance Odoo~19 en
-même temps}, démarrées par l'intégration continue — tous au vert. Les deux extrémités de la plage supportée étant couvertes, les versions
+même temps}, démarrées par l'intégration continue, tous au vert. Les deux extrémités de la plage supportée étant couvertes, les versions
 intermédiaires le sont par construction~: le connecteur ne teste pas un numéro de version, mais la
 présence des champs et des méthodes. La suite épingle précisément ce qui change d'une version à
-l'autre — un champ et une méthode qui sont renommés, et la conduite des \emph{assistants de
+l'autre~: un champ et une méthode qui sont renommés, et la conduite des \emph{assistants de
 confirmation} d'Odoo, ces fenêtres que valider un transfert fait apparaître et qu'il faut piloter une
 à une par RPC.
 

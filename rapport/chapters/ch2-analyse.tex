@@ -62,7 +62,7 @@ demande de retour d'un article reçu. \\
 
 Deux systèmes extérieurs complètent ce tableau sans être des acteurs au sens strict, puisqu'ils
 n'ont ni intention ni objectif propre~: le \textbf{progiciel de gestion} de l'entreprise cliente
-— Odoo ou ERPNext —, source des commandes et destinataire des statuts, et le \textbf{serveur
+(Odoo ou ERPNext), source des commandes et destinataire des statuts, et le \textbf{serveur
 d'identité} Keycloak, qui authentifie les utilisateurs internes. Ils apparaissent dans le diagramme
 des cas d'utilisation sous forme de composants stéréotypés, à droite de la frontière du système.
 
@@ -109,8 +109,8 @@ déclare le total remis~; une autre personne compte la somme reçue et arbitre l
 temps réel, être alerté des retards et des échecs, réaffecter une livraison bloquée, et enregistrer
 les retours de marchandise. Le destinataire doit pouvoir suivre son colis par un lien public.
 
-\paragraph*{Pilotage et exploitation.} Le responsable doit disposer d'indicateurs — taux de réussite,
-motifs d'échec, respect des délais, performance par chauffeur et par zone — et pouvoir exporter des
+\paragraph*{Pilotage et exploitation.} Le responsable doit disposer d'indicateurs de taux de réussite,
+de motifs d'échec, de respect des délais et de performance par chauffeur et par zone, et pouvoir exporter des
 documents. L'administrateur doit disposer d'une console de santé qui expose l'état de l'intégration et
 permet de relancer une synchronisation en échec. Un assistant interne doit enfin permettre à
 chacun d'interroger l'activité de son entreprise en langage naturel, dans la limite de ce que
@@ -247,7 +247,7 @@ ont été formulés sous forme de \emph{user stories}, selon le gabarit « en ta
 veux \emph{action}, afin de \emph{bénéfice} », puis regroupés en huit épopées correspondant aux
 domaines de la section précédente.
 
-Deux échelles complètent chaque élément. La \textbf{priorité} suit la méthode MoSCoW —
+Deux échelles complètent chaque élément. La \textbf{priorité} suit la méthode MoSCoW~:
 \emph{Must~have} pour l'indispensable, \emph{Should~have} pour l'important non bloquant,
 \emph{Could~have} pour le souhaitable. L'\textbf{estimation} est exprimée en points de complexité
 selon la suite de Fibonacci~; il s'agit d'une complexité relative entre éléments, non d'une durée.
@@ -438,7 +438,7 @@ revue et une rétrospective avant l'engagement du suivant.
 
 L'ordre des sprints obéit à une contrainte simple~: chaque sprint ne doit dépendre que de ce qui a
 déjà été livré. L'isolation par entreprise et le contrôle des droits viennent en premier, parce que
-toute donnée créée ensuite doit déjà être rattachée à un client et protégée — les rajouter après coup
+toute donnée créée ensuite doit déjà être rattachée à un client et protégée. Les rajouter après coup
 aurait imposé de reprendre l'ensemble du code écrit entre-temps. L'intégration au progiciel vient
 juste après, parce qu'elle alimente le système en commandes~: sans elle, les sprints suivants
 auraient travaillé sur des données saisies à la main, donc sur un cas qui n'existe pas en
@@ -492,7 +492,7 @@ déploiement, dont les suivants ont hérité sans en repayer le coût.
 \subsection{Environnement matériel}
 
 Le développement a été mené sur un poste unique, qui a également hébergé l'ensemble des services
-conteneurisés — bases de données, courtier de messages, serveur d'identité, moteur de calcul
+conteneurisés~: bases de données, courtier de messages, serveur d'identité, moteur de calcul
 d'itinéraires et instances de progiciel de test. Faire tourner tout cela
 ensemble est ce qui a imposé les 24~Go de mémoire.
 

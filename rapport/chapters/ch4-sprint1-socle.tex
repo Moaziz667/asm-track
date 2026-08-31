@@ -32,7 +32,7 @@ ouvre quelle route. Le troisième est l'\textbf{isolation}~: chaque entreprise c
 ses propres données, garanties par un schéma de base de données qui lui est réservé.
 
 Sur ce socle, le sprint pose déjà les premiers écrans exploitables~: la gestion des comptes et des
-rôles, puis trois référentiels — chauffeurs, véhicules et zones — qui seront le point de départ des
+rôles, puis trois référentiels, chauffeurs, véhicules et zones, qui seront le point de départ des
 tournées du sprint~3.
 
 \section{Objectifs du sprint et planification des tâches}
@@ -43,17 +43,17 @@ Ce sprint vise un socle sur lequel les quatre suivants pourront se greffer sans 
 Cinq résultats sont attendus~:
 
 \begin{itemize}
-  \item une \textbf{authentification centralisée}, sans code maison de gestion de mots de passe~;
+  \item une \textbf{authentification centralisée}, sans code maison de gestion de mots de passe.
   \item une \textbf{autorisation lisible et unique}, la même pour la passerelle et pour chaque
-        service~;
-  \item une \textbf{isolation des entreprises clientes} vérifiée, et non supposée~;
-  \item la \textbf{gestion des comptes et des rôles} depuis le back-office~;
-  \item trois \textbf{référentiels d'exploitation} — chauffeurs, véhicules, zones — chacun derrière
+        service.
+  \item une \textbf{isolation des entreprises clientes} vérifiée, et non supposée.
+  \item la \textbf{gestion des comptes et des rôles} depuis le back-office.
+  \item trois \textbf{référentiels d'exploitation}, chauffeurs, véhicules et zones, chacun derrière
         l'authentification et les permissions.
 \end{itemize}
 
-Le périmètre couvre sept \terme{user stories} — US-01 à US-04 pour le socle, US-12 à US-14 pour les
-référentiels — soit \textbf{46 points} d'effort. Le tableau~\ref{tab:backlog-s1} en donne la
+Le périmètre couvre sept \terme{user stories}, US-01 à US-04 pour le socle et US-12 à US-14 pour les
+référentiels, soit \textbf{46 points} d'effort. Le tableau~\ref{tab:backlog-s1} en donne la
 décomposition en tâches.
 
 \subsection{Sprint backlog}
@@ -92,7 +92,7 @@ US-02 & En tant qu'administrateur, je veux créer des comptes et leur attribuer 
 \hline
       &  & T1-07 & Provisionner une nouvelle entreprise cliente (organisation, schémas et compte administrateur) avec annulation en cas d'échec & Haute \\
 \hline
-US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger la politique déclarative unique — 46 règles, 18 permissions & Haute \\
+US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger la politique déclarative unique de 46 règles et 18 permissions & Haute \\
 \hline
       &  & T1-09 & Appliquer la même politique d'autorisation à la passerelle et à chaque service, contrôlée en CI & Haute \\
 \hline
@@ -128,8 +128,8 @@ utilisateur les rencontre.
 déléguée à \textbf{Keycloak}, un serveur d'identité spécialisé. \terme{OpenID Connect} est le
 protocole standard par lequel une application obtient, de ce serveur, la preuve qu'un utilisateur est
 bien celui qu'il prétend être. L'application ne voit jamais le mot de passe~: elle reçoit, à la place,
-un jeton. Écrire soi-même cette mécanique — rotation des clés, expiration, révocation, verrouillage
-après échecs — aurait multiplié les occasions de mal faire, sans rien apporter de propre à une
+un jeton. Écrire soi-même cette mécanique, avec la rotation des clés, l'expiration, la révocation et le
+verrouillage après échecs, aurait multiplié les occasions de mal faire, sans rien apporter de propre à une
 plateforme de livraison.
 
 \paragraph{Le jeton JWT~:} Le jeton délivré est un \terme{JSON Web Token}~: un petit document signé qui
@@ -138,14 +138,14 @@ altération. Comme il se suffit à lui-même, un service qui le reçoit peut dé
 le serveur d'identité à chaque requête.
 
 \paragraph{La validation par JWKS~:} Encore faut-il vérifier cette signature. Keycloak publie ses clés
-publiques à une adresse connue — le \terme{JWKS}. La passerelle les récupère une fois, les garde en
+publiques à une adresse connue, le \terme{JWKS}. La passerelle les récupère une fois, les garde en
 mémoire, et s'en sert pour valider chaque jeton. Elle ne détient donc \textbf{aucun secret partagé}~:
 elle vérifie une signature avec une clé publique, exactement comme on vérifie un sceau sans posséder
 le tampon qui l'a apposé.
 
 \paragraph{Le contrôle d'accès par rôles (RBAC)~:} Un jeton valide dit \emph{qui} parle~; il reste à
 décider \emph{ce qu'il peut faire}. Le projet suit le modèle \terme{RBAC}~: des permissions
-élémentaires — lire les chauffeurs, gérer les tournées — sont regroupées dans des rôles. Un rôle
+élémentaires, comme lire les chauffeurs ou gérer les tournées, sont regroupées dans des rôles. Un rôle
 n'est qu'un sac de permissions. La figure~\ref{fig:matrice-perms} donne la répartition exacte des
 dix-huit permissions sur les trois rôles de la plateforme.
 
@@ -157,7 +157,7 @@ dix-huit permissions sur les trois rôles de la plateforme.
 \end{figure}
 
 Cette matrice se lit ligne à ligne. L'\textbf{administrateur} détient les dix-huit permissions~: il
-gouverne son entreprise. Le \textbf{dispatcheur} en détient onze — celles qui font tourner
+gouverne son entreprise. Le \textbf{dispatcheur} en détient onze, celles qui font tourner
 l'exploitation au quotidien, y compris déclencher un import depuis le progiciel du client. Le
 \textbf{responsable} en détient six, toutes de lecture, plus l'accès au journal d'audit~: il
 supervise et relit les actions des autres, mais n'opère pas lui-même. La séparation entre le
@@ -191,7 +191,7 @@ utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrate
 
 Trois lectures s'en dégagent. D'abord, tout part de \textbf{S'authentifier}~: chaque autre cas
 l'inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
-authentifié} — administrateur, dispatcheur, responsable ou livreur — gère son propre compte~: mot de
+authentifié}, qu'il soit administrateur, dispatcheur, responsable ou livreur, gère son propre compte~: mot de
 passe, profil, déconnexion de ses autres appareils. Enfin, l'\textbf{administrateur} concentre les
 actions de gouvernance~: créer et modifier des comptes, attribuer des rôles, et administrer les trois
 référentiels (chauffeurs, véhicules, zones). Keycloak apparaît comme un système externe~: c'est lui
@@ -324,8 +324,8 @@ lequel est échangé contre un jeton. Le jeton ne transite jamais par l'URL grâ
 Code, tandis que PKCE protège le code d'autorisation contre une éventuelle interception.
 
 La \textbf{seconde} phase est l'accès à une ressource. La requête, porteuse du jeton, atteint la
-passerelle. Celle-ci récupère les clés publiques de Keycloak — une seule fois, puis les garde en
-cache — vérifie alors deux choses~: que la signature du jeton est valide, et que l'utilisateur porte
+passerelle. Celle-ci récupère les clés publiques de Keycloak une seule fois, puis les garde en
+cache. Elle vérifie alors deux choses~: que la signature du jeton est valide, et que l'utilisateur porte
 la permission requise. Elle ne transmet la requête au service que si ces deux conditions sont
 réunies~; sinon, elle la rejette elle-même et le service n'est jamais sollicité. Un dernier cas ne se
 produit que si le jeton a expiré~: l'application le renouvelle alors sans que l'utilisateur ne s'en
@@ -514,8 +514,8 @@ de PostgreSQL qui sont mis à l'épreuve~: une base simulée testerait l'imitati
 
 Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'intégration continue à
 chaque \emph{commit}. Les figures~\ref{fig:s1-ci-rbac} et~\ref{fig:s1-ci-iso} en montrent deux
-étapes~: le job qui s'assure que les cinq services portent la même politique — même empreinte, 46
-règles, 18 permissions — et la suite d'isolation passant au vert.
+étapes~: le job qui s'assure que les cinq services portent la même politique, avec la même empreinte,
+46 règles et 18 permissions, puis la suite d'isolation passant au vert.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-rbac-check}

@@ -1,0 +1,66 @@
+<mxfile host="Electron">
+  <diagram name="Phases d'échéance d'une livraison — Sprint 3" id="slaPhasesSprint3">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="ph1h" value="&lt;b&gt;1. PLANIFICATION&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;bureau&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ECEFF1;strokeColor=#546E7A;fontSize=13;fontColor=#37474F;" vertex="1" parent="1">
+          <mxGeometry x="40" y="60" width="250" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ph1b" value="&lt;div style='text-align:left;margin:6px 4px'&gt;&lt;b&gt;État&lt;/b&gt; : dans le pool&lt;br&gt;&lt;br&gt;&lt;b&gt;Attendu&lt;/b&gt; : être placée dans une tournée&lt;br&gt;&lt;br&gt;&lt;b&gt;Échéance&lt;/b&gt; : la date convenue avec le client&lt;br&gt;&lt;br&gt;&lt;b&gt;En répond&lt;/b&gt; : le bureau&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fillColor=#FFFFFF;strokeColor=#546E7A;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="250" height="185" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph2h" value="&lt;b&gt;2. AFFECTATION&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;chauffeur&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontSize=13;fontColor=#283593;" vertex="1" parent="1">
+          <mxGeometry x="320" y="60" width="250" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ph2b" value="&lt;div style='text-align:left;margin:6px 4px'&gt;&lt;b&gt;État&lt;/b&gt; : programmée&lt;br&gt;&lt;br&gt;&lt;b&gt;Attendu&lt;/b&gt; : le colis est chargé au dépôt&lt;br&gt;&lt;br&gt;&lt;b&gt;Échéance&lt;/b&gt; : ouverture de la fenêtre de l'arrêt&lt;br&gt;&lt;br&gt;&lt;b&gt;En répond&lt;/b&gt; : le chauffeur&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fillColor=#FFFFFF;strokeColor=#3F51B5;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="320" y="100" width="250" height="185" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph3h" value="&lt;b&gt;3. DÉPART&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;chauffeur&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontSize=13;fontColor=#283593;" vertex="1" parent="1">
+          <mxGeometry x="600" y="60" width="250" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ph3b" value="&lt;div style='text-align:left;margin:6px 4px'&gt;&lt;b&gt;État&lt;/b&gt; : chargée&lt;br&gt;&lt;br&gt;&lt;b&gt;Attendu&lt;/b&gt; : le chauffeur quitte le dépôt&lt;br&gt;&lt;br&gt;&lt;b&gt;Échéance&lt;/b&gt; : ouverture de la fenêtre de l'arrêt&lt;br&gt;&lt;br&gt;&lt;b&gt;En répond&lt;/b&gt; : le chauffeur&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fillColor=#FFFFFF;strokeColor=#3F51B5;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="600" y="100" width="250" height="185" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ph4h" value="&lt;b&gt;4. LIVRAISON&lt;/b&gt;&lt;br&gt;&lt;font style='font-size:10px'&gt;chauffeur&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8EAF6;strokeColor=#3F51B5;fontSize=13;fontColor=#283593;" vertex="1" parent="1">
+          <mxGeometry x="880" y="60" width="250" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ph4b" value="&lt;div style='text-align:left;margin:6px 4px'&gt;&lt;b&gt;État&lt;/b&gt; : en transit&lt;br&gt;&lt;br&gt;&lt;b&gt;Attendu&lt;/b&gt; : arrivée chez le destinataire&lt;br&gt;&lt;br&gt;&lt;b&gt;Échéance&lt;/b&gt; : fermeture de la fenêtre de l'arrêt&lt;br&gt;&lt;br&gt;&lt;b&gt;En répond&lt;/b&gt; : le chauffeur&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;fillColor=#FFFFFF;strokeColor=#3F51B5;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="880" y="100" width="250" height="185" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" style="endArrow=block;endSize=8;html=1;rounded=0;strokeColor=#546E7A;strokeWidth=2;" edge="1" parent="1" source="ph1h" target="ph2h">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" style="endArrow=block;endSize=8;html=1;rounded=0;strokeColor=#546E7A;strokeWidth=2;" edge="1" parent="1" source="ph2h" target="ph3h">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" style="endArrow=block;endSize=8;html=1;rounded=0;strokeColor=#546E7A;strokeWidth=2;" edge="1" parent="1" source="ph3h" target="ph4h">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="vtitle" value="&lt;b&gt;À chaque instant, la phase en cours rend l'un de ces trois verdicts&lt;/b&gt;" style="text;html=1;align=center;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="315" width="1090" height="24" as="geometry" />
+        </mxCell>
+        <mxCell id="v1" value="&lt;b&gt;Dans les temps&lt;/b&gt;&lt;br&gt;l'échéance est loin" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=12;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="40" y="345" width="345" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="v2" value="&lt;b&gt;À risque&lt;/b&gt;&lt;br&gt;l'échéance approche, ou l'heure d'arrivée prévue la dépasse" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#F9A825;fontSize=12;fontColor=#7A5B00;" vertex="1" parent="1">
+          <mxGeometry x="412" y="345" width="345" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="v3" value="&lt;b&gt;Dépassé&lt;/b&gt;&lt;br&gt;l'échéance est passée" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=12;fontColor=#8E0000;" vertex="1" parent="1">
+          <mxGeometry x="785" y="345" width="345" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note" value="&lt;div style='text-align:left;margin:6px 8px'&gt;&lt;b&gt;Deux réserves&lt;/b&gt; &amp;nbsp;·&amp;nbsp; le seuil d'alerte est plafonné au quart de la fenêtre, pour qu'un créneau de dix minutes ne s'allume pas dès la première seconde &amp;nbsp;·&amp;nbsp; sur une tournée à plusieurs dépôts, le décompte ne démarre qu'une fois le dépôt concerné atteint&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=middle;align=left;fillColor=#F5F5F5;strokeColor=#90A4AE;dashed=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="421" width="1090" height="56" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
