@@ -40,7 +40,10 @@
 \include{chapters/conclusion}
 
 % ---------- Bibliographie et annexes ----------
-\printbibliography[heading=bibintoc,title={Bibliographie et webographie}]
+% Le guide de l'institut demande une bibliographie et une webographie distinctes : les ouvrages,
+% articles et actes d'un côté, la documentation en ligne des solutions étudiées de l'autre.
+\printbibliography[heading=bibintoc,title={Bibliographie},nottype=online]
+\printbibliography[heading=bibintoc,title={Webographie},type=online]
 
 \appendix
 \include{chapters/annexes}

@@ -117,7 +117,7 @@ US-33 & En tant que dispatcheur, je veux approuver ou refuser une demande de ret
 Ce sprint mobilise quatre notions.
 
 \paragraph{Le moteur d'itinéraires~:} organiser une dizaine d'arrêts dans le meilleur ordre est un
-problème de calcul, pas d'intuition. Le système s'appuie sur \terme{OSRM}, un moteur d'itinéraires
+problème de calcul, pas d'intuition~\cite{toth14}. Le système s'appuie sur \terme{OSRM}~\cite{vetter11}, un moteur d'itinéraires
 installé sur le serveur du projet et chargé de la carte routière de la Tunisie. Il fournit trois
 choses~: la durée et la distance de trajet entre chaque paire de points, une proposition d'ordre de
 visite, et le tracé des routes à afficher sur la carte. Deux raisons ont conduit à l'héberger
@@ -135,9 +135,9 @@ seulement d'interdire l'incohérence~: chaque passage d'un état à l'autre lais
 sont ces horodatages que le calcul des délais et le rapport de tournée exploitent ensuite.
 
 \paragraph{La diffusion en temps réel~:} le dispatcheur doit voir l'avancement d'une livraison au
-moment où il se produit, sans recharger sa page. Le système utilise \terme{STOMP}, un protocole léger
-qui circule dans une connexion \terme{WebSocket} ouverte en permanence entre le navigateur et le
-serveur. La diffusion elle-même est déléguée à RabbitMQ. Ce point mérite d'être expliqué, car c'est
+moment où il se produit, sans recharger sa page. Son navigateur garde donc une connexion \terme{WebSocket} ouverte vers le serveur,
+et échange dessus des messages \terme{STOMP}, où chaque message porte la destination à laquelle il
+s'adresse. La diffusion elle-même est déléguée à RabbitMQ. Ce point mérite d'être expliqué, car c'est
 le seul choix d'architecture réel de ce mécanisme, et la figure~\ref{fig:stomp} l'illustre.
 
 \begin{figure}[H]
@@ -174,14 +174,14 @@ des tournées, le suivi en temps réel, le traitement des exceptions et le cycle
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{uc3333}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{uc3333}
 \caption{Diagramme de cas d'utilisation du sprint 3}
 \label{fig:uc-s3}
 \end{figure}
 
 Trois acteurs se partagent ces cas. Le \textbf{dispatcheur} est l'opérateur principal~: il construit
 les tournées, demande une optimisation, valide, annule, retire un arrêt, et traite les exceptions de
-la journée. Le \textbf{responsable} n'agit pas sur les tournées~; il les observe, consulte le respect
+la journée. Le \textbf{responsable} n'agit pas sur les tournées. Il les observe, consulte le respect
 des délais et lit les rapports de fin de journée. Le \textbf{destinataire} n'entre jamais dans
 l'application~: il suit son colis depuis une page publique et peut y demander un retour. Le moteur
 d'itinéraires apparaît comme système externe, sollicité par le seul cas d'optimisation.
@@ -198,16 +198,18 @@ réaffecter à un autre chauffeur, ou replanifier à une autre date.
 Trois cas sont détaillés~: le plus structurant du sprint, le plus délicat en cours de journée, et
 celui qui ouvre le système sur l'extérieur.
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Construire une tournée »}
-\label{tab:cu-construire}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Construire une tournée »}\label{tab:cu-construire}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Construire une tournée \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Construire une tournée (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Dispatcheur \\
 \hline
 \textbf{Résumé} & Réunir des livraisons en attente dans une tournée, lui affecter un chauffeur et un véhicule, fixer les fenêtres horaires des arrêts, et éventuellement demander un ordre de passage optimisé. \\
@@ -220,19 +222,21 @@ celui qui ouvre le système sur l'extérieur.
 \hline
 \textbf{Scénarios alternatifs} & 2a. Le chauffeur est déjà engagé sur une autre tournée au même moment~: l'affectation est refusée. \newline 2b. Le véhicule est inactif ou indisponible~: l'affectation est refusée. \newline 3a. L'adresse de la livraison n'est pas géolocalisée~: l'arrêt ne peut pas être placé sur la carte ni ordonné. \newline 4a. Une fenêtre se termine avant de commencer, ou empiète sur la précédente~: le système refuse et désigne l'arrêt en cause. \newline 5a. Le moteur d'itinéraires ne répond pas~: l'ordre en place est conservé, sans blocage. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Réaffecter une livraison à un autre chauffeur »}
-\label{tab:cu-reassign}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Réaffecter une livraison à un autre chauffeur »}\label{tab:cu-reassign}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Réaffecter une livraison à un autre chauffeur \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Réaffecter une livraison à un autre chauffeur (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Dispatcheur \\
 \hline
 \textbf{Résumé} & Confier une livraison à un autre chauffeur lorsque le titulaire ne peut pas la mener à terme, en distinguant le cas où le colis est encore au dépôt de celui où il est déjà dans le véhicule. \\
@@ -245,19 +249,21 @@ celui qui ouvre le système sur l'extérieur.
 \hline
 \textbf{Scénarios alternatifs} & 2a. La livraison est livrée, annulée ou en échec~: la réaffectation est refusée, car un échec se traite par une replanification à une autre date, non par un changement de porteur. \newline 3a. Aucun chauffeur ne transmet de position récente~: la recommandation reste vide, et le dispatcheur choisit lui-même dans la liste des chauffeurs en service. \newline 4a. L'arrivée de la livraison dépasse la charge utile du véhicule d'accueil~: le système bloque, sauf si le dispatcheur assume explicitement la surcharge. \newline 4b. La fenêtre horaire saisie chevauche celle d'un arrêt voisin, ou se termine avant de commencer~: l'insertion est refusée et l'arrêt en cause est désigné. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Demander un retour »}
-\label{tab:cu-retour}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Demander un retour »}\label{tab:cu-retour}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Demander un retour \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Demander un retour (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Destinataire \\
 \hline
 \textbf{Résumé} & Signaler depuis la page publique de suivi qu'un article reçu doit être repris, et déclencher le cycle de traitement du retour. \\
@@ -270,8 +276,8 @@ celui qui ouvre le système sur l'extérieur.
 \hline
 \textbf{Scénarios alternatifs} & 1a. La livraison est terminée depuis plus de quatorze jours~: le lien ne répond plus. \newline 3a. Plus de quatre demandes ont été émises en vingt-quatre heures pour cette livraison~: la demande est rejetée. \newline 4a. Le dispatcheur refuse la demande en la motivant~: aucune collecte n'est créée. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \section{Modélisation conceptuelle}
 
@@ -283,7 +289,7 @@ entourent.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{ClassSprint3}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{ClassSprint3}
 \caption{Classes de conception du sprint 3}
 \label{fig:class-s3}
 \end{figure}
@@ -332,7 +338,7 @@ jusqu'à la validation, en passant par l'optimisation.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{Sprint3seqfinal}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{Sprint3seqfinal}
 \caption{Séquence de construction, d'optimisation et de validation d'une tournée}
 \label{fig:seq-s3}
 \end{figure}
@@ -365,7 +371,7 @@ Les heures d'arrivée se règlent au même endroit. Le système part de l'heure 
 durées de trajet et le temps passé sur place, et en déduit une \textbf{fenêtre horaire proposée pour
 chaque arrêt}. Mais il n'enregistre jamais l'heure qu'il a calculée. Ce qui est conservé, et ce sur
 quoi les retards seront mesurés, c'est la fenêtre que le dispatcheur a acceptée ou corrigée. Une
-durée lue sur une carte ignore le trafic du jour~; juger un chauffeur là-dessus reviendrait à
+durée lue sur une carte ignore le trafic du jour, et juger un chauffeur là-dessus reviendrait à
 l'évaluer sur une prévision que personne n'a validée. Une fenêtre qu'un dispatcheur a engagée est,
 elle, une promesse assumée.
 
@@ -374,7 +380,7 @@ font avancer et sur laquelle tout le suivi s'appuie.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{etatSprint3}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{etatSprint3}
 \caption{Machine à états d'une livraison}
 \label{fig:etat-s3}
 \end{figure}
@@ -414,7 +420,7 @@ laquelle elle se mesure, et la personne qui en répond.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,keepaspectratio]{slaSprint3}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{slaSprint3}
 \caption{Les quatre phases d'échéance d'une livraison}
 \label{fig:sla-s3}
 \end{figure}
@@ -447,7 +453,7 @@ planifier. Le bandeau supérieur porte les compteurs et les filtres qui permette
 cette liste.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{routebuilder}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{routebuilder}
 \caption{Planificateur de tournées}\label{fig:s3-builder}\end{figure}
 
 La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation. L'ordre proposé est affiché arrêt par
@@ -457,7 +463,7 @@ proposé. Deux boutons closent l'aperçu~: appliquer ou rejeter. Rien n'est enre
 et la tournée reste en brouillon après lui.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{optimisateur}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{optimisateur}
 \caption{Aperçu d'optimisation, avec les gains et les fenêtres proposées}\label{fig:s3-optim}\end{figure}
 
 La figure~\ref{fig:s3-route} montre la fiche d'une tournée. Un bandeau d'indicateurs en résume
@@ -466,7 +472,7 @@ l'itinéraire réellement suivi, et la séquence des arrêts est reprise à droi
 client et le montant concerné.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{perroutepage}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{perroutepage}
 \caption{Fiche d'une tournée en cours}\label{fig:s3-route}\end{figure}
 
 La figure~\ref{fig:s3-desk} présente le centre de dispatch, l'écran sur lequel arrivent les
@@ -482,7 +488,7 @@ désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne co
 il la garde sous les yeux pendant qu'il travaille ailleurs.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{dispatchdesk}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{dispatchdesk}
 \caption{Centre de dispatch}\label{fig:s3-desk}\end{figure}
 
 La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation. Les chauffeurs en service sont
@@ -494,7 +500,7 @@ le premier. Seuls les chauffeurs dont la position est récente sont proposés, u
 disant rien de l'endroit où ils se trouvent maintenant.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{reassignation}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{reassignation}
 \caption{Réaffectation d'une livraison, chauffeurs classés par temps d'accès}\label{fig:s3-reassign}\end{figure}
 
 La figure~\ref{fig:s3-retour} montre enfin la fiche d'un retour. L'origine y est explicite, « créé
@@ -504,7 +510,7 @@ photographies jointes par le client, l'état de la synchronisation avec le progi
 chronologie de la demande.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{retour}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{retour}
 \caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
 
 Le cycle du retour mérite un mot, car il illustre une économie de conception. Une collecte de retour
@@ -514,7 +520,7 @@ mobile. Créer un objet séparé aurait imposé de redévelopper la planificatio
 preuve pour un mouvement qui n'est, au fond, qu'une livraison parcourue à l'envers.
 
 Le modèle distingue en revanche deux moments que l'on aurait pu confondre. Un retour reçu signifie
-que le colis est physiquement revenu au dépôt~; un retour remis en stock signifie qu'il a été jugé
+que le colis est physiquement revenu au dépôt. Un retour remis en stock signifie qu'il a été jugé
 revendable et réintégré dans le progiciel. Un article rendu abîmé s'arrête donc au premier moment et
 ne repart jamais vers le stock. C'est cette séparation qui empêche un article détérioré de réapparaître
 comme disponible à la vente.
@@ -526,16 +532,18 @@ comme disponible à la vente.
 Quatre scénarios couvrent les apports du sprint~: l'ordre de passage, la validation d'une tournée,
 la mesure des délais et la réaffectation en cours de journée.
 
-\begin{table}[H]
-\centering
-\caption{TC-S3-01 — Respect de la précédence dans l'optimisation}
-\label{tab:tc-s3-01}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S3-01 — Respect de la précédence dans l'optimisation}\label{tab:tc-s3-01}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S3-01 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S3-01 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & L'ordre proposé ne place jamais une livraison avant le chargement du dépôt qui la fournit, et n'est jamais plus coûteux que l'ordre courant. \\
 \hline
 \textbf{Précondition} & Une tournée en brouillon comportant deux dépôts de chargement et plusieurs livraisons rattachées à chacun. \\
@@ -544,19 +552,21 @@ la mesure des délais et la réaffectation en cours de journée.
 \hline
 \textbf{Résultat attendu} & Chaque livraison suit le chargement dont elle dépend~; le coût annoncé est inférieur ou égal à celui de l'ordre initial. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S3-02 — Refus de validation d'une tournée non conforme}
-\label{tab:tc-s3-02}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S3-02 — Refus de validation d'une tournée non conforme}\label{tab:tc-s3-02}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S3-02 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S3-02 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Une tournée qui dépasse la charge utile du véhicule, ou qui engage un chauffeur déjà pris, ne peut pas être validée. \\
 \hline
 \textbf{Précondition} & Un véhicule de charge utile connue, un chauffeur déjà affecté à une tournée validée sur le même créneau. \\
@@ -565,19 +575,21 @@ la mesure des délais et la réaffectation en cours de journée.
 \hline
 \textbf{Résultat attendu} & Les deux validations sont refusées avec un motif explicite~; les tournées restent en brouillon et modifiables. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S3-03 — Mesure des délais et cas du multi-dépôt}
-\label{tab:tc-s3-03}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S3-03 — Mesure des délais et cas du multi-dépôt}\label{tab:tc-s3-03}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S3-03 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S3-03 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Le verdict de délai suit la fenêtre engagée, et aucun retard n'est imputé à un chauffeur qui n'a pas encore pu charger. \\
 \hline
 \textbf{Précondition} & Une tournée validée à deux dépôts~; une livraison rattachée au second dépôt, dont la fenêtre est déjà ouverte. \\
@@ -586,19 +598,21 @@ la mesure des délais et la réaffectation en cours de journée.
 \hline
 \textbf{Résultat attendu} & Étape 1~: dans les temps. Étape 2~: dans les temps, le décompte n'a pas démarré. Étape 3~: dépassé, avec le retard exprimé en minutes. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S3-04 — Réaffectation d'une livraison déjà chargée}
-\label{tab:tc-s3-04}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S3-04 — Réaffectation d'une livraison déjà chargée}\label{tab:tc-s3-04}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S3-04 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S3-04 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Une livraison déjà dans le véhicule ne change pas de chauffeur sans transfert de garde confirmé sur le terrain. \\
 \hline
 \textbf{Précondition} & Une livraison en transit chez un chauffeur~; un second chauffeur en service. \\
@@ -607,8 +621,8 @@ la mesure des délais et la réaffectation en cours de journée.
 \hline
 \textbf{Résultat attendu} & La livraison attend le transfert et n'est portée par personne d'autre tant que la remise n'est pas confirmée~; elle repart ensuite au nom du second chauffeur. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \subsection{Tests automatisés}
 
@@ -621,13 +635,13 @@ Le sprint compte \textbf{150 méthodes de test}, réparties en deux familles~: \
 unitaires} sur 13 classes, et \textbf{9 tests d'acceptation} sur une classe, qui s'exécutent contre
 une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 
-\begin{table}[H]
-\centering
-\caption{Tests automatisés du sprint 3}
-\label{tab:tests-s3}
-\small
-\begin{tabular}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\begin{small}
+\begin{longtable}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\caption{Tests automatisés du sprint 3}\label{tab:tests-s3}\\
 \hline
+\endfirsthead
+\hline
+\endhead
 \rowcolor{isimsblue!10}
 \textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
 \hline
@@ -666,8 +680,8 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \rowcolor{isimsblue!10}
 \textbf{Total} & \textbf{150} & \textbf{14 classes} \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 Le nombre de tests compte moins que ce qu'ils protègent. Deux classes méritent un mot.
 
@@ -685,7 +699,7 @@ figure~\ref{fig:s3-ci} montre le rapport produit par le job de tests unitaires, 
 apparaît avec son verdict et sa durée.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s3-ci-tests}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s3-ci-tests}
 \caption{Rapport de tests en intégration continue, avec les cas de \code{RouteValidatorTest}}
 \label{fig:s3-ci}\end{figure}
 

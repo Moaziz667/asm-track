@@ -539,14 +539,27 @@ Docker Desktop & Exécution locale de l'ensemble des services et de leurs dépen
 \hline
 Postman & Essais manuels des interfaces de programmation \\
 \hline
-DBeaver & Inspection des schémas et des données PostgreSQL \\
-\hline
 draw.io & Conception des diagrammes UML du présent rapport \\
 \hline
 \LaTeX{} (XeLaTeX) & Rédaction du rapport \\
 \hline
 \end{tabular}
 \end{table}
+
+La figure~\ref{fig:logos-outils} rassemble les outils de cette chaîne, de l'écriture du code à la
+conception des schémas.
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{*{4}{>{\centering\arraybackslash}m{3.1cm}}}
+\logo{logo-vscode} & \logo{logo-androidstudio} & \logo{logo-git} & \logo{logo-gitlab} \\[2pt]
+\small Visual Studio Code & \small Android Studio & \small Git & \small GitLab \\[12pt]
+\logo{logo-docker} & \logo{logo-postman} & \logo{logo-drawio} & \\[2pt]
+\small Docker & \small Postman & \small draw.io & \\
+\end{tabular}
+\caption{Outils de développement et de collaboration}
+\label{fig:logos-outils}
+\end{figure}
 
 \subsection{Technologies retenues}
 
@@ -590,6 +603,23 @@ externe \\
 \hline
 \end{tabular}
 \end{table}
+
+La figure~\ref{fig:logos-technos} présente ces briques, de la couche serveur au moteur
+d'itinéraires.
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{*{5}{>{\centering\arraybackslash}m{2.5cm}}}
+\logo{logo-spring} & \logo{logo-react} & \logo{logo-typescript} & \logo{logo-vite} &
+\logo{logo-flutter} \\[2pt]
+\small Spring Boot & \small React & \small TypeScript & \small Vite & \small Flutter \\[12pt]
+\logo{logo-postgresql} & \logo{logo-rabbitmq} & \logo{logo-keycloak} & \logo{logo-osm} &
+\logo{logo-docker} \\[2pt]
+\small PostgreSQL & \small RabbitMQ & \small Keycloak & \small OpenStreetMap & \small Docker \\
+\end{tabular}
+\caption{Technologies retenues pour la plateforme}
+\label{fig:logos-technos}
+\end{figure}
 
 \paragraph*{Sur le choix de la base de données.} PostgreSQL a été retenu pour deux raisons directement
 liées aux besoins structurants. La première est l'isolation par entreprise cliente~: PostgreSQL

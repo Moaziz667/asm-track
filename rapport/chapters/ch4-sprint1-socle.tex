@@ -125,17 +125,18 @@ Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement, dans l
 utilisateur les rencontre.
 
 \paragraph{OAuth2 et OpenID Connect~:} L'authentification n'est pas écrite dans le projet~: elle est
-déléguée à \textbf{Keycloak}, un serveur d'identité spécialisé. \terme{OpenID Connect} est le
-protocole standard par lequel une application obtient, de ce serveur, la preuve qu'un utilisateur est
-bien celui qu'il prétend être. L'application ne voit jamais le mot de passe~: elle reçoit, à la place,
-un jeton. Écrire soi-même cette mécanique, avec la rotation des clés, l'expiration, la révocation et le
+déléguée à \textbf{Keycloak}, un serveur d'identité spécialisé. Le dialogue avec lui suit
+\terme{OpenID Connect}~: l'application n'interroge jamais un mot de passe, elle redirige
+l'utilisateur vers le serveur d'identité et reçoit en retour une preuve signée de son identité, sous
+la forme d'un jeton. Écrire soi-même cette mécanique, avec la rotation des clés, l'expiration, la révocation et le
 verrouillage après échecs, aurait multiplié les occasions de mal faire, sans rien apporter de propre à une
 plateforme de livraison.
 
-\paragraph{Le jeton JWT~:} Le jeton délivré est un \terme{JSON Web Token}~: un petit document signé qui
-porte l'identité de l'utilisateur, son rôle et son entreprise. Sa signature en empêche toute
-altération. Comme il se suffit à lui-même, un service qui le reçoit peut décider seul, sans rappeler
-le serveur d'identité à chaque requête.
+\paragraph{Le jeton JWT~:} Le jeton délivré est un \terme{JSON Web Token}. Dans ce projet, il
+transporte trois informations~: qui est l'utilisateur, quel rôle il porte, et à quelle entreprise
+cliente il appartient. Cette troisième donnée est celle qui, à l'étape suivante, désignera son schéma
+de base. Le tout étant signé, un service peut lire ces trois éléments et trancher seul, sans rappeler
+Keycloak à chaque requête.
 
 \paragraph{La validation par JWKS~:} Encore faut-il vérifier cette signature. Keycloak publie ses clés
 publiques à une adresse connue, le \terme{JWKS}. La passerelle les récupère une fois, les garde en
@@ -143,15 +144,15 @@ mémoire, et s'en sert pour valider chaque jeton. Elle ne détient donc \textbf{
 elle vérifie une signature avec une clé publique, exactement comme on vérifie un sceau sans posséder
 le tampon qui l'a apposé.
 
-\paragraph{Le contrôle d'accès par rôles (RBAC)~:} Un jeton valide dit \emph{qui} parle~; il reste à
-décider \emph{ce qu'il peut faire}. Le projet suit le modèle \terme{RBAC}~: des permissions
+\paragraph{Le contrôle d'accès par rôles (RBAC)~:} Un jeton valide dit \emph{qui} parle. Il reste à
+décider \emph{ce qu'il peut faire}. Le projet suit le modèle \terme{RBAC}~\cite{sandhu96}~: des permissions
 élémentaires, comme lire les chauffeurs ou gérer les tournées, sont regroupées dans des rôles. Un rôle
 n'est qu'un sac de permissions. La figure~\ref{fig:matrice-perms} donne la répartition exacte des
 dix-huit permissions sur les trois rôles de la plateforme.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{rbacTableau}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{rbacTableau}
 \caption{Matrice des permissions par rôle}
 \label{fig:matrice-perms}
 \end{figure}
@@ -184,7 +185,7 @@ utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrate
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{uc-sprint1-corrige}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{uc-sprint1-corrige}
 \caption{Diagramme de cas d'utilisation du sprint 1}
 \label{fig:uc-s1}
 \end{figure}
@@ -202,16 +203,18 @@ qui porte les comptes et délivre les jetons.
 Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authentifier}), le plus sensible
 (\emph{Créer un compte utilisateur}) et un référentiel représentatif (\emph{Ajouter un chauffeur}).
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « S'authentifier »}
-\label{tab:cu-auth}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « S'authentifier »}\label{tab:cu-auth}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & S'authentifier \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape S'authentifier (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Utilisateur (administrateur, dispatcheur, responsable, livreur) \\
 \hline
 \textbf{Résumé} & Obtenir un jeton d'accès signé auprès de Keycloak afin d'atteindre les ressources protégées de la plateforme. \\
@@ -224,19 +227,21 @@ Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authenti
 \hline
 \textbf{Scénarios alternatifs} & 3a. Identifiants invalides~: Keycloak affiche une erreur, aucun jeton n'est délivré. \newline 6a. Jeton expiré~: l'application le renouvelle silencieusement puis rejoue la requête. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Créer un compte utilisateur »}
-\label{tab:cu-comptes}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Créer un compte utilisateur »}\label{tab:cu-comptes}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Créer un compte utilisateur \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Créer un compte utilisateur (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Administrateur \\
 \hline
 \textbf{Résumé} & Créer un compte et lui attribuer le rôle qui fixe ses permissions. \\
@@ -249,19 +254,21 @@ Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authenti
 \hline
 \textbf{Scénarios alternatifs} & 5a. L'adresse électronique est déjà utilisée~: la création est refusée. \newline 1a. Permission \code{user:manage} absente~: l'accès est refusé (403). \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Ajouter un chauffeur »}
-\label{tab:cu-chauffeurs}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Ajouter un chauffeur »}\label{tab:cu-chauffeurs}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Ajouter un chauffeur \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Ajouter un chauffeur (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Administrateur \\
 \hline
 \textbf{Résumé} & Ajouter un chauffeur au référentiel de l'entreprise. \\
@@ -274,8 +281,8 @@ Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authenti
 \hline
 \textbf{Scénarios alternatifs} & 1a. L'utilisateur ne détient que \code{driver:view} (consultation)~: l'ajout est refusé (403). \newline 3a. Un champ obligatoire manque ou une saisie est invalide (téléphone, adresse électronique)~: l'erreur est signalée et la fiche n'est pas enregistrée. \newline 4a. Un chauffeur au même numéro de téléphone existe déjà dans l'entreprise~: la création est refusée. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \section{Modélisation conceptuelle}
 
@@ -287,7 +294,7 @@ conception.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.60\textheight,keepaspectratio]{class-conception-tenant-core}
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{class-conception-tenant-core}
 \caption{Diagramme de classes du module \code{asm-tenant-core}}
 \label{fig:class-tenant}
 \end{figure}
@@ -341,14 +348,14 @@ l'application. Le thème reçoit la langue et le mode d'affichage du back-office
 par le serveur d'identité ne soit pas visible par l'utilisateur.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-login-keycloak}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-login-keycloak}
 \caption{Écran de connexion Keycloak (thème ASM)}\label{fig:s1-login}\end{figure}
 
 La figure~\ref{fig:s1-comptes} présente la liste des comptes, dans la section « Identités et accès »
 des paramètres. Chaque ligne indique le rôle du compte et son état.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-comptes-liste}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-comptes-liste}
 \caption{Liste des comptes et de leurs rôles}\label{fig:s1-comptes}\end{figure}
 
 La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, le menu de choix du
@@ -356,7 +363,7 @@ rôle déroulé. C'est ici que se lit, concrètement, la matrice de permissions 
 rôle choisi détermine tout ce que le compte pourra faire.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-comptes-creation}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-comptes-creation}
 \caption{Création d'un compte et attribution d'un rôle}\label{fig:s1-creation}\end{figure}
 
 La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs, et la
@@ -364,19 +371,19 @@ figure~\ref{fig:s1-zones} celui des zones. Ces deux référentiels, avec celui d
 alimenteront la planification des tournées au sprint~3.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-chauffeurs}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-chauffeurs}
 \caption{Référentiel des chauffeurs}\label{fig:s1-chauffeurs}\end{figure}
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-zones}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-zones}
 \caption{Référentiel des zones}\label{fig:s1-zones}\end{figure}
 
 Enfin, la figure~\ref{fig:s1-refus} illustre le contrôle d'accès en situation~: un compte responsable
 tente d'atteindre le constructeur de tournées, réservé à qui détient \code{route:manage}. L'accès est
-refusé. L'interface, elle, avait déjà masqué l'entrée~; mais le refus réel a lieu côté serveur.
+refusé. L'interface, elle, avait déjà masqué l'entrée, mais le refus réel a lieu côté serveur.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s1-acces-refuse}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-acces-refuse}
 \caption{Accès refusé à une action non permise}\label{fig:s1-refus}\end{figure}
 
 \section{Tests et validation}
@@ -386,16 +393,18 @@ refusé. L'interface, elle, avait déjà masqué l'entrée~; mais le refus réel
 Trois scénarios couvrent les trois volets du socle~: l'authentification, l'autorisation et
 l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:tc-s1-03}.
 
-\begin{table}[H]
-\centering
-\caption{TC-S1-01 — Authentification et rejet de l'anonyme}
-\label{tab:tc-s1-01}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S1-01 — Authentification et rejet de l'anonyme}\label{tab:tc-s1-01}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S1-01 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S1-01 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Un utilisateur muni d'identifiants valides obtient un jeton~; un appel sans jeton est rejeté. \\
 \hline
 \textbf{Précondition} & Un compte actif existe dans le realm \code{asm}. \\
@@ -404,19 +413,21 @@ l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:t
 \hline
 \textbf{Résultat attendu} & Étape 2~: réponse \code{200}. Étape 3~: réponse \code{401}, sans atteindre le service. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S1-02 — Autorisation : lecture, écriture et cloisonnement des API}
-\label{tab:tc-s1-02}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S1-02 — Autorisation : lecture, écriture et cloisonnement des API}\label{tab:tc-s1-02}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S1-02 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S1-02 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Un droit de lecture (\code{driver:view}) ne permet pas d'écrire~; et le compte de l'application livreur (rôle \code{DRIVER}) ne peut pas atteindre le back-office. \\
 \hline
 \textbf{Précondition} & Un compte détenant \code{driver:view} et un compte de rôle \code{DRIVER}. \\
@@ -425,19 +436,21 @@ l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:t
 \hline
 \textbf{Résultat attendu} & Lecture \code{200}, écriture \code{403}~; route back-office refusée au livreur. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S1-03 — Isolation des données entre deux entreprises}
-\label{tab:tc-s1-03}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S1-03 — Isolation des données entre deux entreprises}\label{tab:tc-s1-03}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S1-03 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S1-03 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Une donnée écrite pour l'entreprise A est invisible pour l'entreprise B, et inversement. \\
 \hline
 \textbf{Précondition} & Deux entreprises provisionnées, chacune avec son schéma. \\
@@ -446,8 +459,8 @@ l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:t
 \hline
 \textbf{Résultat attendu} & B ne voit jamais la donnée de A~; chaque entreprise ne voit que la sienne. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \subsection{Tests automatisés}
 
@@ -456,13 +469,13 @@ intégration. Le socle du sprint compte \textbf{47 méthodes de test}, répartie
 \textbf{40 tests unitaires} sur 6 classes, et \textbf{7 tests d'intégration} sur 3 classes, qui
 s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépare les deux.
 
-\begin{table}[H]
-\centering
-\caption{Tests automatisés du sprint 1}
-\label{tab:tests-s1}
-\small
-\begin{tabular}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\begin{small}
+\begin{longtable}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\caption{Tests automatisés du sprint 1}\label{tab:tests-s1}\\
 \hline
+\endfirsthead
+\hline
+\endhead
 \rowcolor{isimsblue!10}
 \textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
 \hline
@@ -491,8 +504,8 @@ s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépar
 \rowcolor{isimsblue!10}
 \textbf{Total} & \textbf{47} & \textbf{9 classes} \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 Le nombre de tests compte moins que ce qu'ils protègent. Trois classes méritent qu'on les explique en
 clair.

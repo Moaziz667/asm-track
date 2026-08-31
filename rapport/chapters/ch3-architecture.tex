@@ -73,7 +73,7 @@ code, faute d'une frontière qui les empêche de le faire.
 
 Cette frontière vaut aussi vers l'extérieur. Ce qui se trouve derrière l'interface d'un service n'a
 pas à être du code écrit ici. Le service Chauffeur, par exemple, expose des chauffeurs, leur
-disponibilité et leur position~; le reste du système n'en sait rien de plus, et n'a pas à savoir d'où
+disponibilité et leur position. Le reste du système n'en sait rien de plus, et n'a pas à savoir d'où
 vient l'information.
 
 Une entreprise qui préférerait confier ses tournées à un transporteur plutôt qu'à ses propres
@@ -91,7 +91,7 @@ Ce choix a un prix, et il vaut mieux le nommer que le laisser découvrir au lect
 trois points.
 
 Le premier est l'\textbf{incertitude sur le résultat d'un appel}. Un appel de méthode dans une
-application unique peut évidemment échouer~; mais on sait toujours qu'il a échoué, et la transaction
+application unique peut évidemment échouer, mais on sait toujours qu'il a échoué, et la transaction
 en cours annule tout d'un bloc. Un appel entre deux services peut, lui, expirer sans réponse~:
 l'appelant ne sait pas si le travail a été fait ou non. C'est ce doute, et non la panne, qui coûte
 cher~: réessayer risque de faire l'opération deux fois, ne pas réessayer risque de ne pas la faire du
@@ -237,7 +237,7 @@ n'avait pas vu.
 
 Cette règle a une conséquence directe sur le modèle. Une livraison est affectée à un chauffeur, mais
 la livraison est rangée dans la base des livraisons et le chauffeur dans celle des chauffeurs. La
-relation existe toujours dans le métier~; elle ne peut plus être une clé étrangère.
+relation existe toujours dans le métier, mais elle ne peut plus être une clé étrangère.
 
 Elle devient un \textbf{simple identifiant}~: la livraison conserve l'identifiant du chauffeur, sans
 que la base ne garantisse quoi que ce soit à son sujet. Deux différences en découlent, qu'il faut
@@ -359,7 +359,7 @@ simple à écrire et à suivre, mais il lie les deux services~: si le second est
 échoue.
 
 Le \textbf{message} convient lorsque l'appelant n'attend pas de réponse immédiate. Il dépose son
-message et continue. Le destinataire peut être arrêté~; le message l'attendra.
+message et continue. Le destinataire peut être arrêté, le message l'attendra.
 
 La règle appliquée dans le projet tient en une phrase~: appel direct quand la réponse est nécessaire
 tout de suite, message dans tous les autres cas. La figure~\ref{fig:messagerie} montre la topologie
@@ -423,7 +423,7 @@ Moteur d'itinéraires & 3 & Téléchargement de la carte, préparation, puis ex�
 Deux points méritent d'être signalés.
 
 L'\textbf{ordre de démarrage} est déclaré, et non espéré. Un service n'est lancé qu'une fois sa base
-déclarée en bon état~; le serveur d'identité attend la sienne. Sans cette précaution, un service
+déclarée en bon état, et le serveur d'identité attend la sienne. Sans cette précaution, un service
 démarrant plus vite que sa base échouerait dès le premier accès.
 
 Les \textbf{données survivent aux conteneurs}. Chaque base, le stockage d'objets et le bus écrivent

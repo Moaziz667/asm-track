@@ -110,11 +110,12 @@ US-11 & En tant qu'administrateur, je veux que le système fonctionne avec plusi
 
 Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement.
 
-\paragraph{Ports et adaptateurs~:} c'est le patron qui rend l'intégration agnostique. Un \terme{port}
-est une interface qui décrit ce dont le métier a besoin, sans nommer aucun progiciel~: pousser un
-résultat de livraison, lire des commandes en attente. Un \terme{adaptateur} est une classe qui
-réalise cette interface pour un progiciel donné. Le métier ne connaît que le port~; changer de
-progiciel revient à changer d'adaptateur, sans toucher au reste.
+\paragraph{Ports et adaptateurs~:} c'est le patron~\cite{cockburn05} qui rend l'intégration agnostique. Le métier
+commence par écrire ce qu'il attend d'un progiciel, sans jamais en nommer un~: pousser un résultat de
+livraison, lire les commandes en attente, résoudre une référence, détecter un changement. Ces quatre
+besoins forment les \terme{ports}. En face, une classe par progiciel les satisfait à sa manière~:
+c'est l'\terme{adaptateur}. Le métier ne connaît que le port. Changer de progiciel revient à changer
+d'adaptateur, sans toucher au reste.
 
 \paragraph{Le contrat canonique~:} le système nomme les données dont il a besoin, indépendamment de
 tout progiciel, à l'image de \code{CUSTOMER\_PHONE}, \code{ITEM\_QUANTITY} ou \code{SCHEDULED\_AT}. L'intégrateur
@@ -142,12 +143,13 @@ file. Le courtier joue ainsi deux rôles~: il \textbf{amortit les afflux de mess
 livraisons sont validées en même temps, et il \textbf{ne perd aucun message}~: ceux qui échouent
 définitivement sont mis de côté dans une file de rebut, consultable et rejouable.
 
-\paragraph{L'outbox transactionnel et l'idempotence~:} valider une livraison et prévenir le progiciel
+\paragraph{L'outbox transactionnel et l'idempotence~:}~\cite{richardson18} valider une livraison et prévenir le progiciel
 sont deux écritures dans deux systèmes distincts. Pour ne jamais faire l'une sans l'autre, le fait
 métier et son intention de synchronisation sont écrits dans \textbf{la même transaction} de base de
 données. Un processus séparé lit ensuite les intentions en attente et parle au progiciel. Comme il
-peut réessayer, chaque opération est rendue \terme{idempotente}~: la rejouer produit le même résultat
-que l'exécuter une fois.
+peut réessayer, l'adaptateur mémorise l'identifiant de chaque événement qu'il a traité et renvoie le
+résultat déjà obtenu s'il le revoit passer. Cette propriété, dite \terme{idempotence}, fait qu'un
+message rejoué après une panne ne crée pas un second mouvement de stock.
 
 \section{Analyse et spécification des besoins}
 
@@ -174,16 +176,18 @@ une synchronisation qui a échoué. Le progiciel du client apparaît comme un sy
 Trois cas d'utilisation sont détaillés~: la préparation (\emph{Configurer et certifier la connexion}),
 le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Importer les commandes}).
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Configurer et certifier la connexion ERP »}
-\label{tab:cu-erp-config}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Configurer et certifier la connexion ERP »}\label{tab:cu-erp-config}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Configurer et certifier la connexion ERP \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Configurer et certifier la connexion ERP (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Administrateur \\
 \hline
 \textbf{Résumé} & Renseigner le fournisseur et les identifiants du progiciel, puis vérifier que la connexion fonctionne avant toute utilisation. \\
@@ -196,19 +200,21 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 \hline
 \textbf{Scénarios alternatifs} & 3a. Identifiants ou adresse invalides~: la certification échoue, le statut reste non connecté. \newline 4a. Tant que le statut n'est pas \code{CONNECTED}, toute synchronisation est refusée explicitement. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Mapper les champs vers le contrat canonique »}
-\label{tab:cu-erp-mapping}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Mapper les champs vers le contrat canonique »}\label{tab:cu-erp-mapping}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Mapper les champs vers le contrat canonique \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Mapper les champs vers le contrat canonique (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Administrateur \\
 \hline
 \textbf{Résumé} & Relier chaque champ dont le système a besoin à un champ du progiciel, avec un contrôle de compatibilité de type. \\
@@ -221,19 +227,21 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 \hline
 \textbf{Scénarios alternatifs} & 3a. Le champ source est incompatible (\code{UNSUPPORTED})~: il est grisé, le motif est affiché, la sélection est refusée. \newline 3b. La conversion perd de l'information (\code{LOSSY})~: une confirmation indique exactement ce qui est perdu avant d'accepter. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{Cas d'utilisation « Importer les commandes »}
-\label{tab:cu-erp-import}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Importer les commandes »}\label{tab:cu-erp-import}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Titre} & Importer les commandes \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Importer les commandes (suite)} \\
+\hline
+\endhead
 \textbf{Acteur} & Dispatcheur \\
 \hline
 \textbf{Résumé} & Récupérer les commandes prêtes du progiciel et les faire entrer dans le système, sans ressaisie. \\
@@ -246,8 +254,8 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 \hline
 \textbf{Scénarios alternatifs} & 3a. Un champ est illisible~: l'aperçu affiche la raison, sans bloquer l'import des autres. \newline 2a. Le progiciel est injoignable~: l'erreur est signalée, aucune commande n'est importée. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \section{Modélisation conceptuelle}
 
@@ -268,12 +276,12 @@ partiel, échoué ou annulé. \code{ErpLookupPort} lit des commandes en attente,
 \code{ErpOrderPort} crée et résout des références de commande. \code{ErpChangePort} détecte qu'une
 commande a changé côté progiciel. Aucune de ces interfaces ne nomme un progiciel.
 
-Deux familles d'adaptateurs les réalisent. L'adaptateur \textbf{Odoo} parle en JSON-RPC~; il est le
+Deux familles d'adaptateurs les réalisent. L'adaptateur \textbf{Odoo} parle en JSON-RPC. Il est le
 plus volumineux, car Odoo expose des assistants de confirmation à piloter et plusieurs versions à
 couvrir. L'adaptateur \textbf{ERPNext} parle en REST, une interface plus uniforme.
 
 Le choix de l'adaptateur ne dépend pas de l'appelant, mais du progiciel configuré pour l'entreprise
-courante. Ajouter un progiciel revient à créer des classes nommées d'après lui~; aucun code existant
+courante. Ajouter un progiciel revient à créer des classes nommées d'après lui, et aucun code existant
 n'est modifié. C'est cette propriété qui a été vérifiée en ajoutant ERPNext après Odoo, sans toucher
 aux ports.
 
@@ -299,7 +307,7 @@ Un processus séparé lit ensuite les événements en attente et les publie sur 
 messages}. Ce choix d'une \textbf{communication asynchrone} pilotée par les événements, plutôt que
 d'un appel direct au progiciel, est ce qui rend tout le reste possible. Il apporte un \terme{découplage
 temporel}~: l'émetteur (le service de livraison) et le destinataire (l'adaptateur) n'ont pas besoin
-d'être disponibles au même instant. Le service dépose sa commande et poursuit~; l'adaptateur la traite
+d'être disponibles au même instant. Le service dépose sa commande et poursuit, et l'adaptateur la traite
 quand il le peut, et un progiciel lent ou arrêté ne bloque jamais le terrain~: le message
 \textbf{attend dans la file} au lieu de faire échouer la livraison.
 
@@ -324,7 +332,7 @@ premier étage, la remise au courtier. Il précise le cycle de vie que l'on vien
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{etattarns}
+\includegraphics[width=\textwidth,height=0.34\textheight,keepaspectratio]{etattarns}
 \caption{Automate d'états d'un événement de synchronisation}
 \label{fig:etat-erp}
 \end{figure}
@@ -351,7 +359,7 @@ La figure~\ref{fig:s2-connexion} montre l'écran de connexion au progiciel~: le 
 l'adresse, les identifiants, et le statut de certification.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-connexion}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-connexion}
 \caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
 
 La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel et
@@ -360,7 +368,7 @@ au lieu de le deviner d'après un numéro de version~: une version qu'il n'a jam
 modification, tant qu'elle expose les champs attendus.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-compatibilite}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
 La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ y
@@ -369,21 +377,21 @@ Une cellule sans valeur indique ainsi laquelle des deux causes s'applique, vide 
 présente mais illisible, au lieu de laisser un blanc que personne ne saurait expliquer.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-erp-apercu}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-apercu}
 \caption{Aperçu d'une commande avant l'import}\label{fig:s2-apercu}\end{figure}
 
 La figure~\ref{fig:s2-import} présente l'écran d'import des commandes prêtes~: la liste, et l'import
 d'une commande ou d'un lot.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-import}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-import}
 \caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
 
 Enfin, la figure~\ref{fig:s2-dlq} montre la file morte~: les synchronisations définitivement en échec,
 consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-dlq}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-dlq}
 \caption{File morte des synchronisations en échec}\label{fig:s2-dlq}\end{figure}
 
 \section{Tests et validation}
@@ -393,16 +401,18 @@ consultables et rejouables depuis le back-office. Un échec n'est donc jamais pe
 Trois scénarios couvrent les trois apports du sprint~: l'agnosticité, le contrôle de mapping et la
 reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref{tab:tc-s2-03}.
 
-\begin{table}[H]
-\centering
-\caption{TC-S2-01 — Agnosticité vis-à-vis du progiciel}
-\label{tab:tc-s2-01}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S2-01 — Agnosticité vis-à-vis du progiciel}\label{tab:tc-s2-01}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S2-01 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S2-01 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Un client configuré sur un progiciel n'est jamais servi par l'adaptateur d'un autre~; le même parcours métier fonctionne sur Odoo et sur ERPNext. \\
 \hline
 \textbf{Précondition} & Deux entreprises, l'une sur Odoo, l'autre sur ERPNext, toutes deux certifiées. \\
@@ -411,19 +421,21 @@ reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref
 \hline
 \textbf{Résultat attendu} & Chaque entreprise est servie par l'adaptateur de son propre progiciel~; le métier appelé est identique. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S2-02 — Verdict de compatibilité d'un mapping}
-\label{tab:tc-s2-02}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S2-02 — Verdict de compatibilité d'un mapping}\label{tab:tc-s2-02}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S2-02 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S2-02 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Un type incompatible est refusé~; un type qui convertit en perdant de l'information exige une confirmation. \\
 \hline
 \textbf{Précondition} & Une intégration certifiée, sur l'écran de mapping. \\
@@ -432,19 +444,21 @@ reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref
 \hline
 \textbf{Résultat attendu} & Étape 1~: refusé (\code{UNSUPPORTED}), avec motif. Étape 2~: accepté après confirmation (\code{LOSSY}), qui nomme la perte. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
-\begin{table}[H]
-\centering
-\caption{TC-S2-03 — Reprise d'une synchronisation en panne}
-\label{tab:tc-s2-03}
-\small
-\begin{tabular}{L{3.2cm}L{11.0cm}}
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S2-03 — Reprise d'une synchronisation en panne}\label{tab:tc-s2-03}\\
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Cas de test} & TC-S2-03 \\
 \hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S2-03 (suite)} \\
+\hline
+\endhead
 \textbf{Description} & Une synchronisation vers un progiciel indisponible est réessayée, puis basculée en file morte, sans jamais bloquer le terrain. \\
 \hline
 \textbf{Précondition} & Une livraison validée, le progiciel du client rendu injoignable. \\
@@ -453,8 +467,8 @@ reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref
 \hline
 \textbf{Résultat attendu} & La livraison est enregistrée sans attendre~; la commande passe en échec de synchronisation~; l'événement reste rejouable. \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 \subsection{Tests automatisés}
 
@@ -463,13 +477,13 @@ entre progiciels. Les tests se répartissent en deux familles~: des tests unitai
 résolution de capacités, et une suite d'intégration exécutée contre \textbf{deux versions d'Odoo}. Le
 tableau~\ref{tab:tests-s2} en donne un aperçu ciblé.
 
-\begin{table}[H]
-\centering
-\caption{Tests automatisés du sprint 2 (extrait)}
-\label{tab:tests-s2}
-\small
-\begin{tabular}{L{5.8cm}C{1.8cm}L{5.8cm}}
+\begin{small}
+\begin{longtable}{L{5.8cm}C{1.8cm}L{5.8cm}}
+\caption{Tests automatisés du sprint 2 (extrait)}\label{tab:tests-s2}\\
 \hline
+\endfirsthead
+\hline
+\endhead
 \rowcolor{isimsblue!10}
 \textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
 \hline
@@ -489,8 +503,8 @@ tableau~\ref{tab:tests-s2} en donne un aperçu ciblé.
 \hline
 Suite bi-version~: \code{OdooInfrastructureIT} et les trois \code{Workflow*IT} & 28 & Le contrat Odoo réel, éprouvé sur les versions 16 et 19 (100\% de réussite) \\
 \hline
-\end{tabular}
-\end{table}
+\end{longtable}
+\end{small}
 
 La suite d'intégration mérite une explication, car elle porte la preuve de l'agnosticité aux versions.
 Elle réunit \textbf{28 tests}, exécutés contre \textbf{une instance Odoo~16 et une instance Odoo~19 en
@@ -505,7 +519,7 @@ La figure~\ref{fig:s2-ci-biversion} montre le job d'intégration continue qui la
 les deux versions d'Odoo, toutes deux au vert.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,keepaspectratio]{s2-ci-biversion}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-ci-biversion}
 \caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
 
 Un dernier contrôle mérite d'être cité, car il agit avant même les tests. Si un champ canonique

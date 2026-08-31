@@ -37,11 +37,21 @@
 \usepackage{graphicx}
 % Les diagrammes sont ranges par sprint depuis leur reorganisation : chaque dossier est
 % declare ici, sinon \includegraphics ne trouve rien a la racine de drawio/.
-\graphicspath{{figures/}{../diagrams/drawio/}{../diagrams/drawio/Sprint0/}
+\graphicspath{{figures/}{figures/logos/}{../diagrams/drawio/}{../diagrams/drawio/Sprint0/}
   {../diagrams/drawio/Sprint1/}{../diagrams/drawio/Sprint2/}{../diagrams/drawio/Sprint3/}
   {../diagrams/drawio/Sprint4/}{../diagrams/drawio/Sprint5/}{../diagrams/drawio/Architecture/}
   {../diagrams/svg/}{../docs/assets/uml/}}
 \usepackage{float}
+% Les figures en [H] laissaient de grands blancs : quand l'image ne tenait plus dans la place
+% restante, LaTeX abandonnait le bas de la page. En [htbp] elles flottent vers le haut ou le bas de
+% la page, et le texte comble. placeins/section les empeche de deriver au-dela de leur section, de
+% sorte qu'une figure reste toujours dans la section qui l'annonce.
+\usepackage[section]{placeins}
+% Espacement autour des flottants place en [H] : la valeur par defaut de LaTeX est genereuse et
+% suffisait, sur une page deja chargee, a faire basculer la figure suivante a la page d'apres en
+% laissant un grand blanc. La resserrer fait tenir un couple texte + capture de plus par page.
+\setlength{\intextsep}{10pt plus 2pt minus 3pt}
+\setlength{\textfloatsep}{12pt plus 2pt minus 4pt}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{booktabs}
@@ -159,15 +169,51 @@
 }
 
 % ---------- Bibliographie ----------
-% Le guide de rédaction (règle 4) impose un corps 10 et un style par abréviation entre crochets —
-% [ROU 99] pour Paul Rouet, 1999 — plutôt qu'une numérotation. Le style « alphabetic » de biblatex
-% produit nativement ce type d'étiquette (3 lettres du nom + 2 chiffres de l'année) ; \bibfont est
-% le point d'entrée officiel de biblatex pour la taille de police de la liste de références.
-\usepackage[backend=biber,style=alphabetic,sorting=none]{biblatex}
+% Le guide de rédaction (règle 4) impose un corps 10 et un style par abréviation entre crochets :
+% [ROU 99] pour Paul Rouet, 1999, soit trois lettres du nom, une espace, deux chiffres de l'année.
+% \bibfont est le point d'entrée officiel de biblatex pour la taille de police de la liste.
+% maxalphanames=1 : l'etiquette ne retient que le premier auteur, sans quoi biblatex accole trois
+% lettres de chacun (SCHSUT pour Schwaber et Sutherland). labelalphaothers vide supprime le « + »
+% que le style ajoute des qu'une liste d'auteurs est tronquee (SAN+96).
+\usepackage[backend=biber,style=alphabetic,sorting=none,
+            maxalphanames=1,minalphanames=1]{biblatex}
+\renewcommand*{\labelalphaothers}{}
 \renewcommand*{\bibfont}{\small}          % ≈ corps 10 sur un document en corps 12
 \addbibresource{bibliography/refs.bib}
 
+% Le style « alphabetic » n'applique la règle des trois lettres qu'à un auteur unique : dès qu'il y
+% en a deux il concatène leurs initiales (SS20 pour Schwaber et Sutherland), et au-delà de trois il
+% ajoute un « + » (San+96). Aucune des deux formes n'est celle que le guide demande. On redéfinit
+% donc l'étiquette pour qu'elle prenne toujours les trois premières lettres du premier nom, en
+% capitales, quel que soit le nombre d'auteurs.
+\DeclareLabelalphaTemplate{
+  \labelelement{
+    \field[strwidth=3,strside=left,uppercase=true]{labelname}
+    \field[strwidth=3,strside=left,uppercase=true]{label}
+    \field[strwidth=3,strside=left,uppercase=true]{shorthand}
+    \field[strwidth=3,strside=left,uppercase=true]{title}
+  }
+  % \space est absorbe par biber ; \addnbspace survit jusqu'au .bbl et produit l'espace insecable
+  % qui separe les lettres des chiffres, comme dans le [ROU 99] du guide.
+  \labelelement{
+    \literal{\addnbspace}
+  }
+  \labelelement{
+    \field[strwidth=2,strside=right]{year}
+  }
+}
+% Sans cela, biblatex ajoute un suffixe « a », « b »… aux etiquettes homonymes, ce que le format
+% impose de ne pas faire tant qu'aucune collision reelle n'existe dans cette bibliographie.
+\DeclareLabelalphaNameTemplate{
+  \namepart{family}
+}
+
 % ---------- Raccourcis maison ----------
+% Un logo de technologie ou d'outil. Les fichiers melent des icones carrees et des logotypes en
+% bandeau : borner la seule hauteur laissait les seconds deborder la marge, d'ou le plafond sur les
+% deux dimensions avec conservation des proportions.
+\newcommand{\logo}[1]{\includegraphics[height=1cm,width=2.9cm,keepaspectratio]{#1}}
+
 % Un terme technique cité pour la première fois.
 \newcommand{\terme}[1]{\emph{#1}}
 % Un identifiant de code (classe, table, endpoint).
