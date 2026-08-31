@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -111,6 +112,7 @@ public class AdminOpsController {
     }
 
     @PostMapping("/exceptions/{deliveryId}/acknowledge")
+    @PreAuthorize("hasAuthority('perm:dispatch:operate')")
     @Operation(
         summary = "Mark an exception as handled",
         description = "For the exceptions the platform cannot close by itself — a customer who "
@@ -133,6 +135,7 @@ public class AdminOpsController {
     }
 
     @PostMapping("/exceptions/{deliveryId}/reassign")
+    @PreAuthorize("hasAuthority('perm:dispatch:operate')")
     @Operation(
         summary = "Reassign exception to another driver",
         description = "Quick action from the exceptions feed: reassigns a failed delivery directly to a different driver. The delivery moves to SCHEDULED status. The new driver receives a push notification."
@@ -172,6 +175,7 @@ public class AdminOpsController {
     }
 
     @PostMapping("/exceptions/{deliveryId}/replan")
+    @PreAuthorize("hasAuthority('perm:dispatch:operate')")
     @Operation(
         summary = "Move exception back to waiting queue",
         description = "Quick action: resets a failed delivery back to UNSCHEDULED so it can be reassigned later. Optionally reassigns to a specific zone."

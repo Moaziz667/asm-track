@@ -16,8 +16,9 @@ stateDiagram-v2
     IN_TRANSIT --> DELIVERED : preuve de livraison complète
     IN_TRANSIT --> PARTIALLY_DELIVERED : une partie seulement
     IN_TRANSIT --> FAILED : motif d'échec
+    PICKED_UP --> AWAITING_HANDOFF : transfert vers un autre livreur
     IN_TRANSIT --> AWAITING_HANDOFF : transfert vers un autre livreur
-    AWAITING_HANDOFF --> IN_TRANSIT : réception confirmée
+    AWAITING_HANDOFF --> PICKED_UP : réception confirmée<br/>(le receveur tient le colis)
     SCHEDULED --> UNSCHEDULED : le livreur se désiste
     UNSCHEDULED --> CANCELLED : annulation côté ERP
     SCHEDULED --> CANCELLED : annulation administrative
@@ -48,6 +49,9 @@ il faut trois pages et on rate les transitions inverses.
   partielle est **close**, le reliquat vit dans une autre livraison créée par l'ERP.
 - **`AWAITING_HANDOFF` existe pour que la garde ne soit jamais floue.** Sans lui, un colis passé de
   main en main serait « chez A » dans le système et « chez B » en réalité.
+- **La confirmation ramène à `PICKED_UP`, pas à `IN_TRANSIT`.** Le receveur tient le colis mais n'est
+  pas encore reparti vers le client : c'est à lui de déclarer son propre départ. Rendre la livraison
+  directement `IN_TRANSIT` daterait le départ de A sur le compte de B.
 
 !!! danger "Erreur classique"
     Ajouter une transition « pour simplifier », par exemple `SCHEDULED → DELIVERED`. Chaque saut
@@ -73,7 +77,7 @@ sequenceDiagram
     L->>API: pickup au dépôt
     Note over API: PICKED_UP
     L->>API: transit (+ position GPS)
-    Note over API: IN_TRANSIT — calcul de l'itinéraire et de l'ETA
+    Note over API: IN_TRANSIT — calcul de l'itinéraire
     alt Livraison réussie
         L->>API: preuve : photos, signature, (encaissement)
         Note over API: DELIVERED

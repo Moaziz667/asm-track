@@ -237,7 +237,7 @@ celui qui ouvre le système sur l'extérieur.
 \hline
 \textbf{Résumé} & Confier une livraison à un autre chauffeur lorsque le titulaire ne peut pas la mener à terme, en distinguant le cas où le colis est encore au dépôt de celui où il est déjà dans le véhicule. \\
 \hline
-\textbf{Préconditions} & La livraison est encore en jeu~: en attente de planification, programmée, chargée ou en transit. La tournée d'accueil, si elle est désignée, appartient bien au chauffeur visé. \\
+\textbf{Préconditions} & Le dispatcheur détient la permission \code{perm:dispatch:operate}. La livraison est encore en jeu~: en attente de planification, programmée, chargée ou en transit. La tournée d'accueil, si elle est désignée, appartient bien au chauffeur visé. \\
 \hline
 \textbf{Postconditions} & La livraison est rattachée à la tournée du nouveau chauffeur, à la place et dans la fenêtre horaire indiquées. Si le colis était déjà en main, elle attend un transfert de garde avant de repartir. \\
 \hline
@@ -633,31 +633,31 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \hline
 \multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 13 classes, 141 méthodes}} \\
 \hline
-\code{SlaEvaluatorTest} & 24 & Les quatre phases, le seuil proportionnel, le multi-dépôt et les verdicts terminaux \\
+\code{SlaEvaluatorTest} & 24 & Aucun retard n'est imputé à qui ne pouvait pas agir, et un échec reçoit un verdict plutôt qu'un blanc \\
 \hline
-\code{RouteValidatorTest} & 23 & Les règles de légalité d'une tournée, dont la courbe de charge \\
+\code{RouteValidatorTest} & 23 & Une tournée irréalisable est refusée avant d'engager un chauffeur \\
 \hline
-\code{RmaServiceTest} & 21 & Le cycle du retour, jusqu'à la remise en stock \\
+\code{RmaServiceTest} & 21 & On ne retourne pas plus qu'on n'a reçu, et le stock n'est réalimenté qu'après décision \\
 \hline
-\code{PickupStopReconcilerTest} & 12 & Les arrêts de chargement suivent les dépôts réellement concernés \\
+\code{PickupStopReconcilerTest} & 12 & Une tournée porte exactement les chargements dont ses livraisons ont besoin \\
 \hline
-\code{ExceptionRetirementTest} & 10 & La sortie d'une exception de la liste des incidents à traiter \\
+\code{ExceptionRetirementTest} & 10 & Une exception réglée disparaît de la liste, une exception en cours y reste \\
 \hline
-\code{ExceptionResolutionReassignTest} & 9 & Les réaffectations permises, et le transfert de garde imposé \\
+\code{ExceptionResolutionReassignTest} & 9 & Un colis déjà en main ne change de porteur que par transfert de garde \\
 \hline
 \code{PrecedenceAwareSequencerTest} & 8 & L'ordre respecte la précédence et n'est jamais pire que celui reçu \\
 \hline
-\code{RouteExecutionServiceTest} & 8 & Les transitions d'exécution et le refus des sauts d'état \\
+\code{RouteExecutionServiceTest} & 8 & Un arrêt ne recule pas d'état, et une tournée ne se clôture pas avec des arrêts actifs \\
 \hline
-\code{PublicRmaServiceTest} & 8 & La demande de retour depuis la page publique \\
+\code{PublicRmaServiceTest} & 8 & Le destinataire ne peut ouvrir qu'un retour à la fois, sur ce qu'il a réellement reçu \\
 \hline
-\code{PublicRmaControllerTest} & 5 & Les points d'entrée publics du retour \\
+\code{PublicRmaControllerTest} & 5 & Les points d'entrée publics refusent une demande hors quota \\
 \hline
 \code{PublicReturnRateLimiterTest} & 5 & La limite de débit, comptée par adresse et par livraison \\
 \hline
 \code{AssignDriverValidationTest} & 4 & Un chauffeur inexistant est refusé avant toute écriture \\
 \hline
-\code{DeliveryDepotsTest} & 4 & Les dépôts d'une livraison, y compris le cas à deux dépôts \\
+\code{DeliveryDepotsTest} & 4 & Une livraison est chargée à chaque dépôt que ses lignes nomment, et n'y prend que ces lignes \\
 \hline
 \multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'acceptation (base PostgreSQL réelle) — 1 classe, 9 méthodes}} \\
 \hline
@@ -669,34 +669,25 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \end{tabular}
 \end{table}
 
-Le nombre de tests compte moins que ce qu'ils protègent. Trois classes méritent d'être expliquées.
+Le nombre de tests compte moins que ce qu'ils protègent. Deux classes méritent un mot.
 
-\code{PrecedenceAwareSequencerTest} ne vérifie pas qu'un ordre précis est produit, ce qui
-reviendrait à figer une heuristique. Il vérifie quatre propriétés qui doivent tenir quel que soit le
-résultat~: aucune livraison avant son chargement, un coût jamais supérieur à celui de l'ordre reçu,
-une suggestion irréalisable réparée plutôt que refusée, et un refus net lorsque les contraintes sont
-contradictoires. Un test reprend l'exemple de la tournée de Tunis avec chargement à Sousse et vérifie
-que les deux livraisons de Sousse sont faites avant la remontée.
+\code{PrecedenceAwareSequencerTest} ne vérifie pas qu'un ordre précis est produit, ce qui figerait
+une heuristique, mais des propriétés qui doivent tenir quel que soit le résultat~: aucune livraison
+avant son chargement, et un coût jamais supérieur à celui de l'ordre reçu.
 
-\code{RouteValidatorTest} met à l'épreuve les règles qui décident si une tournée est réalisable.
-Deux de ses cas s'opposent volontairement, et c'est là que se joue la justesse du contrôle de charge~:
-six cents kilogrammes de colis dans un véhicule de quatre cents. Le premier cas les accepte, parce
-que le premier colis est livré avant que le second ne soit chargé au dépôt distant~; le second les
-refuse, parce que les deux voyagent ensemble. Une simple somme des poids aurait rejeté les deux, et
-interdit une tournée parfaitement réalisable. Le reste de la classe couvre le chauffeur inactif, le
-conflit d'horaire, le brouillon qui ne réserve aucune ressource, et les fenêtres horaires
-incohérentes.
+\code{RouteValidatorTest} oppose volontairement deux cas, et c'est là que se joue la justesse du
+contrôle de charge~: six cents kilogrammes dans un véhicule de quatre cents. Accepté si le premier
+colis est livré avant que le second ne soit chargé au dépôt distant, refusé s'ils voyagent ensemble.
+Une simple somme des poids aurait rejeté les deux, et interdit une tournée réalisable.
 
-\code{SlaEvaluatorTest} est la classe la plus fournie du service, et ce volume s'explique~: la
-combinaison des quatre phases, des trois verdicts et des cas particuliers du multi-dépôt produit un
-nombre de situations qu'aucune relecture ne couvre de façon fiable. Plusieurs de ces tests portent le
-nom du défaut qu'ils empêchent de revenir, comme celui qui vérifie qu'une fenêtre encore à venir ne
-déclenche pas de retard.
+Ces tests s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit}. La
+figure~\ref{fig:s3-ci} montre le rapport produit par le job de tests unitaires, où chaque méthode
+apparaît avec son verdict et sa durée.
 
-Ces tests, unitaires comme d'acceptation, s'exécutent dans le pipeline d'intégration continue à
-chaque \emph{commit}. La capture ci-dessous en montre l'exécution.
-
-\captureaplacer{s3-ci-tests}{Exécution en intégration continue des tests du sprint 3.}
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,keepaspectratio]{s3-ci-tests}
+\caption{Rapport de tests en intégration continue, avec les cas de \code{RouteValidatorTest}}
+\label{fig:s3-ci}\end{figure}
 
 \section{Conclusion}
 

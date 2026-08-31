@@ -92,7 +92,7 @@ US-02 & En tant qu'administrateur, je veux créer des comptes et leur attribuer 
 \hline
       &  & T1-07 & Provisionner une nouvelle entreprise cliente (organisation, schémas et compte administrateur) avec annulation en cas d'échec & Haute \\
 \hline
-US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger la politique déclarative unique de 46 règles et 18 permissions & Haute \\
+US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger le modèle de 18 permissions et la politique déclarative unique qui les applique & Haute \\
 \hline
       &  & T1-09 & Appliquer la même politique d'autorisation à la passerelle et à chaque service, contrôlée en CI & Haute \\
 \hline
@@ -515,7 +515,7 @@ de PostgreSQL qui sont mis à l'épreuve~: une base simulée testerait l'imitati
 Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'intégration continue à
 chaque \emph{commit}. Les figures~\ref{fig:s1-ci-rbac} et~\ref{fig:s1-ci-iso} en montrent deux
 étapes~: le job qui s'assure que les cinq services portent la même politique, avec la même empreinte,
-46 règles et 18 permissions, puis la suite d'isolation passant au vert.
+et ses quarante-sept règles, puis la suite d'isolation passant au vert.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-rbac-check}
