@@ -229,30 +229,33 @@ les écarts, plutôt que comme un simple montant saisi à la livraison.
 \section{Méthodologie de développement}
 
 Le projet a été mené par un développeur unique, sur un périmètre fonctionnel qui s'est précisé au
-fil de l'avancement, notamment sur l'étendue exacte de l'intégration multi-ERP. Une méthode figée dès
-le départ aurait mal absorbé ces ajustements ; le tableau~\ref{tab:comparatif-methodo} compare les
-approches envisagées.
+fil de l'avancement, notamment sur l'étendue exacte de l'intégration multi-ERP. Le choix d'une
+méthode s'est donc fait sur ce que chacune exige de celui qui l'applique, plutôt que sur ses mérites
+en général. Le tableau~\ref{tab:comparatif-methodo} confronte les trois approches envisagées aux
+quatre contraintes réelles de ce projet.
 
 \begin{table}[H]
 \centering
-\caption{Comparaison des méthodologies de développement}
+\caption{Ce que chaque méthode suppose, au regard des contraintes de ce projet}
 \label{tab:comparatif-methodo}
-% tabularx force le tableau à occuper tout \textwidth ; sans colonne X pour absorber l'écart entre
-% les colonnes fixes (12,5cm) et cette largeur (16cm), l'espace restant s'affichait comme une
-% cinquième colonne vide, encadrée de traits. tabular ordinaire laisse le tableau à sa taille
-% naturelle et supprime l'artefact.
-\begin{tabular}{L{3.5cm}C{3cm}C{3cm}C{3cm}}
+\small
+\begin{tabular}{L{3.3cm}L{3.5cm}L{3.5cm}L{3.7cm}}
 \hline
 \rowcolor{isimsblue!10}
-\textbf{Critère} & \textbf{Cycle en V} & \textbf{RUP} & \textbf{Scrum} \\
+\textbf{Contrainte du projet} & \textbf{Cycle en V} & \textbf{RUP} & \textbf{Scrum} \\
 \hline
-Flexibilité & Faible & Moyenne & Forte \\
+Le périmètre s'est précisé en cours de route & Exige un cahier des charges arrêté avant de commencer
+& Révision possible, au prix d'un changement de phase & Le reste à faire est réexaminé à chaque
+cycle \\
 \hline
-Adaptation au changement & Difficile & Partielle & Naturelle \\
+Le projet est mené par une seule personne & Suppose des intervenants distincts par phase & Prévoit de
+nombreux artefacts et disciplines & Trois rôles, cumulables par une même personne \\
 \hline
-Livraisons & Unique en fin & Par phases & Itératives (sprints) \\
+Un résultat montrable était attendu tôt & Rien d'utilisable avant la fin & Prototype à la fin de
+chaque phase & Un incrément fonctionnel par cycle \\
 \hline
-Adapté à un projet solo & Non & Partiellement & Oui \\
+L'encadrement demandait un point régulier & Jalons espacés & Revues de phase & Revue et
+rétrospective toutes les trois à cinq semaines \\
 \hline
 \end{tabular}
 \end{table}
