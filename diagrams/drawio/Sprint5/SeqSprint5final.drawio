@@ -172,7 +172,7 @@
         <mxCell id="XGdFeyc2YgkauZRt_Yu9-238" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;align=left;spacingLeft=10;" value="Phase 1 — Enregistrement de la livraison : les deux écritures dans une seule transaction" vertex="1">
           <mxGeometry height="26" width="2700" x="60" y="210" as="geometry" />
         </mxCell>
-        <mxCell id="XGdFeyc2YgkauZRt_Yu9-239" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Valide la livraison (photo + signature)">
+        <mxCell id="XGdFeyc2YgkauZRt_Yu9-239" edge="1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;rounded=0;edgeStyle=none;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;strokeColor=#37474F;" value="Valide la livraison (photo du colis + photo du bon signé)">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="120" y="257" as="sourcePoint" />
             <mxPoint x="400" y="257" as="targetPoint" />

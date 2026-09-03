@@ -43,8 +43,7 @@ public class AuditLogService {
         if (principal != null) {
             actorRole = principal.getRole() != null ? principal.getRole() : "UNKNOWN";
             // Prefer a human display name; never store a bare UUID/blank as the actor — fall back to the
-            // role so a row reads "ADMIN" rather than machine garbage. (The real per-user identity fix is
-            // the Keycloak named-account P1 in backlog.md.)
+            // role so a row reads "ADMIN" rather than machine garbage.
             String display = principal.getDisplayName();
             actorName = (display != null && !display.isBlank() && !UUID_PATTERN.matcher(display.trim()).matches())
                     ? display
@@ -160,8 +159,23 @@ public class AuditLogService {
         }
     }
 
+    /**
+     * Persists a row built elsewhere — the entry point for events arriving from the other services
+     * over {@code audit.exchange}.
+     *
+     * <p>The same actor rule as {@link #logAction} is applied here rather than trusted from the
+     * payload. A producer that sends a bare UUID, or nothing, must not be able to put it in the
+     * console: the reader would get a string of hexadecimal where every other row names a person.
+     * This table is read by humans, and the guard belongs where the rows are written, not in each of
+     * the services that feed it.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logRaw(com.asm.delivery.entity.AuditLog log) {
+        String name = log.getActorName();
+        if (name == null || name.isBlank() || UUID_PATTERN.matcher(name.trim()).matches()) {
+            String role = log.getActorRole();
+            log.setActorName(role != null && !role.isBlank() ? role : "SYSTEM");
+        }
         auditLogRepository.save(log);
     }
 }
