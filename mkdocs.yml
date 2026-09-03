@@ -114,4 +114,9 @@ nav:
       - 002 — Politique RBAC unique: adr/002-politique-rbac-unique.md
       - 003 — Ports & Adapters ERP: adr/003-ports-adapters-erp.md
       - 004 — Outbox transactionnel: adr/004-outbox-transactionnel.md
+      - 026 — Identité ancrée sur l'identifiant métier: adr/026-identite-ancree-sur-l-identifiant-metier.md
+      - 028 — Insertion par fenêtre horaire: adr/028-insertion-par-fenetre-horaire.md
+      - 029 — Réconciliation des arrêts de chargement: adr/029-reconciliation-des-arrets-de-chargement.md
+      - 031 — Transfert de garde: adr/031-transfert-de-garde.md
+      - 033 — Collecte de retour: adr/033-collecte-de-retour.md
   - Limites connues: limites.md

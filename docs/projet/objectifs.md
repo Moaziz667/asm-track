@@ -26,7 +26,7 @@ flowchart LR
 |---|---|
 | **Import** | commandes prêtes à livrer, clients, dépôts, articles — depuis Odoo ou ERPNext |
 | **Planification** | tournées, affectation livreur/véhicule, séquencement, optimisation, ETA et SLA |
-| **Exécution** | acceptation, enlèvement, transit, preuve photo + signature, transfert de garde |
+| **Exécution** | acceptation, enlèvement, transit, preuve par photo du bon signé et du colis, transfert de garde |
 | **Encaissement** | collecte COD, remise de caisse avec comptage par un tiers |
 | **Retours** | demande, approbation, collecte inverse, réintégration au stock ERP |
 | **Suivi** | temps réel pour le dispatch, lien public pour le destinataire, rapports de tournée |

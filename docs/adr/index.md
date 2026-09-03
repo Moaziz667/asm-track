@@ -19,6 +19,17 @@ défaire, et dont la raison ne se lit pas dans le code.
 | [002](002-politique-rbac-unique.md) | Politique d'autorisation déclarative, unique et *fail-closed* | l'URL porte une part du sens métier |
 | [003](003-ports-adapters-erp.md) | Intégration ERP par Ports & Adapters | plus petit dénominateur commun entre ERP |
 | [004](004-outbox-transactionnel.md) | Synchronisation ERP par outbox transactionnel | cohérence à terme, pas immédiate |
+| [026](026-identite-ancree-sur-l-identifiant-metier.md) | L'identifiant métier ancre l'identité, Keycloak est interrogé à la volée | une requête réseau avant chaque opération d'administration |
+| [028](028-insertion-par-fenetre-horaire.md) | L'insertion d'un arrêt suit la fenêtre engagée, jamais une heure calculée | la position proposée ignore les temps de trajet |
+| [029](029-reconciliation-des-arrets-de-chargement.md) | Les arrêts de chargement sont recalculés, jamais déplacés à la main | un ordre d'exécution à respecter, facile à casser |
+| [031](031-transfert-de-garde.md) | Transfert de garde par état latéral `AWAITING_HANDOFF` | un colis peut rester bloqué entre deux mains |
+| [033](033-collecte-de-retour.md) | La collecte de retour est une livraison, pas un objet nouveau | `deliveries` porte deux natures de lignes |
+
+!!! note "Pourquoi la numérotation saute"
+    Les numéros sont attribués dans le code au moment où la décision est prise, et toutes n'ont pas
+    donné lieu à une fiche. Les intervalles sont donc normaux : ils correspondent à des choix jugés
+    trop locaux pour mériter un document. Un numéro cité dans le code renvoie toujours à la fiche du
+    même numéro ici.
 
 ---
 

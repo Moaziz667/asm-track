@@ -174,7 +174,7 @@ sequenceDiagram
     B->>API: confirme avec le jeton (+ position)
     API->>API: vérifie le jeton et son expiration
     API-->>B: la livraison lui appartient
-    Note over API: AWAITING_HANDOFF → IN_TRANSIT
+    Note over API: AWAITING_HANDOFF → PICKED_UP
 ```
 
 **Pourquoi un jeton et pas un simple bouton.** Le transfert doit prouver une **remise physique**. Un
