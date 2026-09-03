@@ -51,7 +51,10 @@ public class HandoffSlaMonitor {
     @Value("${handoff.sla.pending-minutes:15}")
     private int pendingMinutes;
 
-    @Value("${handoff.sla.auto-cancel-minutes:0}")
+    // Mirrors application.yml. A 0 here would silently disable auto-cancel if the property ever went
+    // missing, which is the opposite of what the setting exists for; 0 stays meaningful as an explicit
+    // per-tenant choice, not as an accident of configuration.
+    @Value("${handoff.sla.auto-cancel-minutes:120}")
     private int autoCancelMinutes;
 
     /**

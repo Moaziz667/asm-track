@@ -36,4 +36,5 @@ export function useOpsSettings() {
 export const HANDOFF_PENDING_KEY = 'ops.handoff.pending-minutes';
 export const HANDOFF_PENDING_DEFAULT = 15;
 export const HANDOFF_AUTO_CANCEL_KEY = 'ops.handoff.auto-cancel-minutes';
-export const HANDOFF_AUTO_CANCEL_DEFAULT = 60;
+// 120, like the backend: the transfer must not die while its QR still advertises a valid countdown.
+export const HANDOFF_AUTO_CANCEL_DEFAULT = 120;

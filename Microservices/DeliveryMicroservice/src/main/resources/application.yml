@@ -225,8 +225,11 @@ handoff:
     # Push a one-time overdue alert to dispatch + both drivers after this long unconfirmed.
     pending-minutes: ${HANDOFF_SLA_PENDING_MINUTES:15}
     # Auto-expire a stuck handoff and return the parcel to dispatch resolution.
-    # 0 disables auto-cancel; default 60min so parcels never sit in limbo indefinitely.
-    auto-cancel-minutes: ${HANDOFF_SLA_AUTO_CANCEL_MINUTES:60}
+    # 0 disables auto-cancel; default 120min so parcels never sit in limbo indefinitely.
+    # Deliberately the same as handoff.token.ttl-minutes above: a shorter window (it was 60) killed the
+    # handoff while its QR was still advertised as valid, so the sender watched a live countdown on a
+    # code that could no longer be confirmed. The code must never outlive the transfer it serves.
+    auto-cancel-minutes: ${HANDOFF_SLA_AUTO_CANCEL_MINUTES:120}
 
 springdoc:
   # PROD: disable Swagger UI entirely — exposes all endpoints publicly

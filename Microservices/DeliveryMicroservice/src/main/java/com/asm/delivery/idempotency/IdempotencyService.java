@@ -14,9 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
  * hashed — two drivers replaying the same offline write never collide.
  *
  * <p>Entries are pruned by {@link ProcessedRequestCleanupJob}, one sweep per tenant schema. Its
- * window ({@code idempotency.cleanup.ttl-hours}, 24 h) is deliberately the driver app's
- * offline-queue TTL: past it the app dead-letters the write instead of replaying it, so there is
- * nothing left to recognise.
+ * window ({@code idempotency.cleanup.ttl-hours}, 48 h) is deliberately longer than the driver
+ * app's 24 h offline-queue TTL: a write finally replayed near that limit must still find the
+ * stored response instead of executing a second time. The extra day is the margin.
  */
 @Service
 @RequiredArgsConstructor
