@@ -14,6 +14,7 @@ import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
+import AssistantAuditTab from './AssistantAuditTab';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -391,6 +392,8 @@ export default function AuditLogsPage() {
   const t = useT();
   const locale = useLocaleStore(state => state.locale);
 
+  const [tab, setTab] = useState<'platform' | 'assistant'>('platform');
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -499,6 +502,28 @@ export default function AuditLogsPage() {
   return (
     <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
 
+      {/* Two trails, side by side rather than merged. The platform feed answers "who changed what";
+          the assistant's answers "why did it say that". They share no column but a timestamp, so
+          folding them into one list would mean a table where most cells are empty on every row. */}
+      <div className="flex items-center gap-1 px-4 pt-3 shrink-0">
+        {(['platform', 'assistant'] as const).map(key => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className="px-3 py-1.5 text-xs font-[700] rounded-t"
+            style={{
+              color: tab === key ? 'var(--brand)' : 'var(--text-muted)',
+              borderBottom: `2px solid ${tab === key ? 'var(--brand)' : 'transparent'}`,
+            }}
+          >
+            {key === 'platform' ? t.auditLogsPage.tabPlatform : t.auditLogsPage.tabAssistant}
+          </button>
+        ))}
+        <div className="flex-1 h-[1px] self-end" style={{ background: 'var(--border)' }} />
+      </div>
+
+      {tab === 'assistant' ? <AssistantAuditTab /> : <>
+
       {/* Filter bar — shared PageFilterBar (search + role/entity/date attributes) */}
       <PageFilterBar
         search={search}
@@ -581,6 +606,8 @@ export default function AuditLogsPage() {
           />
         </div>
       )}
+
+      </>}
     </div>
   );
 }

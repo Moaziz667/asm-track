@@ -2584,6 +2584,18 @@ export const FR_COPY = {
 
   // ── Audit Logs Page ───────────────────────────────────────────────────
   auditLogsPage: {
+    assistantPrev: 'Page précédente',
+    assistantNext: 'Page suivante',
+    tabPlatform: 'Plateforme',
+    tabAssistant: 'Assistant',
+    assistantInteractions: 'Interactions',
+    assistantRefusedOnly: 'Refus seulement',
+    assistantQuestion: 'Question',
+    assistantRoute: 'Source',
+    assistantSources: 'Citations',
+    assistantLatency: 'Latence',
+    assistantWhen: 'Date',
+    assistantRefused: 'Refusée',
     pageSubtitle: 'Sécurité système',
     pageTitle: 'Journal',
     pageTitleBrand: 'd\'audit',
@@ -2632,7 +2644,7 @@ export const FR_COPY = {
       DRIVER_INVITED: 'a invité un chauffeur', DRIVER_ACTIVATED: 'a activé un chauffeur', DRIVER_SUSPENDED: 'a suspendu un chauffeur',
       DRIVER_INVITE_RESENT_BY_ADMIN: "a renvoyé une invitation", DRIVER_INVITE_CANCELLED: 'a annulé une invitation',
       DRIVER_UPDATED: 'a modifié un chauffeur', DRIVER_PASSWORD_RESET: 'a réinitialisé un mot de passe',
-      DRIVER_BULK_IMPORTED: 'a importé des chauffeurs', DRIVER_AUTO_OFFLINED: 'a mis un chauffeur hors ligne', DRIVER_FORCE_LOGOUT: 'a déconnecté un chauffeur',
+      DRIVER_BULK_IMPORTED: 'a importé des chauffeurs', DRIVER_AVAILABILITY_CHANGED: 'a changé sa disponibilité', DRIVER_AUTO_OFFLINED: 'a mis un chauffeur hors ligne', DRIVER_FORCE_LOGOUT: 'a déconnecté un chauffeur',
       CREATE_ADMIN_USER: 'a créé un compte', TOGGLE_ADMIN_USER_STATUS: 'a modifié le statut d’un compte',
       UPDATE_ADMIN_USER: 'a modifié un compte', RESET_ADMIN_USER_PASSWORD: 'a réinitialisé un mot de passe', FORCE_LOGOUT_ADMIN_USER: 'a déconnecté un compte',
       PIN_DROPOFF: 'a épinglé l’adresse de', UPDATE_DEPOT_LOCATION: 'a déplacé le dépôt', GEOLOCATE_DEPOT: 'a géolocalisé le dépôt',

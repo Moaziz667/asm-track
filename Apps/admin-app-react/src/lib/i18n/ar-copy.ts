@@ -2545,6 +2545,18 @@ export const AR_COPY = {
 
   // ── صفحة سجل التدقيق ──────────────────────────────────────────────────
   auditLogsPage: {
+    assistantPrev: 'الصفحة السابقة',
+    assistantNext: 'الصفحة التالية',
+    tabPlatform: 'المنصة',
+    tabAssistant: 'المساعد',
+    assistantInteractions: 'التفاعلات',
+    assistantRefusedOnly: 'الرفض فقط',
+    assistantQuestion: 'السؤال',
+    assistantRoute: 'المصدر',
+    assistantSources: 'الاستشهادات',
+    assistantLatency: 'زمن الاستجابة',
+    assistantWhen: 'التاريخ',
+    assistantRefused: 'مرفوضة',
     pageSubtitle: 'أمان النظام',
     pageTitle: 'سجل',
     pageTitleBrand: 'التدقيق',
@@ -2593,7 +2605,7 @@ export const AR_COPY = {
       DRIVER_INVITED: 'دعا سائقًا', DRIVER_ACTIVATED: 'فعّل سائقًا', DRIVER_SUSPENDED: 'علّق سائقًا',
       DRIVER_INVITE_RESENT_BY_ADMIN: 'أعاد إرسال دعوة', DRIVER_INVITE_CANCELLED: 'ألغى دعوة',
       DRIVER_UPDATED: 'عدّل سائقًا', DRIVER_PASSWORD_RESET: 'أعاد ضبط كلمة مرور',
-      DRIVER_BULK_IMPORTED: 'استورد سائقين', DRIVER_AUTO_OFFLINED: 'جعل سائقًا غير متصل', DRIVER_FORCE_LOGOUT: 'سجّل خروج سائق',
+      DRIVER_BULK_IMPORTED: 'استورد سائقين', DRIVER_AVAILABILITY_CHANGED: 'غيّر حالة توفره', DRIVER_AUTO_OFFLINED: 'جعل سائقًا غير متصل', DRIVER_FORCE_LOGOUT: 'سجّل خروج سائق',
       CREATE_ADMIN_USER: 'أنشأ حسابًا', TOGGLE_ADMIN_USER_STATUS: 'غيّر حالة حساب',
       UPDATE_ADMIN_USER: 'عدّل حسابًا', RESET_ADMIN_USER_PASSWORD: 'أعاد ضبط كلمة مرور', FORCE_LOGOUT_ADMIN_USER: 'سجّل خروج حساب',
       PIN_DROPOFF: 'حدّد موقع تسليم', UPDATE_DEPOT_LOCATION: 'نقل المستودع', GEOLOCATE_DEPOT: 'حدّد موقع المستودع',

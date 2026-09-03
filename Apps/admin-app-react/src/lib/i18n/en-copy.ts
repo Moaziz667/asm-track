@@ -2486,6 +2486,18 @@ export const EN_COPY = {
 
   // ── Audit Logs Page ───────────────────────────────────────────────────
   auditLogsPage: {
+    assistantPrev: 'Previous page',
+    assistantNext: 'Next page',
+    tabPlatform: 'Platform',
+    tabAssistant: 'Assistant',
+    assistantInteractions: 'Interactions',
+    assistantRefusedOnly: 'Refusals only',
+    assistantQuestion: 'Question',
+    assistantRoute: 'Source',
+    assistantSources: 'Citations',
+    assistantLatency: 'Latency',
+    assistantWhen: 'Date',
+    assistantRefused: 'Refused',
     pageSubtitle: 'System Security',
     pageTitle: 'Audit',
     pageTitleBrand: 'Log',
@@ -2534,7 +2546,7 @@ export const EN_COPY = {
       DRIVER_INVITED: 'invited a driver', DRIVER_ACTIVATED: 'activated a driver', DRIVER_SUSPENDED: 'suspended a driver',
       DRIVER_INVITE_RESENT_BY_ADMIN: 'resent an invite', DRIVER_INVITE_CANCELLED: 'cancelled an invite',
       DRIVER_UPDATED: 'updated a driver', DRIVER_PASSWORD_RESET: 'reset a password',
-      DRIVER_BULK_IMPORTED: 'imported drivers', DRIVER_AUTO_OFFLINED: 'set a driver offline', DRIVER_FORCE_LOGOUT: 'logged out a driver',
+      DRIVER_BULK_IMPORTED: 'imported drivers', DRIVER_AVAILABILITY_CHANGED: 'changed their availability', DRIVER_AUTO_OFFLINED: 'set a driver offline', DRIVER_FORCE_LOGOUT: 'logged out a driver',
       CREATE_ADMIN_USER: 'created an account', TOGGLE_ADMIN_USER_STATUS: 'changed an account status',
       UPDATE_ADMIN_USER: 'updated an account', RESET_ADMIN_USER_PASSWORD: 'reset a password', FORCE_LOGOUT_ADMIN_USER: 'logged out an account',
       PIN_DROPOFF: 'pinned the drop-off for', UPDATE_DEPOT_LOCATION: 'moved the depot', GEOLOCATE_DEPOT: 'geolocated the depot',
