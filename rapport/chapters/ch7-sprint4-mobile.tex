@@ -622,8 +622,10 @@ une seconde.
 couvre le seul mécanisme où une erreur se traduit directement en argent manquant. Il porte notamment sur ce
 qu'un chauffeur ne peut pas faire, à savoir clore sa propre remise.
 
-Ces tests s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit}, ceux du serveur
-contre une base PostgreSQL réelle.
+Les 47 tests du serveur s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit},
+les neuf cas d'acceptation contre une base PostgreSQL réelle. Les 24 tests de l'application mobile
+sont lancés à la main~: le code du chauffeur vit dans un dépôt distinct, qui ne porte pas encore de
+chaîne d'intégration.
 
 \section{Conclusion}
 

@@ -13,7 +13,8 @@ import java.lang.annotation.Target;
  * platform, not of one endpoint: it is the driver app's offline-queue TTL, and the two must agree
  * or a write the phone still intends to replay would no longer be recognised. It is therefore
  * configured once, in {@link ProcessedRequestCleanupJob}
- * ({@code idempotency.cleanup.ttl-hours}), rather than repeated on 29 methods that would drift.
+ * ({@code idempotency.cleanup.ttl-hours}), rather than repeated on the 26 annotated methods, where
+ * it would drift.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
