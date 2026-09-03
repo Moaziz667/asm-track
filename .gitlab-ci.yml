@@ -359,6 +359,17 @@ integration-test-erp-adapter-odoo:
     entrypoint: [""]
   variables:
     BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  # Malgré --no-daemon, Gradle forke un démon à usage unique quand les options JVM demandées ne
+  # correspondent pas à la JVM courante, ce qui est le cas par défaut. Ce démon survit parfois de
+  # quelques instants à la fin du RUN, et runc échoue alors à supprimer le cgroup du conteneur :
+  # « device or resource busy ». Le build a réussi, l'étape de démontage a perdu la course.
+  #
+  # script_failure et non runner_system_failure : buildctl rend 1, donc GitLab classe l'échec parmi
+  # les erreurs de script. Contrepartie assumée : une vraie erreur de compilation sera rejouée deux
+  # fois avant d'être signalée.
+  retry:
+    max: 2
+    when: script_failure
   before_script:
     - mkdir -p ~/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
