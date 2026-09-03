@@ -168,7 +168,10 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
   }), [t]);
 
   const today = stats?.today;
-  const overdueCount = ops?.sla?.totalBreaches ?? 0;
+  // slaBreached, pas totalBreaches : le second est la somme des trois anciens compteurs par phase,
+  // et il donnait un nombre different de celui du widget « En depassement » sur la meme page. Le
+  // backend designe slaBreached comme la source de verite — c'est le decompte du moteur SLA unifie.
+  const overdueCount = ops?.sla?.slaBreached ?? 0;
   // SLA = on-time compliance from the backend (period, event-based), NOT delivered/total (completion).
   const slaPercent = kpi?.slaRate != null
     ? Math.round(kpi.slaRate)
