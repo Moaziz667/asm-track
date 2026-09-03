@@ -118,12 +118,17 @@ public class DriverService {
         driver.setOnlineStatus(newStatus);
         driverRepo.save(driver);
         eventPublisher.publishStatusChanged(driverId, oldStatus, newStatus, driver.getName());
+        // driverName travels in the payload: the console reads it to name the target, and only this
+        // service knows it. Without it the row reads "Chauffeur a81c1e68" — the first bytes of a UUID,
+        // which identifies nobody to whoever is reading the trail.
         auditLogService.log(
                 "DRIVER_AVAILABILITY_CHANGED",
                 driverId,
                 driver.getName(),
                 "DRIVER",
-                String.format("{\"from\":\"%s\",\"to\":\"%s\"}", oldStatus != null ? oldStatus.name() : "OFFLINE", newStatus.name())
+                String.format("{\"driverName\":\"%s\",\"from\":\"%s\",\"to\":\"%s\"}",
+                        jsonEsc(driver.getName()),
+                        oldStatus != null ? oldStatus.name() : "OFFLINE", newStatus.name())
         );
         return newStatus;
     }
@@ -158,5 +163,10 @@ public class DriverService {
                 .photoUrl(photoUrl)
                 .onboardingStatus(d.getOnboardingStatus())
                 .build();
+    }
+
+    /** Minimal JSON string escaping for a value spliced into a hand-built audit payload. */
+    private static String jsonEsc(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

@@ -542,8 +542,19 @@ public class AdminDriverService {
                 .build();
     }
 
+    /**
+     * The name a human will read in the audit console, never the technical id.
+     *
+     * <p>This returned {@code getUserId()}, so every row this service produced named its actor with a
+     * UUID — unreadable on its own, and impossible to line up with the rows the other services write,
+     * which carry the display name. The token's {@code name} claim is what the console expects; the
+     * role is the fallback, because "ADMIN" tells a reader more than a string of hexadecimal.
+     */
     private String actorName(UserPrincipal p) {
-        return p != null && p.getUserId() != null ? p.getUserId() : "SYSTEM";
+        if (p == null) return "SYSTEM";
+        String display = p.getDisplayName();
+        if (display != null && !display.isBlank()) return display.trim();
+        return p.getRole() != null ? p.getRole() : "SYSTEM";
     }
 
     private String actorRole(UserPrincipal p) {

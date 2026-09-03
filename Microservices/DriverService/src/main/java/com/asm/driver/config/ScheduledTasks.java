@@ -66,8 +66,8 @@ public class ScheduledTasks {
                     "DRIVER_AUTO_OFFLINED",
                     driver.getId(),
                     "SYSTEM", "SYSTEM",
-                    String.format("{\"previousStatus\":\"%s\",\"lastLocationAt\":\"%s\"}",
-                            previous, driver.getLastLocationAt()));
+                    String.format("{\"driverName\":\"%s\",\"previousStatus\":\"%s\",\"lastLocationAt\":\"%s\"}",
+                            jsonEsc(driver.getName()), previous, driver.getLastLocationAt()));
         }
 
         log.info("Auto-offlined {} stale driver(s)", updated);
@@ -84,5 +84,10 @@ public class ScheduledTasks {
         if (deleted > 0) {
             log.info("Cleaned up {} expired invite token(s) for tenant {}", deleted, companyId);
         }
+    }
+
+    /** Minimal JSON string escaping for a value spliced into a hand-built audit payload. */
+    private static String jsonEsc(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

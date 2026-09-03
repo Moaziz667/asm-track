@@ -37,10 +37,24 @@ public class RabbitMQConfig {
     public static final String IAM_EXCHANGE    = "iam.exchange";
     public static final String IAM_ROUTING_KEY = "iam.command";
 
+    // ── Audit trail (DriverService → DeliveryService, sole owner of the audit_logs table) ────────
+    // The audit trail is one table, in one service, fed by everyone. This service used to keep its
+    // events to itself and let the console fetch them over HTTP and merge the two lists in memory,
+    // which made a correct pagination impossible and hid every driver event whenever this service
+    // was down. They now go where AppBackend already sends its own.
+    public static final String AUDIT_EXCHANGE    = "audit.exchange";
+    public static final String AUDIT_ROUTING_KEY = "audit.log";
+
     /** Producer-side declaration (idempotent with AppBackend's). The queue/DLQ are owned by AppBackend. */
     @Bean
     public TopicExchange iamExchange() {
         return new TopicExchange(IAM_EXCHANGE, true, false);
+    }
+
+    /** Producer-side declaration, idempotent. The queue and its DLQ belong to DeliveryService. */
+    @Bean
+    public TopicExchange auditExchange() {
+        return new TopicExchange(AUDIT_EXCHANGE, true, false);
     }
 
     @Bean

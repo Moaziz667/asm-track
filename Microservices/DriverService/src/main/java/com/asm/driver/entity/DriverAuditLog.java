@@ -42,4 +42,15 @@ public class DriverAuditLog {
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    /**
+     * When this row reached the shared audit trail, null while it has not.
+     *
+     * <p>The row is written here first and published after: the local write is transactional, the
+     * broker call is not. Null therefore means "owed to the trail", whether the broker was down, the
+     * service died between the two, or the row predates the move to the shared trail entirely. The
+     * startup backfill drains them, so a restart is all the recovery this needs.
+     */
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
 }

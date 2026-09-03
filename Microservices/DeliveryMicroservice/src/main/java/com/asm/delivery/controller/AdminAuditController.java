@@ -4,14 +4,12 @@ import com.asm.delivery.dto.AuditLogView;
 import com.asm.delivery.entity.AuditLog;
 import com.asm.delivery.repository.AuditLogRepository;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.DriverAuditClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
@@ -25,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,10 +34,9 @@ import java.util.UUID;
 public class AdminAuditController {
 
     private final AuditLogRepository auditLogRepo;
-    private final DriverAuditClient driverAuditClient;
 
     @GetMapping
-    @Operation(summary = "Get paginated and filtered audit logs (delivery + driver)")
+    @Operation(summary = "Get paginated and filtered audit logs (every service, one table)")
     public ResponseEntity<Page<AuditLogView>> getLogs(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
@@ -91,45 +87,18 @@ public class AdminAuditController {
         Page<AuditLog> deliveryPage = auditLogRepo.findAll(spec,
                 PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
 
-        // 2. Driver-side logs via HTTP — fetch a wider window so the page has
-        //    at least one driver's events even if delivery is the dominant source.
-        // Driver-side search: the single `q` is passed as the action filter (best-effort across the
-        // HTTP boundary), falling back to an explicit `action`. Role/entity lists are applied in-memory
-        // after fetch (the HTTP contract only carries a single role, so we forward it only when the
-        // filter is a single value and otherwise post-filter locally).
-        String driverSearch = (q != null && !q.isBlank()) ? q : action;
-        String singleRole = roles.size() == 1 ? roles.get(0) : null;
-        List<AuditLogView> driverLogs = driverAuditClient.fetchDriverLogs(
-                driverSearch, actor, singleRole, from, to, 0, Math.max(safeSize, 200));
-        if (!roles.isEmpty()) {
-            driverLogs = driverLogs.stream()
-                    .filter(v -> v.getActorRole() != null && roles.contains(v.getActorRole().toUpperCase()))
-                    .toList();
-        }
-        if (!entities.isEmpty()) {
-            driverLogs = driverLogs.stream()
-                    .filter(v -> v.getTargetEntity() != null && entities.contains(v.getTargetEntity().toUpperCase()))
-                    .toList();
-        }
-
-        // 3. Map + merge
-        List<AuditLogView> merged = new ArrayList<>();
-        for (AuditLog l : deliveryPage.getContent()) {
-            merged.add(toView(l));
-        }
-        merged.addAll(driverLogs);
-
-        merged.sort(Comparator.comparing(AuditLogView::getCreatedAt,
-                Comparator.nullsLast(Comparator.reverseOrder())));
-
-        long totalElements = deliveryPage.getTotalElements() + driverLogs.size();
-        int totalPages = (int) Math.max(1, Math.ceil((double) merged.size() / safeSize));
-        int fromIdx = Math.min(safePage * safeSize, merged.size());
-        int toIdx   = Math.min(fromIdx + safeSize, merged.size());
-        List<AuditLogView> pageContent = merged.subList(fromIdx, toIdx);
-
-        return ResponseEntity.ok(new PageImpl<>(pageContent,
-                PageRequest.of(safePage, safeSize), totalElements));
+        // 2. That is the whole answer. DriverService publishes its events to audit.exchange, exactly
+        //    as AppBackend does, and they are persisted in this table before anyone reads it. The
+        //    console therefore paginates one indexed table, and the database does the offset.
+        //
+        //    It used to fetch the driver events over HTTP and merge the two lists here. That merge
+        //    could not paginate: the database had already returned the page-th slice, and the merge
+        //    then applied the same offset a second time to that slice, so every page past the first
+        //    came back empty. Nothing local could fix it either — sorting and cutting across two
+        //    sources needs one of them to know the other's rows, which is what a single table is for.
+        //    It also made the trail incomplete on a bad day: a driver service that was down took its
+        //    events out of the console, silently, at the moment they mattered most.
+        return ResponseEntity.ok(deliveryPage.map(this::toView));
     }
 
     /** Normalize a multi-value param to an upper-cased, blank-free list (null → empty). */
