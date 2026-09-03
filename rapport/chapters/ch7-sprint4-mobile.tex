@@ -1,6 +1,652 @@
-% Budget : 12 pages — voir rapport/PLAN.md
+% Budget : 13 pages — voir rapport/PLAN.md
+%
+% Diagrammes dans diagrams/drawio/Sprint4/ (ucSprint4, ClassSprint4, SeqSprint4), atteints par le
+% \graphicspath du preambule. Captures d'ecran a produire : s4-tournee, s4-preuve, s4-synchro,
+% s4-garde, s4-caisse, s4-guichet.
 \chapter{Sprint 4 — Application mobile chauffeur et mode hors ligne}
+\label{ch:mobile}
 
 \section{Introduction}
 
+Tout ce que le bureau observe vient d'un geste fait ailleurs~: un chauffeur qui confirme un
+enlèvement, photographie un bon signé, encaisse un montant. Il les fait sur une autoroute entre deux
+villes ou devant une porte que le réseau dessert mal. Le bureau aussi peut perdre sa connexion. La
+différence est qu'il peut attendre qu'elle revienne, puisque rien ne se produit pendant ce temps~; le
+chauffeur, lui, a un client en face de lui et un colis qui change de main à cet instant.
+
+Ce sprint construit l'application du chauffeur, et il se lit en trois volets. Le premier est
+l'\textbf{exécution}~: le chauffeur consulte sa tournée du jour et le calendrier de celles qui
+viennent, la démarre, confirme son chargement au dépôt, part en transit, puis clôture chaque arrêt.
+Cette clôture n'a pas une forme unique~: il peut avoir tout remis, n'avoir remis qu'une partie de la
+commande, avoir échoué en indiquant un motif, ou au contraire avoir récupéré un colis que le
+destinataire renvoie. Le deuxième volet est la \textbf{preuve}, car ce qui ferme un arrêt engage
+l'entreprise~: le chauffeur photographie le bon de livraison signé et le colis remis, détaille les
+manques ligne par ligne quand la livraison est partielle, enregistre le montant encaissé, puis
+déclare sa caisse au dépôt, où quelqu'un d'autre la compte. Le troisième volet est le
+\textbf{hors-ligne}, qui conditionne les deux autres, car sans lui tout ce qui précède s'arrête à la
+première zone sans couverture.
+
+Ces trois volets tiennent sur une même idée. Un geste du terrain est une écriture qui doit finir par
+atteindre le serveur, une fois et une seule, en portant l'heure à laquelle elle a eu lieu.
+L'application la conserve donc sur le téléphone jusqu'à ce que le serveur l'accepte, fait avancer
+l'écran sans attendre cette acceptation, et lui joint une clé qui permet de reconnaître une écriture
+déjà traitée. Un colis remis à quatorze heures dans une rue sans réseau reste ainsi prouvé livré à
+quatorze heures, même si l'écriture ne part qu'en fin de journée, et il ne l'est qu'une fois même si
+elle part deux fois.
+
+\section{Objectifs du sprint et planification des tâches}
+
+\subsection{Objectifs attendus}
+
+Ce sprint équipe le terrain. Cinq résultats sont attendus~:
+
+\begin{itemize}
+  \item une \textbf{application chauffeur} qui porte la journée de bout en bout~: la tournée du
+        jour, le calendrier de celles qui viennent, le démarrage, le chargement au dépôt, le transit
+        et la clôture de chaque arrêt.
+  \item une \textbf{preuve de livraison} qui couvre l'entreprise en cas de litige~: photographie du
+        bon de livraison signé et du colis remis, détail des manques lorsque la livraison est
+        partielle, position et heure du geste.
+  \item un \textbf{mode hors ligne} qui ne bloque jamais le chauffeur~: l'écriture survit à l'absence
+        de réseau, l'écran avance sans attendre le serveur, et rien n'est perdu, ni exécuté deux
+        fois, ni rejeté en silence.
+  \item un \textbf{encaissement vérifiable}, du montant pris à la porte jusqu'à la remise au dépôt,
+        où le chauffeur déclare ce qu'il rend et le bureau compte ce qu'il reçoit.
+  \item un \textbf{transfert de garde} confirmé sur le terrain, et une \textbf{collecte de retour}
+        qui emprunte la même tournée, le même écran et la même preuve que la livraison.
+\end{itemize}
+
+Le périmètre couvre neuf \terme{user stories}, US-20 à US-27 et US-34, soit \textbf{87 points}
+d'effort. Le tableau~\ref{tab:backlog-s4} en donne la décomposition en tâches.
+
+\subsection{Sprint backlog}
+
+Le tableau~\ref{tab:backlog-s4} détaille les tâches du sprint, regroupées par \terme{user story}.
+
+\begin{small}
+\begin{longtable}{L{1.1cm}L{4.4cm}L{1.2cm}L{5.6cm}L{1.4cm}}
+\caption{Sprint backlog — sprint 4}\label{tab:backlog-s4}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endfirsthead
+\hline
+\rowcolor{isimsblue!10}
+\textbf{ID} & \textbf{User Story} & \textbf{Tâche} & \textbf{Description} & \textbf{Priorité} \\
+\hline
+\endhead
+\hline
+\endfoot
+
+US-20 & En tant que chauffeur, je veux consulter ma tournée du jour sur mon téléphone afin de savoir où aller. (8 pts) & T4-01 & Afficher la tournée du jour et ses arrêts dans l'ordre de passage & Haute \\
+\hline
+      &  & T4-02 & Consulter le calendrier des tournées planifiées & Moyenne \\
+\hline
+      &  & T4-03 & Exécuter la tournée~: démarrage, enlèvement au dépôt, transit, arrivée & Haute \\
+\hline
+US-21 & En tant que chauffeur, je veux déclarer une livraison réussie ou échouée avec un motif afin que le bureau soit informé. (8 pts) & T4-04 & Clôturer un arrêt en livraison complète ou partielle & Haute \\
+\hline
+      &  & T4-05 & Déclarer un échec avec un motif issu du référentiel & Haute \\
+\hline
+      &  & T4-06 & Détailler les manques par unité~: manquant, refusé, abîmé & Moyenne \\
+\hline
+US-22 & En tant que chauffeur, je veux enregistrer une preuve de livraison avec photographies afin de couvrir l'entreprise en cas de litige. (13 pts) & T4-07 & Photographier le bon de livraison signé et le colis remis & Haute \\
+\hline
+      &  & T4-08 & Déposer les photographies dans le stockage objet avant d'écrire la preuve & Haute \\
+\hline
+      &  & T4-09 & Consulter le bon de livraison même hors ligne & Moyenne \\
+\hline
+US-23 & En tant que chauffeur, je veux continuer à travailler sans réseau et voir mes actions transmises au retour de la couverture afin de ne jamais être bloqué. (21 pts) & T4-10 & Mettre les écritures en file sur le téléphone et les rejouer au retour du réseau & Haute \\
+\hline
+      &  & T4-11 & Rendre l'écriture idempotente par une clé stable par livraison & Haute \\
+\hline
+      &  & T4-12 & Horodater l'action au moment du geste, non au moment du rejeu & Haute \\
+\hline
+      &  & T4-13 & Projeter localement l'effet d'une écriture en attente & Haute \\
+\hline
+      &  & T4-14 & Mettre en cache la tournée, les livraisons et les bons de livraison & Haute \\
+\hline
+      &  & T4-15 & Centre de synchronisation~: relancer ou abandonner une écriture en échec & Moyenne \\
+\hline
+US-24 & En tant que chauffeur, je veux transmettre un colis à un collègue avec confirmation afin que la responsabilité soit tracée. (13 pts) & T4-16 & Générer un code à usage unique et l'afficher sous forme de QR & Moyenne \\
+\hline
+      &  & T4-17 & Confirmer la réception par scan, avec la position des deux chauffeurs & Moyenne \\
+\hline
+      &  & T4-18 & Placer la livraison en attente de transfert jusqu'à confirmation de la remise & Haute \\
+\hline
+US-25 & En tant que chauffeur, je veux enregistrer le montant encaissé et son mode de règlement afin d'en garder la trace. (8 pts) & T4-19 & Saisir le montant reçu et son moyen~: espèces, chèque, ou rien & Haute \\
+\hline
+      &  & T4-20 & Exiger un motif lorsque le montant reçu est inférieur à l'attendu & Moyenne \\
+\hline
+US-26 & En tant que chauffeur, je veux déclarer le total remis en fin de tournée afin de clore ma journée. (3 pts) & T4-21 & Consulter l'encaisse détenue et déclarer le montant remis au dépôt & Haute \\
+\hline
+US-27 & En tant que dispatcheur, je veux compter la somme reçue et arbitrer l'écart afin que la caisse soit vérifiable. (8 pts) & T4-22 & Compter la remise au bureau, constater l'écart et le solder & Haute \\
+\hline
+US-34 & En tant que chauffeur, je veux collecter un retour chez le destinataire afin de le ramener au dépôt. (5 pts) & T4-23 & Collecter un retour comme un arrêt de tournée ordinaire, sans bon à photographier & Moyenne \\
+\hline
+\end{longtable}
+\end{small}
+
+\section{Concepts et mécanismes utilisés}
+
+Ce sprint mobilise quatre notions. Les trois dernières se répondent, car elles décrivent le trajet d'une
+écriture depuis le geste du chauffeur jusqu'à son enregistrement, et chacune règle un problème que la
+précédente laisse ouvert.
+
+\paragraph{L'architecture hors-ligne d'abord~:} une application de terrain ne peut pas traiter le
+réseau comme une condition de fonctionnement, elle inverse donc la dépendance habituelle. Ce que le
+chauffeur voit vient d'une copie locale, que le réseau rafraîchit quand il le peut~; ce qu'il fait
+devient un fait enregistré sur le téléphone, que le réseau transmet ensuite. La couverture ne décide
+plus de ce qu'il a le droit de faire. L'idée n'est pas neuve~: elle a été formulée dès 1992 sous le
+nom de \terme{fonctionnement déconnecté}, en observant qu'un cache tenu pour un gain de performance
+pouvait aussi servir à rester disponible quand la ressource distante ne répond plus~\cite{kistler92}.
+
+Cette copie est préparée au dépôt, avant le départ~: la tournée du jour, le détail de ses livraisons,
+et les bons de livraison au format PDF. Ce dernier point compte, car le bon est produit par le
+progiciel de l'entreprise cliente, donc récupéré en direct, et c'est le document que le destinataire
+signe. La connectivité se mesure enfin à ce que le serveur répond et non à ce que le téléphone
+affiche, de sorte qu'un réseau qui ne mène nulle part est traité comme une absence de réseau.
+
+\paragraph{La file de rejeu~:} une écriture que le réseau n'a pas pu transmettre reste sur le
+téléphone jusqu'à ce que le serveur l'accepte. La file est durable, chiffrée sur le disque, et
+survit au redémarrage de l'appareil. Ce qui la distingue d'un simple tampon est le traitement de
+l'échec~: un refus définitif du serveur ne repart pas, une erreur passagère donne droit à
+\textbf{trois tentatives}, et une écriture jamais partie expire au bout de \textbf{vingt-quatre
+heures}. Dans les trois cas elle n'est pas supprimée mais marquée, et reste visible dans un centre de
+synchronisation où le chauffeur la relance ou l'abandonne. Une preuve de livraison effacée sans que
+personne ne l'apprenne serait un litige perdu d'avance.
+
+La file ne se vide toutefois qu'au premier plan, sur cinq déclencheurs dont le retour de la
+connectivité et la reprise de l'application. Il n'y a pas de synchronisation en arrière-plan, et ce
+choix a été fait après en avoir construit une, parce que la base locale n'est pas sûre entre deux fils
+d'exécution, et l'ouverture d'une base corrompue la supprime, si bien qu'un travailleur
+d'arrière-plan pouvait effacer toute la file.
+
+\paragraph{L'idempotence~:} une écriture reçue plusieurs fois ne doit agir qu'une seule. Côté
+téléphone, chaque action reçoit une \textbf{clé stable} construite sur la livraison qu'elle
+concerne~: \code{pod-3f2a9c14\ldots} pour l'enregistrement d'une preuve, \code{fail-3f2a9c14\ldots} pour un
+échec sur cette même livraison. Réenfiler la même action remplace donc l'écriture en attente au lieu
+d'en ajouter une seconde, et un chauffeur qui change de motif avant de retrouver le réseau règle son
+hésitation là où il la voit encore. Côté serveur, un aspect mémorise la réponse rendue et la restitue
+si la même écriture se représente, sans rien réexécuter.
+
+La clé seule ne désigne pourtant pas une écriture. Le serveur l'associe donc à une \textbf{portée}
+réunissant la méthode, l'adresse appelée et l'identité de l'appelant, que la passerelle extrait du
+jeton et que le client ne peut pas forger. C'est elle qui empêche un rejeu de profiter au mauvais
+acteur, un chauffeur ne récupérant jamais la réponse donnée à son collègue sur une livraison qu'on
+lui a retirée. Cette portée est enfin ramenée à une \textbf{empreinte} de taille fixe, ici
+\code{bd22134f\ldots}, qui sert de clé primaire. En clair, cette portée ferait cent quarante-neuf caractères
+pour une colonne qui en accepte cent, et l'empreinte tient quelle que soit la longueur de l'adresse
+appelée, tout en retirant au client la maîtrise d'une clé primaire.
+
+\paragraph{L'horloge de l'action~:} lorsqu'une écriture attend le réseau, l'instant où le chauffeur a
+agi et celui où le serveur l'apprend s'écartent. Le système retient le premier, dont l'heure est prise
+sur le téléphone avant toute tentative de connexion, puis voyage avec l'écriture, sur le chemin
+direct comme sur le rejeu. Ce détail décide de la justesse de tout ce qui se mesure ensuite. Un colis
+remis à quatorze heures dans une rue sans réseau, dont l'écriture ne part qu'à dix-sept heures
+cinquante, serait sinon enregistré comme livré à dix-sept heures cinquante~; le moteur d'échéances du
+chapitre précédent imputerait alors au chauffeur près de quatre heures de retard qu'il n'a pas eues.
+
+\section{Analyse et spécification des besoins}
+
+\subsection{Diagramme de cas d'utilisation du sprint}
+
+La figure~\ref{fig:uc-s4} présente les cas d'utilisation du sprint~: l'exécution de la tournée,
+l'enregistrement de la preuve, le travail hors réseau, le transfert de garde et le circuit de la
+caisse.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{ucSprint4}
+\caption{Diagramme de cas d'utilisation du sprint 4}
+\label{fig:uc-s4}
+\end{figure}
+
+Le déséquilibre entre les deux acteurs est le premier fait à relever. Le \textbf{chauffeur} porte
+presque tous les cas~; le \textbf{dispatcheur} n'en détient qu'un seul, solder la remise de caisse.
+Cette solitude n'est pas un oubli de découpage, c'est le mécanisme lui-même. Celui qui remet
+l'argent n'est pas celui qui le compte. Le progiciel apparaît en système externe, sollicité par le
+seul enregistrement de la preuve, dont il reçoit le mouvement de stock.
+
+Les relations méritent une lecture attentive. La livraison complète et la livraison partielle sont
+deux \emph{spécialisations} du même cas. Une livraison partielle n'est pas un parcours à part, c'est
+le même geste avec un décompte ligne par ligne. Les deux photographies sont \emph{incluses} dans
+l'enregistrement de la preuve, donc obligatoires. Une collecte de retour fait seule exception, car elle
+n'a pas de bon de livraison à photographier, ce document n'existant pas pour un mouvement inverse.
+L'encaissement et le commentaire \emph{étendent} l'enregistrement de la preuve, le premier n'ayant
+lieu que si la commande est à encaisser, le second restant facultatif. Enfin, la relance et l'abandon
+d'une écriture étendent le centre de synchronisation, puisqu'ils ne se présentent que si une écriture
+a échoué.
+
+Les motifs que le chauffeur choisit ne sont pas écrits dans l'application. Ils viennent d'un
+référentiel que le bureau administre, car un échec ne recouvre pas la même réalité d'un métier à
+l'autre. Une entreprise qui livre en centre-ville bute sur des locaux fermés à l'heure du passage
+quand une autre, qui dessert les zones rurales, ne retrouve pas ses adresses. Chaque motif reste
+rattaché à l'une des six catégories d'analyse, si bien qu'un client affine son vocabulaire sans rendre
+ses statistiques incomparables.
+
+\subsection{Description détaillée des cas d'utilisation}
+
+Trois cas sont détaillés~: celui qui clôt une livraison, celui qui la rend possible sans réseau, et
+celui qui règle la garde d'un colis sur le terrain.
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Déposer une preuve de livraison »}\label{tab:cu-preuve}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Déposer une preuve de livraison \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Déposer une preuve de livraison (suite)} \\
+\hline
+\endhead
+\textbf{Acteur} & Chauffeur \\
+\hline
+\textbf{Résumé} & Clore un arrêt en enregistrant ce qui a réellement été remis, les photographies qui l'attestent et, le cas échéant, le montant encaissé. \\
+\hline
+\textbf{Préconditions} & Le chauffeur est authentifié et la livraison lui est affectée. Elle est chargée ou en transit. Le réseau n'est pas requis. \\
+\hline
+\textbf{Postconditions} & La preuve est enregistrée, horodatée à l'heure du geste, avec ses photographies dans le stockage objet. La livraison est livrée ou partiellement livrée. Le mouvement de stock part vers le progiciel. \\
+\hline
+\textbf{Scénario nominal} & 1. Le chauffeur ouvre l'écran de preuve depuis l'arrêt en cours. \newline 2. Il consulte le bon de livraison, servi depuis la copie locale si le réseau manque. \newline 3. Il photographie le bon signé par le destinataire, puis le colis remis. \newline 4. Si la commande est à encaisser, il saisit le montant reçu et son moyen de règlement. \newline 5. Il valide. L'écran affiche la livraison comme livrée sans attendre le serveur. \\
+\hline
+\textbf{Scénarios alternatifs} & 3a. La livraison est partielle~: le chauffeur bascule l'interrupteur prévu et répartit chaque ligne entre ce qui est remis et ce qui manque, en indiquant pour chaque manque sa quantité et son motif. La photographie du bon déjà prise est alors écartée, car elle montre les quantités imprimées et non celles remises. \newline 3b. Il s'agit d'une collecte de retour~: aucun bon n'est demandé, seule la photographie du colis récupéré est exigée, et le décompte partiel n'est pas proposé. \newline 4a. Le montant reçu est inférieur à celui attendu~: un motif devient obligatoire, dès lors que le référentiel en propose un. \newline 5a. Le réseau est absent~: l'écriture est mise en attente et la suite se déroule comme au cas « Travailler hors réseau ». \newline 5b. Une preuve existe déjà pour cette livraison~: le serveur renvoie l'état courant sans rien réécrire. Le cas survient quand la requête a bien été traitée mais que sa réponse s'est perdue au retour~: l'application la croit échouée et la rejoue. Sans ce contrôle, le progiciel recevrait un second mouvement de stock. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Travailler hors réseau »}\label{tab:cu-horsligne}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Travailler hors réseau et rejouer ses écritures \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Travailler hors réseau et rejouer ses écritures (suite)} \\
+\hline
+\endhead
+\textbf{Acteur} & Chauffeur \\
+\hline
+\textbf{Résumé} & Poursuivre la tournée sans couverture réseau, puis voir les actions accumulées transmises au serveur dès qu'elle revient. \\
+\hline
+\textbf{Préconditions} & La tournée et ses livraisons ont été chargées pendant que le réseau était disponible, en principe au dépôt. \\
+\hline
+\textbf{Postconditions} & Chaque action est parvenue au serveur exactement une fois, datée de l'instant où le chauffeur l'a faite. Toute écriture non transmise reste visible et actionnable. \\
+\hline
+\textbf{Scénario nominal} & 1. Le chauffeur agit sur une livraison alors que le réseau est absent. \newline 2. L'application enregistre l'écriture sur le téléphone avec sa clé et l'heure du geste. \newline 3. L'écran avance immédiatement, comme si le serveur avait répondu. \newline 4. Le réseau revient. La file part, écriture par écriture, dans l'ordre. \newline 5. Le serveur accepte~; l'écriture quitte la file. \\
+\hline
+\textbf{Scénarios alternatifs} & 1a. Rien n'a été chargé au préalable et la livraison n'est pas en cache~: l'action est mise en file, mais l'écran ne peut rien afficher de nouveau. \newline 2a. Le chauffeur revient sur son action, par exemple pour changer un motif d'échec~: la clé étant identique, l'écriture en attente est remplacée au lieu d'être doublée. \newline 4a. Une écriture échoue sur une erreur passagère~: elle est retentée trois fois, puis signalée. \newline 4b. Le serveur la refuse définitivement~: elle est signalée sans nouvelle tentative. \newline 4c. Elle attend depuis plus de vingt-quatre heures~: elle expire et est signalée. \newline 5a. Dans les trois cas précédents, l'écriture apparaît dans le centre de synchronisation, où le chauffeur la relance ou l'abandonne. Elle n'est jamais supprimée sans son accord. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{Cas d'utilisation « Transférer la garde d'un colis »}\label{tab:cu-garde}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Titre} & Transférer la garde d'un colis \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape Transférer la garde d'un colis (suite)} \\
+\hline
+\endhead
+\textbf{Acteur} & Chauffeur cédant, chauffeur receveur \\
+\hline
+\textbf{Résumé} & Remettre à un collègue un colis déjà chargé, de sorte que le système enregistre le changement de main au moment où il a physiquement lieu. \\
+\hline
+\textbf{Préconditions} & Le bureau a réaffecté la livraison alors qu'elle était déjà en main. Elle est en attente de transfert. Les deux chauffeurs sont en service. \\
+\hline
+\textbf{Postconditions} & La livraison repart au nom du receveur à l'état \emph{chargée}, quel que soit son état avant le transfert~: le colis est en main, mais le trajet vers le client reste à engager par celui qui le porte désormais. La remise est datée et localisée, et les deux chauffeurs y sont nommés. \\
+\hline
+\textbf{Scénario nominal} & 1. Le chauffeur cédant ouvre la livraison et demande un code de remise. \newline 2. Le serveur émet un code à usage unique, valable deux heures, affiché sous forme de QR avec son compte à rebours. \newline 3. Les deux chauffeurs se rejoignent et le colis change de main. \newline 4. Le receveur scanne le code. L'application lui demande de le maintenir cadré quelques secondes avant de valider. \newline 5. Le serveur confirme la remise et la livraison repart au nom du receveur. \\
+\hline
+\textbf{Scénarios alternatifs} & 2a. Le code expire avant la rencontre~: il est verrouillé à l'écran et le cédant en demande un nouveau. \newline 4a. Le code est déjà utilisé, ou ne correspond pas à ce receveur~: la confirmation est refusée avec un message explicite. \newline 4b. Cinq tentatives infructueuses ont été faites~: le code est bloqué. \newline 5a. La remise n'est pas confirmée dans le délai que l'entreprise s'est fixé, un quart d'heure par défaut~: le bureau et les deux chauffeurs reçoivent une alerte, envoyée une seule fois. \newline 5b. Elle ne l'est toujours pas au terme du délai d'annulation, deux heures par défaut~: le transfert est annulé, le colis revient au chauffeur qui l'a toujours en main, son arrêt est replacé sur la tournée de celui-ci, et le bureau est averti. Ce délai vaut exactement la durée de validité du code~: un QR ne peut donc jamais afficher un compte à rebours vivant sur un transfert déjà mort. Une entreprise qui préfère garder la main peut désactiver cette annulation automatique. \\
+\hline
+\end{longtable}
+\end{small}
+
+\section{Modélisation conceptuelle}
+
+\subsection{Diagramme de classes}
+
+La figure~\ref{fig:class-s4} présente la conception de l'enregistrement d'une preuve, de bout en bout~: le
+téléphone, le service qui le reçoit, et les entités écrites en base.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{ClassSprint4}
+\caption{Classes de conception du sprint 4}
+\label{fig:class-s4}
+\end{figure}
+
+Le diagramme se lit en trois bandes, qui sont trois responsabilités et non trois couches
+techniques. Sur le téléphone, \code{DeliveryRepository} \textbf{décide} et \code{OfflineQueueService}
+\textbf{garantit}. Le premier tranche une question immédiate, celle de savoir si le réseau répond,
+et si oui l'écriture part tout de suite, sinon il la confie au second. Celui-ci porte alors une promesse
+longue, conserver cette écriture jusqu'à ce que le serveur l'accepte, avec ses trois tentatives et
+son expiration à vingt-quatre heures. Les séparer suit la durée de vie de ces deux tâches, le choix
+se faisant en un instant quand la promesse peut tenir toute la journée.
+
+Côté serveur, \code{DriverDeliveryController} porte l'annotation qui déclenche la garde
+d'idempotence. \code{IdempotencyAspect} s'intercale avant le service et rend la réponse déjà donnée
+si la clé a déjà été vue. \code{DriverDeliveryService} n'est donc atteint que par une écriture
+réellement nouvelle, et sa première action est de charger la livraison en vérifiant qu'elle
+appartient bien au chauffeur qui la présente.
+
+Trois entités closent la chaîne. Une \code{Livraison} porte son état, son chauffeur et sa nature,
+cette dernière distinguant une livraison ordinaire d'une collecte de retour. Elle est associée à au
+plus une \code{PreuveDeLivraison}, qui garde les chemins des deux photographies, le nom du
+destinataire, la position et l'heure de la remise, et à au plus un \code{Encaissement}, qui compare
+le montant attendu au montant reçu. Les deux cardinalités valent \code{0..1} pour la même raison~:
+une livraison en échec, chez un client absent, n'a ni preuve ni encaissement. Les rendre
+obligatoires imposerait de créer pour chaque échec une preuve sans photographies et un encaissement
+à zéro, c'est-à-dire des lignes qui existent sans rien dire, et qu'aucun traitement ne saurait
+distinguer d'une saisie restée incomplète.
+
+\subsection{Diagramme de séquence}
+
+La figure~\ref{fig:seq-s4} suit l'enregistrement d'une preuve depuis l'écran du chauffeur jusqu'à
+l'enregistrement, en passant par le cas où le réseau est absent.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{SeqSprint4}
+\caption{Séquence du dépôt d'une preuve, avec mise en file et rejeu}
+\label{fig:seq-s4}
+\end{figure}
+
+La séquence s'ouvre sur une question qui n'est pas celle qu'on attend~: le réseau répond-il
+\emph{vraiment}~? Le premier cadre \emph{alt} en tire les deux branches. Si le réseau répond,
+l'écriture part immédiatement. Sinon elle est conservée, et l'écran affiche pourtant la livraison
+comme livrée. C'est le point le plus contre-intuitif du sprint, et il vient d'un échec observé. Sans
+cette projection, le chauffeur voyait « synchronisation différée » et une livraison figée sur son état
+précédent, ce qu'il lisait comme une action perdue.
+
+Le cadre \emph{loop} qui suit rejoue les écritures en attente, avec la même clé et la même heure
+qu'au moment du geste. Le second \emph{alt}, côté serveur, sépare la première réception d'une écriture
+déjà traitée. Dans ce second cas, la réponse mémorisée est rendue telle quelle, sans rien réexécuter.
+
+Trois décisions se lisent dans l'ordre des messages, et chacune répare une façon de perdre quelque
+chose. Les photographies partent dans le stockage objet \textbf{avant} l'ouverture de la
+transaction, car une preuve ne doit jamais exister en base sans ses images. L'encaissement est écrit
+\textbf{dans la même transaction} que la preuve, parce qu'en deux écritures séparées un incident
+survenu entre les deux laisserait une livraison prouvée et un encaissement jamais enregistré,
+c'est-à-dire de l'argent pris sur le terrain dont le système ignore l'existence. Le progiciel, enfin,
+est prévenu \textbf{après}, en différé, de sorte que la
+livraison est enregistrée même s'il est injoignable, ce qui reprend l'outbox du sprint~2.
+
+La dernière branche est la plus importante pour le chauffeur. En cas de refus définitif ou de
+tentatives épuisées, l'écriture n'est pas jetée, mais signalée dans le centre de synchronisation,
+où il la relance ou l'abandonne lui-même.
+
+\section{Réalisation}
+
+Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
+montrée.
+
+La figure~\ref{fig:s4-tournee} montre la tournée du jour telle que le chauffeur la voit~: les arrêts
+dans l'ordre de passage, leur état, et le bandeau qui signale si les données affichées viennent du
+réseau ou de la copie locale.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-tournee.png}{}
+\caption{Tournée du jour sur l'application chauffeur}\label{fig:s4-tournee}\end{figure}
+
+La figure~\ref{fig:s4-preuve} présente l'écran de preuve. Il enchaîne le bon de livraison consultable,
+les deux photographies, l'encaissement lorsque la commande le demande, puis le décompte ligne par
+ligne si la livraison est partielle. Le bouton de validation reste visible en bas de l'écran, et le
+motif de son indisponibilité est affiché juste au-dessus plutôt que laissé à deviner.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-preuve.png}{}
+\caption{Écran de preuve de livraison, avec encaissement}\label{fig:s4-preuve}\end{figure}
+
+La figure~\ref{fig:s4-synchro} montre le centre de synchronisation, avec une écriture en attente et
+une écriture en échec. C'est le seul endroit où le chauffeur reprend la main sur ce que le réseau n'a
+pas transmis.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-synchro.png}{}
+\caption{Centre de synchronisation~: écritures en attente et en échec}\label{fig:s4-synchro}\end{figure}
+
+La figure~\ref{fig:s4-garde} montre le code de remise affiché par le chauffeur qui cède le colis,
+avec son compte à rebours. Le code se verrouille à l'expiration plutôt que de rester scannable.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-garde.png}{}
+\caption{Code de transfert de garde et son compte à rebours}\label{fig:s4-garde}\end{figure}
+
+La figure~\ref{fig:s4-caisse} montre la remise de caisse. L'encaisse que la plateforme attribue au
+chauffeur est affichée d'abord, puis le montant qu'il déclare rendre. L'écran ne confirme jamais une
+remise~: il annonce une attente de comptage.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-caisse.png}{}
+\caption{Déclaration de la remise de caisse par le chauffeur}\label{fig:s4-caisse}\end{figure}
+
+La figure~\ref{fig:s4-guichet} montre enfin le comptage côté bureau, avec un écart entre le montant
+déclaré et le montant compté, et l'arbitrage qui le solde.
+
+\begin{figure}[H]\centering
+\captureaplacer{s4-guichet.png}{}
+\caption{Comptage de la remise et arbitrage de l'écart au bureau}\label{fig:s4-guichet}\end{figure}
+
+\section{Tests et validation}
+
+\subsection{Scénarios de test}
+
+Cinq scénarios couvrent les apports du sprint~: la continuité du travail sans réseau, l'unicité de
+l'écriture, le sort d'une écriture refusée, la garde d'un colis et le circuit de la caisse.
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S4-01 — Dépôt de preuve sans réseau, puis rejeu}\label{tab:tc-s4-01}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S4-01 \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S4-01 (suite)} \\
+\hline
+\endhead
+\textbf{Description} & Une preuve déposée sans couverture réseau est enregistrée au retour de celle-ci, à l'heure du geste et non à l'heure du rejeu. \\
+\hline
+\textbf{Précondition} & Une tournée chargée au dépôt, une livraison en transit, le mode avion activé. \\
+\hline
+\textbf{Scénario} & 1. Déposer la preuve, photographies comprises, hors réseau. \newline 2. Observer l'écran immédiatement après la validation. \newline 3. Poursuivre la tournée, puis rétablir le réseau. \newline 4. Consulter la livraison depuis le back-office. \\
+\hline
+\textbf{Résultat attendu} & Étape 2~: la livraison apparaît comme livrée et le chauffeur peut passer à l'arrêt suivant. Étape 4~: la preuve existe côté serveur, ses deux photographies sont accessibles, et l'heure enregistrée est celle de l'étape 1, non celle de l'étape 3. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S4-02 — Une même preuve envoyée deux fois}\label{tab:tc-s4-02}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S4-02 \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S4-02 (suite)} \\
+\hline
+\endhead
+\textbf{Description} & Une preuve reçue plusieurs fois ne produit ni doublon, ni second mouvement de stock, ni second encaissement. \\
+\hline
+\textbf{Précondition} & Une livraison en transit, à encaisser. \\
+\hline
+\textbf{Scénario} & 1. Déposer la preuve avec un montant encaissé. \newline 2. Rejouer la même requête avec la même clé. \newline 3. Compter les preuves, les encaissements et les mouvements envoyés au progiciel. \\
+\hline
+\textbf{Résultat attendu} & La seconde requête réussit et renvoie la même réponse que la première. Une seule preuve, un seul encaissement et un seul mouvement de stock existent. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S4-03 — Écriture refusée et reprise par le chauffeur}\label{tab:tc-s4-03}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S4-03 \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S4-03 (suite)} \\
+\hline
+\endhead
+\textbf{Description} & Une écriture que le serveur refuse définitivement n'est pas supprimée~; elle reste visible et le chauffeur décide de son sort. \\
+\hline
+\textbf{Précondition} & Une écriture en file, et un serveur qui répond par un refus définitif. \\
+\hline
+\textbf{Scénario} & 1. Déclencher le rejeu. \newline 2. Ouvrir le centre de synchronisation. \newline 3. Relancer l'écriture, puis l'abandonner. \\
+\hline
+\textbf{Résultat attendu} & L'écriture n'est pas retentée automatiquement et apparaît en échec avec son motif. La relance la remet en attente. L'abandon la retire, et c'est le seul chemin par lequel elle disparaît. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S4-04 — Transfert de garde entre deux chauffeurs}\label{tab:tc-s4-04}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S4-04 \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S4-04 (suite)} \\
+\hline
+\endhead
+\textbf{Description} & Un colis déjà chargé ne change de porteur qu'après une remise confirmée sur le terrain, et un code périmé ne permet plus rien. \\
+\hline
+\textbf{Précondition} & Une livraison en transit chez un chauffeur, réaffectée par le bureau à un second chauffeur en service. \\
+\hline
+\textbf{Scénario} & 1. Observer l'état de la livraison juste après la réaffectation. \newline 2. Faire émettre un code par le cédant, puis attendre son expiration et tenter le scan. \newline 3. Émettre un nouveau code et le scanner dans les temps. \\
+\hline
+\textbf{Résultat attendu} & Étape 1~: la livraison est en attente de transfert et n'est portée par personne d'autre. Étape 2~: le scan est refusé et le code apparaît verrouillé. Étape 3~: la remise est confirmée, datée et localisée, et la livraison repart au nom du second chauffeur. \\
+\hline
+\end{longtable}
+\end{small}
+
+\begin{small}
+\begin{longtable}{L{3.2cm}L{11.0cm}}
+\caption{TC-S4-05 — Encaissement, remise et arbitrage de l'écart}\label{tab:tc-s4-05}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Cas de test} & TC-S4-05 \\
+\hline
+\endfirsthead
+\hline
+\multicolumn{2}{l}{\small\itshape TC-S4-05 (suite)} \\
+\hline
+\endhead
+\textbf{Description} & Le montant encaissé à la porte remonte jusqu'à la caisse du dépôt, et un écart entre le déclaré et le compté est constaté puis soldé par une autre personne que le chauffeur. \\
+\hline
+\textbf{Précondition} & Deux livraisons à encaisser affectées au même chauffeur. \\
+\hline
+\textbf{Scénario} & 1. Encaisser le montant attendu sur la première livraison. \newline 2. Encaisser un montant inférieur sur la seconde, sans indiquer de motif, puis avec un motif. \newline 3. Consulter l'encaisse détenue, puis déclarer un montant différent de celle-ci. \newline 4. Compter la remise au bureau et solder l'écart. \\
+\hline
+\textbf{Résultat attendu} & Étape 2~: la validation est refusée sans motif et acceptée avec. Étape 3~: l'encaisse affichée correspond à la somme des deux encaissements, et la déclaration ne vaut pas remise. Étape 4~: l'écart entre le déclaré et le compté est affiché, et le chauffeur ne peut pas le solder lui-même. \\
+\hline
+\end{longtable}
+\end{small}
+
+\subsection{Tests automatisés}
+
+Deux mécanismes de ce sprint décident sans qu'un humain puisse les contrôler~: la file hors ligne et
+le calcul de la caisse. Ce sont eux que les tests visent en priorité, parce qu'une erreur y est
+silencieuse. Une écriture perdue ne provoque aucune panne, mais produit une livraison qui n'a jamais
+eu lieu selon le serveur, et un chauffeur qui jure du contraire.
+
+Le sprint compte \textbf{71 tests}, répartis entre le serveur et l'application mobile. Le
+tableau~\ref{tab:tests-s4} sépare les trois familles.
+
+\begin{small}
+\begin{longtable}{L{5.6cm}C{1.8cm}L{6.0cm}}
+\caption{Tests automatisés du sprint 4}\label{tab:tests-s4}\\
+\hline
+\endfirsthead
+\hline
+\endhead
+\rowcolor{isimsblue!10}
+\textbf{Classe ou fichier de test} & \textbf{Cas} & \textbf{Ce qu'il garantit} \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires du serveur — 4 classes, 38 cas}} \\
+\hline
+\code{CashRemittanceServiceTest} & 15 & Une remise déclarée n'est jamais soldée par celui qui la déclare \\
+\hline
+\code{CashCollectionServiceTest} & 10 & Le montant pris à la porte est enregistré avec la preuve, pas séparément \\
+\hline
+\code{CashExpectedAmountTest} & 7 & Le montant attendu est celui de la commande, jamais recalculé sur le téléphone \\
+\hline
+\code{ErpLookupServiceCodTest} & 6 & Le montant à encaisser vient du progiciel et suit ses conventions \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'acceptation (base PostgreSQL réelle) — 1 classe, 9 cas}} \\
+\hline
+\code{DriverJourneyAcceptanceIT} & 9 & La journée complète d'un chauffeur, de l'enlèvement à la clôture \\
+\hline
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests de l'application mobile — 4 fichiers, 24 cas}} \\
+\hline
+\code{offline\_queue\_service\_test} & 8 & Aucune écriture n'est perdue, aucune n'est doublée, aucune n'est jetée en silence \\
+\hline
+\code{pod\_widgets\_test} & 7 & L'écran de preuve dit dans les trois langues ce qu'il attend du chauffeur \\
+\hline
+\code{route\_multi\_depot\_test} & 5 & Un colis n'est chargé qu'au dépôt qui le fournit \\
+\hline
+\code{driver\_copy\_parity\_test} & 4 & Aucun libellé ne manque dans une des langues de l'application \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Total} & \textbf{71} & \textbf{9 classes et fichiers} \\
+\hline
+\end{longtable}
+\end{small}
+
+Le nombre compte moins que ce qu'il protège, et deux fichiers méritent un mot.
+
+\code{offline\_queue\_service\_test} vérifie les quatre issues d'une écriture plutôt qu'un chemin
+heureux~: le rejeu qui réussit et disparaît de la file, le refus définitif qui la marque sans la
+supprimer, l'erreur réseau qui la conserve pour plus tard, et l'expiration qui la signale sans jamais
+toucher au réseau. Il vérifie aussi que réenfiler la même clé remplace l'entrée au lieu d'en ajouter
+une seconde.
+
+\code{CashRemittanceServiceTest} est le plus fourni du sprint, et ce n'est pas un hasard, puisqu'il
+couvre le seul mécanisme où une erreur se traduit directement en argent manquant. Il porte notamment sur ce
+qu'un chauffeur ne peut pas faire, à savoir clore sa propre remise.
+
+Ces tests s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit}, ceux du serveur
+contre une base PostgreSQL réelle.
+
 \section{Conclusion}
+
+Ce sprint a donné au terrain l'outil qui manquait au dispositif du chapitre précédent. Le chauffeur
+consulte sa tournée, la démarre, charge au dépôt, livre, et clôture chaque arrêt par une preuve qui
+engage l'entreprise~: le bon de livraison signé, le colis remis, le décompte des manques et le
+montant encaissé. Le mouvement inverse, la collecte d'un retour, emprunte la même tournée, le même
+écran et la même preuve, sans qu'il ait fallu redévelopper quoi que ce soit.
+
+Le mode hors ligne est l'apport structurant, et il ne se voit pas quand il fonctionne. Une écriture
+faite sans réseau est conservée sur le téléphone, projetée immédiatement à l'écran, rejouée au retour
+de la couverture avec la même clé et la même heure, puis reconnue par le serveur comme déjà traitée
+si elle arrive deux fois. Ce qui échoue malgré tout n'est pas perdu, car le chauffeur le retrouve dans
+son centre de synchronisation et décide lui-même de le relancer ou de l'abandonner. Cette dernière
+propriété est celle qui distingue un mode dégradé utilisable d'un mode dégradé sur lequel on ne peut
+pas compter.
+
+Deux mécanismes complètent l'ensemble en réglant des questions de responsabilité plutôt que de
+technique. Le transfert de garde interdit qu'un colis soit attribué à quelqu'un qui ne le tient pas.
+La séparation entre la déclaration du chauffeur et le comptage du bureau impose qu'une autre personne
+que le chauffeur compte l'argent et clôture la remise.
+
+Le système couvre désormais la chaîne complète, de la commande importée du progiciel jusqu'à la
+preuve rapportée du terrain. Reste à le rendre exploitable au quotidien~: savoir ce qui se passe
+quand un composant tombe, réparer sans intervention technique, et rendre les données lisibles à ceux
+qui pilotent. C'est l'objet du sprint suivant.

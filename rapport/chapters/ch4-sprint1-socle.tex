@@ -20,7 +20,7 @@
 
 \section{Introduction}
 
-Le chapitre précédent a fixé la structure du système. Ce sprint la remplit par le bas~: avant
+Le chapitre précédent a fixé la structure du système. Ce sprint la remplit par le bas, car avant
 d'ouvrir la moindre fonction métier, il faut savoir \emph{qui} parle au système, \emph{ce qu'il a le
 droit de faire}, et \emph{de quelle entreprise il relève}. Ces trois questions se répondent une fois,
 au même endroit, et tout le reste du logiciel s'appuie sur ces réponses.
@@ -59,7 +59,7 @@ décomposition en tâches.
 \subsection{Sprint backlog}
 
 Le tableau~\ref{tab:backlog-s1} détaille les tâches du sprint, regroupées par \terme{user story}, avec
-leur priorité relative. Les tâches de sécurité et d'isolation sont en priorité haute~: elles
+leur priorité relative. Les tâches de sécurité et d'isolation sont en priorité haute, puisqu'elles
 conditionnent tout le reste.
 
 \begin{small}
@@ -124,9 +124,9 @@ US-14 & En tant qu'administrateur, je veux définir des zones géographiques afi
 Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement, dans l'ordre où le jeton d'un
 utilisateur les rencontre.
 
-\paragraph{OAuth2 et OpenID Connect~:} L'authentification n'est pas écrite dans le projet~: elle est
+\paragraph{OAuth2 et OpenID Connect~:} L'authentification n'est pas écrite dans le projet. Elle est
 déléguée à \textbf{Keycloak}, un serveur d'identité spécialisé. Le dialogue avec lui suit
-\terme{OpenID Connect}~: l'application n'interroge jamais un mot de passe, elle redirige
+\terme{OpenID Connect}, de sorte que l'application n'interroge jamais un mot de passe~; elle redirige
 l'utilisateur vers le serveur d'identité et reçoit en retour une preuve signée de son identité, sous
 la forme d'un jeton. Écrire soi-même cette mécanique, avec la rotation des clés, l'expiration, la révocation et le
 verrouillage après échecs, aurait multiplié les occasions de mal faire, sans rien apporter de propre à une
@@ -140,8 +140,8 @@ Keycloak à chaque requête.
 
 \paragraph{La validation par JWKS~:} Encore faut-il vérifier cette signature. Keycloak publie ses clés
 publiques à une adresse connue, le \terme{JWKS}. La passerelle les récupère une fois, les garde en
-mémoire, et s'en sert pour valider chaque jeton. Elle ne détient donc \textbf{aucun secret partagé}~:
-elle vérifie une signature avec une clé publique, exactement comme on vérifie un sceau sans posséder
+mémoire, et s'en sert pour valider chaque jeton. Elle ne détient donc \textbf{aucun secret partagé},
+puisqu'elle vérifie une signature avec une clé publique, exactement comme on vérifie un sceau sans posséder
 le tampon qui l'a apposé.
 
 \paragraph{Le contrôle d'accès par rôles (RBAC)~:} Un jeton valide dit \emph{qui} parle. Il reste à
@@ -157,17 +157,17 @@ dix-huit permissions sur les trois rôles de la plateforme.
 \label{fig:matrice-perms}
 \end{figure}
 
-Cette matrice se lit ligne à ligne. L'\textbf{administrateur} détient les dix-huit permissions~: il
+Cette matrice se lit ligne à ligne. L'\textbf{administrateur} détient les dix-huit permissions et
 gouverne son entreprise. Le \textbf{dispatcheur} en détient onze, celles qui font tourner
 l'exploitation au quotidien, y compris déclencher un import depuis le progiciel du client. Le
-\textbf{responsable} en détient six, toutes de lecture, plus l'accès au journal d'audit~: il
+\textbf{responsable} en détient six, toutes de lecture, plus l'accès au journal d'audit. Il
 supervise et relit les actions des autres, mais n'opère pas lui-même. La séparation entre le
 dispatcheur et le responsable est délibérée~: superviser n'est pas exécuter.
 
 \paragraph{Les organisations Keycloak~:} Keycloak sait regrouper ses utilisateurs en
 \terme{organisations}. Le projet s'en sert pour représenter les entreprises clientes~: chaque
 entreprise est une organisation, chaque utilisateur en est membre, et cette appartenance est inscrite
-dans son jeton. La notion de client de la plateforme n'a donc pas eu à être réinventée~: elle est
+dans son jeton. La notion de client de la plateforme n'a donc pas eu à être réinventée, car elle est
 portée par une fonctionnalité native du serveur d'identité, et c'est elle qui, à l'étape suivante,
 désigne le schéma de l'entreprise.
 
@@ -190,13 +190,13 @@ utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrate
 \label{fig:uc-s1}
 \end{figure}
 
-Trois lectures s'en dégagent. D'abord, tout part de \textbf{S'authentifier}~: chaque autre cas
-l'inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
+Trois lectures s'en dégagent. D'abord, tout part de \textbf{S'authentifier}, que chaque autre cas
+inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
 authentifié}, qu'il soit administrateur, dispatcheur, responsable ou livreur, gère son propre compte~: mot de
 passe, profil, déconnexion de ses autres appareils. Enfin, l'\textbf{administrateur} concentre les
 actions de gouvernance~: créer et modifier des comptes, attribuer des rôles, et administrer les trois
-référentiels (chauffeurs, véhicules, zones). Keycloak apparaît comme un système externe~: c'est lui
-qui porte les comptes et délivre les jetons.
+référentiels (chauffeurs, véhicules, zones). Keycloak apparaît comme un système externe, car c'est
+lui qui porte les comptes et délivre les jetons.
 
 \subsection{Description détaillée des cas d'utilisation}
 
@@ -325,8 +325,8 @@ ressource protégée.
 \label{fig:seq-oidc}
 \end{figure}
 
-La séquence se lit en deux phases. La \textbf{première} est l'authentification proprement dite~:
-l'application redirige l'utilisateur vers Keycloak, qui vérifie ses identifiants et renvoie un code,
+La séquence se lit en deux phases. La \textbf{première} est l'authentification proprement dite.
+L'application redirige l'utilisateur vers Keycloak, qui vérifie ses identifiants et renvoie un code,
 lequel est échangé contre un jeton. Le jeton ne transite jamais par l'URL grâce au flux Authorization
 Code, tandis que PKCE protège le code d'autorisation contre une éventuelle interception.
 
@@ -335,7 +335,7 @@ passerelle. Celle-ci récupère les clés publiques de Keycloak une seule fois, 
 cache. Elle vérifie alors deux choses~: que la signature du jeton est valide, et que l'utilisateur porte
 la permission requise. Elle ne transmet la requête au service que si ces deux conditions sont
 réunies~; sinon, elle la rejette elle-même et le service n'est jamais sollicité. Un dernier cas ne se
-produit que si le jeton a expiré~: l'application le renouvelle alors sans que l'utilisateur ne s'en
+produit que si le jeton a expiré. L'application le renouvelle alors sans que l'utilisateur ne s'en
 aperçoive, puis rejoue la requête d'origine.
 
 \section{Réalisation}

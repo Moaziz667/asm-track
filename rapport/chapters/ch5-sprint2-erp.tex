@@ -12,13 +12,13 @@ relier au progiciel de gestion de chaque client. C'est l'objet de ce sprint, et 
 original du projet.
 
 Le problème n'est pas de parler à \emph{un} progiciel, mais à \emph{n'importe lequel}. Deux
-variations doivent être absorbées. D'abord, les clients n'ont pas tous le même progiciel~: Odoo domine
-le marché tunisien des PME, mais pas seul. Ensuite, un même progiciel change d'une version à l'autre~:
-entre Odoo~16 et~19, un champ et une méthode changent de nom.
+variations doivent être absorbées. D'abord, les clients n'ont pas tous le même progiciel, car Odoo
+domine le marché tunisien des PME sans y être seul. Ensuite, un même progiciel change d'une version à
+l'autre, puisque entre Odoo~16 et~19 un champ et une méthode changent de nom.
 
 Si ces variations remontent dans le code métier, chaque règle de livraison finit entourée de
 conditions sur le fournisseur et sa version. Ce sprint met en place une frontière qui les tient à
-distance~: le métier exprime ce dont il a besoin, et des adaptateurs traduisent vers chaque progiciel.
+distance, où le métier exprime ce dont il a besoin pendant que des adaptateurs traduisent vers chaque progiciel.
 S'y ajoutent deux mécanismes~: le \textbf{mapping des champs}, qui relie le vocabulaire du client à
 celui du système en vérifiant qu'un champ relié produit bien une donnée exploitable, et une
 synchronisation qui survit à une panne du progiciel du client.
@@ -113,15 +113,15 @@ Ce sprint mobilise cinq notions. Elles sont présentées ici brièvement.
 \paragraph{Ports et adaptateurs~:} c'est le patron~\cite{cockburn05} qui rend l'intégration agnostique. Le métier
 commence par écrire ce qu'il attend d'un progiciel, sans jamais en nommer un~: pousser un résultat de
 livraison, lire les commandes en attente, résoudre une référence, détecter un changement. Ces quatre
-besoins forment les \terme{ports}. En face, une classe par progiciel les satisfait à sa manière~:
-c'est l'\terme{adaptateur}. Le métier ne connaît que le port. Changer de progiciel revient à changer
+besoins forment les \terme{ports}. En face, une classe par progiciel les satisfait à sa manière, et
+c'est elle que l'on nomme l'\terme{adaptateur}. Le métier ne connaît que le port. Changer de progiciel revient à changer
 d'adaptateur, sans toucher au reste.
 
 \paragraph{Le contrat canonique~:} le système nomme les données dont il a besoin, indépendamment de
 tout progiciel, à l'image de \code{CUSTOMER\_PHONE}, \code{ITEM\_QUANTITY} ou \code{SCHEDULED\_AT}. L'intégrateur
 relie les champs de son progiciel \emph{vers} ce vocabulaire. Chaque champ canonique déclare une seule
 fois sa portée (en-tête de commande ou ligne d'article) et son type. Ce type est le même pour tous les
-clients~: un client choisit \emph{d'où} vient une valeur, jamais \emph{ce qu'elle est}.
+clients, un client choisissant \emph{d'où} vient une valeur, jamais \emph{ce qu'elle est}.
 
 \paragraph{Le système de types~:} un humain relie les champs, mais rien ne garantit qu'un champ texte
 puisse remplir une quantité. Le système compare le type du champ source au type canonique attendu et
@@ -137,11 +137,11 @@ prévue fonctionne donc sans modification.
 \paragraph{La communication asynchrone par messages~:} le service de livraison ne parle pas
 directement au progiciel~; il émet un \terme{événement} sur un \terme{courtier de messages}, que
 l'adaptateur consomme de son côté. Cette \textbf{architecture pilotée par les événements} apporte un
-\terme{découplage temporel}~: l'émetteur et le destinataire n'ont pas besoin d'être disponibles au
-même instant. Un progiciel lent ou arrêté ne bloque donc jamais le terrain~: le message attend dans la
-file. Le courtier joue ainsi deux rôles~: il \textbf{amortit les afflux de messages} quand beaucoup de
-livraisons sont validées en même temps, et il \textbf{ne perd aucun message}~: ceux qui échouent
-définitivement sont mis de côté dans une file de rebut, consultable et rejouable.
+\terme{découplage temporel}, l'émetteur et le destinataire n'ayant pas besoin d'être disponibles au
+même instant. Un progiciel lent ou arrêté ne bloque donc jamais le terrain, puisque le message attend
+dans la file. Le courtier joue ainsi deux rôles~: il \textbf{amortit les afflux de messages} quand
+beaucoup de livraisons sont validées en même temps, et il \textbf{ne perd aucun message}, ceux qui
+échouent définitivement étant mis de côté dans une file de rebut, consultable et rejouable.
 
 \paragraph{L'outbox transactionnel et l'idempotence~:}~\cite{richardson18} valider une livraison et prévenir le progiciel
 sont deux écritures dans deux systèmes distincts. Pour ne jamais faire l'une sans l'autre, le fait
@@ -297,33 +297,31 @@ La figure~\ref{fig:seq-erp} suit une synchronisation, de la validation d'une liv
 \label{fig:seq-erp}
 \end{figure}
 
-La séquence commence dans la même transaction que le fait métier~: la livraison passe à son nouvel
+La séquence commence dans la même transaction que le fait métier, où la livraison passe à son nouvel
 état et un événement d'intention de synchronisation est enregistré, ensemble ou pas du tout. Cette
-garantie ne repose pas sur la vigilance du développeur~: la méthode qui enregistre l'événement exige
-une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'avoir une livraison validée
+garantie ne repose pas sur la vigilance du développeur, car la méthode qui enregistre l'événement
+exige une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'avoir une livraison validée
 sans son événement en attente.
 
 Un processus séparé lit ensuite les événements en attente et les publie sur un \textbf{courtier de
-messages}. Ce choix d'une \textbf{communication asynchrone} pilotée par les événements, plutôt que
-d'un appel direct au progiciel, est ce qui rend tout le reste possible. Il apporte un \terme{découplage
-temporel}~: l'émetteur (le service de livraison) et le destinataire (l'adaptateur) n'ont pas besoin
-d'être disponibles au même instant. Le service dépose sa commande et poursuit, et l'adaptateur la traite
-quand il le peut, et un progiciel lent ou arrêté ne bloque jamais le terrain~: le message
-\textbf{attend dans la file} au lieu de faire échouer la livraison.
+messages}. C'est ce choix d'une \textbf{communication asynchrone}, plutôt qu'un appel direct au
+progiciel, qui rend tout le reste possible. Le service dépose sa commande et poursuit sans attendre,
+l'adaptateur la traite quand il le peut, et une livraison ne dépend plus de la disponibilité du
+progiciel.
 
 Ce processus prend les événements par petits lots et les verrouille au passage, pour que deux
 instances du service ne traitent jamais le même deux fois. L'identifiant de l'événement sert de
-\textbf{clé d'idempotence} dans l'adaptateur~: avant d'agir, celui-ci vérifie s'il a déjà traité cet
+\textbf{clé d'idempotence} dans l'adaptateur, qui vérifie avant d'agir s'il a déjà traité cet
 identifiant et, si oui, renvoie le résultat mémorisé sans refaire l'opération. Un message rejoué après
 une panne ne produit donc pas d'écriture en double.
 
 La reprise sur panne se joue à \textbf{deux étages qu'il ne faut pas confondre}. Le premier protège la
-remise du message au courtier~: si celui-ci est indisponible, l'outbox réessaie, avec un espacement
+remise du message au courtier, car si celui-ci est indisponible l'outbox réessaie, avec un espacement
 croissant, jusqu'à réussir à le déposer. Le second étage, \textbf{le plus important, protège contre
-une panne du progiciel}~: l'adaptateur, qui consomme la commande, réessaie \textbf{cinq fois sur une
+une panne du progiciel}. L'adaptateur, qui consomme la commande, réessaie \textbf{cinq fois sur une
 trentaine de secondes} de joindre Odoo. Passé ce délai, la commande part dans une file de rebut, un
-résultat d'échec revient, et la commande passe à « échec de synchronisation »~: l'administrateur est
-prévenu, et la reprise devient un geste manuel, le bouton « resynchroniser ». En cas de succès, au
+résultat d'échec revient, et la commande passe à « échec de synchronisation ». L'administrateur est
+alors prévenu, et la reprise devient un geste manuel, le bouton « resynchroniser ». En cas de succès, au
 contraire, la commande passe à « synchronisée ». Dans tous les cas, le livreur n'a jamais attendu~: il
 a validé, l'écran a répondu, il est reparti.
 
@@ -345,7 +343,7 @@ l'espacement grandit pour ne pas marteler un courtier hors service.
 
 Deux garde-fous complètent cet automate. D'abord, un événement resté \emph{en cours} après un arrêt
 brutal du service est ramené \emph{en attente} au redémarrage, pour ne pas rester bloqué. Ensuite,
-après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file morte~: la
+après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file morte. La
 commande est alors marquée « échec de synchronisation », un dispatcheur est prévenu, et l'événement
 reste consultable et rejouable depuis le back-office. Un échec définitif est donc visible et
 réparable, jamais perdu dans un journal.
@@ -364,8 +362,8 @@ l'adresse, les identifiants, et le statut de certification.
 
 La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel et
 affiche les champs et méthodes qu'il expose réellement. Le connecteur choisit alors le champ présent,
-au lieu de le deviner d'après un numéro de version~: une version qu'il n'a jamais vue fonctionne sans
-modification, tant qu'elle expose les champs attendus.
+au lieu de le deviner d'après un numéro de version, de sorte qu'une version jamais vue fonctionne
+sans modification tant qu'elle expose les champs attendus.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-compatibilite}
@@ -509,8 +507,8 @@ Suite bi-version~: \code{OdooInfrastructureIT} et les trois \code{Workflow*IT} &
 La suite d'intégration mérite une explication, car elle porte la preuve de l'agnosticité aux versions.
 Elle réunit \textbf{28 tests}, exécutés contre \textbf{une instance Odoo~16 et une instance Odoo~19 en
 même temps}, démarrées par l'intégration continue, tous au vert. Les deux extrémités de la plage supportée étant couvertes, les versions
-intermédiaires le sont par construction~: le connecteur ne teste pas un numéro de version, mais la
-présence des champs et des méthodes. La suite épingle précisément ce qui change d'une version à
+intermédiaires le sont par construction, puisque le connecteur ne teste pas un numéro de version mais
+la présence des champs et des méthodes. La suite épingle précisément ce qui change d'une version à
 l'autre~: un champ et une méthode qui sont renommés, et la conduite des \emph{assistants de
 confirmation} d'Odoo, ces fenêtres que valider un transfert fait apparaître et qu'il faut piloter une
 à une par RPC.

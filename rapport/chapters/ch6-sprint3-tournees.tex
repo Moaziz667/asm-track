@@ -131,7 +131,7 @@ chauffeur démarre, puis se clôture. Une livraison part du \terme{pool} des non
 affectée, chargée, en transit, et se termine en livrée, partiellement livrée ou en échec. Chaque
 transition contrôle sa précondition~: on ne démarre pas une tournée qui n'est pas validée, on ne
 valide pas une tournée dont le chargement dépasse la charge utile du véhicule. L'intérêt n'est pas
-seulement d'interdire l'incohérence~: chaque passage d'un état à l'autre laisse un horodatage, et ce
+seulement d'interdire l'incohérence, car chaque passage d'un état à l'autre laisse un horodatage, et ce
 sont ces horodatages que le calcul des délais et le rapport de tournée exploitent ensuite.
 
 \paragraph{La diffusion en temps réel~:} le dispatcheur doit voir l'avancement d'une livraison au
@@ -150,11 +150,11 @@ le seul choix d'architecture réel de ce mécanisme, et la figure~\ref{fig:stomp
 Le courtier intégré à Spring garde la liste des abonnés dans la mémoire de l'instance qui les a
 acceptés. Tant qu'une seule instance tourne, cela fonctionne. Dès qu'une seconde est déployée, un
 dispatcheur connecté à la première ne voit plus rien de ce qui se passe sur la seconde. Confier la
-diffusion à RabbitMQ supprime ce lien à la topologie~: toutes les instances publient dans le même
+diffusion à RabbitMQ supprime ce lien à la topologie, puisque toutes les instances publient dans le même
 courtier, et tout abonné reçoit l'événement quelle que soit l'instance qui le sert.
 
 Il faut être clair sur ce que ce canal apporte et sur ce qu'il n'apporte pas. Il n'est pas un moyen
-de conservation~: un dispatcheur déconnecté au moment de l'émission ne recevra pas l'événement. La
+de conservation, car un dispatcheur déconnecté au moment de l'émission ne recevra pas l'événement. La
 donnée, elle, reste en base, et les alertes qui doivent survivre à une absence sont enregistrées
 séparément pour rester consultables. Le temps réel évite d'attendre le prochain rafraîchissement, il
 ne remplace pas la base.
@@ -183,13 +183,13 @@ Trois acteurs se partagent ces cas. Le \textbf{dispatcheur} est l'opérateur pri
 les tournées, demande une optimisation, valide, annule, retire un arrêt, et traite les exceptions de
 la journée. Le \textbf{responsable} n'agit pas sur les tournées. Il les observe, consulte le respect
 des délais et lit les rapports de fin de journée. Le \textbf{destinataire} n'entre jamais dans
-l'application~: il suit son colis depuis une page publique et peut y demander un retour. Le moteur
+l'application, mais suit son colis depuis une page publique où il peut demander un retour. Le moteur
 d'itinéraires apparaît comme système externe, sollicité par le seul cas d'optimisation.
 
-Deux relations méritent d'être lues attentivement. L'optimisation \emph{étend} la construction~: une
+Deux relations méritent d'être lues attentivement. L'optimisation \emph{étend} la construction, car une
 tournée se construit sans elle, et c'est le dispatcheur qui décide de la demander. À l'inverse, le
 choix des livraisons, la définition des fenêtres horaires, l'affectation du chauffeur et le contrôle
-de la précédence sont \emph{inclus} dans la construction~: aucun ne peut être omis. Enfin,
+de la précédence sont \emph{inclus} dans la construction, et aucun ne peut être omis. Enfin,
 « traiter une exception » est un cas abstrait, réalisé de deux manières selon la situation~:
 réaffecter à un autre chauffeur, ou replanifier à une autre date.
 
@@ -328,7 +328,7 @@ d'abord ce dont il a besoin dans une interface courte, sans dire d'où viendra l
 \code{InternalTransportAdapter} la réalise en interrogeant le service voisin, et un paramètre de
 configuration désigne l'adaptateur à employer. Une entreprise qui confierait ses tournées à un
 transporteur extérieur plutôt qu'à ses propres chauffeurs n'aurait qu'à placer là un adaptateur qui
-parle à ce transporteur~: la planification, qui ne connaît que l'interface, resterait inchangée.
+parle à ce transporteur, et la planification, qui ne connaît que l'interface, resterait inchangée.
 C'est le patron des ports et adaptateurs du sprint précédent, appliqué cette fois à la flotte.
 
 \subsection{Diagrammes de séquence}
@@ -351,11 +351,11 @@ Le cadre \emph{opt} de la phase 2 traduit la décision centrale du sprint~: \tex
 propose, le dispatcheur dispose}. Une version antérieure appliquait directement l'ordre calculé, et
 elle a été retirée. Un algorithme ignore le client qui n'ouvre qu'à quatorze heures ou la rue en
 travaux~; le dispatcheur les connaît sans pouvoir les saisir. Le cadre \emph{alt} voisin couvre
-l'indisponibilité du moteur d'itinéraires~: l'ordre en place est conservé et la tournée reste
+l'indisponibilité du moteur d'itinéraires, auquel cas l'ordre en place est conservé et la tournée reste
 modifiable. Une panne retire une aide, elle n'empêche pas de planifier la journée.
 
 Le calcul de l'ordre se fait à deux. Le moteur d'itinéraires donne le coût de chaque trajet et
-propose une tournée, mais sa proposition ignore la précédence~: elle peut placer une livraison avant
+propose une tournée, mais sa proposition ignore la précédence et peut placer une livraison avant
 le chargement du dépôt qui la fournit. Le séquenceur tranche donc lui-même. Il compare trois
 ordres~: celui en place, celui du moteur et un troisième construit de proche en proche. Il écarte ceux
 qui violent la précédence, et garde le moins coûteux. Comme l'ordre en place est l'un des candidats,
@@ -393,18 +393,18 @@ remis~: tout, une partie, ou rien.
 Trois particularités de ce diagramme portent des décisions de conception.
 
 D'abord, l'issue de l'arrêt est un choix guidé par les quantités, non une déclaration du chauffeur.
-Le résultat se déduit de ce qui a été remis~: si aucune ligne ne l'a été, c'est un échec, pas une
+Le résultat se déduit de ce qui a été remis, et si aucune ligne ne l'a été, c'est un échec, pas une
 livraison partielle vide. Cette distinction évite de remonter au progiciel un mouvement de stock sans
 contenu.
 
 Ensuite, la livraison partielle est un état terminal, au même titre que la livraison complète. Le
-reliquat ne prolonge pas la livraison en cours~: il donne lieu à une autre livraison, créée à partir
+reliquat ne prolonge pas la livraison en cours, mais donne lieu à une autre livraison, créée à partir
 de la commande. Une livraison close reste ainsi le compte rendu fidèle d'un passage, et non un
 dossier qu'on rouvre.
 
 Enfin, l'état d'attente de transfert existe pour que la garde du colis ne soit jamais ambiguë.
 Lorsqu'une livraison change de chauffeur alors que le colis est déjà chargé, elle ne passe pas
-directement d'un chauffeur à l'autre~: elle s'arrête dans cet état intermédiaire jusqu'à ce que la
+directement d'un chauffeur à l'autre, mais s'arrête dans cet état intermédiaire jusqu'à ce que la
 remise soit confirmée sur le terrain. Sans lui, le système désignerait un porteur pendant qu'un autre
 tiendrait le colis, et l'écart ne se découvrirait qu'au litige.
 
@@ -425,8 +425,8 @@ laquelle elle se mesure, et la personne qui en répond.
 \label{fig:sla-s3}
 \end{figure}
 
-Le déplacement de responsabilité se lit sur la dernière ligne des colonnes~: seule la planification
-engage le bureau, les trois autres engagent le chauffeur. C'est ce qui permet à un responsable de
+Le déplacement de responsabilité se lit sur la dernière ligne des colonnes, où seule la planification
+engage le bureau quand les trois autres engagent le chauffeur. C'est ce qui permet à un responsable de
 distinguer une équipe qui planifie trop tard d'une flotte qui roule trop lentement.
 
 Les deux réserves portées en bas de la figure corrigent des injustices que la version initiale
@@ -494,7 +494,7 @@ il la garde sous les yeux pendant qu'il travaille ailleurs.
 La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation. Les chauffeurs en service sont
 classés par le temps de trajet qui sépare leur position actuelle de l'adresse de livraison, avec la
 distance correspondante. Le
-classement s'appuie sur le moteur d'itinéraires, et non sur la distance à vol d'oiseau~: sur un
+classement s'appuie sur le moteur d'itinéraires, et non sur la distance à vol d'oiseau, car sur un
 réseau routier réel, le chauffeur le plus proche sur la carte n'est pas toujours celui qui arrivera
 le premier. Seuls les chauffeurs dont la position est récente sont proposés, une position ancienne ne
 disant rien de l'endroit où ils se trouvent maintenant.
@@ -628,7 +628,7 @@ la mesure des délais et la réaffectation en cours de journée.
 
 Trois mécanismes de ce sprint décident à la place d'un humain~: l'ordre de passage, le verdict de
 délai et la légalité d'une tournée. Ce sont eux que les tests visent en priorité, parce qu'une erreur
-y passe inaperçue~: elle ne provoque aucune panne, elle produit une tournée un peu plus longue, un
+y passe inaperçue. Elle ne provoque aucune panne, elle produit une tournée un peu plus longue, un
 retard imputé au mauvais chauffeur, ou un camion chargé au-delà de ce qu'il peut porter.
 
 Le sprint compte \textbf{150 méthodes de test}, réparties en deux familles~: \textbf{141 tests

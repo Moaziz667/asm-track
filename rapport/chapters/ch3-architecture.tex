@@ -259,11 +259,9 @@ numéroté, appliqué automatiquement au démarrage du service et jamais modifi�
 correction donne lieu à un nouveau fichier. Le projet en compte cent cinquante-neuf, dont la grande
 majorité pour le service de livraison.
 
-L'intérêt ne se limite pas à la simplicité. Chaque environnement reconstruit sa base de données à
-partir des mêmes fichiers de migration. Ainsi, les bases de test et d'exécution conservent la même
-structure et ne risquent pas de diverger. Lorsqu'un problème apparaît dans un environnement, il est
-donc possible de reproduire les mêmes conditions dans un autre afin de l'identifier et de le corriger
-plus facilement.
+Chaque environnement reconstruit sa base à partir de ces mêmes fichiers. La base de test et celle
+d'exécution portent donc la même structure et ne risquent pas de diverger. Un problème constaté sur
+l'une se rejoue à l'identique sur l'autre, là où on peut l'observer et le corriger.
 
 \section{L'isolation des entreprises clientes}
 \label{sec:archi-tenance}
@@ -341,12 +339,10 @@ appelé directement, sans en-tête d'entreprise, refuse la requête au lieu de s
 
 \subsection{Le cas des traitements asynchrones}
 
-Lorsqu'un message est traité ultérieurement par un autre service, la requête HTTP et le jeton
-d'authentification d'origine ne sont plus disponibles. Pour conserver le contexte de l'entreprise,
-son identifiant est donc ajouté dans l'en-tête du message au moment de sa publication. À sa
-réception, le service consommateur lit cet identifiant avant tout traitement et détermine ainsi le
-schéma correspondant à l'entreprise concernée. L'opération est alors exécutée dans le même contexte
-que celui dans lequel elle avait été demandée.
+Un message traité plus tard par un autre service n'a plus ni requête HTTP ni jeton derrière lui~: le
+schéma ne peut donc plus s'en déduire. Le service qui publie le message y inscrit lui-même
+l'identifiant de l'entreprise, dans l'en-tête. Le consommateur le lit avant tout traitement et en
+tire le schéma, de sorte que l'opération s'exécute dans l'entreprise qui l'a demandée.
 
 \section{Les échanges entre services}
 \label{sec:archi-echanges}
