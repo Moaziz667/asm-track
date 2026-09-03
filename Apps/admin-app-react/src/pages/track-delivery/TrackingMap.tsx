@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet';
 import { TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -100,11 +100,6 @@ function TrackingMapInner({ data }: { data: TrackingData }) {
   if (data.dropoffLat && data.dropoffLng) points.push([data.dropoffLat, data.dropoffLng]);
   if (data.depotLat   && data.depotLng)   points.push([data.depotLat,   data.depotLng]);
 
-  let polyline: [number, number][] = [];
-  if (data.routeGeometry) {
-    try { polyline = JSON.parse(data.routeGeometry) as [number, number][]; } catch { /* ignore */ }
-  }
-
   const center = points[0] ?? defaultCenter;
 
   return (
@@ -118,13 +113,9 @@ function TrackingMapInner({ data }: { data: TrackingData }) {
       <FitBounds points={points} />
 
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-        attribution="© OpenStreetMap © CARTO"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="© OpenStreetMap"
       />
-
-      {polyline.length > 1 && (
-        <Polyline positions={polyline} color="var(--brand, #2563eb)" weight={4} opacity={0.85} />
-      )}
 
       {(() => { const isReturn = data.kind === 'RETURN_PICKUP'; return <>
       {data.depotLat && data.depotLng && (
