@@ -62,17 +62,28 @@ export function useDeliveries(params: {
  *  itself, since a chip that only counted its own selection would always read like the row count.
  */
 export function useDeliveryCounts(params: {
-  driverId?: string;
+  status?: string[];
+  driverId?: string[];
   date?: string;
-  zoneId?: string;
+  zoneId?: string[];
+  depot?: string[];
   q?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  enabled?: boolean;
 }) {
+  const { enabled = true, ...query } = params;
   return useQuery<Record<string, number>>({
-    queryKey: ['delivery-counts', params],
+    queryKey: ['delivery-counts', query],
     queryFn: async () => {
-      const res = await api.get('/admin/deliveries/counts', { params });
+      const res = await api.get('/admin/deliveries/counts', {
+        params: query,
+        // Repeatable parameters, as the backend declares them : status=A&status=B, not status=A,B.
+        paramsSerializer: { indexes: null },
+      });
       return (res.data ?? {}) as Record<string, number>;
     },
+    enabled,
     retry: 1,
     staleTime: 30000,
   });

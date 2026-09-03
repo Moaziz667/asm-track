@@ -584,53 +584,61 @@ public class DispatchService {
     }
 
     /**
-     * Quick-view tallies under the current base filters (driver / date / source / zone / search),
-     * computed across the WHOLE dataset — so the deliveries sidebar is accurate, not per-page.
+     * The filters a tally is computed under. They mirror the ones the deliveries table itself sends,
+     * which is the whole point: a chip that says « 301 » while the table below shows five rows is
+     * worse than no chip at all. The endpoint used to take a single day, one driver and one zone, so
+     * a date range, a status, a depot or a multi-select were silently dropped and every chip fell
+     * back to the unfiltered total.
+     */
+    public record CountFilters(List<DeliveryStatus> statuses, List<UUID> driverIds, LocalDate date,
+                               List<OrderSource> sources, List<UUID> zoneIds, List<UUID> depotIds,
+                               String q, LocalDate dateFrom, LocalDate dateTo) {
+
+        /** The same filters with the status replaced — each chip counts one status of its own. */
+        CountFilters withStatus(DeliveryStatus status) {
+            return new CountFilters(status != null ? List.of(status) : statuses, driverIds, date,
+                    sources, zoneIds, depotIds, q, dateFrom, dateTo);
+        }
+    }
+
+    /**
+     * Quick-view tallies under the current filters, computed across the WHOLE dataset — so the
+     * deliveries sidebar is accurate, not per-page and not unfiltered.
      */
     @Transactional(readOnly = true)
-    public Map<String, Long> deliveryCounts(UUID driverId, LocalDate date, OrderSource source,
-                                            UUID zoneId, String q) {
+    public Map<String, Long> deliveryCounts(CountFilters f) {
         Map<String, Long> m = new HashMap<>();
-        m.put("all",          countTally(null, driverId, date, source, zoneId, q, null, null, null));
-        m.put("needsPinning", countTally(null, driverId, date, source, zoneId, q, null, null, Boolean.TRUE));
-        m.put("unassigned",   countTally(null, driverId, date, source, zoneId, q, Boolean.FALSE, null, null));
-        m.put("inTransit",    countTally(DeliveryStatus.IN_TRANSIT, driverId, date, source, zoneId, q, null, null, null)
-                            + countTally(DeliveryStatus.AWAITING_HANDOFF, driverId, date, source, zoneId, q, null, null, null));
-        m.put("completed",    countTally(DeliveryStatus.DELIVERED, driverId, date, source, zoneId, q, null, null, null));
-        m.put("failed",       countTally(DeliveryStatus.FAILED, driverId, date, source, zoneId, q, null, null, null)
-                            + countTally(DeliveryStatus.CANCELLED, driverId, date, source, zoneId, q, null, null, null));
-        m.put("overdue",      countTally(null, driverId, date, source, zoneId, q, null, "OVERDUE", null));
-        m.put("today",        countTally(null, driverId, date, source, zoneId, q, null, "TODAY", null));
-        m.put("future",       countTally(null, driverId, date, source, zoneId, q, null, "FUTURE", null));
+        m.put("all",          countTally(f, null, null, null));
+        m.put("needsPinning", countTally(f, null, null, Boolean.TRUE));
+        m.put("unassigned",   countTally(f, Boolean.FALSE, null, null));
+        m.put("inTransit",    countTally(f.withStatus(DeliveryStatus.IN_TRANSIT), null, null, null)
+                            + countTally(f.withStatus(DeliveryStatus.AWAITING_HANDOFF), null, null, null));
+        m.put("completed",    countTally(f.withStatus(DeliveryStatus.DELIVERED), null, null, null));
+        m.put("failed",       countTally(f.withStatus(DeliveryStatus.FAILED), null, null, null)
+                            + countTally(f.withStatus(DeliveryStatus.CANCELLED), null, null, null));
+        m.put("overdue",      countTally(f, null, "OVERDUE", null));
+        m.put("today",        countTally(f, null, "TODAY", null));
+        m.put("future",       countTally(f, null, "FUTURE", null));
         // The two the table also offers as quick views. Without them the chip row mixed real
         // totals with page-local tallies, which is worse than either alone: the same row of
         // numbers would have meant two different things.
-        m.put("priority",     countTally(null, driverId, date, source, zoneId, q, null, null, null,
-                                         null, List.of(OrderPriority.HIGH)));
-        m.put("returns",      countTally(null, driverId, date, source, zoneId, q, null, null, null,
-                                         List.of(DeliveryKind.RETURN_PICKUP), null));
+        m.put("priority",     countTally(f, null, null, null, null, List.of(OrderPriority.HIGH)));
+        m.put("returns",      countTally(f, null, null, null, List.of(DeliveryKind.RETURN_PICKUP), null));
         return m;
     }
 
-    private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
-                            UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned) {
-        return countTally(status, driverId, date, source, zoneId, q, assigned, bucket, unpinned, null, null);
+    private long countTally(CountFilters f, Boolean assigned, String bucket, Boolean unpinned) {
+        return countTally(f, assigned, bucket, unpinned, null, null);
     }
 
-    private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
-                            UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned,
+    private long countTally(CountFilters f, Boolean assigned, String bucket, Boolean unpinned,
                             List<DeliveryKind> kinds, List<OrderPriority> priorities) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<Delivery> root = cq.from(Delivery.class);
         List<Predicate> ps = buildPredicates(cb, root,
-                status != null ? List.of(status) : null,
-                driverId != null ? List.of(driverId) : null,
-                date,
-                source != null ? List.of(source) : null,
-                zoneId != null ? List.of(zoneId) : null,
-                null,
-                unpinned, q, assigned, bucket, null, null, kinds, priorities);
+                f.statuses(), f.driverIds(), f.date(), f.sources(), f.zoneIds(), f.depotIds(),
+                unpinned, f.q(), assigned, bucket, f.dateFrom(), f.dateTo(), kinds, priorities);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }

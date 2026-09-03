@@ -133,6 +133,7 @@ public class AdminDeliveryController {
 
             @ParameterObject Pageable pageable
     ) {
+        assertDateRangeOrdered(dateFrom, dateTo);
         return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, priority, pageable));
     }
 
@@ -151,18 +152,38 @@ public class AdminDeliveryController {
     @Operation(
         summary = "Quick-view counts for the deliveries table",
         description = """
-            Returns tallies (all, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future)
-            under the current base filters (driver / date / source / zone / search). Computed across the whole
-            dataset so the sidebar reflects every matching delivery, not just the loaded page.
+            Returns tallies (all, needsPinning, unassigned, inTransit, completed, failed, overdue, today,
+            future, priority, returns) under the SAME filters the table itself applies — status, driver,
+            date or date range, source, zone, depot and search. Computed across the whole dataset so the
+            sidebar reflects every matching delivery, not just the loaded page.
             """
     )
     public ResponseEntity<java.util.Map<String, Long>> counts(
-            UUID driverId,
+            @RequestParam(name = "status", required = false) java.util.List<DeliveryStatus> status,
+            @RequestParam(name = "driverId", required = false) java.util.List<UUID> driverId,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            OrderSource source,
-            UUID zoneId,
-            @RequestParam(required = false) String q) {
-        return ResponseEntity.ok(dispatchService.deliveryCounts(driverId, date, source, zoneId, q));
+            @RequestParam(name = "source", required = false) java.util.List<OrderSource> source,
+            @RequestParam(name = "zoneId", required = false) java.util.List<UUID> zoneId,
+            @RequestParam(name = "depot", required = false) java.util.List<UUID> depot,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        assertDateRangeOrdered(dateFrom, dateTo);
+        return ResponseEntity.ok(dispatchService.deliveryCounts(new DispatchService.CountFilters(
+                status, driverId, date, source, zoneId, depot, q, dateFrom, dateTo)));
+    }
+
+    /**
+     * A range that ends before it starts matches nothing, so the table came back empty with no
+     * explanation and the user was left to guess which of the two dates was wrong. Refusing it names
+     * the mistake instead.
+     */
+    private void assertDateRangeOrdered(LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom != null && dateTo != null && dateTo.isBefore(dateFrom)) {
+            throw com.asm.delivery.exception.AppException.badRequest(
+                    "DATE_RANGE_INVALID",
+                    "La date de fin (" + dateTo + ") precede la date de debut (" + dateFrom + ").");
+        }
     }
 
     @GetMapping("/{id}")

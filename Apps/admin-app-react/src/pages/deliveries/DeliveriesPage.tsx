@@ -222,16 +222,23 @@ function DeliveriesPageContent() {
 
   const { filteredRows, quickCounts: pageCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
 
-  // Real tallies, across every matching delivery rather than the twenty-five on screen. The
-  // endpoint was written for exactly this and the page had been counting its own rows instead,
-  // so "Toutes les livraisons 25" was reporting the page size and calling it a total.
-  // Single-valued filters only: the endpoint takes one driver and one zone, so a multi-select
-  // is left out rather than silently narrowed to its first entry.
+  // Une plage inversee ne correspond a rien : inutile de compter, et le champ le signale.
+  const invalidRange = Boolean(dateFrom && dateTo && dateTo < dateFrom);
+
+  // Real tallies, across every matching delivery rather than the twenty-five on screen. Les chips
+  // recoivent exactement les filtres du tableau : un compteur qui annonce 301 pendant que la table
+  // en montre cinq est pire que pas de compteur du tout. La plage de dates, le statut, le depot et
+  // les multi-selections etaient auparavant abandonnes en silence.
   const { data: serverCounts } = useDeliveryCounts({
-    driverId: driverId.length === 1 ? driverId[0] : undefined,
-    zoneId: zoneId.length === 1 ? zoneId[0] : undefined,
+    status: status.length ? status : undefined,
+    driverId: driverId.length ? driverId : undefined,
+    zoneId: zoneId.length ? zoneId : undefined,
+    depot: depot.length ? depot : undefined,
     date: dateFrom && dateFrom === dateTo ? dateFrom : undefined,
+    dateFrom: dateFrom && dateFrom !== dateTo ? dateFrom : undefined,
+    dateTo: dateTo && dateFrom !== dateTo ? dateTo : undefined,
     q: query || undefined,
+    enabled: !invalidRange,
   });
   // Page-local counts stand in until the tallies land, so the chips never flash empty.
   const quickCounts = useMemo(
@@ -347,9 +354,12 @@ function DeliveriesPageContent() {
           extraActions={
             <>
             {/* Planifié De/A range — same inline picker pattern as the Audit logs page. */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0"
+                 title={invalidRange ? 'La date de fin précède la date de début.' : undefined}>
               <DatePickerPopover value={dateFrom || null} onChange={v => { setDateFrom(v ?? ''); setQuickView('all'); setPage(0); }} placeholder={t.dispatchDeskPage.dateFrom} />
-              <span className="text-xs text-[var(--text-muted)]">→</span>
+              <span className="text-xs" style={{ color: invalidRange ? 'var(--danger)' : 'var(--text-muted)' }}>
+                {invalidRange ? '⚠' : '→'}
+              </span>
               <DatePickerPopover value={dateTo || null} onChange={v => { setDateTo(v ?? ''); setQuickView('all'); setPage(0); }} placeholder={t.dispatchDeskPage.dateTo} />
               {(dateFrom || dateTo) && (
                 <button
