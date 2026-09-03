@@ -623,9 +623,9 @@ couvre le seul mécanisme où une erreur se traduit directement en argent manqua
 qu'un chauffeur ne peut pas faire, à savoir clore sa propre remise.
 
 Les 47 tests du serveur s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit},
-les neuf cas d'acceptation contre une base PostgreSQL réelle. Les 24 tests de l'application mobile
-sont lancés à la main~: le code du chauffeur vit dans un dépôt distinct, qui ne porte pas encore de
-chaîne d'intégration.
+les neuf cas d'acceptation contre une base PostgreSQL réelle. L'application chauffeur est versionnée
+dans un dépôt distinct et possède donc sa propre chaîne, qui lance ses 24 tests à chaque
+\emph{commit} elle aussi, après un contrôle de format et une analyse statique.
 
 \section{Conclusion}
 
