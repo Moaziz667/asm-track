@@ -5,10 +5,26 @@ import type { Turn, Citation } from '../types';
 import { RouteBadge } from './RouteBadge';
 import { provenanceOf } from './provenance';
 
-/** Split answer prose into text + clickable [n] citation markers that jump to their source. */
+/**
+ * Split answer prose into text, clickable [n] citation markers that jump to their source, and the
+ * one piece of Markdown the model actually emits: **bold**, which it uses to head each item when it
+ * answers with a list. Rendered as plain text those asterisks are visible, and the answer reads like
+ * it leaked its own formatting.
+ *
+ * Deliberately not a Markdown renderer. Answers are grounded prose, not documents, so the rest of
+ * the syntax never appears; parsing it would mean a dependency and an HTML sink for model output.
+ */
 function renderWithCitations(text: string, markers: Set<number>, onJump: (n: number) => void) {
-  const parts = text.split(/(\[\d+\])/g);
+  const parts = text.split(/(\[\d+\]|\*\*[^*\n]+\*\*)/g);
   return parts.map((part, i) => {
+    const bold = /^\*\*([^*\n]+)\*\*$/.exec(part);
+    if (bold) {
+      return (
+        <strong key={i} className="font-semibold">
+          {bold[1]}
+        </strong>
+      );
+    }
     const m = /^\[(\d+)\]$/.exec(part);
     if (m && markers.has(Number(m[1]))) {
       const n = Number(m[1]);

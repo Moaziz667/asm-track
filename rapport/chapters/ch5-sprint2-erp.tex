@@ -91,7 +91,7 @@ US-08 & En tant que dispatcheur, je veux que le statut d'une livraison remonte a
 \hline
       &  & T2-14 & Publier les événements vers le progiciel de façon rejouable & Haute \\
 \hline
-US-09 & En tant que dispatcheur, je veux qu'une synchronisation interrompue soit réessayée puis signalée afin qu'aucune information ne se perde silencieusement. (13 pts) & T2-15 & Réessayer avec espacement croissant, puis basculer en file morte & Haute \\
+US-09 & En tant que dispatcheur, je veux qu'une synchronisation interrompue soit réessayée puis signalée afin qu'aucune information ne se perde silencieusement. (13 pts) & T2-15 & Réessayer avec espacement croissant, puis basculer en file de rebut & Haute \\
 \hline
       &  & T2-16 & Refléter l'état de synchronisation sur la commande et alerter en cas d'échec & Haute \\
 \hline
@@ -343,7 +343,7 @@ l'espacement grandit pour ne pas marteler un courtier hors service.
 
 Deux garde-fous complètent cet automate. D'abord, un événement resté \emph{en cours} après un arrêt
 brutal du service est ramené \emph{en attente} au redémarrage, pour ne pas rester bloqué. Ensuite,
-après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file morte. La
+après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file de rebut. La
 commande est alors marquée « échec de synchronisation », un dispatcheur est prévenu, et l'événement
 reste consultable et rejouable depuis le back-office. Un échec définitif est donc visible et
 réparable, jamais perdu dans un journal.
@@ -385,7 +385,7 @@ d'une commande ou d'un lot.
 \includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-import}
 \caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
 
-Enfin, la figure~\ref{fig:s2-dlq} montre la file morte~: les synchronisations définitivement en échec,
+Enfin, la figure~\ref{fig:s2-dlq} montre la file de rebut~: les synchronisations définitivement en échec,
 consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
 
 \begin{figure}[H]\centering
@@ -457,11 +457,11 @@ reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref
 \multicolumn{2}{l}{\small\itshape TC-S2-03 (suite)} \\
 \hline
 \endhead
-\textbf{Description} & Une synchronisation vers un progiciel indisponible est réessayée, puis basculée en file morte, sans jamais bloquer le terrain. \\
+\textbf{Description} & Une synchronisation vers un progiciel indisponible est réessayée, puis basculée en file de rebut, sans jamais bloquer le terrain. \\
 \hline
 \textbf{Précondition} & Une livraison validée, le progiciel du client rendu injoignable. \\
 \hline
-\textbf{Scénario} & 1. Valider la livraison. \newline 2. Laisser les tentatives s'épuiser. \newline 3. Consulter la file morte, puis rejouer. \\
+\textbf{Scénario} & 1. Valider la livraison. \newline 2. Laisser les tentatives s'épuiser. \newline 3. Consulter la file de rebut, puis rejouer. \\
 \hline
 \textbf{Résultat attendu} & La livraison est enregistrée sans attendre~; la commande passe en échec de synchronisation~; l'événement reste rejouable. \\
 \hline
