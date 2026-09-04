@@ -176,7 +176,7 @@ est porté par les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:so
 % Diagramme bien plus haut que large : le borner à la seule largeur donnerait 227 mm de hauteur
 % et ferait déborder la page. On borne les deux dimensions et keepaspectratio retient la plus
 % contraignante.
-\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{ucglobalFINAL}
+\diagramme[0.90]{ucglobalFINAL}
 \caption{Diagramme global des cas d'utilisation}
 \label{fig:uc-global}
 \end{figure}
@@ -211,7 +211,7 @@ leurs relations. Il fixe le vocabulaire employé dans tout le reste du rapport.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth,height=0.70\textheight,keepaspectratio]{class-domain}
+\diagramme[0.68]{class-domain}
 \caption{Diagramme de classes global}
 \label{fig:class-global}
 \end{figure}
@@ -255,10 +255,10 @@ Trois repères ont servi d'étalon tout au long de l'estimation~: 3~points pour 
 sans règle particulière, 8~points pour une fonction qui traverse plusieurs composants, 21~points
 pour une fonction qui impose une décision d'architecture.
 
-Les \emph{Must} pèsent 240~points, soit les deux tiers du backlog. C'est au-dessus de la
+Les \emph{Must} pèsent 240~points, soit près des deux tiers du backlog. C'est au-dessus de la
 proportion habituellement conseillée, et la raison est assumée~: l'isolation des données,
 l'indépendance vis-à-vis du progiciel et la continuité hors ligne n'admettent pas de version
-dégradée. La marge de manœuvre est donc portée par les 39~points de \emph{Could}, qui pouvaient
+dégradée. La marge de manœuvre est donc portée par les 47~points de \emph{Could}, qui pouvaient
 être abandonnés sans dénaturer le produit.
 
 \begin{longtable}{L{1.1cm}L{8.2cm}C{1.5cm}C{1.1cm}C{1.3cm}}
@@ -424,9 +424,21 @@ afin de pouvoir répondre à un audit. & Should & 8 & 5 \\
 US-40 & En tant qu'utilisateur, je veux poser une question en langage naturel sur l'activité de mon
 entreprise afin d'obtenir la réponse sans parcourir plusieurs écrans. & Could & 13 & 5 \\
 \hline
+US-41 & En tant qu'administrateur, je veux régler moi-même les seuils de retard afin d'adapter les
+alertes au rythme de mon activité. & Should & 3 & 5 \\
+\hline
+US-42 & En tant qu'administrateur, je veux rejouer les messages bloqués d'une file afin de réparer
+un incident sans perdre d'événement. & Should & 5 & 5 \\
+\hline
+US-43 & En tant que dispatcheur, je veux visualiser la densité des commandes par zone afin de
+répartir mes tournées sur la journée. & Could & 5 & 5 \\
+\hline
+US-44 & En tant que responsable, je veux exporter la performance d'un chauffeur afin de préparer
+son entretien. & Could & 3 & 5 \\
+\hline
 \end{longtable}
 
-Le backlog totalise quarante éléments pour 363 points de complexité. Il a été tenu dans
+Le backlog totalise quarante-quatre éléments pour 379 points de complexité. Il a été tenu dans
 \textbf{GitLab Issues}, chaque épopée correspondant à une étiquette et chaque sprint à un tableau
 kanban dédié.
 
@@ -471,7 +483,7 @@ Sprint 3 & Planification des tournées et suivi temps réel & 25 mai — 19 juin
 \hline
 Sprint 4 & Application chauffeur et hors ligne & 22 juin — 17 juillet & 4 sem. & 87 \\
 \hline
-Sprint 5 & Exploitation, résilience et assistance & 20 juillet — 7 août & 3 sem. & 57 \\
+Sprint 5 & Exploitation, résilience et assistance & 20 juillet — 7 août & 3 sem. & 73 \\
 \hline
 \multicolumn{2}{l}{Recette, rédaction et soutenance} & 10 — 17 août & 1 sem. & — \\
 \hline
@@ -482,10 +494,10 @@ Les sprints~2, 3 et~4 concentrent les deux tiers des points. Le premier parce qu
 vis-à-vis du progiciel exige une couche d'abstraction complète avant le moindre gain visible~; les
 deux suivants parce qu'ils portent le cœur métier, côté bureau puis côté terrain.
 
-Rapportée à la durée, la charge passe de 11~points par semaine au sprint~1 à près de 22 aux
-sprints~3 et~4, avant de redescendre. Cette progression n'est pas un hasard de découpage~: le
-premier sprint a été ralenti par la mise en place de l'environnement et de la chaîne de
-déploiement, dont les suivants ont hérité sans en repayer le coût.
+Rapportée à la durée, la charge passe de 11~points par semaine au sprint~1 à une vingtaine ensuite,
+sans jamais redescendre. Cette progression n'est pas un hasard de découpage~: le premier sprint a été
+ralenti par la mise en place de l'environnement et de la chaîne de déploiement, dont les suivants ont
+hérité sans en repayer le coût.
 
 \section{Étude technique}
 
@@ -634,7 +646,7 @@ destinée à être déployée chez plusieurs clients.
 
 Ce sprint d'initialisation a produit quatre livrables~: la liste des acteurs et de leurs droits, la
 spécification des besoins fonctionnels et non fonctionnels, les deux diagrammes qui fixent le
-vocabulaire du système, et un backlog de quarante éléments réparti sur cinq sprints.
+vocabulaire du système, et un backlog de quarante-quatre éléments réparti sur cinq sprints.
 
 Son apport principal n'est pourtant pas cette production documentaire. Il tient à trois exigences que
 l'analyse a fait remonter au rang de contraintes structurantes~: l'ouverture à plusieurs progiciels,

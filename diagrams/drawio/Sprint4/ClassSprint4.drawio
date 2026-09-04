@@ -1,34 +1,97 @@
 <mxfile host="Electron">
   <diagram name="Classes — sprint 4" id="class-sprint4-asmtrack">
-    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+    <mxGraphModel dx="2083" dy="1490" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="z2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=13;fontStyle=1;fontColor=#546E7A;" value="Application mobile (Flutter)" vertex="1"><mxGeometry height="620" width="480" x="60" y="100" as="geometry" /></mxCell>
-        <mxCell id="z3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=13;fontStyle=1;fontColor=#546E7A;" value="Backend (Java · Spring)" vertex="1"><mxGeometry height="620" width="520" x="600" y="100" as="geometry" /></mxCell>
-        <mxCell id="z4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=13;fontStyle=1;fontColor=#546E7A;" value="Entités persistées" vertex="1"><mxGeometry height="620" width="460" x="1180" y="100" as="geometry" /></mxCell>
-        <mxCell id="c5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EDE7F6;strokeColor=#5E35B1;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«control»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;DeliveryRepository (Flutter)&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;+ submitPod(id, PodPayload) : Livraison&lt;br&gt;+ fail(id, motif, commentaire) : Livraison&lt;br&gt;- _mutate(chemin, données, clé, statutLocal)&lt;br&gt;- _applyLocalStatus(id, statut)&lt;br&gt;&lt;i&gt;décide : envoyer maintenant ou mettre en attente&lt;/i&gt;&lt;/div&gt;" vertex="1"><mxGeometry height="170" width="420" x="90" y="160" as="geometry" /></mxCell>
-        <mxCell id="c6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EDE7F6;strokeColor=#5E35B1;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«control»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;OfflineQueueService&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;- _maxRetries : int = 3&lt;br&gt;- _ttlHours : int = 24&lt;br&gt;+ enqueueRequest(chemin, données, clé)&lt;br&gt;+ processQueue()&lt;br&gt;+ retryItem(clé) · discardItem(clé)&lt;br&gt;&lt;i&gt;garde l'écriture jusqu'à ce que le serveur l'accepte&lt;/i&gt;&lt;/div&gt;" vertex="1"><mxGeometry height="200" width="420" x="90" y="400" as="geometry" /></mxCell>
-        <mxCell id="c7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«controller»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;DriverDeliveryController&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;+ submitPod(id, requête, chauffeur)&lt;br&gt;+ fail(id, requête, chauffeur)&lt;br&gt;&lt;i&gt;@IdempotentOperation&lt;/i&gt;&lt;/div&gt;" vertex="1"><mxGeometry height="110" width="460" x="630" y="160" as="geometry" /></mxCell>
-        <mxCell id="c8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«aspect»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;IdempotencyAspect&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;+ guard(appel) : Object&lt;br&gt;&lt;i&gt;même clé déjà vue → renvoie la réponse&lt;br&gt;déjà donnée, sans rien réexécuter&lt;/i&gt;&lt;/div&gt;" vertex="1"><mxGeometry height="110" width="460" x="630" y="320" as="geometry" /></mxCell>
-        <mxCell id="c9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«service»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;DriverDeliveryService&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;+ submitPod(id, chauffeur, requête)&lt;br&gt;+ complete(id, chauffeur, partielle, lignes)&lt;br&gt;- loadAndAuthorize(id, chauffeur) : Livraison&lt;br&gt;&lt;i&gt;refuse la livraison d'un autre chauffeur&lt;/i&gt;&lt;/div&gt;" vertex="1"><mxGeometry height="150" width="460" x="630" y="480" as="geometry" /></mxCell>
-        <mxCell id="c10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«entity»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;Livraison&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;- id : UUID&lt;br&gt;- statut : StatutLivraison&lt;br&gt;- chauffeurId : UUID&lt;br&gt;- nature : NatureLivraison&lt;br&gt;+ estADestination() : booléen&lt;/div&gt;" vertex="1"><mxGeometry height="150" width="400" x="1210" y="160" as="geometry" /></mxCell>
-        <mxCell id="c11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«entity»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;PreuveDeLivraison&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;- id : UUID&lt;br&gt;- photoBonSigné : String&lt;br&gt;- photoColis : String&lt;br&gt;- destinataire : String&lt;br&gt;- lat · lng : Décimal&lt;br&gt;- remiseLe : DateHeure&lt;/div&gt;" vertex="1"><mxGeometry height="150" width="400" x="1210" y="380" as="geometry" /></mxCell>
-        <mxCell id="c12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=12;" value="&lt;p style='margin:4px 0 0;text-align:center;font-size:11px;font-style:italic'&gt;«entity»&lt;/p&gt;&lt;p style='margin:0 0 6px;text-align:center;font-weight:bold;font-size:13px'&gt;Encaissement&lt;/p&gt;&lt;hr style='margin:0'/&gt;&lt;div style='margin:6px 0'&gt;- id : UUID&lt;br&gt;- montantAttendu : Décimal&lt;br&gt;- montantReçu : Décimal&lt;br&gt;- moyen : MoyenPaiement&lt;br&gt;- statut : StatutEncaissement&lt;/div&gt;" vertex="1"><mxGeometry height="130" width="400" x="1210" y="570" as="geometry" /></mxCell>
-        <mxCell id="e13" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" source="c5" target="c6" value="met en attente" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e14" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.4;entryX=0;entryY=0.5;" source="c5" target="c7" value="envoie" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e15" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.9;" source="c6" target="c7" value="rejoue" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e16" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" source="c7" target="c8" value="" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e17" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" source="c8" target="c9" value="" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e18" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.9;" source="c9" target="c10" value="charge et vérifie" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e19" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" source="c9" target="c11" value="crée" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e20" parent="1" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=11;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;entryX=0;entryY=0.4;" source="c9" target="c12" value="crée" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e21" parent="1" style="html=1;rounded=0;endArrow=none;strokeColor=#37474F;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" source="c10" target="c11" value="" edge="1"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="l22" parent="e21" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;" value="1" vertex="1" connectable="0"><mxGeometry relative="1" x="-0.72" as="geometry"><mxPoint as="offset" /></mxGeometry></mxCell>
-        <mxCell id="l23" parent="e21" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;" value="0..1" vertex="1" connectable="0"><mxGeometry relative="1" x="0.72" as="geometry"><mxPoint as="offset" /></mxGeometry></mxCell>
-        <mxCell id="e24" parent="1" style="html=1;rounded=0;endArrow=none;strokeColor=#37474F;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.75;entryX=0;entryY=0.25;" source="c10" target="c12" value="" edge="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1155" y="272" /><mxPoint x="1155" y="602" /></Array></mxGeometry></mxCell>
-        <mxCell id="l25" parent="e24" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;" value="1" vertex="1" connectable="0"><mxGeometry relative="1" x="-0.85" as="geometry"><mxPoint as="offset" /></mxGeometry></mxCell>
-        <mxCell id="l26" parent="e24" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#37474F;labelBackgroundColor=#FFFFFF;" value="0..1" vertex="1" connectable="0"><mxGeometry relative="1" x="0.85" as="geometry"><mxPoint as="offset" /></mxGeometry></mxCell>
+        <mxCell id="z2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=15;fontStyle=1;fontColor=#546E7A;" value="Application mobile (Flutter)" vertex="1">
+          <mxGeometry height="620" width="480" x="60" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="z3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=15;fontStyle=1;fontColor=#546E7A;" value="Backend (Java · Spring)" vertex="1">
+          <mxGeometry height="620" width="520" x="600" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="z4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=8 6;fontSize=15;fontStyle=1;fontColor=#546E7A;" value="Entités persistées" vertex="1">
+          <mxGeometry height="620" width="460" x="1180" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EDE7F6;strokeColor=#5E35B1;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«control»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;DeliveryRepository (Flutter)&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;+ submitPod(id, PodPayload) : Livraison&lt;br&gt;+ fail(id, motif, commentaire) : Livraison&lt;br&gt;- _mutate(chemin, données, clé, statutLocal)&lt;br&gt;- _applyLocalStatus(id, statut)&lt;br&gt;&lt;i&gt;décide : envoyer maintenant ou mettre en attente&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="170" width="420" x="90" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EDE7F6;strokeColor=#5E35B1;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«control»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;OfflineQueueService&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;- _maxRetries : int = 3&lt;br&gt;- _ttlHours : int = 24&lt;br&gt;+ enqueueRequest(chemin, données, clé)&lt;br&gt;+ processQueue()&lt;br&gt;+ retryItem(clé) · discardItem(clé)&lt;br&gt;&lt;i&gt;garde l&#39;écriture jusqu&#39;à ce que le serveur l&#39;accepte&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="200" width="420" x="90" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«controller»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;DriverDeliveryController&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;+ submitPod(id, requête, chauffeur)&lt;br&gt;+ fail(id, requête, chauffeur)&lt;br&gt;&lt;i&gt;@IdempotentOperation&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="120" width="460" x="630" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="c8" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«aspect»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;IdempotencyAspect&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;+ guard(appel) : Object&lt;br&gt;&lt;i&gt;même clé déjà vue → renvoie la réponse&lt;br&gt;déjà donnée, sans rien réexécuter&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="460" x="630" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="c9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«service»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;DriverDeliveryService&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;+ submitPod(id, chauffeur, requête)&lt;br&gt;+ complete(id, chauffeur, partielle, lignes)&lt;br&gt;- loadAndAuthorize(id, chauffeur) : Livraison&lt;br&gt;&lt;i&gt;refuse la livraison d&#39;un autre chauffeur&lt;/i&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="460" x="630" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="c10" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«entity»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;Livraison&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;- id : UUID&lt;br&gt;- statut : StatutLivraison&lt;br&gt;- chauffeurId : UUID&lt;br&gt;- nature : NatureLivraison&lt;br&gt;+ estADestination() : booléen&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="400" x="1210" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="c11" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«entity»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;PreuveDeLivraison&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;- id : UUID&lt;br&gt;- photoBonSigné : String&lt;br&gt;- photoColis : String&lt;br&gt;- destinataire : String&lt;br&gt;- lat · lng : Décimal&lt;br&gt;- remiseLe : DateHeure&lt;/div&gt;" vertex="1">
+          <mxGeometry height="170" width="400" x="1210" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="c12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;fillColor=#FFFFFF;strokeColor=#37474F;fontSize=15;fontStyle=1" value="&lt;p style=&quot;margin: 4px 0px 0px; text-align: center; font-style: italic;&quot;&gt;«entity»&lt;/p&gt;&lt;p style=&quot;margin: 0px 0px 6px; text-align: center;&quot;&gt;Encaissement&lt;/p&gt;&lt;hr style=&quot;margin:0&quot;&gt;&lt;div style=&quot;margin:6px 0&quot;&gt;- id : UUID&lt;br&gt;- montantAttendu : Décimal&lt;br&gt;- montantReçu : Décimal&lt;br&gt;- moyen : MoyenPaiement&lt;br&gt;- statut : StatutEncaissement&lt;/div&gt;" vertex="1">
+          <mxGeometry height="180" width="400" x="1210" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="c5" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontStyle=1" target="c6" value="met en attente">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="c5" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.4;entryX=0;entryY=0.5;fontStyle=1" target="c7" value="envoie">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="c6" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.9;fontStyle=1" target="c7" value="rejoue">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="c7" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontStyle=1" target="c8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="c8" style="html=1;rounded=0;endArrow=open;endSize=10;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontStyle=1" target="c9" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="c9" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.2;entryX=0;entryY=0.9;fontStyle=1" target="c10" value="charge et vérifie">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="c9" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontStyle=1" target="c11" value="crée">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="c9" style="html=1;rounded=0;endArrow=open;endSize=10;dashed=1;dashPattern=8 5;strokeColor=#546E7A;fontSize=15;fontColor=#546E7A;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;entryX=0;entryY=0.4;fontStyle=1" target="c12" value="crée">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="c10" style="html=1;rounded=0;endArrow=none;strokeColor=#37474F;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontStyle=1" target="c11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l22" connectable="0" parent="e21" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;fontStyle=1" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.72" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l23" connectable="0" parent="e21" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;fontStyle=1" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.72" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="c10" style="html=1;rounded=0;endArrow=none;strokeColor=#37474F;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.75;entryX=0;entryY=0.25;fontStyle=1" target="c12" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1155" y="272" />
+              <mxPoint x="1155" y="602" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l25" connectable="0" parent="e24" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;fontStyle=1" value="1" vertex="1">
+          <mxGeometry relative="1" x="-0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="l26" connectable="0" parent="e24" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=15;fontColor=#37474F;labelBackgroundColor=#FFFFFF;fontStyle=1" value="0..1" vertex="1">
+          <mxGeometry relative="1" x="0.85" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

@@ -41,6 +41,12 @@
   {../diagrams/drawio/Sprint1/}{../diagrams/drawio/Sprint2/}{../diagrams/drawio/Sprint3/}
   {../diagrams/drawio/Sprint4/}{../diagrams/drawio/Sprint5/}{../diagrams/drawio/Architecture/}
   {../diagrams/svg/}{../docs/assets/uml/}}
+% Les diagrammes UML sont reduits pour tenir dans le bloc de texte, et leurs libelles descendent
+% alors sous la taille lisible. Le bloc fait 160 mm sur une page de 210 : une figure peut occuper
+% 190 mm sans toucher le bord, soit 19 % de texte en plus, sans rien changer au diagramme. Le
+% \makebox garde la figure centree sur le bloc et empeche LaTeX de signaler un debordement.
+\newcommand{\diagramme}[2][0.45]{%
+  \makebox[\textwidth][c]{\includegraphics[width=190mm,height=#1\textheight,keepaspectratio]{#2}}}
 \usepackage{float}
 % Les figures en [H] laissaient de grands blancs : quand l'image ne tenait plus dans la place
 % restante, LaTeX abandonnait le bas de la page. En [htbp] elles flottent vers le haut ou le bas de
