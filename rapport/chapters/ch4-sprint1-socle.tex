@@ -320,34 +320,24 @@ aperçoive, puis rejoue la requête d'origine.
 
 \section{Réalisation}
 
-La figure~\ref{fig:s1-login} montre l'écran de connexion Keycloak, habillé aux couleurs de
-l'application. Le thème reçoit la langue et le mode d'affichage du back-office, pour que le passage
-par le serveur d'identité ne soit pas visible par l'utilisateur.
+L'écran de connexion est celui de Keycloak, habillé aux couleurs de l'application~: le thème reçoit
+la langue et le mode d'affichage du back-office, pour que le passage par le serveur d'identité ne
+soit pas visible par l'utilisateur.
+
+La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, dans la section
+« Identités et accès » des paramètres, le menu de choix du rôle déroulé. C'est ici que se lit,
+concrètement, la matrice de permissions présentée plus haut~: le rôle choisi détermine tout ce que
+le compte pourra faire.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-login-keycloak}
-\caption{Écran de connexion Keycloak (thème ASM)}\label{fig:s1-login}\end{figure}
-
-La figure~\ref{fig:s1-comptes} présente la liste des comptes, dans la section « Identités et accès »
-des paramètres. Chaque ligne indique le rôle du compte et son état.
-
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-comptes-liste}
-\caption{Liste des comptes et de leurs rôles}\label{fig:s1-comptes}\end{figure}
-
-La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, le menu de choix du
-rôle déroulé. C'est ici que se lit, concrètement, la matrice de permissions présentée plus haut~: le
-rôle choisi détermine tout ce que le compte pourra faire.
-
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-comptes-creation}
+\includegraphics[width=\textwidth,height=0.18\textheight,keepaspectratio]{s1-comptes-creation}
 \caption{Création d'un compte et attribution d'un rôle}\label{fig:s1-creation}\end{figure}
 
 La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs. Ce référentiel,
 avec ceux des véhicules et des zones, alimentera la planification des tournées au sprint~3.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-chauffeurs}
+\includegraphics[width=\textwidth,height=0.18\textheight,keepaspectratio]{s1-chauffeurs}
 \caption{Référentiel des chauffeurs}\label{fig:s1-chauffeurs}\end{figure}
 
 Enfin, la figure~\ref{fig:s1-refus} illustre le contrôle d'accès en situation~: un compte responsable
@@ -355,7 +345,7 @@ tente d'atteindre le constructeur de tournées, réservé à qui détient \code{
 refusé. L'interface, elle, avait déjà masqué l'entrée, mais le refus réel a lieu côté serveur.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-acces-refuse}
+\includegraphics[width=\textwidth,height=0.18\textheight,keepaspectratio]{s1-acces-refuse}
 \caption{Accès refusé à une action non permise}\label{fig:s1-refus}\end{figure}
 
 \section{Tests et validation}
@@ -457,7 +447,7 @@ chaque \emph{commit}. La figure~\ref{fig:s1-ci-rbac} montre le job qui s'assure 
 portent la même politique, avec la même empreinte.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.28\textheight,keepaspectratio]{s1-ci-rbac-check}
+\includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{s1-ci-rbac-check}
 \caption{Contrôle en CI de l'unicité de la politique d'autorisation}\label{fig:s1-ci-rbac}\end{figure}
 
 \section{Conclusion}
