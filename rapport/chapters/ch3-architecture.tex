@@ -106,11 +106,6 @@ Le troisième est le \textbf{coût d'exploitation}~: plus de conteneurs à déma
 consulter, et une panne plus longue à localiser puisqu'elle peut venir de n'importe quel maillon de
 la chaîne.
 
-Trois raisons d'un côté, trois coûts de l'autre~: la balance ne se lit pas au nombre. Les coûts sont
-techniques, ils se paient une fois et le même mécanisme sert partout ensuite. Les raisons, elles,
-reviennent à chaque évolution du système~: un client qui met son progiciel à jour, une journée
-chargée sur le terrain, un composant à remplacer. C'est ce qui a fait pencher la décision.
-
 Les sections~\ref{sec:archi-donnees} et~\ref{sec:archi-echanges} montrent comment ces trois points
 sont traités plutôt qu'ignorés.
 
@@ -324,15 +319,9 @@ une entreprise par défaut, jamais de valeur devinée. Quatre situations conduis
 jeton ne porte aucune entreprise, l'utilisateur est rattaché à plusieurs entreprises, l'identifiant
 n'a pas la forme attendue, ou l'en-tête manque à l'entrée du service.
 
-Le deuxième cas mérite une explication. Le problème n'est pas qu'un utilisateur travaille pour deux
-entreprises~; c'est que sa requête ne dit pas laquelle des deux elle concerne. Le système devrait
-alors deviner, et il devinerait mal~: l'utilisateur verrait tantôt les données de l'une, tantôt celles
-de l'autre, sans qu'aucune erreur ne soit signalée. La règle est donc stricte~: un utilisateur
-appartient à une entreprise et à une seule.
-
-Prendre en charge le cas contraire ne demanderait d'ailleurs pas de revoir ce mécanisme, mais de
-faire choisir son entreprise à l'utilisateur au moment de la connexion, afin que le jeton n'en porte
-qu'une. C'est le choix qui manque aujourd'hui, non la capacité à l'appliquer.
+Le deuxième cas est le moins évident. Une requête émise par un utilisateur rattaché à deux
+entreprises ne dit pas laquelle des deux elle concerne, et le système devinerait mal. La règle est
+donc stricte~: un utilisateur appartient à une entreprise et à une seule.
 
 Le quatrième cas garantit que la protection tient même si la passerelle est contournée. Un service
 appelé directement, sans en-tête d'entreprise, refuse la requête au lieu de servir des données.

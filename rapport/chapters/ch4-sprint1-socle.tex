@@ -37,33 +37,13 @@ tournées du sprint~3.
 
 \section{Objectifs du sprint et planification des tâches}
 
-\subsection{Objectifs attendus}
-
-Ce sprint vise un socle sur lequel les quatre suivants pourront se greffer sans le remettre en cause.
-Cinq résultats sont attendus~:
-
-\begin{itemize}
-  \item une \textbf{authentification centralisée}, sans code maison de gestion de mots de passe.
-  \item une \textbf{autorisation lisible et unique}, la même pour la passerelle et pour chaque
-        service.
-  \item une \textbf{isolation des entreprises clientes} vérifiée, et non supposée.
-  \item la \textbf{gestion des comptes et des rôles} depuis le back-office.
-  \item trois \textbf{référentiels d'exploitation}, chauffeurs, véhicules et zones, chacun derrière
-        l'authentification et les permissions.
-\end{itemize}
-
 Le périmètre couvre sept \terme{user stories}, US-01 à US-04 pour le socle et US-12 à US-14 pour les
-référentiels, soit \textbf{46 points} d'effort. Le tableau~\ref{tab:backlog-s1} en donne la
-décomposition en tâches.
-
-\subsection{Sprint backlog}
-
-Le tableau~\ref{tab:backlog-s1} détaille les tâches du sprint, regroupées par \terme{user story}, avec
-leur priorité relative. Les tâches de sécurité et d'isolation sont en priorité haute, puisqu'elles
-conditionnent tout le reste.
+référentiels, soit \textbf{46 points} d'effort. Le tableau~\ref{tab:backlog-s1} détaille les tâches
+du sprint, regroupées par \terme{user story}, avec leur priorité relative. Les tâches de sécurité et
+d'isolation sont en priorité haute, puisqu'elles conditionnent tout le reste.
 
 \begin{small}
-\begin{longtable}{L{1.1cm}L{4.4cm}L{1.2cm}L{5.6cm}L{1.4cm}}
+\begin{longtable}{L{1.1cm}L{3.0cm}L{1.2cm}L{7.0cm}L{1.4cm}}
 \caption{Sprint backlog — sprint 1}\label{tab:backlog-s1}\\
 \hline
 \rowcolor{isimsblue!10}
@@ -78,7 +58,7 @@ conditionnent tout le reste.
 \hline
 \endfoot
 
-US-01 & En tant qu'utilisateur, je veux m'authentifier par un compte unique afin d'accéder aux écrans correspondant à mon rôle. (8 pts) & T1-01 & Configurer le realm \code{asm} et les organisations dans Keycloak & Haute \\
+US-01 & Authentification par compte unique (8 pts) & T1-01 & Configurer le realm \code{asm} et les organisations dans Keycloak & Haute \\
 \hline
       &  & T1-02 & Intégrer le flux Authorization Code + PKCE au back-office React & Haute \\
 \hline
@@ -86,13 +66,13 @@ US-01 & En tant qu'utilisateur, je veux m'authentifier par un compte unique afin
 \hline
       &  & T1-04 & Valider la signature des jetons par JWKS à la passerelle & Haute \\
 \hline
-US-02 & En tant qu'administrateur, je veux créer des comptes et leur attribuer un rôle afin de contrôler qui accède à quoi. (3 pts) & T1-05 & Créer, modifier un compte et lui attribuer un rôle & Haute \\
+US-02 & Création de comptes et attribution des rôles (3 pts) & T1-05 & Créer, modifier un compte et lui attribuer un rôle & Haute \\
 \hline
       &  & T1-06 & Activer ou désactiver un compte, réinitialiser le mot de passe, forcer la déconnexion & Moyenne \\
 \hline
       &  & T1-07 & Provisionner une nouvelle entreprise cliente (organisation, schémas et compte administrateur) avec annulation en cas d'échec & Haute \\
 \hline
-US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la permission portée par le rôle afin que personne ne dépasse ses droits. (8 pts) & T1-08 & Rédiger le modèle de 18 permissions et la politique déclarative unique qui les applique & Haute \\
+US-03 & Contrôle des permissions à chaque opération (8 pts) & T1-08 & Rédiger le modèle de 18 permissions et la politique déclarative unique qui les applique & Haute \\
 \hline
       &  & T1-09 & Appliquer la même politique d'autorisation à la passerelle et à chaque service, contrôlée en CI & Haute \\
 \hline
@@ -100,7 +80,7 @@ US-03 & En tant qu'administrateur, je veux que chaque opération vérifie la per
 \hline
       &  & T1-11 & Évaluer la politique à la passerelle et la re-vérifier dans chaque service & Haute \\
 \hline
-US-04 & En tant qu'entreprise cliente, je veux que mes données soient inaccessibles aux autres entreprises hébergées afin de garantir ma confidentialité. (13 pts) & T1-12 & Concevoir le module partagé \code{asm-tenant-core} (routage Hibernate par schéma) & Haute \\
+US-04 & Isolation des données par entreprise cliente (13 pts) & T1-12 & Concevoir le module partagé \code{asm-tenant-core} (routage Hibernate par schéma) & Haute \\
 \hline
       &  & T1-13 & Déduire l'en-tête d'entreprise du contenu du jeton & Haute \\
 \hline
@@ -108,13 +88,13 @@ US-04 & En tant qu'entreprise cliente, je veux que mes données soient inaccessi
 \hline
       &  & T1-15 & Provisionner et migrer les schémas au démarrage & Haute \\
 \hline
-US-12 & En tant qu'administrateur, je veux gérer la liste des chauffeurs afin de refléter l'équipe réelle. (3 pts) & T1-16 & Modéliser et exposer le référentiel des chauffeurs & Moyenne \\
+US-12 & Référentiel des chauffeurs (3 pts) & T1-16 & Modéliser et exposer le référentiel des chauffeurs & Moyenne \\
 \hline
       &  & T1-17 & Réaliser l'écran back-office des chauffeurs & Moyenne \\
 \hline
-US-13 & En tant qu'administrateur, je veux gérer le parc de véhicules avec leur capacité afin de pouvoir les affecter. (3 pts) & T1-18 & Modéliser et exposer le référentiel des véhicules & Moyenne \\
+US-13 & Référentiel des véhicules et de leur capacité (3 pts) & T1-18 & Modéliser et exposer le référentiel des véhicules & Moyenne \\
 \hline
-US-14 & En tant qu'administrateur, je veux définir des zones géographiques afin de regrouper les livraisons par secteur. (8 pts) & T1-19 & Modéliser et exposer le référentiel des zones & Basse \\
+US-14 & Référentiel des zones géographiques (8 pts) & T1-19 & Modéliser et exposer le référentiel des zones & Basse \\
 \hline
 \end{longtable}
 \end{small}
@@ -340,22 +320,19 @@ aperçoive, puis rejoue la requête d'origine.
 
 \section{Réalisation}
 
-Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
-montrée.
-
 La figure~\ref{fig:s1-login} montre l'écran de connexion Keycloak, habillé aux couleurs de
 l'application. Le thème reçoit la langue et le mode d'affichage du back-office, pour que le passage
 par le serveur d'identité ne soit pas visible par l'utilisateur.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-login-keycloak}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-login-keycloak}
 \caption{Écran de connexion Keycloak (thème ASM)}\label{fig:s1-login}\end{figure}
 
 La figure~\ref{fig:s1-comptes} présente la liste des comptes, dans la section « Identités et accès »
 des paramètres. Chaque ligne indique le rôle du compte et son état.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-comptes-liste}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-comptes-liste}
 \caption{Liste des comptes et de leurs rôles}\label{fig:s1-comptes}\end{figure}
 
 La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, le menu de choix du
@@ -363,81 +340,31 @@ rôle déroulé. C'est ici que se lit, concrètement, la matrice de permissions 
 rôle choisi détermine tout ce que le compte pourra faire.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-comptes-creation}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-comptes-creation}
 \caption{Création d'un compte et attribution d'un rôle}\label{fig:s1-creation}\end{figure}
 
-La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs, et la
-figure~\ref{fig:s1-zones} celui des zones. Ces deux référentiels, avec celui des véhicules,
-alimenteront la planification des tournées au sprint~3.
+La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs. Ce référentiel,
+avec ceux des véhicules et des zones, alimentera la planification des tournées au sprint~3.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-chauffeurs}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-chauffeurs}
 \caption{Référentiel des chauffeurs}\label{fig:s1-chauffeurs}\end{figure}
-
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-zones}
-\caption{Référentiel des zones}\label{fig:s1-zones}\end{figure}
 
 Enfin, la figure~\ref{fig:s1-refus} illustre le contrôle d'accès en situation~: un compte responsable
 tente d'atteindre le constructeur de tournées, réservé à qui détient \code{route:manage}. L'accès est
 refusé. L'interface, elle, avait déjà masqué l'entrée, mais le refus réel a lieu côté serveur.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s1-acces-refuse}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-acces-refuse}
 \caption{Accès refusé à une action non permise}\label{fig:s1-refus}\end{figure}
 
 \section{Tests et validation}
 
 \subsection{Scénarios de validation}
 
-Trois scénarios couvrent les trois volets du socle~: l'authentification, l'autorisation et
-l'isolation. Ils sont donnés dans les tableaux~\ref{tab:tc-s1-01} à~\ref{tab:tc-s1-03}.
-
-\begin{small}
-\begin{longtable}{L{3.2cm}L{11.0cm}}
-\caption{TC-S1-01 — Authentification et rejet de l'anonyme}\label{tab:tc-s1-01}\\
-\hline
-\rowcolor{isimsblue!10}
-\textbf{Cas de test} & TC-S1-01 \\
-\hline
-\endfirsthead
-\hline
-\multicolumn{2}{l}{\small\itshape TC-S1-01 (suite)} \\
-\hline
-\endhead
-\textbf{Description} & Un utilisateur muni d'identifiants valides obtient un jeton~; un appel sans jeton est rejeté. \\
-\hline
-\textbf{Précondition} & Un compte actif existe dans le realm \code{asm}. \\
-\hline
-\textbf{Scénario} & 1. Se connecter avec des identifiants valides. \newline 2. Appeler une route protégée avec le jeton. \newline 3. Rappeler la même route sans jeton. \\
-\hline
-\textbf{Résultat attendu} & Étape 2~: réponse \code{200}. Étape 3~: réponse \code{401}, sans atteindre le service. \\
-\hline
-\end{longtable}
-\end{small}
-
-\begin{small}
-\begin{longtable}{L{3.2cm}L{11.0cm}}
-\caption{TC-S1-02 — Autorisation : lecture, écriture et cloisonnement des API}\label{tab:tc-s1-02}\\
-\hline
-\rowcolor{isimsblue!10}
-\textbf{Cas de test} & TC-S1-02 \\
-\hline
-\endfirsthead
-\hline
-\multicolumn{2}{l}{\small\itshape TC-S1-02 (suite)} \\
-\hline
-\endhead
-\textbf{Description} & Un droit de lecture (\code{driver:view}) ne permet pas d'écrire~; et le compte de l'application livreur (rôle \code{DRIVER}) ne peut pas atteindre le back-office. \\
-\hline
-\textbf{Précondition} & Un compte détenant \code{driver:view} et un compte de rôle \code{DRIVER}. \\
-\hline
-\textbf{Scénario} & 1. Avec \code{driver:view}, lire puis tenter d'écrire un chauffeur. \newline 2. Avec le rôle \code{DRIVER}, appeler une route du back-office. \\
-\hline
-\textbf{Résultat attendu} & Lecture \code{200}, écriture \code{403}~; route back-office refusée au livreur. \\
-\hline
-\end{longtable}
-\end{small}
+Le scénario le plus structurant du socle est l'isolation entre deux entreprises, donné dans le
+tableau~\ref{tab:tc-s1-03}. L'authentification et l'autorisation sont couvertes par les cas
+d'utilisation détaillés plus haut et par la matrice des permissions.
 
 \begin{small}
 \begin{longtable}{L{3.2cm}L{11.0cm}}
@@ -526,17 +453,12 @@ une seconde, puis fait l'inverse. Ce sont le vrai mécanisme d'Hibernate et le v
 de PostgreSQL qui sont mis à l'épreuve~: une base simulée testerait l'imitation, pas l'isolation.
 
 Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'intégration continue à
-chaque \emph{commit}. Les figures~\ref{fig:s1-ci-rbac} et~\ref{fig:s1-ci-iso} en montrent deux
-étapes~: le job qui s'assure que les cinq services portent la même politique, avec la même empreinte,
-et ses quarante-sept règles, puis la suite d'isolation passant au vert.
+chaque \emph{commit}. La figure~\ref{fig:s1-ci-rbac} montre le job qui s'assure que les cinq services
+portent la même politique, avec la même empreinte et ses quarante-sept règles.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-rbac-check}
+\includegraphics[width=\textwidth,height=0.28\textheight,keepaspectratio]{s1-ci-rbac-check}
 \caption{Contrôle en CI de l'unicité de la politique d'autorisation}\label{fig:s1-ci-rbac}\end{figure}
-
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.5\textheight,keepaspectratio]{s1-ci-isolation}
-\caption{Exécution en CI des tests d'isolation}\label{fig:s1-ci-iso}\end{figure}
 
 \section{Conclusion}
 

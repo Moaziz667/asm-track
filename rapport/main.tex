@@ -2,7 +2,7 @@
 %  ASM Track — Rapport de Projet de Fin d'Études
 %  Compilation :  latexmk -pdf main.tex        (ou pdflatex ×3 + biber)
 %
-%  Cible : ~140 pages  =  12 liminaires + 118 corps + 10 annexes/biblio.
+%  Cible : ~140 pages  =  12 liminaires + 118 corps + biblio.
 %  Le budget de pages de chaque chapitre est rappelé en tête de son fichier.
 % =====================================================================
 \documentclass[12pt,a4paper,oneside]{report}
@@ -39,14 +39,11 @@
 \include{chapters/ch9-validation}
 \include{chapters/conclusion}
 
-% ---------- Bibliographie et annexes ----------
+% ---------- Bibliographie ----------
 % Le guide de l'institut demande une bibliographie et une webographie distinctes : les ouvrages,
 % articles et actes d'un côté, la documentation en ligne des solutions étudiées de l'autre.
 \printbibliography[heading=bibintoc,title={Bibliographie},nottype=online]
 \printbibliography[heading=bibintoc,title={Webographie},type=online]
-
-\appendix
-\include{chapters/annexes}
 
 % Quatrième de couverture imposée par l'institut : résumé arabe, français et anglais. Elle ferme le
 % mémoire — ce n'est pas une page liminaire.

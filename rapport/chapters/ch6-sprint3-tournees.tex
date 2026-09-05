@@ -30,33 +30,12 @@ délais et le rapport de fin de journée.
 
 \section{Objectifs du sprint et planification des tâches}
 
-\subsection{Objectifs attendus}
-
-Ce sprint outille le travail quotidien du bureau. Cinq résultats sont attendus~:
-
-\begin{itemize}
-  \item un \textbf{planificateur visuel} qui regroupe les livraisons en attente, leur affecte un
-        chauffeur et un véhicule après contrôle de leur disponibilité, vérifie le poids embarqué, et
-        propose un ordre de passage ainsi qu'une fenêtre horaire par arrêt, que le dispatcheur reste
-        libre d'ajuster.
-  \item un \textbf{centre de dispatch} qui rassemble en un seul écran les retards et les incidents
-        de la journée, et rend la correction immédiate.
-  \item un \textbf{moteur d'échéances} qui mesure le respect des délais à chaque étape de la
-        livraison.
-  \item une \textbf{diffusion en temps réel} qui met les écrans à jour sans rechargement.
-  \item un \textbf{suivi public par lien} pour le destinataire, et le cycle complet du retour,
-        jusqu'à la remise en stock dans le progiciel.
-\end{itemize}
-
 Le périmètre couvre onze \terme{user stories}, US-15 à US-19 et US-28 à US-33, soit \textbf{87
-points} d'effort. Le tableau~\ref{tab:backlog-s3} en donne la décomposition en tâches.
-
-\subsection{Sprint backlog}
-
-Le tableau~\ref{tab:backlog-s3} détaille les tâches du sprint, regroupées par \terme{user story}.
+points} d'effort. Le tableau~\ref{tab:backlog-s3} détaille les tâches du sprint, regroupées par
+\terme{user story}.
 
 \begin{small}
-\begin{longtable}{L{1.1cm}L{4.4cm}L{1.2cm}L{5.6cm}L{1.4cm}}
+\begin{longtable}{L{1.1cm}L{3.0cm}L{1.2cm}L{7.0cm}L{1.4cm}}
 \caption{Sprint backlog — sprint 3}\label{tab:backlog-s3}\\
 \hline
 \rowcolor{isimsblue!10}
@@ -71,41 +50,41 @@ Le tableau~\ref{tab:backlog-s3} détaille les tâches du sprint, regroupées par
 \hline
 \endfoot
 
-US-15 & En tant que dispatcheur, je veux construire une tournée à partir de livraisons afin d'organiser la journée. (13 pts) & T3-01 & Créer une tournée en brouillon & Haute \\
+US-15 & Construction d'une tournée (13 pts) & T3-01 & Créer une tournée en brouillon & Haute \\
 \hline
       &  & T3-02 & Ajouter et retirer des livraisons d'une tournée & Haute \\
 \hline
       &  & T3-03 & Réordonner les arrêts par glisser-déposer & Haute \\
 \hline
-US-16 & En tant que dispatcheur, je veux affecter un chauffeur et un véhicule à une tournée afin d'en désigner le responsable. (8 pts) & T3-04 & Affecter un chauffeur et un véhicule à la tournée & Haute \\
+US-16 & Affectation d'un chauffeur et d'un véhicule (8 pts) & T3-04 & Affecter un chauffeur et un véhicule à la tournée & Haute \\
 \hline
       &  & T3-05 & Contrôler la disponibilité du chauffeur et du véhicule & Haute \\
 \hline
-US-17 & En tant que dispatcheur, je veux obtenir un ordre de passage optimisé afin de réduire la distance parcourue. (13 pts) & T3-06 & Interroger le moteur d'itinéraires pour la matrice des durées et le tracé & Haute \\
+US-17 & Ordre de passage optimisé (13 pts) & T3-06 & Interroger le moteur d'itinéraires pour la matrice des durées et le tracé & Haute \\
 \hline
       &  & T3-07 & Ordonner les arrêts sous contrainte de précédence (charger avant livrer) & Haute \\
 \hline
       &  & T3-08 & Restituer les gains en distance et en temps par rapport à l'ordre courant & Moyenne \\
 \hline
-US-18 & En tant que dispatcheur, je veux valider une tournée afin de la rendre visible au chauffeur. (3 pts) & T3-09 & Valider la tournée après contrôle de capacité, de chronologie et de précédence & Haute \\
+US-18 & Validation de la tournée (3 pts) & T3-09 & Valider la tournée après contrôle de capacité, de chronologie et de précédence & Haute \\
 \hline
-US-19 & En tant que dispatcheur, je veux connaître l'heure d'arrivée estimée à chaque arrêt afin de détecter les retards. (8 pts) & T3-10 & Proposer une fenêtre horaire par arrêt à partir des temps de trajet calculés & Moyenne \\
+US-19 & Heure d'arrivée estimée à chaque arrêt (8 pts) & T3-10 & Proposer une fenêtre horaire par arrêt à partir des temps de trajet calculés & Moyenne \\
 \hline
-US-28 & En tant que dispatcheur, je veux voir l'avancement des livraisons sans recharger la page afin de réagir immédiatement. (13 pts) & T3-11 & Mettre en place la diffusion temps réel cloisonnée par entreprise & Haute \\
+US-28 & Avancement des livraisons en direct (13 pts) & T3-11 & Mettre en place la diffusion temps réel cloisonnée par entreprise & Haute \\
 \hline
       &  & T3-12 & Pousser l'avancement des livraisons sur le centre de dispatch & Haute \\
 \hline
-US-29 & En tant que dispatcheur, je veux être alerté des retards et des échecs afin de traiter les exceptions en priorité. (5 pts) & T3-13 & Évaluer l'échéance de chaque livraison et signaler les retards & Moyenne \\
+US-29 & Alerte sur les retards et les échecs (5 pts) & T3-13 & Évaluer l'échéance de chaque livraison et signaler les retards & Moyenne \\
 \hline
-US-30 & En tant que dispatcheur, je veux réaffecter une livraison bloquée à un autre chauffeur afin de sauver la journée. (5 pts) & T3-14 & Réaffecter une livraison, avec transfert de garde si le colis est déjà en main & Haute \\
+US-30 & Réaffectation d'une livraison bloquée (5 pts) & T3-14 & Réaffecter une livraison, avec transfert de garde si le colis est déjà en main & Haute \\
 \hline
-US-31 & En tant que destinataire, je veux suivre mon colis par un lien reçu afin de connaître son avancement sans créer de compte. (8 pts) & T3-15 & Exposer le suivi par lien, sans authentification et à débit limité & Moyenne \\
+US-31 & Suivi public du colis par lien (8 pts) & T3-15 & Exposer le suivi par lien, sans authentification et à débit limité & Moyenne \\
 \hline
       &  & T3-16 & Fermer le lien quatorze jours après la fin de la livraison & Basse \\
 \hline
-US-32 & En tant que destinataire, je veux demander le retour d'un article reçu afin que ma demande soit enregistrée et suivie. (3 pts) & T3-17 & Enregistrer la demande de retour depuis la page publique & Moyenne \\
+US-32 & Demande de retour par le destinataire (3 pts) & T3-17 & Enregistrer la demande de retour depuis la page publique & Moyenne \\
 \hline
-US-33 & En tant que dispatcheur, je veux approuver ou refuser une demande de retour et déclencher la reprise en stock afin de garder la main sur ce qui revient. (8 pts) & T3-18 & Approuver ou refuser une demande de retour & Moyenne \\
+US-33 & Approbation d'un retour et reprise en stock (8 pts) & T3-18 & Approuver ou refuser une demande de retour & Moyenne \\
 \hline
       &  & T3-19 & Déclencher la remise en stock dans le progiciel & Moyenne \\
 \hline
@@ -152,12 +131,6 @@ acceptés. Tant qu'une seule instance tourne, cela fonctionne. Dès qu'une secon
 dispatcheur connecté à la première ne voit plus rien de ce qui se passe sur la seconde. Confier la
 diffusion à RabbitMQ supprime ce lien à la topologie, puisque toutes les instances publient dans le même
 courtier, et tout abonné reçoit l'événement quelle que soit l'instance qui le sert.
-
-Il faut être clair sur ce que ce canal apporte et sur ce qu'il n'apporte pas. Il n'est pas un moyen
-de conservation, car un dispatcheur déconnecté au moment de l'émission ne recevra pas l'événement. La
-donnée, elle, reste en base, et les alertes qui doivent survivre à une absence sont enregistrées
-séparément pour rester consultables. Le temps réel évite d'attendre le prochain rafraîchissement, il
-ne remplace pas la base.
 
 \paragraph{Le respect des délais~:} pour chaque livraison, le système compare l'avancement réel à la
 fenêtre horaire engagée sur l'arrêt et rend un verdict~: dans les temps, à risque, ou dépassé. Le
@@ -308,12 +281,6 @@ n'est appelé que pour proposer un ordre. Enfin, \code{RouteValidator} rassemble
 déterminent si une tournée est légale~: chauffeur actif, absence de conflit d'horaire, charge utile
 respectée, fenêtres horaires cohérentes.
 
-Ce dernier point mérite d'être expliqué. Ces contrôles servent à plusieurs opérations~: créer une
-tournée, la modifier, y ajouter un arrêt et la valider. Ils vivaient d'abord au milieu du
-service de planification, mêlés au code qui applique les changements. Les avoir isolés sépare deux
-questions différentes~: « cette tournée est-elle légale~? » et « comment la modifier~? ». Une règle a
-ainsi une seule écriture, et la corriger une fois vaut pour tous les chemins qui l'appellent.
-
 Deux composants complètent l'ensemble. \code{OsrmRoutingService} est le client du moteur
 d'itinéraires~: il fournit la matrice des durées, une proposition d'ordre et les tracés.
 \code{PrecedenceAwareSequencer} est la stratégie qui décide de l'ordre final. Les séparer n'est pas
@@ -361,12 +328,6 @@ ordres~: celui en place, celui du moteur et un troisième construit de proche en
 qui violent la précédence, et garde le moins coûteux. Comme l'ordre en place est l'un des candidats,
 la suggestion ne peut pas être moins bonne que ce que le dispatcheur a déjà sous les yeux.
 
-Cette règle vient d'un échec concret. L'ancienne méthode prenait l'ordre du moteur et déplaçait tous
-les chargements au début de la liste, avant toutes les livraisons. Le résultat était valide, puisque
-chaque livraison suivait bien son chargement, mais il obligeait le chauffeur à passer par tous les
-dépôts avant de livrer quoi que ce soit~: sur une tournée de Tunis comportant un chargement à Sousse,
-il descendait cent trente kilomètres, puis remontait livrer.
-
 Les heures d'arrivée se règlent au même endroit. Le système part de l'heure de départ, ajoute les
 durées de trajet et le temps passé sur place, et en déduit une \textbf{fenêtre horaire proposée pour
 chaque arrêt}. Mais il n'enregistre jamais l'heure qu'il a calculée. Ce qui est conservé, et ce sur
@@ -390,7 +351,7 @@ la fait passer en programmée, le chargement au dépôt en chargée, le départ 
 l'arrêt par le chauffeur mène à l'un des trois résultats possibles, selon ce qui a réellement été
 remis~: tout, une partie, ou rien.
 
-Trois particularités de ce diagramme portent des décisions de conception.
+Deux particularités de ce diagramme portent des décisions de conception.
 
 D'abord, l'issue de l'arrêt est un choix guidé par les quantités, non une déclaration du chauffeur.
 Le résultat se déduit de ce qui a été remis, et si aucune ligne ne l'a été, c'est un échec, pas une
@@ -401,12 +362,6 @@ Ensuite, la livraison partielle est un état terminal, au même titre que la liv
 reliquat ne prolonge pas la livraison en cours, mais donne lieu à une autre livraison, créée à partir
 de la commande. Une livraison close reste ainsi le compte rendu fidèle d'un passage, et non un
 dossier qu'on rouvre.
-
-Enfin, l'état d'attente de transfert existe pour que la garde du colis ne soit jamais ambiguë.
-Lorsqu'une livraison change de chauffeur alors que le colis est déjà chargé, elle ne passe pas
-directement d'un chauffeur à l'autre, mais s'arrête dans cet état intermédiaire jusqu'à ce que la
-remise soit confirmée sur le terrain. Sans lui, le système désignerait un porteur pendant qu'un autre
-tiendrait le colis, et l'écart ne se découvrirait qu'au litige.
 
 \subsection{L'évaluation des échéances}
 \label{sec:s3-echeances}
@@ -429,21 +384,12 @@ Le déplacement de responsabilité se lit sur la dernière ligne des colonnes, o
 engage le bureau quand les trois autres engagent le chauffeur. C'est ce qui permet à un responsable de
 distinguer une équipe qui planifie trop tard d'une flotte qui roule trop lentement.
 
-Les deux réserves portées en bas de la figure corrigent des injustices que la version initiale
-produisait. Sans le plafonnement du seuil d'alerte, un créneau de dix minutes passait à l'orange dès
-la première seconde et l'alerte ne voulait plus rien dire. Sans la réserve sur le multi-dépôt, le
-tableau de bord affichait chaque matin des retards imputés à des chauffeurs qui n'avaient pas encore
-pu prendre leur colis, et un indicateur qui accuse à tort finit par n'être plus regardé.
-
 Une dernière décision mérite d'être relevée~: une livraison en échec reçoit elle aussi un verdict.
 Une tentative faite dans les temps mais infructueuse est enregistrée comme respectée, tandis qu'une
 tentative faite hors délai est un dépassement. La distinction sépare ce qui relève de l'organisation
 de ce qui relève du client absent, alors qu'un tiret dans la colonne aurait mélangé les deux.
 
 \section{Réalisation}
-
-Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
-montrée.
 
 La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones. À gauche, la liste
 des tournées de la journée. Au centre, la tournée sélectionnée, ici en brouillon, avec ses arrêts
@@ -453,7 +399,7 @@ planifier. Le bandeau supérieur porte les compteurs et les filtres qui permette
 cette liste.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{routebuilder}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{routebuilder}
 \caption{Planificateur de tournées}\label{fig:s3-builder}\end{figure}
 
 La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation. L'ordre proposé est affiché arrêt par
@@ -463,7 +409,7 @@ proposé. Deux boutons closent l'aperçu~: appliquer ou rejeter. Rien n'est enre
 et la tournée reste en brouillon après lui.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{optimisateur}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{optimisateur}
 \caption{Aperçu d'optimisation, avec les gains et les fenêtres proposées}\label{fig:s3-optim}\end{figure}
 
 La figure~\ref{fig:s3-route} montre la fiche d'une tournée. Un bandeau d'indicateurs en résume
@@ -472,7 +418,7 @@ l'itinéraire réellement suivi, et la séquence des arrêts est reprise à droi
 client et le montant concerné.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{perroutepage}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{perroutepage}
 \caption{Fiche d'une tournée en cours}\label{fig:s3-route}\end{figure}
 
 La figure~\ref{fig:s3-desk} présente le centre de dispatch, l'écran sur lequel arrivent les
@@ -488,7 +434,7 @@ désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne co
 il la garde sous les yeux pendant qu'il travaille ailleurs.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{dispatchdesk}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{dispatchdesk}
 \caption{Centre de dispatch}\label{fig:s3-desk}\end{figure}
 
 La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation. Les chauffeurs en service sont
@@ -500,7 +446,7 @@ le premier. Seuls les chauffeurs dont la position est récente sont proposés, u
 disant rien de l'endroit où ils se trouvent maintenant.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{reassignation}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{reassignation}
 \caption{Réaffectation d'une livraison, chauffeurs classés par temps d'accès}\label{fig:s3-reassign}\end{figure}
 
 La figure~\ref{fig:s3-retour} montre enfin la fiche d'un retour. L'origine y est explicite, « créé
@@ -510,14 +456,8 @@ photographies jointes par le client, l'état de la synchronisation avec le progi
 chronologie de la demande.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{retour}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{retour}
 \caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
-
-Le cycle du retour mérite un mot, car il illustre une économie de conception. Une collecte de retour
-n'est pas un objet nouveau~: c'est une livraison d'un type particulier. Elle traverse la même machine
-à états, entre dans les mêmes tournées, s'affecte de la même façon et se prouve sur le même écran
-mobile. Créer un objet séparé aurait imposé de redévelopper la planification, l'affectation et la
-preuve pour un mouvement qui n'est, au fond, qu'une livraison parcourue à l'envers.
 
 Le modèle distingue en revanche deux moments que l'on aurait pu confondre. Un retour reçu signifie
 que le colis est physiquement revenu au dépôt. Un retour remis en stock signifie qu'il a été jugé
@@ -529,8 +469,8 @@ comme disponible à la vente.
 
 \subsection{Scénarios de test}
 
-Quatre scénarios couvrent les apports du sprint~: l'ordre de passage, la validation d'une tournée,
-la mesure des délais et la réaffectation en cours de journée.
+Trois scénarios couvrent les apports du sprint~: l'ordre de passage, la mesure des délais et la
+réaffectation en cours de journée.
 
 \begin{small}
 \begin{longtable}{L{3.2cm}L{11.0cm}}
@@ -551,29 +491,6 @@ la mesure des délais et la réaffectation en cours de journée.
 \textbf{Scénario} & 1. Demander une optimisation. \newline 2. Comparer l'ordre proposé et son coût à l'ordre initial. \\
 \hline
 \textbf{Résultat attendu} & Chaque livraison suit le chargement dont elle dépend~; le coût annoncé est inférieur ou égal à celui de l'ordre initial. \\
-\hline
-\end{longtable}
-\end{small}
-
-\begin{small}
-\begin{longtable}{L{3.2cm}L{11.0cm}}
-\caption{TC-S3-02 — Refus de validation d'une tournée non conforme}\label{tab:tc-s3-02}\\
-\hline
-\rowcolor{isimsblue!10}
-\textbf{Cas de test} & TC-S3-02 \\
-\hline
-\endfirsthead
-\hline
-\multicolumn{2}{l}{\small\itshape TC-S3-02 (suite)} \\
-\hline
-\endhead
-\textbf{Description} & Une tournée qui dépasse la charge utile du véhicule, ou qui engage un chauffeur déjà pris, ne peut pas être validée. \\
-\hline
-\textbf{Précondition} & Un véhicule de charge utile connue, un chauffeur déjà affecté à une tournée validée sur le même créneau. \\
-\hline
-\textbf{Scénario} & 1. Constituer une tournée dont le poids cumulé dépasse la charge utile, puis la valider. \newline 2. Constituer une seconde tournée avec le chauffeur déjà engagé, puis la valider. \\
-\hline
-\textbf{Résultat attendu} & Les deux validations sont refusées avec un motif explicite~; les tournées restent en brouillon et modifiables. \\
 \hline
 \end{longtable}
 \end{small}
@@ -683,7 +600,7 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \end{longtable}
 \end{small}
 
-Le nombre de tests compte moins que ce qu'ils protègent. Deux classes méritent un mot.
+Deux classes méritent un mot.
 
 \code{PrecedenceAwareSequencerTest} ne vérifie pas qu'un ordre précis est produit, ce qui figerait
 une heuristique, mais des propriétés qui doivent tenir quel que soit le résultat~: aucune livraison
@@ -693,15 +610,6 @@ avant son chargement, et un coût jamais supérieur à celui de l'ordre reçu.
 contrôle de charge~: six cents kilogrammes dans un véhicule de quatre cents. Accepté si le premier
 colis est livré avant que le second ne soit chargé au dépôt distant, refusé s'ils voyagent ensemble.
 Une simple somme des poids aurait rejeté les deux, et interdit une tournée réalisable.
-
-Ces tests s'exécutent dans le pipeline d'intégration continue à chaque \emph{commit}. La
-figure~\ref{fig:s3-ci} montre le rapport produit par le job de tests unitaires, où chaque méthode
-apparaît avec son verdict et sa durée.
-
-\begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s3-ci-tests}
-\caption{Rapport de tests en intégration continue, avec les cas de \code{RouteValidatorTest}}
-\label{fig:s3-ci}\end{figure}
 
 \section{Conclusion}
 

@@ -194,16 +194,6 @@ pouvoir opérer soi-même~; c'est pourquoi les rôles sont déclarés à plat da
 portant sa liste explicite, plutôt qu'en chaîne d'héritage. Le chapitre~\ref{ch:socle} détaille ce
 modèle.
 
-Les liens \emph{«~include~»} vers le cas \emph{S'authentifier} ne sont tracés que depuis les points
-d'entrée. L'authentification est en réalité une précondition de tous les cas internes~; la relier à
-chacun surchargerait la figure sans rien apprendre au lecteur. Le destinataire, lui, en est
-véritablement exempt~: son suivi passe par un lien public et n'exige aucun compte.
-
-Les deux liens \emph{«~extend~»} signalent des cas facultatifs. \emph{Optimiser l'ordre des arrêts}
-étend \emph{Planifier une tournée}, parce que le dispatcheur peut toujours ordonner ses arrêts
-lui-même. \emph{Encaisser un paiement} étend \emph{Livrer une commande}, parce que toutes les
-commandes ne sont pas payables à la livraison.
-
 \subsection{Diagramme de classes global}
 
 Le diagramme de la figure~\ref{fig:class-global} présente les concepts manipulés par le système et
@@ -490,15 +480,6 @@ Sprint 5 & Exploitation, résilience et assistance & 20 juillet — 7 août & 3 
 \end{tabular}
 \end{table}
 
-Les sprints~2, 3 et~4 concentrent les deux tiers des points. Le premier parce que l'indépendance
-vis-à-vis du progiciel exige une couche d'abstraction complète avant le moindre gain visible~; les
-deux suivants parce qu'ils portent le cœur métier, côté bureau puis côté terrain.
-
-Rapportée à la durée, la charge passe de 11~points par semaine au sprint~1 à une vingtaine ensuite,
-sans jamais redescendre. Cette progression n'est pas un hasard de découpage~: le premier sprint a été
-ralenti par la mise en place de l'environnement et de la chaîne de déploiement, dont les suivants ont
-hérité sans en repayer le coût.
-
 \section{Étude technique}
 
 \subsection{Environnement matériel}
@@ -632,15 +613,6 @@ d'itinéraires.
 \caption{Technologies retenues pour la plateforme}
 \label{fig:logos-technos}
 \end{figure}
-
-\paragraph*{Sur le choix de la base de données.} PostgreSQL a été retenu pour deux raisons directement
-liées aux besoins structurants. La première est l'isolation par entreprise cliente~: PostgreSQL
-permet de créer un schéma par client au sein d'une même base et d'en changer dynamiquement à chaque
-requête, mécanisme sur lequel repose toute la multi-tenance décrite au chapitre~\ref{ch:archi}. La
-seconde est le stockage semi-structuré~: le détail des lignes de commande et les champs
-supplémentaires propres à chaque client varient d'un progiciel à l'autre, ce que le type
-\texttt{jsonb} absorbe sans multiplier les tables. S'y ajoute l'absence de coût de licence, cohérente avec une solution
-destinée à être déployée chez plusieurs clients.
 
 \section{Conclusion}
 

@@ -48,7 +48,7 @@ tableau~\ref{tab:backlog-s2} en donne la décomposition en tâches.
 Le tableau~\ref{tab:backlog-s2} détaille les tâches du sprint, regroupées par \terme{user story}.
 
 \begin{small}
-\begin{longtable}{L{1.1cm}L{4.3cm}L{1.2cm}L{5.7cm}L{1.3cm}}
+\begin{longtable}{L{1.1cm}L{3.0cm}L{1.2cm}L{7.0cm}L{1.3cm}}
 \caption{Sprint backlog — sprint 2}\label{tab:backlog-s2}\\
 \hline
 \rowcolor{isimsblue!10}
@@ -63,13 +63,13 @@ Le tableau~\ref{tab:backlog-s2} détaille les tâches du sprint, regroupées par
 \hline
 \endfoot
 
-US-05 & En tant que dispatcheur, je veux importer les commandes prêtes depuis le progiciel afin de ne pas les ressaisir. (13 pts) & T2-01 & Lire la liste des commandes en attente depuis le progiciel & Haute \\
+US-05 & Import des commandes prêtes du progiciel (13 pts) & T2-01 & Lire la liste des commandes en attente depuis le progiciel & Haute \\
 \hline
       &  & T2-02 & Prévisualiser le détail d'une commande, champ par champ, avant de l'importer & Haute \\
 \hline
       &  & T2-03 & Importer une commande, ou un lot de commandes & Haute \\
 \hline
-US-06 & En tant qu'administrateur, je veux relier les champs de mon progiciel à ceux du système afin d'adapter l'intégration à mon paramétrage. (13 pts) & T2-04 & Définir le contrat canonique (27 champs, 5 types, portée en-tête ou ligne) & Haute \\
+US-06 & Mapping des champs du progiciel (13 pts) & T2-04 & Définir le contrat canonique (27 champs, 5 types, portée en-tête ou ligne) & Haute \\
 \hline
       &  & T2-05 & Construire le système de types (types source, convertisseurs, verdicts) & Haute \\
 \hline
@@ -79,7 +79,7 @@ US-06 & En tant qu'administrateur, je veux relier les champs de mon progiciel à
 \hline
       &  & T2-08 & Signaler qu'un champ a changé de type après la mise en service & Basse \\
 \hline
-US-07 & En tant qu'entreprise, je veux pouvoir brancher la solution sur n'importe quel progiciel de gestion afin de ne dépendre d'aucun éditeur. (21 pts) & T2-09 & Définir les quatre ports d'intégration & Haute \\
+US-07 & Intégration agnostique du progiciel (21 pts) & T2-09 & Définir les quatre ports d'intégration & Haute \\
 \hline
       &  & T2-10 & Implémenter l'adaptateur Odoo (JSON-RPC) & Haute \\
 \hline
@@ -87,17 +87,17 @@ US-07 & En tant qu'entreprise, je veux pouvoir brancher la solution sur n'import
 \hline
       &  & T2-12 & Router vers le bon adaptateur et refuser une intégration non certifiée & Haute \\
 \hline
-US-08 & En tant que dispatcheur, je veux que le statut d'une livraison remonte automatiquement dans le progiciel afin que la facturation suive. (8 pts) & T2-13 & Écrire le fait métier et son intention de synchronisation dans la même transaction & Haute \\
+US-08 & Remontée automatique du statut de livraison (8 pts) & T2-13 & Écrire le fait métier et son intention de synchronisation dans la même transaction & Haute \\
 \hline
       &  & T2-14 & Publier les événements vers le progiciel de façon rejouable & Haute \\
 \hline
-US-09 & En tant que dispatcheur, je veux qu'une synchronisation interrompue soit réessayée puis signalée afin qu'aucune information ne se perde silencieusement. (13 pts) & T2-15 & Réessayer avec espacement croissant, puis basculer en file de rebut & Haute \\
+US-09 & Reprise d'une synchronisation interrompue (13 pts) & T2-15 & Réessayer avec espacement croissant, puis basculer en file de rebut & Haute \\
 \hline
       &  & T2-16 & Refléter l'état de synchronisation sur la commande et alerter en cas d'échec & Haute \\
 \hline
-US-10 & En tant que dispatcheur, je veux récupérer les entrepôts du progiciel comme dépôts afin d'éviter un double référentiel. (5 pts) & T2-17 & Synchroniser les dépôts depuis les entrepôts du progiciel & Moyenne \\
+US-10 & Récupération des entrepôts comme dépôts (5 pts) & T2-17 & Synchroniser les dépôts depuis les entrepôts du progiciel & Moyenne \\
 \hline
-US-11 & En tant qu'administrateur, je veux que le système fonctionne avec plusieurs versions du même progiciel afin de ne pas imposer de montée de version au client. (13 pts) & T2-18 & Déclarer les capacités par liste de candidats & Haute \\
+US-11 & Prise en charge de plusieurs versions (13 pts) & T2-18 & Déclarer les capacités par liste de candidats & Haute \\
 \hline
       &  & T2-19 & Résoudre chaque capacité par la présence, jamais par le numéro de version & Haute \\
 \hline
@@ -303,18 +303,6 @@ garantie ne repose pas sur la vigilance du développeur, car la méthode qui enr
 exige une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'avoir une livraison validée
 sans son événement en attente.
 
-Un processus séparé lit ensuite les événements en attente et les publie sur un \textbf{courtier de
-messages}. C'est ce choix d'une \textbf{communication asynchrone}, plutôt qu'un appel direct au
-progiciel, qui rend tout le reste possible. Le service dépose sa commande et poursuit sans attendre,
-l'adaptateur la traite quand il le peut, et une livraison ne dépend plus de la disponibilité du
-progiciel.
-
-Ce processus prend les événements par petits lots et les verrouille au passage, pour que deux
-instances du service ne traitent jamais le même deux fois. L'identifiant de l'événement sert de
-\textbf{clé d'idempotence} dans l'adaptateur, qui vérifie avant d'agir s'il a déjà traité cet
-identifiant et, si oui, renvoie le résultat mémorisé sans refaire l'opération. Un message rejoué après
-une panne ne produit donc pas d'écriture en double.
-
 La reprise sur panne se joue à \textbf{deux étages qu'il ne faut pas confondre}. Le premier protège la
 remise du message au courtier, car si celui-ci est indisponible l'outbox réessaie, avec un espacement
 croissant, jusqu'à réussir à le déposer. Le second étage, \textbf{le plus important, protège contre
@@ -350,14 +338,11 @@ réparable, jamais perdu dans un journal.
 
 \section{Réalisation}
 
-Cette section présente les écrans livrés par le sprint. Chaque capture est annoncée avant d'être
-montrée.
-
 La figure~\ref{fig:s2-connexion} montre l'écran de connexion au progiciel~: le choix du fournisseur,
 l'adresse, les identifiants, et le statut de certification.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-connexion}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-connexion}
 \caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
 
 La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel et
@@ -366,7 +351,7 @@ au lieu de le deviner d'après un numéro de version, de sorte qu'une version ja
 sans modification tant qu'elle expose les champs attendus.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-compatibilite}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
 La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ y
@@ -375,29 +360,30 @@ Une cellule sans valeur indique ainsi laquelle des deux causes s'applique, vide 
 présente mais illisible, au lieu de laisser un blanc que personne ne saurait expliquer.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-erp-apercu}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-apercu}
 \caption{Aperçu d'une commande avant l'import}\label{fig:s2-apercu}\end{figure}
 
 La figure~\ref{fig:s2-import} présente l'écran d'import des commandes prêtes~: la liste, et l'import
 d'une commande ou d'un lot.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-import}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-import}
 \caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
 
 Enfin, la figure~\ref{fig:s2-dlq} montre la file de rebut~: les synchronisations définitivement en échec,
 consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-dlq}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-dlq}
 \caption{File morte des synchronisations en échec}\label{fig:s2-dlq}\end{figure}
 
 \section{Tests et validation}
 
 \subsection{Scénarios de validation}
 
-Trois scénarios couvrent les trois apports du sprint~: l'agnosticité, le contrôle de mapping et la
-reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref{tab:tc-s2-03}.
+Deux scénarios couvrent les apports du sprint~: l'agnosticité et la reprise sur panne. Ils sont
+donnés dans les tableaux~\ref{tab:tc-s2-01} et~\ref{tab:tc-s2-03}. Le contrôle de compatibilité d'un
+mapping est décrit par le cas d'utilisation \emph{Mapper les champs}, scénarios 3a et 3b.
 
 \begin{small}
 \begin{longtable}{L{3.2cm}L{11.0cm}}
@@ -418,29 +404,6 @@ reprise sur panne. Ils sont donnés dans les tableaux~\ref{tab:tc-s2-01} à~\ref
 \textbf{Scénario} & 1. Déclencher une synchronisation pour chaque entreprise. \newline 2. Observer l'adaptateur retenu pour chacune. \\
 \hline
 \textbf{Résultat attendu} & Chaque entreprise est servie par l'adaptateur de son propre progiciel~; le métier appelé est identique. \\
-\hline
-\end{longtable}
-\end{small}
-
-\begin{small}
-\begin{longtable}{L{3.2cm}L{11.0cm}}
-\caption{TC-S2-02 — Verdict de compatibilité d'un mapping}\label{tab:tc-s2-02}\\
-\hline
-\rowcolor{isimsblue!10}
-\textbf{Cas de test} & TC-S2-02 \\
-\hline
-\endfirsthead
-\hline
-\multicolumn{2}{l}{\small\itshape TC-S2-02 (suite)} \\
-\hline
-\endhead
-\textbf{Description} & Un type incompatible est refusé~; un type qui convertit en perdant de l'information exige une confirmation. \\
-\hline
-\textbf{Précondition} & Une intégration certifiée, sur l'écran de mapping. \\
-\hline
-\textbf{Scénario} & 1. Relier un champ texte à une quantité (\code{char} → \code{INTEGER}). \newline 2. Relier un champ décimal à une quantité (\code{float} → \code{INTEGER}). \\
-\hline
-\textbf{Résultat attendu} & Étape 1~: refusé (\code{UNSUPPORTED}), avec motif. Étape 2~: accepté après confirmation (\code{LOSSY}), qui nomme la perte. \\
 \hline
 \end{longtable}
 \end{small}
@@ -517,7 +480,7 @@ La figure~\ref{fig:s2-ci-biversion} montre le job d'intégration continue qui la
 les deux versions d'Odoo, toutes deux au vert.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{s2-ci-biversion}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-ci-biversion}
 \caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
 
 Un dernier contrôle mérite d'être cité, car il agit avant même les tests. Si un champ canonique

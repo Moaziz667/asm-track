@@ -1,7 +1,150 @@
 % Budget : 9 pages — voir rapport/PLAN.md
+%
+% Captures attendues dans ../diagrams/drawio/chap9/ :
+%   ci-tests.png    — onglet Tests d'un pipeline GitLab (PRETE)
+%   ci-pipeline.png — les cinq etapes en vert (A PRENDRE)
+%   deploy-ps.png   — docker compose ps sur le VPS (A PRENDRE lundi)
+% Les figures 1 et 3 sont commentees tant que les fichiers n'existent pas : une
+% inclusion d'image absente arrete la compilation.
 \chapter{Validation globale, qualité et déploiement}
 \label{ch:validation}
 
 \section{Introduction}
 
+Les cinq chapitres précédents ont montré ce que chaque sprint a livré. Celui-ci regarde l'ensemble
+sous un autre angle~: comment on sait que le produit fonctionne, et comment il arrive sur une
+machine qui n'est pas celle du développeur.
+
+Les deux questions n'en font qu'une. Une chaîne d'intégration qui ne teste rien laisse passer des
+régressions. Une suite de tests que personne n'exécute automatiquement finit par mentir. Ce
+chapitre décrit donc le dispositif complet, des tests unitaires jusqu'aux conteneurs qui tournent
+sur le serveur.
+
+\section{La pyramide de tests}
+
+Le dépôt compte \textbf{783 tests automatisés}. Leur répartition suit la forme attendue~: une base
+large de tests unitaires et une couche d'intégration plus mince.
+
+\begin{small}
+\begin{longtable}{L{4.6cm}C{1.8cm}L{6.6cm}}
+\caption{Répartition des tests automatisés}\label{tab:tests-total}\\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Couche} & \textbf{Tests} & \textbf{Ce qu'elle vérifie} \\
+\hline
+\endfirsthead
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Couche} & \textbf{Tests} & \textbf{Ce qu'elle vérifie} \\
+\hline
+\endhead
+\hline
+\endfoot
+Unitaires Java & 545 & Les règles métier, sans base ni réseau \\
+\hline
+Intégration Java & 60 & Le comportement contre une vraie base et un vrai progiciel \\
+\hline
+React (Vitest) & 147 & Les composants et la logique de l'interface d'administration \\
+\hline
+Flutter (Dart) & 31 & L'application du livreur, dont la file d'attente hors ligne \\
+\hline
+\rowcolor{isimsblue!10}
+\textbf{Total} & \textbf{783} & \textbf{105 fichiers de test} \\
+\hline
+\end{longtable}
+\end{small}
+
+Les deux services les plus fournis sont ceux qui portent le métier~: 254 tests pour la gestion des
+livraisons, 225 pour le connecteur ERP. La passerelle en compte 23, ce qui correspond à son rôle,
+router les requêtes et appliquer la politique d'autorisation.
+
+Un seul test est désactivé par défaut, l'évaluation de la recherche documentaire décrite au
+chapitre~\ref{ch:ops}. Elle appelle un service externe facturé à l'usage et n'a donc pas sa place
+dans une exécution déclenchée à chaque \emph{commit}. Elle se lance à la demande.
+
+La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la chaîne.
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,height=0.30\textheight,keepaspectratio]{ci-tests}
+\caption{Rapport de tests agrégé par la chaîne d'intégration}\label{fig:ci-tests}\end{figure}
+
+\section{La chaîne d'intégration continue}
+
+La chaîne enchaîne cinq étapes, ordonnées par coût croissant~: compilation, tests unitaires, analyse
+de sécurité, tests d'intégration, construction des images. Rien ne démarre si l'étape précédente a
+échoué.
+
+L'ordre n'est pas décoratif. Une erreur de compilation se voit presque tout de suite, alors que le
+job du connecteur ERP, qui démarre deux instances du progiciel et attend qu'elles soient réellement
+utilisables, met trois minutes et dix-neuf secondes. Placer les étapes lentes en dernier évite
+d'attendre pour apprendre qu'une accolade manquait.
+
+L'étape de construction ne produit jamais de \emph{tag} \code{latest}. Chaque image porte l'empreinte
+du \emph{commit}, le nom de la branche, et le cas échéant le \emph{tag} de version. Un déploiement
+épingle une empreinte~: deux machines annoncées sur la même version exécutent alors le même code.
+Un \emph{tag} dont le sens change en silence est la façon la plus simple de perdre cette garantie.
+
+La figure~\ref{fig:ci-pipeline} montre une exécution complète.
+
+% EMPLACEMENT RESERVE : remplacer le \fbox par la ligne \includegraphics commentee
+% une fois ci-pipeline.png depose dans diagrams/drawio/chap9/
+\begin{figure}[H]\centering
+\fbox{\parbox[c][0.24\textheight][c]{0.95\textwidth}{\centering\itshape
+Capture à insérer~: \code{ci-pipeline.png}\\[2mm]
+Les cinq étapes de la chaîne, en vert, dans l'interface GitLab}}
+% \includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{ci-pipeline}
+\caption{Les cinq étapes de la chaîne d'intégration}\label{fig:ci-pipeline}\end{figure}
+
+\section{Le connecteur ERP éprouvé sur deux versions}
+
+La suite d'intégration du connecteur s'exécute contre Odoo 16 et Odoo 19 en parallèle, deux
+instances lancées comme services du job sur un PostgreSQL partagé. Tester les deux bornes de
+l'intervalle supporté couvre par construction les versions intermédiaires.
+
+Le point délicat n'était pas de lancer le progiciel, mais de savoir quand il est prêt. Son port HTTP
+répond en quelques secondes, bien avant que les modules de vente et de stock soient installés, et un
+test lancé à ce moment échoue sur l'authentification plutôt que sur ce qu'il est censé vérifier.
+L'attente porte donc sur une requête métier réelle, réussie plusieurs fois de suite~: un état
+annoncé comme prêt ne vaut pas un service capable de répondre.
+
+\section{L'analyse des dépendances}
+
+Un analyseur parcourt les dépendances et les fichiers de configuration à chaque exécution, et
+signale les vulnérabilités de niveau élevé et critique. Le job est déclaré non bloquant.
+
+Ce choix se discute, et c'est volontaire. Une faille héritée d'une dépendance transitive n'est pas
+toujours corrigible dans la journée. Faire échouer toute la chaîne pour cette raison conduit vite à
+désactiver le contrôle, et l'information disparaît alors complètement. La rendre visible sans la
+rendre bloquante la garde sous les yeux de l'équipe.
+
+\section{Le déploiement}
+
+% TODO lundi : rediger cette section apres le deploiement sur le serveur.
+% Points a couvrir, dans cet ordre :
+%   1. L'architecture des conteneurs et le point d'entree unique.
+%   2. Le tableau des ports exposes et de ceux qui ne le sont pas.
+%   3. Les trois incidents resolus : en-tete X-Forwarded-Port, droits de la cle
+%      privee pour l'utilisateur non privilegie, URLs de redirection obsoletes.
+%   4. La terminaison TLS et ce qui reste a faire avant une mise en production.
+
+\emph{Section à rédiger lundi, après le déploiement sur le serveur.}
+
+% EMPLACEMENT RESERVE : remplacer le \fbox par la ligne \includegraphics commentee
+% une fois deploy-ps.png depose dans diagrams/drawio/chap9/
+\begin{figure}[H]\centering
+\fbox{\parbox[c][0.26\textheight][c]{0.95\textwidth}{\centering\itshape
+Capture à insérer~: \code{deploy-ps.png}\\[2mm]
+Sortie de \code{docker compose ps} sur le serveur, tous les conteneurs sains}}
+% \includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{deploy-ps}
+\caption{État des conteneurs sur le serveur de déploiement}\label{fig:deploy-ps}\end{figure}
+
 \section{Conclusion}
+
+Le dispositif décrit ici tient en une phrase~: rien n'arrive sur le serveur qui n'ait traversé les
+cinq étapes de la chaîne, et l'artefact déployé est celui qu'elle a construit, jamais une
+recompilation faite sur place.
+
+Reste ce qui n'est pas couvert. Aucun test ne pilote un navigateur, donc les parcours de bout en
+bout de l'interface restent vérifiés à la main. Le déploiement lui-même n'est pas encore déclenché
+par la chaîne~: les images sont publiées automatiquement, leur mise en service demande une
+intervention. C'est le premier chantier à ouvrir après la soutenance.

@@ -3,4 +3,55 @@
 \markboth{CONCLUSION GÉNÉRALE}{}
 
 % Budget : 3 pages.
+
+Le présent projet a permis la conception et le développement complet d'un système intelligent de
+suivi de livraison, destiné à couvrir le dernier kilomètre, là où le progiciel de gestion perd la
+trace de la commande. Réalisé au sein de l'entreprise ASM selon une démarche Agile Scrum menée en
+six sprints, ce travail a abouti à une plateforme qui suit une commande depuis son import dans l'ERP
+jusqu'à la preuve de livraison qui y retourne.
+
+Sur le plan technique, la solution repose sur une architecture en microservices Spring Boot placés
+derrière une passerelle unique, un modèle relationnel PostgreSQL dont le schéma est versionné par
+migrations, RabbitMQ pour les échanges asynchrones et MinIO pour le stockage des preuves.
+L'identité est déléguée à Keycloak, le suivi en direct est diffusé par WebSocket vers une console
+d'administration React, et le terrain est équipé d'une application chauffeur Flutter, l'ensemble
+étant déployé en conteneurs orchestrés par Docker Compose.
+
+L'apport principal réside dans l'intégration agnostique au progiciel de gestion. Quatre ports
+définissent ce dont le métier a besoin, deux connecteurs les réalisent aujourd'hui pour Odoo et
+ERPNext, et un mapping guidé appuyé sur un contrat canonique refuse une correspondance incohérente
+avant qu'elle ne produise des données inexploitables. Un moteur de capacités interroge ce que
+l'instance sait réellement faire plutôt que son numéro de version, ce qui permet d'absorber les
+écarts entre éditions sans réécrire le connecteur. La validité de ce découpage a été éprouvée en
+cours de route~: ERPNext n'était pas prévu au moment où les ports ont été définis, et son
+intégration n'a demandé aucune modification du cœur métier.
+
+Le second apport tient au mode hors ligne de l'application chauffeur. Une écriture faite sans réseau
+est conservée sur le téléphone, affichée immédiatement, puis rejouée au retour de la couverture avec
+la même clé et le même horodatage, le serveur reconnaissant une opération déjà traitée. Ce qui
+échoue malgré tout reste visible dans un centre de synchronisation où le chauffeur décide lui-même
+de relancer ou d'abandonner.
+
+Par ailleurs, la plateforme intègre les mécanismes attendus d'une exploitation servant plusieurs
+entreprises~: isolation des données par schéma dédié, contrôle d'accès fondé sur dix-huit
+permissions réparties sur trois rôles et appliqué à l'identique dans chaque service, journal d'audit
+unifié couvrant les actions sensibles, et assistant interne qui ne répond qu'à partir de sources
+qu'il cite. La qualité est éprouvée par 783 tests automatisés et une chaîne d'intégration en cinq
+étapes, la suite du connecteur ERP s'exécutant en parallèle contre Odoo 16 et Odoo 19.
+
+Ce projet ouvre plusieurs perspectives d'évolution. Aucun test ne pilote aujourd'hui un navigateur,
+si bien que les parcours complets de la console d'administration restent vérifiés à la main et
+qu'une régression purement visuelle traverserait la chaîne sans être vue. Une supervision durable,
+avec conservation longue des métriques et alertes, remplacerait l'heure d'historique que conserve la
+console de santé. Le destinataire, qui dispose d'un lien de suivi mais que rien n'avertit, gagnerait
+à être notifié au départ de la tournée. Une réoptimisation en cours de journée, figeant les arrêts
+déjà effectués pour ne réordonner que ceux qui restent, absorberait un retard ou une commande
+urgente. Enfin, le connecteur DUX, dont les adaptateurs sont déjà déclarés face aux quatre ports
+mais restent en attente de la documentation de l'API de l'éditeur, viendra compléter la couverture
+des progiciels utilisés chez les clients d'ASM.
+
+Ce travail a permis de consolider des compétences en architecture distribuée, en intégration de
+systèmes hétérogènes et en conception de modes dégradés, dans un contexte où la coupure réseau et
+l'indisponibilité d'un progiciel tiers relèvent de l'ordinaire plutôt que de l'exception.
+
 \clearpage
