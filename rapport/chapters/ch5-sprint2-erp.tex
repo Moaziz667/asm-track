@@ -324,10 +324,8 @@ premier étage, la remise au courtier. Il précise le cycle de vie que l'on vien
 \end{figure}
 
 Un événement naît \emph{en attente}. Il passe \emph{en cours} le temps d'être traité, puis
-\emph{traité} en cas de succès. En cas d'échec, il retourne \emph{en attente}, mais avec un délai
-avant la prochaine tentative. Ce délai \textbf{double à chaque essai}~: les premières tentatives sont
-rapprochées, pour rattraper une coupure de quelques secondes sans que personne ne le remarque, puis
-l'espacement grandit pour ne pas marteler un courtier hors service.
+\emph{traité} en cas de succès. En cas d'échec, il retourne \emph{en attente} avec un délai
+croissant, selon le mécanisme décrit au chapitre~\ref{ch:archi}.
 
 Deux garde-fous complètent cet automate. D'abord, un événement resté \emph{en cours} après un arrêt
 brutal du service est ramené \emph{en attente} au redémarrage, pour ne pas rester bloqué. Ensuite,

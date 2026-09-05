@@ -23,10 +23,8 @@ puis la corriger en cours de journée lorsqu'une livraison doit changer de mains
 moteur d'échéances signale les retards, et le destinataire consulte l'avancement de son colis par un
 simple lien, sans compte.
 
-Ces trois volets reposent sur un même mécanisme. Chaque geste du terrain fait avancer une
-\textbf{machine à états}~: démarrer la tournée, charger au dépôt, partir vers le client, clôturer
-l'arrêt. Ce sont ces transitions, et elles seules, qui alimentent le suivi en direct, le calcul des
-délais et le rapport de fin de journée.
+Ces trois volets reposent sur un même mécanisme, une \textbf{machine à états} que chaque geste du
+terrain fait avancer.
 
 \section{Objectifs du sprint et planification des tâches}
 
@@ -293,10 +291,8 @@ chauffeur est actif et où il se trouve, mais ces données appartiennent au serv
 s'obtiennent par le réseau. Plutôt que de disperser cet appel partout, le service de livraison écrit
 d'abord ce dont il a besoin dans une interface courte, sans dire d'où viendra la réponse.
 \code{InternalTransportAdapter} la réalise en interrogeant le service voisin, et un paramètre de
-configuration désigne l'adaptateur à employer. Une entreprise qui confierait ses tournées à un
-transporteur extérieur plutôt qu'à ses propres chauffeurs n'aurait qu'à placer là un adaptateur qui
-parle à ce transporteur, et la planification, qui ne connaît que l'interface, resterait inchangée.
-C'est le patron des ports et adaptateurs du sprint précédent, appliqué cette fois à la flotte.
+configuration désigne l'adaptateur à employer. C'est le patron des ports et adaptateurs du sprint
+précédent, appliqué cette fois à la flotte.
 
 \subsection{Diagrammes de séquence}
 

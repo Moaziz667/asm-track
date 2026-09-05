@@ -165,12 +165,9 @@ conversationnel et concentre son intelligence artificielle sur la prédiction et
 tournées~\cite{bringg-ptos}. Aucun des deux ne documente donc un assistant capable d'interroger les
 données d'exploitation du client en langage naturel.
 
-C'est précisément la fonction retenue ici, avec deux garde-fous qui en font autre chose qu'un agent
-conversationnel branché sur une base. D'abord, l'assistant \textbf{hérite des droits de celui qui
-l'interroge}~: il ne dispose d'aucun compte propre, et deux utilisateurs de rôles différents
-n'obtiennent pas la même réponse à la même question. Ensuite, il \textbf{ne peut que lire}~: aucune
-de ses opérations ne modifie l'état du système. Il cite enfin ses sources, de sorte que chaque
-réponse reste vérifiable par celui qui la reçoit.
+C'est précisément la fonction retenue ici~: un assistant qui hérite des droits de celui qui
+l'interroge, ne peut que lire, et cite ses sources. Le chapitre~\ref{ch:ops} en détaille les
+garde-fous.
 
 \begin{table}[H]
 \centering
