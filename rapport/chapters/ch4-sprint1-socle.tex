@@ -391,8 +391,8 @@ d'utilisation détaillés plus haut et par la matrice des permissions.
 
 \subsection{Tests automatisés}
 
-Les trois scénarios ci-dessus sont aussi vérifiés par des tests automatisés, rejoués à chaque
-intégration. Le socle du sprint compte \textbf{47 méthodes de test}, réparties en deux familles~:
+Ce scénario, comme l'authentification et l'autorisation, est aussi vérifié par des tests automatisés,
+rejoués à chaque intégration. Le socle du sprint compte \textbf{47 méthodes de test}, réparties en deux familles~:
 \textbf{40 tests unitaires} sur 6 classes, et \textbf{7 tests d'intégration} sur 3 classes, qui
 s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépare les deux.
 
@@ -454,7 +454,7 @@ de PostgreSQL qui sont mis à l'épreuve~: une base simulée testerait l'imitati
 
 Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'intégration continue à
 chaque \emph{commit}. La figure~\ref{fig:s1-ci-rbac} montre le job qui s'assure que les cinq services
-portent la même politique, avec la même empreinte et ses quarante-sept règles.
+portent la même politique, avec la même empreinte.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.28\textheight,keepaspectratio]{s1-ci-rbac-check}
