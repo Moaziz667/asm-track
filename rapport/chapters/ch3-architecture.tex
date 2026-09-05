@@ -224,10 +224,6 @@ La figure~\ref{fig:donnees-par-service} montre cette répartition.
 La règle est simple et sans exception~: \textbf{un service ne lit que sa propre base}. Aucun ne va
 chercher une donnée directement dans la base d'un autre, même en lecture seule.
 
-Ce raccourci est pourtant tentant, parce qu'il marche tout de suite. Le problème vient après~: dès
-qu'il existe, plus personne ne peut modifier ces tables sans risquer de casser un service qu'il
-n'avait pas vu.
-
 \subsection{Ce que devient une relation entre deux services}
 
 Cette règle a une conséquence directe sur le modèle. Une livraison est affectée à un chauffeur, mais
