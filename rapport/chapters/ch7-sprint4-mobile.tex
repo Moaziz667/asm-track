@@ -5,6 +5,7 @@
 % s4-garde, s4-caisse, s4-guichet.
 \chapter{Sprint 4 — Application mobile chauffeur et mode hors ligne}
 \label{ch:mobile}
+\chaptermark{Sprint 4 — Application mobile chauffeur et mode hors ligne}
 
 \section{Introduction}
 
@@ -96,6 +97,10 @@ US-34 & Collecte d'un retour chez le destinataire (5 pts) & T4-23 & Collecter un
 \hline
 \end{longtable}
 \end{small}
+% Le sprint backlog demarre sur la page d'ouverture du chapitre, et longtable y avale la marque
+% posee par \chapter. Sans cette reemission, l'en-tete des pages suivantes garde le titre du
+% chapitre precedent.
+\chaptermark{Sprint 4 — Application mobile chauffeur et mode hors ligne}
 
 \section{Concepts et mécanismes utilisés}
 
@@ -328,29 +333,18 @@ où il la relance ou l'abandonne lui-même.
 
 \section{Réalisation}
 
-La figure~\ref{fig:s4-tournee} montre la tournée du jour telle que le chauffeur la voit. L'en-tête
-porte son nom et sa disponibilité, ici « en service ». La carte du haut résume la tournée~: son
-numéro, son état, le créneau de la journée, la ville, le nombre d'arrêts, le véhicule attribué avec
-son immatriculation, le dépôt de départ, et une barre d'avancement qui compte les arrêts clos.
-En dessous vient la liste des arrêts dans l'ordre de passage. Chaque arrêt donne le nom du client,
-son adresse, la référence de la commande, le montant à encaisser et le créneau promis~; l'arrêt en
-cours porte l'action qui lui reste, ici confirmer la livraison. La barre du bas ne propose que trois
-destinations~--- la tournée, le calendrier, le profil~--- parce qu'un écran de téléphone tenu d'une
-main dans un camion ne supporte pas davantage.
+La figure~\ref{fig:s4-tournee} montre la tournée du jour. La carte du haut résume la tournée R076,
+son créneau, son véhicule, son dépôt de départ et sa progression, ici zéro arrêt sur trois. Suit la
+liste des arrêts dans l'ordre de passage, le premier portant l'action qui lui reste.
 
 \begin{figure}[H]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-tournee}
 \caption{Tournée du jour sur l'application chauffeur}\label{fig:s4-tournee}\end{figure}
 
-La figure~\ref{fig:s4-preuve} présente l'écran de preuve dans ses deux moments. À gauche, à
-l'ouverture~: un rappel en trois étapes dit ce qui est attendu, le bon de livraison reste consultable
-et imprimable depuis l'écran, et l'emplacement de la photographie du bon signé est marqué obligatoire.
-Le bouton de validation est là mais grisé, et le motif de son indisponibilité est écrit juste
-au-dessus, en rouge, plutôt que laissé à deviner~: les deux photographies manquent. À droite, le
-décompte ligne par ligne, qui n'apparaît que si la livraison est partielle. L'article est nommé avec
-sa référence, la quantité effectivement remise est comparée à celle attendue, et le reste doit être
-ventilé~: manquant, refusé, abîmé. Chaque catégorie ouvre la liste des motifs du référentiel, si bien
-que le chauffeur choisit une raison au lieu d'en écrire une.
+La figure~\ref{fig:s4-preuve} présente l'écran de preuve. À gauche, un rappel en trois étapes, le bon
+de livraison consultable, et un bouton de validation grisé dont le motif est écrit en rouge juste
+au-dessus. À droite, le décompte article par article quand la livraison est partielle, chaque manque
+devant être ventilé et motivé depuis une liste.
 
 \begin{figure}[H]\centering
 \includegraphics[height=0.48\textheight,keepaspectratio]{s4-preuve}\hspace{8mm}
@@ -358,13 +352,9 @@ que le chauffeur choisit une raison au lieu d'en écrire une.
 \caption{Preuve de livraison~: le formulaire, puis le décompte des manques}\label{fig:s4-preuve}\end{figure}
 
 La figure~\ref{fig:s4-synchro} montre le centre de synchronisation dans ses deux états. À gauche, hors
-réseau, une preuve de livraison attend son tour~; le bandeau ambré annonce le nombre d'écritures en
-attente sans que le chauffeur ait à ouvrir quoi que ce soit. À droite, la même écriture après un rejet
-définitif du serveur~: le bandeau passe au rouge et compte les actions à revoir, la ligne porte la
-mention « refusé par le serveur », et trois issues sont offertes~--- relancer, ouvrir la livraison
-concernée, ou abandonner l'écriture. Dans les deux états, la ligne nomme l'action et la livraison à
-laquelle elle appartient, et rappelle l'heure à laquelle le chauffeur l'a faite. C'est le seul
-endroit où il reprend la main sur ce que le réseau n'a pas transmis.
+réseau, un bandeau ambré compte une écriture en attente. À droite, après un rejet définitif du
+serveur, le bandeau passe au rouge et la ligne offre trois issues, relancer, ouvrir la livraison, ou
+abandonner.
 
 \begin{figure}[H]\centering
 % Les deux captures ont ete rognees en bas : le panneau de synchronisation n'occupe que le haut de
@@ -373,38 +363,27 @@ endroit où il reprend la main sur ce que le réseau n'a pas transmis.
 \includegraphics[width=0.48\textwidth]{s4-synchro}
 \caption{Centre de synchronisation~: une écriture en attente, puis la même refusée par le serveur}\label{fig:s4-synchro}\end{figure}
 
-La figure~\ref{fig:s4-garde} montre le code affiché par le chauffeur qui cède le colis, ouvert au-dessus
-de son écran de transferts. Une phrase dit quoi faire~: demander à l'autre chauffeur de scanner le code
-pour confirmer le transfert. Le code apparaît sous deux formes, le QR à scanner et les six caractères
-qu'il porte, pour le cas où l'appareil d'en face ne parvient pas à lire l'image. Un compte à rebours
-indique le temps qu'il reste avant expiration, car le code ne vaut que pour cette remise-là et pour
-un temps borné. La capture est prise en thème sombre, que l'application propose comme le reste du
-produit.
+La figure~\ref{fig:s4-garde} montre le code affiché par le chauffeur qui cède le colis. Le code
+apparaît sous deux formes, le QR et les six caractères qu'il porte, avec le temps restant avant
+expiration. La capture est prise en thème sombre.
 
 \begin{figure}[H]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-garde}
 \caption{Code de transfert de garde~: QR, jeton et compte à rebours}\label{fig:s4-garde}\end{figure}
 
 La figure~\ref{fig:s4-caisse} montre la remise de caisse. L'écran s'ouvre sur ce que la plateforme
-attribue au chauffeur~--- « encaissé par vous », total calculé à partir des encaissements enregistrés
-pendant la tournée~--- et non sur un champ vide. Vient ensuite le seul champ à remplir, le montant
-qu'il déclare rendre, prérempli avec ce total puisque c'est le cas courant, et modifiable puisque
-l'écart est justement ce qu'il faut pouvoir déclarer. Une note sous le champ dit la suite~: le dépôt
-comptera l'argent devant lui, et la remise n'est pas terminée avant. L'écran ne confirme donc jamais
-une remise~: il annonce une attente de comptage.
+attribue au chauffeur, et le seul champ à remplir est prérempli avec ce total tout en restant
+modifiable. Une note annonce que le dépôt comptera devant lui, et que la remise n'est pas terminée
+avant.
 
 \begin{figure}[H]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-caisse}
 \caption{Déclaration de la remise de caisse par le chauffeur}\label{fig:s4-caisse}\end{figure}
 
-La figure~\ref{fig:s4-guichet} montre enfin le comptage côté bureau. En haut, le total qui circule~---
-l'argent encaissé par les livreurs et pas encore remis au dépôt~--- puis sa décomposition par
-chauffeur. Les remises sont classées par état~: à traiter, en écart, clôturées. Le tableau met côte à
-côte les trois montants qui comptent, l'attendu calculé par la plateforme, le déclaré saisi par le
-chauffeur et le compté saisi au guichet, et n'affiche l'écart que lorsqu'il existe. Une ligne dépliée
-montre l'arbitrage~: l'explication écrite par celui qui a compté, et les commandes concernées avec
-leur montant. C'est là que se règle le cas de la capture~--- cinq dinars de frais de parking payés en
-espèces pendant la tournée, sans justificatif, retenus sur la remise suivante.
+La figure~\ref{fig:s4-guichet} montre enfin le comptage au bureau. Le tableau met côte à côte
+l'attendu, le déclaré et le compté, et n'affiche l'écart que lorsqu'il existe. La ligne dépliée porte
+l'arbitrage, ici cinq dinars de frais de parking payés en espèces sans justificatif, retenus sur la
+remise suivante.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,keepaspectratio]{s4-guichet}

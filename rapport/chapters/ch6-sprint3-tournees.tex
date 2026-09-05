@@ -88,6 +88,10 @@ US-33 & Approbation d'un retour et reprise en stock (8 pts) & T3-18 & Approuver 
 \hline
 \end{longtable}
 \end{small}
+% Le sprint backlog demarre sur la page d'ouverture du chapitre, et longtable y avale la marque
+% posee par \chapter. Sans cette reemission, l'en-tete des pages suivantes garde le titre du
+% chapitre precedent. Verifie : 42 pages fausses avant, 0 apres.
+\chaptermark{Sprint 3 — Planification, exécution et suivi temps réel}
 
 \section{Concepts et mécanismes utilisés}
 
@@ -157,13 +161,6 @@ des délais et lit les rapports de fin de journée. Le \textbf{destinataire} n'e
 l'application, mais suit son colis depuis une page publique où il peut demander un retour. Le moteur
 d'itinéraires apparaît comme système externe, sollicité par le seul cas d'optimisation.
 
-Deux relations méritent d'être lues attentivement. L'optimisation \emph{étend} la construction, car une
-tournée se construit sans elle, et c'est le dispatcheur qui décide de la demander. À l'inverse, le
-choix des livraisons, la définition des fenêtres horaires, l'affectation du chauffeur et le contrôle
-de la précédence sont \emph{inclus} dans la construction, et aucun ne peut être omis. Enfin,
-« traiter une exception » est un cas abstrait, réalisé de deux manières selon la situation~:
-réaffecter à un autre chauffeur, ou replanifier à une autre date.
-
 \subsection{Description détaillée des cas d'utilisation}
 
 Trois cas sont détaillés~: le plus structurant du sprint, le plus délicat en cours de journée, et
@@ -216,9 +213,9 @@ celui qui ouvre le système sur l'extérieur.
 \hline
 \textbf{Postconditions} & La livraison est rattachée à la tournée du nouveau chauffeur, à la place et dans la fenêtre horaire indiquées. Si le colis était déjà en main, elle attend un transfert de garde avant de repartir. \\
 \hline
-\textbf{Scénario nominal} & 1. Le dispatcheur ouvre la livraison en difficulté depuis le centre de dispatch. \newline 2. Il demande la réaffectation. \newline 3. Le système lui recommande les chauffeurs en service, classés par le temps de trajet séparant leur position actuelle de l'adresse de livraison. \newline 4. Il en choisit un, désigne la tournée d'accueil, et fixe la position de l'arrêt ainsi que sa fenêtre horaire. Il peut joindre une note de passation, sans y être tenu~; à défaut, une mention par défaut est enregistrée, de sorte qu'un changement de garde laisse toujours une trace. \newline 5. Si le colis est encore au dépôt, la livraison rejoint directement la tournée d'accueil, qui est recalculée, et le nouveau chauffeur en est averti. \newline 6. S'il est déjà dans le véhicule du chauffeur d'origine, le système ouvre un transfert de garde~: la livraison ne repart qu'une fois la remise confirmée entre les deux chauffeurs. \\
+\textbf{Scénario nominal} & 1. Le dispatcheur ouvre la livraison en difficulté depuis le centre de dispatch. \newline 2. Il demande la réaffectation. \newline 3. Le système lui recommande les chauffeurs en service, classés par le temps de trajet séparant leur position actuelle de l'adresse de livraison. \newline 4. Il en choisit un, désigne la tournée d'accueil, et fixe la position de l'arrêt ainsi que sa fenêtre horaire. Une note de passation peut être jointe. \newline 5. Si le colis est encore au dépôt, la livraison rejoint directement la tournée d'accueil, qui est recalculée, et le nouveau chauffeur en est averti. \newline 6. S'il est déjà dans le véhicule du chauffeur d'origine, le système ouvre un transfert de garde~: la livraison ne repart qu'une fois la remise confirmée entre les deux chauffeurs. \\
 \hline
-\textbf{Scénarios alternatifs} & 2a. La livraison est livrée, annulée ou en échec~: la réaffectation est refusée, car un échec se traite par une replanification à une autre date, non par un changement de porteur. \newline 3a. Aucun chauffeur ne transmet de position récente~: la recommandation reste vide, et le dispatcheur choisit lui-même dans la liste des chauffeurs en service. \newline 4a. L'arrivée de la livraison dépasse la charge utile du véhicule d'accueil~: le système bloque, sauf si le dispatcheur assume explicitement la surcharge. \newline 4b. La fenêtre horaire saisie chevauche celle d'un arrêt voisin, ou se termine avant de commencer~: l'insertion est refusée et l'arrêt en cause est désigné. \\
+\textbf{Scénarios alternatifs} & 2a. La livraison est livrée, annulée ou en échec~: la réaffectation est refusée. \newline 3a. Aucun chauffeur ne transmet de position récente~: la recommandation reste vide, et le dispatcheur choisit lui-même dans la liste des chauffeurs en service. \newline 4a. L'arrivée de la livraison dépasse la charge utile du véhicule d'accueil~: le système bloque, sauf si le dispatcheur assume explicitement la surcharge. \newline 4b. La fenêtre horaire saisie chevauche celle d'un arrêt voisin, ou se termine avant de commencer~: l'insertion est refusée et l'arrêt en cause est désigné. \\
 \hline
 \end{longtable}
 \end{small}
@@ -264,12 +261,6 @@ entourent.
 \caption{Classes de conception du sprint 3}
 \label{fig:class-s3}
 \end{figure}
-
-Le modèle du domaine tient en deux entités. Une \code{Route} porte la date, le dépôt de départ, le
-chauffeur, le véhicule et l'état du cycle de vie. Elle est composée de \code{RouteStop}~: un arrêt
-connaît son rang dans la séquence, son état, la livraison qu'il sert et son type, qui vaut
-chargement au dépôt ou livraison chez un client. Les trois énumérations en marge donnent les valeurs possibles de
-ces états.
 
 Le traitement est réparti entre quatre services, et ce découpage suit les moments réels du travail
 plutôt que les entités. \code{RoutePlanningService} porte tout ce que le dispatcheur fait sur une
@@ -317,20 +308,11 @@ travaux~; le dispatcheur les connaît sans pouvoir les saisir. Le cadre \emph{al
 l'indisponibilité du moteur d'itinéraires, auquel cas l'ordre en place est conservé et la tournée reste
 modifiable. Une panne retire une aide, elle n'empêche pas de planifier la journée.
 
-Le calcul de l'ordre se fait à deux. Le moteur d'itinéraires donne le coût de chaque trajet et
-propose une tournée, mais sa proposition ignore la précédence et peut placer une livraison avant
-le chargement du dépôt qui la fournit. Le séquenceur tranche donc lui-même. Il compare trois
-ordres~: celui en place, celui du moteur et un troisième construit de proche en proche. Il écarte ceux
-qui violent la précédence, et garde le moins coûteux. Comme l'ordre en place est l'un des candidats,
-la suggestion ne peut pas être moins bonne que ce que le dispatcheur a déjà sous les yeux.
-
 Les heures d'arrivée se règlent au même endroit. Le système part de l'heure de départ, ajoute les
 durées de trajet et le temps passé sur place, et en déduit une \textbf{fenêtre horaire proposée pour
 chaque arrêt}. Mais il n'enregistre jamais l'heure qu'il a calculée. Ce qui est conservé, et ce sur
-quoi les retards seront mesurés, c'est la fenêtre que le dispatcheur a acceptée ou corrigée. Une
-durée lue sur une carte ignore le trafic du jour, et juger un chauffeur là-dessus reviendrait à
-l'évaluer sur une prévision que personne n'a validée. Une fenêtre qu'un dispatcheur a engagée est,
-elle, une promesse assumée.
+quoi les retards seront mesurés, c'est la fenêtre que le dispatcheur a acceptée ou corrigée, parce
+qu'une durée lue sur une carte ignore le trafic du jour.
 
 La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
 font avancer et sur laquelle tout le suivi s'appuie.
@@ -376,10 +358,6 @@ laquelle elle se mesure, et la personne qui en répond.
 \label{fig:sla-s3}
 \end{figure}
 
-Le déplacement de responsabilité se lit sur la dernière ligne des colonnes, où seule la planification
-engage le bureau quand les trois autres engagent le chauffeur. C'est ce qui permet à un responsable de
-distinguer une équipe qui planifie trop tard d'une flotte qui roule trop lentement.
-
 Une dernière décision mérite d'être relevée~: une livraison en échec reçoit elle aussi un verdict.
 Une tentative faite dans les temps mais infructueuse est enregistrée comme respectée, tandis qu'une
 tentative faite hors délai est un dépassement. La distinction sépare ce qui relève de l'organisation
@@ -387,12 +365,9 @@ de ce qui relève du client absent, alors qu'un tiret dans la colonne aurait mé
 
 \section{Réalisation}
 
-La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones. À gauche, la liste
-des tournées de la journée. Au centre, la tournée sélectionnée, ici en brouillon, avec ses arrêts
-dans l'ordre~: référence de la commande, client, adresse, dépôt de chargement et fenêtre horaire. À
-droite, la carte situe ces arrêts, et le tableau placé sous elle donne les commandes restant à
-planifier. Le bandeau supérieur porte les compteurs et les filtres qui permettent de restreindre
-cette liste.
+La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones~: les tournées du
+jour à gauche, la tournée sélectionnée et ses arrêts au centre, la carte et les commandes restant à
+planifier à droite.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{routebuilder}
