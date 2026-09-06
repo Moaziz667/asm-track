@@ -311,7 +311,12 @@ une livraison en échec, chez un client absent, n'a ni preuve ni encaissement.
 La figure~\ref{fig:seq-s4} suit l'enregistrement d'une preuve depuis l'écran du chauffeur jusqu'à
 l'enregistrement, en passant par le cas où le réseau est absent.
 
-\diagrammepaysage{SeqSprint4}{Séquence du dépôt d'une preuve, avec mise en file et rejeu}{fig:seq-s4}
+\begin{figure}[H]
+\centering
+\diagramme[0.53]{SeqSprint4}
+\caption{Séquence du dépôt d'une preuve, avec mise en file et rejeu}
+\label{fig:seq-s4}
+\end{figure}
 
 Trois décisions se lisent dans l'ordre des messages, et chacune répare une façon de perdre quelque
 chose. Les photographies partent dans le stockage objet \textbf{avant} l'ouverture de la
