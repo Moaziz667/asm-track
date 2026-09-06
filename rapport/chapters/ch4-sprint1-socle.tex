@@ -153,8 +153,7 @@ mécanisme, décrit au chapitre~\ref{ch:archi}, est mis en \oe uvre concrètemen
 
 \subsection{Diagramme de cas d'utilisation du sprint}
 
-La figure~\ref{fig:uc-s1} présente les cas d'utilisation du sprint. Elle distingue ce que fait tout
-utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrateur peut faire.
+Les cas d'utilisation du sprint sont présentés dans la figure~\ref{fig:uc-s1}.
 
 \begin{figure}[htbp]
 \centering
@@ -163,7 +162,9 @@ utilisateur authentifié, quel que soit son rôle, de ce que seul l'administrate
 \label{fig:uc-s1}
 \end{figure}
 
-Trois lectures s'en dégagent. D'abord, tout part de \textbf{S'authentifier}, que chaque autre cas
+Le diagramme sépare ce que fait tout utilisateur authentifié, quel que soit son rôle, de ce que seul
+l'administrateur peut faire. Trois lectures s'en dégagent. D'abord, tout part de
+\textbf{S'authentifier}, que chaque autre cas
 inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
 authentifié}, qu'il soit administrateur, dispatcheur, responsable ou livreur, gère son propre compte~: mot de
 passe, profil, déconnexion de ses autres appareils. Enfin, l'\textbf{administrateur} concentre les
@@ -261,9 +262,8 @@ Trois cas d'utilisation sont détaillés~: le plus transversal (\emph{S'authenti
 
 \subsection{Diagramme de classes}
 
-Le c\oe ur du sprint tient dans un petit module partagé, \code{asm-tenant-core}, qui porte la mécanique
-d'isolation par schéma. La figure~\ref{fig:class-tenant} en donne le diagramme de classes de
-conception.
+La conception du module partagé \code{asm-tenant-core} est détaillée dans la
+figure~\ref{fig:class-tenant}.
 
 \begin{figure}[htbp]
 \centering
@@ -272,7 +272,8 @@ conception.
 \label{fig:class-tenant}
 \end{figure}
 
-Le module s'articule autour de deux interfaces d'Hibernate. \code{TenantIdentifierResolver} répond à
+Ce module est le c\oe ur du sprint~: il porte à lui seul la mécanique d'isolation par schéma, et
+s'articule autour de deux interfaces d'Hibernate. \code{TenantIdentifierResolver} répond à
 la question « quel est le locataire courant~? » en lisant le contexte de la requête~;
 \code{SchemaMultiTenantConnectionProvider} traduit ce locataire en nom de schéma et l'applique à la
 connexion de base de données. Autour, trois classes remplissent ce contexte, c'est-à-dire y déposent

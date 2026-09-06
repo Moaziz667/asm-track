@@ -165,9 +165,8 @@ conçue pour un usage à une main. \\
 
 \subsection{Diagramme global des cas d'utilisation}
 
-Le diagramme de la figure~\ref{fig:uc-global} synthétise les besoins fonctionnels sous forme de cas
-d'utilisation et les rattache à leurs acteurs, au premier niveau seulement~: le détail est porté par
-les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}.
+Les besoins fonctionnels sont synthétisés sous forme de cas d'utilisation dans la
+figure~\ref{fig:uc-global}.
 
 \begin{figure}[htbp]
 \centering
@@ -179,7 +178,9 @@ les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch
 \label{fig:uc-global}
 \end{figure}
 
-Trois éléments de lecture méritent d'être soulignés.
+Le diagramme rattache chaque cas à ses acteurs et s'en tient au premier niveau, le détail revenant
+aux diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}. Trois éléments
+de lecture méritent d'être soulignés.
 
 \textbf{Une seule généralisation relie les acteurs}~: l'administrateur est un dispatcheur qui dispose
 en plus du paramétrage, et ses permissions incluent effectivement toutes celles du dispatcheur. La
@@ -194,8 +195,8 @@ modèle.
 
 \subsection{Diagramme de classes global}
 
-Le diagramme de la figure~\ref{fig:class-global} présente les concepts manipulés par le système et
-leurs relations. Il fixe le vocabulaire employé dans tout le reste du rapport.
+Les concepts manipulés par le système et leurs relations sont illustrés dans la
+figure~\ref{fig:class-global}.
 
 \begin{figure}[htbp]
 \centering
@@ -204,7 +205,8 @@ leurs relations. Il fixe le vocabulaire employé dans tout le reste du rapport.
 \label{fig:class-global}
 \end{figure}
 
-Il se lit de haut en bas, du référentiel vers l'exécution. La partie haute regroupe ce qui existe
+Ce diagramme fixe le vocabulaire employé dans tout le reste du rapport. Il se lit de haut en bas, du
+référentiel vers l'exécution. La partie haute regroupe ce qui existe
 avant toute commande~: dépôts, chauffeurs, véhicules et zones. Au centre, une \textbf{Commande}
 issue du progiciel se décompose en une ou plusieurs \textbf{Livraisons}~; le losange plein indique
 une composition, c'est-à-dire que les livraisons n'ont pas d'existence propre en dehors de leur
