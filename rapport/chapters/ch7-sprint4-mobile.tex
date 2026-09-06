@@ -326,21 +326,18 @@ ligne offre trois issues~: relancer, ouvrir la livraison, ou abandonner.
 \includegraphics[width=0.48\textwidth]{s4-synchro}
 \caption{Centre de synchronisation~: une écriture en attente, puis la même refusée par le serveur}\label{fig:s4-synchro}\end{figure}
 
-La figure~\ref{fig:s4-garde} montre le code affiché par le chauffeur qui cède le colis. Le code
-apparaît sous deux formes, le QR et les six caractères qu'il porte, avec le temps restant avant
-expiration. La capture est prise en thème sombre.
+La figure~\ref{fig:s4-remises} montre les deux remises que fait un chauffeur. À gauche, le transfert
+de garde du colis~: le QR, les six caractères qu'il porte et le temps restant avant expiration. À
+droite, la remise de caisse, dont le seul champ est prérempli avec le total que la plateforme lui
+attribue, tout en restant modifiable.
 
+% Les deux captures sont appariees : seules, a 0,52 de hauteur, elles occupaient une page chacune
+% pour trois lignes de texte. Cote a cote a 0,48, elles tiennent sur une seule page sans perdre en
+% lisibilite, et le rapprochement a du sens : ce sont les deux remises du chauffeur.
 \begin{figure}[H]\centering
-\includegraphics[height=0.52\textheight,keepaspectratio]{s4-garde}
-\caption{Code de transfert de garde~: QR, jeton et compte à rebours}\label{fig:s4-garde}\end{figure}
-
-La figure~\ref{fig:s4-caisse} montre la remise de caisse. Le seul champ à remplir est prérempli avec
-le total que la plateforme attribue au chauffeur, tout en restant modifiable. Une note annonce que
-le dépôt comptera devant lui.
-
-\begin{figure}[H]\centering
-\includegraphics[height=0.52\textheight,keepaspectratio]{s4-caisse}
-\caption{Déclaration de la remise de caisse par le chauffeur}\label{fig:s4-caisse}\end{figure}
+\includegraphics[height=0.48\textheight,keepaspectratio]{s4-garde}\hspace{8mm}
+\includegraphics[height=0.48\textheight,keepaspectratio]{s4-caisse}
+\caption{Les deux remises du chauffeur~: la garde du colis, puis la caisse}\label{fig:s4-remises}\end{figure}
 
 La figure~\ref{fig:s4-guichet} montre enfin le comptage au bureau. Le tableau met côte à côte
 l'attendu, le déclaré et le compté, et n'affiche l'écart que lorsqu'il existe. La ligne dépliée porte
