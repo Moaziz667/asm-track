@@ -31,7 +31,9 @@
 % Largeur et hauteur de texte imposées par le guide de rédaction (règle 3) : 160 × 250 mm sur A4
 % (210 × 297 mm). Ne pas fixer les marges directement : sans elles, geometry centre le bloc de
 % texte pour obtenir cette largeur et cette hauteur exactement, ce qui est le résultat demandé.
-\usepackage[a4paper,textwidth=160mm,textheight=250mm]{geometry}
+% bindingoffset décale le bloc vers la droite pour la reliure collée, sans toucher à sa largeur :
+% le pli en avale environ 5 mm, qui seraient sinon pris sur la marge de gauche.
+\usepackage[a4paper,textwidth=160mm,textheight=250mm,bindingoffset=5mm]{geometry}
 
 % ---------- Figures et tableaux ----------
 \usepackage{graphicx}
