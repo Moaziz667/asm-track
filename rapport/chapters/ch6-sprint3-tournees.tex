@@ -260,25 +260,10 @@ entourent.
 \label{fig:class-s3}
 \end{figure}
 
-Le traitement est réparti entre quatre services, découpés selon les moments du travail plutôt que
-les entités~: \code{RoutePlanningService} avant le départ, \code{RouteExecutionService} pendant la
-journée, \code{RouteOptimizationService} pour proposer un ordre, et \code{RouteValidator} qui
-rassemble les règles décidant si une tournée est légale.
-
-Deux composants complètent l'ensemble. \code{OsrmRoutingService} est le client du moteur
-d'itinéraires~: il fournit la matrice des durées, une proposition d'ordre et les tracés.
-\code{PrecedenceAwareSequencer} est la stratégie qui décide de l'ordre final. Les séparer n'est pas
-gratuit~: le moteur d'itinéraires sait calculer un trajet court, mais il ignore qu'un colis doit être
-chargé avant d'être livré. Le premier fournit donc les coûts, le second choisit l'ordre en tenant
-compte de cette contrainte. La section suivante détaille ce partage.
-
-Enfin, \code{TransportPort} règle une question simple~: la planification a besoin de savoir si un
-chauffeur est actif et où il se trouve, mais ces données appartiennent au service Chauffeur et
-s'obtiennent par le réseau. Plutôt que de disperser cet appel partout, le service de livraison écrit
-d'abord ce dont il a besoin dans une interface courte, sans dire d'où viendra la réponse.
-\code{InternalTransportAdapter} la réalise en interrogeant le service voisin, et un paramètre de
-configuration désigne l'adaptateur à employer. C'est le patron des ports et adaptateurs du sprint
-précédent, appliqué cette fois à la flotte.
+Le traitement est réparti entre quatre services, découpés selon les moments du travail plutôt que les
+entités~: \code{RoutePlanningService} avant le départ, \code{RouteExecutionService} pendant la
+journée, \code{RouteOptimizationService} pour l'ordre proposé, et \code{RouteValidator} pour les
+règles qui rendent une tournée légale.
 
 \subsection{Diagrammes de séquence}
 
@@ -292,22 +277,10 @@ jusqu'à la validation, en passant par l'optimisation.
 \label{fig:seq-s3}
 \end{figure}
 
-La séquence se lit en trois phases. La première crée la tournée en brouillon, après vérification du
-chauffeur, du véhicule, de la charge et du positionnement des arrêts. La deuxième, facultative,
-demande une optimisation. La troisième applique l'ordre retenu, puis engage la tournée.
-
-Le cadre \emph{opt} de la phase 2 traduit la décision centrale du sprint~: \textbf{l'optimiseur
-propose, le dispatcheur dispose}. Une version antérieure appliquait directement l'ordre calculé, et
-elle a été retirée. Un algorithme ignore le client qui n'ouvre qu'à quatorze heures ou la rue en
-travaux~; le dispatcheur les connaît sans pouvoir les saisir. Le cadre \emph{alt} voisin couvre
-l'indisponibilité du moteur d'itinéraires, auquel cas l'ordre en place est conservé et la tournée reste
-modifiable. Une panne retire une aide, elle n'empêche pas de planifier la journée.
-
-Les heures d'arrivée se règlent au même endroit. Le système part de l'heure de départ, ajoute les
-durées de trajet et le temps passé sur place, et en déduit une \textbf{fenêtre horaire proposée pour
-chaque arrêt}. Mais il n'enregistre jamais l'heure qu'il a calculée. Ce qui est conservé, et ce sur
-quoi les retards seront mesurés, c'est la fenêtre que le dispatcheur a acceptée ou corrigée, parce
-qu'une durée lue sur une carte ignore le trafic du jour.
+La séquence se lit en trois phases~: création de la tournée en brouillon, optimisation facultative,
+puis application de l'ordre retenu et engagement. Le cadre \emph{opt} porte la décision centrale du
+sprint, \textbf{l'optimiseur propose, le dispatcheur dispose}, et le cadre \emph{alt} voisin couvre
+la panne du moteur d'itinéraires, l'ordre en place étant alors conservé.
 
 La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
 font avancer et sur laquelle tout le suivi s'appuie.
@@ -319,22 +292,10 @@ font avancer et sur laquelle tout le suivi s'appuie.
 \label{fig:etat-s3}
 \end{figure}
 
-Une livraison naît dans le \terme{pool} à l'import depuis le progiciel. L'affectation à une tournée
-la fait passer en programmée, le chargement au dépôt en chargée, le départ en transit. La clôture de
-l'arrêt par le chauffeur mène à l'un des trois résultats possibles, selon ce qui a réellement été
-remis~: tout, une partie, ou rien.
-
-Deux particularités de ce diagramme portent des décisions de conception.
-
-D'abord, l'issue de l'arrêt est un choix guidé par les quantités, non une déclaration du chauffeur.
-Le résultat se déduit de ce qui a été remis, et si aucune ligne ne l'a été, c'est un échec, pas une
-livraison partielle vide. Cette distinction évite de remonter au progiciel un mouvement de stock sans
-contenu.
-
-Ensuite, la livraison partielle est un état terminal, au même titre que la livraison complète. Le
-reliquat ne prolonge pas la livraison en cours, mais donne lieu à une autre livraison, créée à partir
-de la commande. Une livraison close reste ainsi le compte rendu fidèle d'un passage, et non un
-dossier qu'on rouvre.
+Une livraison naît dans le \terme{pool} à l'import, passe en programmée puis chargée et en transit,
+et la clôture de l'arrêt mène à l'un des trois résultats. L'issue se déduit des quantités remises et
+non d'une déclaration~: la livraison partielle est un état terminal, le reliquat donnant lieu à une
+nouvelle livraison.
 
 \subsection{L'évaluation des échéances}
 \label{sec:s3-echeances}

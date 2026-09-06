@@ -271,19 +271,10 @@ au centre, et les familles d'adaptateurs qui les réalisent.
 \label{fig:class-erp}
 \end{figure}
 
-Quatre ports décrivent les besoins du métier. \code{ErpSyncPort} pousse un résultat terrain~: livré,
-partiel, échoué ou annulé. \code{ErpLookupPort} lit des commandes en attente, des clients, des dépôts.
-\code{ErpOrderPort} crée et résout des références de commande. \code{ErpChangePort} détecte qu'une
-commande a changé côté progiciel. Aucune de ces interfaces ne nomme un progiciel.
-
-Deux familles d'adaptateurs les réalisent. L'adaptateur \textbf{Odoo} parle en JSON-RPC. Il est le
-plus volumineux, car Odoo expose des assistants de confirmation à piloter et plusieurs versions à
-couvrir. L'adaptateur \textbf{ERPNext} parle en REST, une interface plus uniforme.
-
-Le choix de l'adaptateur ne dépend pas de l'appelant, mais du progiciel configuré pour l'entreprise
-courante. Ajouter un progiciel revient à créer des classes nommées d'après lui, et aucun code existant
-n'est modifié. C'est cette propriété qui a été vérifiée en ajoutant ERPNext après Odoo, sans toucher
-aux ports.
+Quatre ports décrivent les besoins du métier sans nommer aucun progiciel~: \code{ErpSyncPort} pousse
+un résultat terrain, \code{ErpLookupPort} lit commandes et dépôts, \code{ErpOrderPort} résout les
+références, \code{ErpChangePort} détecte un changement. Deux familles d'adaptateurs les réalisent,
+Odoo en JSON-RPC et ERPNext en REST, ce dernier ajouté sans toucher aux ports.
 
 \subsection{Diagrammes de séquence}
 
@@ -297,20 +288,10 @@ La figure~\ref{fig:seq-erp} suit une synchronisation, de la validation d'une liv
 \label{fig:seq-erp}
 \end{figure}
 
-La séquence part de la validation d'une livraison. Son nouvel état et l'événement qui demandera la
-mise à jour du progiciel sont écrits dans une seule transaction~: les deux, ou aucun. La méthode qui
-enregistre l'événement exige d'ailleurs une transaction déjà ouverte et échoue sinon, ce qui rend
-impossible une livraison validée dont le progiciel ne serait jamais averti.
-
-La reprise sur panne se joue à \textbf{deux étages qu'il ne faut pas confondre}. Le premier protège la
-remise du message au courtier, car si celui-ci est indisponible l'outbox réessaie, avec un espacement
-croissant, jusqu'à réussir à le déposer. Le second étage, \textbf{le plus important, protège contre
-une panne du progiciel}. L'adaptateur, qui consomme la commande, réessaie \textbf{cinq fois sur une
-trentaine de secondes} de joindre Odoo. Passé ce délai, la commande part dans une file de rebut, un
-résultat d'échec revient, et la commande passe à « échec de synchronisation ». L'administrateur est
-alors prévenu, et la reprise devient un geste manuel, le bouton « resynchroniser ». En cas de succès, au
-contraire, la commande passe à « synchronisée ». Dans tous les cas, le livreur n'a jamais attendu~: il
-a validé, l'écran a répondu, il est reparti.
+La séquence part de la validation d'une livraison~: son nouvel état et l'événement qui préviendra le
+progiciel sont écrits dans une seule transaction, les deux ou aucun. La reprise joue ensuite à deux
+étages, l'un pour la remise au courtier, l'autre contre une panne du progiciel~: après cinq
+tentatives, la commande part en file de rebut, que l'administrateur relance à la main.
 
 La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox}, celui du
 premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
@@ -322,16 +303,10 @@ premier étage, la remise au courtier. Il précise le cycle de vie que l'on vien
 \label{fig:etat-erp}
 \end{figure}
 
-Un événement naît \emph{en attente}. Il passe \emph{en cours} le temps d'être traité, puis
-\emph{traité} en cas de succès. En cas d'échec, il retourne \emph{en attente} avec un délai
-croissant, selon le mécanisme décrit au chapitre~\ref{ch:archi}.
-
-Deux garde-fous complètent cet automate. D'abord, un événement resté \emph{en cours} après un arrêt
-brutal du service est ramené \emph{en attente} au redémarrage, pour ne pas rester bloqué. Ensuite,
-après un nombre fixé de tentatives, l'événement devient \emph{en échec} et rejoint la file de rebut. La
-commande est alors marquée « échec de synchronisation », un dispatcheur est prévenu, et l'événement
-reste consultable et rejouable depuis le back-office. Un échec définitif est donc visible et
-réparable, jamais perdu dans un journal.
+Un événement naît \emph{en attente}, passe \emph{en cours} le temps d'être traité, puis
+\emph{traité} en cas de succès, ou retourne \emph{en attente} avec un délai croissant. Après un
+nombre fixé de tentatives il devient \emph{en échec} et rejoint la file de rebut~: la commande est
+marquée, un dispatcheur prévenu, et l'événement reste rejouable depuis le back-office.
 
 \section{Réalisation}
 

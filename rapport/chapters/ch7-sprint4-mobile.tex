@@ -174,16 +174,6 @@ presque tous les cas, le \textbf{dispatcheur} n'en détient qu'un, solder la rem
 n'est pas un oubli de découpage mais le mécanisme lui-même, celui qui remet l'argent n'étant pas
 celui qui le compte.
 
-Les relations méritent une lecture attentive. La livraison complète et la livraison partielle sont
-deux \emph{spécialisations} du même cas. Une livraison partielle n'est pas un parcours à part, c'est
-le même geste avec un décompte ligne par ligne. Les deux photographies sont \emph{incluses} dans
-l'enregistrement de la preuve, donc obligatoires. Une collecte de retour fait seule exception, car elle
-n'a pas de bon de livraison à photographier, ce document n'existant pas pour un mouvement inverse.
-L'encaissement et le commentaire \emph{étendent} l'enregistrement de la preuve, le premier n'ayant
-lieu que si la commande est à encaisser, le second restant facultatif. Enfin, la relance et l'abandon
-d'une écriture étendent le centre de synchronisation, puisqu'ils ne se présentent que si une écriture
-a échoué.
-
 \subsection{Description détaillée des cas d'utilisation}
 
 Trois cas sont détaillés~: celui qui clôt une livraison, celui qui la rend possible sans réseau, et
@@ -284,23 +274,10 @@ téléphone, le service qui le reçoit, et les entités écrites en base.
 \label{fig:class-s4}
 \end{figure}
 
-Le diagramme se lit en trois bandes, qui sont trois responsabilités et non trois couches
-techniques. Sur le téléphone, \code{DeliveryRepository} décide si le réseau répond et fait partir
-l'écriture, sinon il la confie à \code{OfflineQueueService}, qui la conserve jusqu'à ce que le
-serveur l'accepte, avec trois tentatives et une expiration à vingt-quatre heures.
-
-Côté serveur, \code{DriverDeliveryController} porte l'annotation qui déclenche la garde
-d'idempotence. \code{IdempotencyAspect} s'intercale avant le service et rend la réponse déjà donnée
-si la clé a déjà été vue. \code{DriverDeliveryService} n'est donc atteint que par une écriture
-réellement nouvelle, et sa première action est de charger la livraison en vérifiant qu'elle
-appartient bien au chauffeur qui la présente.
-
-Trois entités closent la chaîne. Une \code{Livraison} porte son état, son chauffeur et sa nature,
-cette dernière distinguant une livraison ordinaire d'une collecte de retour. Elle est associée à au
-plus une \code{PreuveDeLivraison}, qui garde les chemins des deux photographies, le nom du
-destinataire, la position et l'heure de la remise, et à au plus un \code{Encaissement}, qui compare
-le montant attendu au montant reçu. Les deux cardinalités valent \code{0..1} pour la même raison~:
-une livraison en échec, chez un client absent, n'a ni preuve ni encaissement.
+Le diagramme se lit en trois bandes, qui sont trois responsabilités et non trois couches techniques.
+Sur le téléphone, \code{DeliveryRepository} décide si le réseau répond, sinon il confie l'écriture à
+\code{OfflineQueueService}, qui la conserve jusqu'à vingt-quatre heures. Côté serveur,
+\code{IdempotencyAspect} rend la réponse déjà donnée si la clé a déjà été vue.
 
 \subsection{Diagramme de séquence}
 
@@ -314,14 +291,10 @@ l'enregistrement, en passant par le cas où le réseau est absent.
 \label{fig:seq-s4}
 \end{figure}
 
-Trois décisions se lisent dans l'ordre des messages. Les photographies partent dans le stockage
-objet \textbf{avant} l'ouverture de la transaction. L'encaissement est écrit \textbf{dans la même
-transaction} que la preuve, sans quoi un incident laisserait de l'argent pris sur le terrain sans
-trace. Le progiciel est prévenu \textbf{après}, en différé.
-
-La dernière branche est la plus importante pour le chauffeur. En cas de refus définitif ou de
-tentatives épuisées, l'écriture n'est pas jetée, mais signalée dans le centre de synchronisation,
-où il la relance ou l'abandonne lui-même.
+Trois décisions se lisent dans l'ordre des messages~: les photographies partent \textbf{avant}
+l'ouverture de la transaction, l'encaissement est écrit \textbf{dans la même transaction} que la
+preuve, et le progiciel est prévenu \textbf{après}, en différé. Un refus définitif n'est pas jeté,
+mais signalé dans le centre de synchronisation.
 
 \section{Réalisation}
 
