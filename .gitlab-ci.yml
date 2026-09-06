@@ -75,7 +75,9 @@ lint-admin:
     - npm run lint:ci
     - npm run check:design
 
-# La gateway possède rbac-policy.json ; un script le recopie verbatim dans les trois autres services.
+# La gateway possède rbac-policy.json ; un script le recopie verbatim dans les quatre services qui
+# l'appliquent (Delivery, Driver, AppBackend, Assistant). L'adaptateur ERP est hors périmètre : il
+# ne parle qu'au progiciel du client, jamais à un utilisateur porteur de rôles.
 # Rien ne garantissait que les copies concordent — une politique désynchronisée = gateway et service
 # n'appliquent pas les mêmes règles d'autorisation. `--check` n'écrit rien et sort 1 sur dérive.
 rbac-policy-check:
