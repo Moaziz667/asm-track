@@ -47,6 +47,23 @@
 % \makebox garde la figure centree sur le bloc et empeche LaTeX de signaler un debordement.
 \newcommand{\diagramme}[2][0.45]{%
   \makebox[\textwidth][c]{\includegraphics[width=190mm,height=#1\textheight,keepaspectratio]{#2}}}
+% Les deux diagrammes de sequence les plus larges restaient illisibles en portrait : reduits pour
+% tenir dans 190 mm, leurs libelles descendaient sous 4 pt. Ils occupent desormais une page entiere
+% en paysage, ou la largeur utile passe a 280 mm. pdflscape fait pivoter la page dans le lecteur,
+% de sorte que la figure se lit sans tourner le document imprime.
+\usepackage{pdflscape}
+% La hauteur est la dimension contraignante pour ces deux diagrammes : en paysage, le bloc de texte
+% n'en offre que 160 mm alors que la page tournee en fait 210, marges comprises. On lui en rend 15,
+% ce qui laisse 10 mm sous la legende : la figure passe de 132 mm en portrait a 163, soit 24 % de
+% plus. Au-dela, la legende sort de la feuille sans que LaTeX ne signale rien.
+\newcommand{\diagrammepaysage}[3]{%
+  \begin{landscape}
+  \enlargethispage{15mm}%
+  \begin{figure}[H]\centering
+  \makebox[\textwidth][c]{\includegraphics[width=270mm,height=163mm,keepaspectratio]{#1}}
+  \caption{#2}\label{#3}
+  \end{figure}
+  \end{landscape}}
 \usepackage{float}
 % Les figures en [H] laissaient de grands blancs : quand l'image ne tenait plus dans la place
 % restante, LaTeX abandonnait le bas de la page. En [htbp] elles flottent vers le haut ou le bas de
