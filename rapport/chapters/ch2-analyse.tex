@@ -178,20 +178,10 @@ figure~\ref{fig:uc-global}.
 \label{fig:uc-global}
 \end{figure}
 
-Le diagramme rattache chaque cas à ses acteurs et s'en tient au premier niveau, le détail revenant
-aux diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}. Trois éléments
-de lecture méritent d'être soulignés.
-
-\textbf{Une seule généralisation relie les acteurs}~: l'administrateur est un dispatcheur qui dispose
-en plus du paramétrage, et ses permissions incluent effectivement toutes celles du dispatcheur. La
-flèche évite de redessiner une douzaine de traits.
-
-Le responsable, lui, reste rattaché à ses propres cas. Il croise le dispatcheur sur les consultations
-sans jamais le contenir ni en dériver~: il est seul à accéder au journal d'audit, et n'a aucune des
-permissions d'action. Superviser suppose de pouvoir relire ce que font ceux qui opèrent, sans
-pouvoir opérer soi-même~; c'est pourquoi les rôles sont déclarés à plat dans l'annuaire, chacun
-portant sa liste explicite, plutôt qu'en chaîne d'héritage. Le chapitre~\ref{ch:socle} détaille ce
-modèle.
+Ce diagramme rattache chaque cas à ses acteurs et s'en tient au premier niveau, le détail revenant
+aux diagrammes de chaque sprint. Une seule généralisation y figure~: l'administrateur est un
+dispatcheur qui dispose en plus du paramétrage. Le responsable reste rattaché à ses propres cas,
+seul à consulter le journal d'audit et sans aucune permission d'action.
 
 \subsection{Diagramme de classes global}
 
@@ -205,28 +195,10 @@ figure~\ref{fig:class-global}.
 \label{fig:class-global}
 \end{figure}
 
-Ce diagramme fixe le vocabulaire employé dans tout le reste du rapport. Il se lit de haut en bas, du
-référentiel vers l'exécution. La partie haute regroupe ce qui existe
-avant toute commande~: dépôts, chauffeurs, véhicules et zones. Au centre, une \textbf{Commande}
-issue du progiciel se décompose en une ou plusieurs \textbf{Livraisons}~; le losange plein indique
-une composition, c'est-à-dire que les livraisons n'ont pas d'existence propre en dehors de leur
-commande. En parallèle, un chauffeur exécute des \textbf{Tournées}, elles-mêmes composées
-d'\textbf{Arrêts}.
-
-La classe \emph{Arrêt} est abstraite, et c'est le point le moins évident du modèle. Un arrêt de
-retrait désigne un dépôt où le chauffeur charge~; un arrêt de livraison désigne une livraison à
-remettre. Ce ne sont pas les mêmes objets, d'où la généralisation~: les représenter par un simple
-attribut « type » aurait masqué une différence de structure réelle.
-
-La partie basse porte les traces laissées par l'exécution~: une \textbf{PreuveDeLivraison}, un
-\textbf{Encaissement} lorsque le client règle à la porte, et un \textbf{Retour} si la marchandise
-revient. Les encaissements d'un chauffeur sont ensuite regroupés dans une \textbf{RemiseDeCaisse},
-ce qui matérialise la séparation des responsabilités~: celui qui déclare la somme n'est pas celui
-qui la valide.
-
-Enfin, la classe \textbf{Entreprise} n'est reliée à rien, et c'est délibéré. L'appartenance d'une
-donnée à une entreprise cliente n'est pas portée par une clé étrangère mais par un schéma de base de
-données distinct. Le chapitre~\ref{ch:archi} détaille ce mécanisme.
+Ce diagramme fixe le vocabulaire du rapport et se lit du référentiel vers l'exécution~: une
+\textbf{Commande} se décompose en \textbf{Livraisons}, un chauffeur exécute des \textbf{Tournées}
+composées d'\textbf{Arrêts}. La classe \textbf{Entreprise} n'est reliée à rien, l'isolation passant
+par un schéma distinct (chapitre~\ref{ch:archi}).
 
 \section{Gestion du projet avec Scrum}
 

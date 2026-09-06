@@ -162,15 +162,10 @@ Les cas d'utilisation du sprint sont présentés dans la figure~\ref{fig:uc-s1}.
 \label{fig:uc-s1}
 \end{figure}
 
-Le diagramme sépare ce que fait tout utilisateur authentifié, quel que soit son rôle, de ce que seul
-l'administrateur peut faire. Trois lectures s'en dégagent. D'abord, tout part de
-\textbf{S'authentifier}, que chaque autre cas
-inclut, car aucune action n'est possible sans un jeton valide. Ensuite, un \textbf{utilisateur
-authentifié}, qu'il soit administrateur, dispatcheur, responsable ou livreur, gère son propre compte~: mot de
-passe, profil, déconnexion de ses autres appareils. Enfin, l'\textbf{administrateur} concentre les
-actions de gouvernance~: créer et modifier des comptes, attribuer des rôles, et administrer les trois
-référentiels (chauffeurs, véhicules, zones). Keycloak apparaît comme un système externe, car c'est
-lui qui porte les comptes et délivre les jetons.
+Tout y part de \textbf{S'authentifier}, que chaque autre cas inclut~: l'utilisateur authentifié gère
+son propre compte, tandis que l'administrateur concentre la gouvernance, comptes, rôles et
+référentiels. Keycloak y figure comme système externe, puisqu'il porte les comptes et délivre les
+jetons.
 
 \subsection{Description détaillée des cas d'utilisation}
 
@@ -272,20 +267,10 @@ figure~\ref{fig:class-tenant}.
 \label{fig:class-tenant}
 \end{figure}
 
-Ce module est le c\oe ur du sprint~: il porte à lui seul la mécanique d'isolation par schéma, et
-s'articule autour de deux interfaces d'Hibernate. \code{TenantIdentifierResolver} répond à
-la question « quel est le locataire courant~? » en lisant le contexte de la requête~;
-\code{SchemaMultiTenantConnectionProvider} traduit ce locataire en nom de schéma et l'applique à la
-connexion de base de données. Autour, trois classes remplissent ce contexte, c'est-à-dire y déposent
-l'entreprise de la requête en cours. Le \code{TenantContextFilter} le fait au début de chaque requête
-HTTP, en lisant l'entreprise dans l'en-tête reçu. Les deux post-processeurs font de même pour les
-messages échangés entre services~: l'un ajoute l'entreprise au message au moment de l'envoi, l'autre
-la relit à la réception, avant que le message ne soit traité. Enfin, \code{TenantSchema} traduit
-l'identifiant de l'entreprise en nom de schéma.
-
-Un point mérite d'être souligné~: ce module n'est pas un service, mais une \textbf{bibliothèque}
-consommée par quatre services à la fois. La même mécanique d'isolation s'applique ainsi partout, sans
-être réécrite ni risquer de diverger d'un service à l'autre.
+Deux interfaces d'Hibernate en forment le centre~: \code{TenantIdentifierResolver} désigne le
+locataire courant, \code{SchemaMultiTenantConnectionProvider} le traduit en schéma. Trois classes
+alimentent ce contexte, à l'entrée de chaque requête et de part et d'autre des messages. Ce n'est pas
+un service mais une bibliothèque, partagée par quatre services.
 
 \subsection{Diagrammes de séquence}
 
@@ -299,18 +284,10 @@ ressource protégée.
 \label{fig:seq-oidc}
 \end{figure}
 
-La séquence se lit en deux phases. La \textbf{première} est l'authentification proprement dite.
-L'application redirige l'utilisateur vers Keycloak, qui vérifie ses identifiants et renvoie un code,
-lequel est échangé contre un jeton. Le jeton ne transite jamais par l'URL grâce au flux Authorization
-Code, tandis que PKCE protège le code d'autorisation contre une éventuelle interception.
-
-La \textbf{seconde} phase est l'accès à une ressource. La requête, porteuse du jeton, atteint la
-passerelle. Celle-ci récupère les clés publiques de Keycloak une seule fois, puis les garde en
-cache. Elle vérifie alors deux choses~: que la signature du jeton est valide, et que l'utilisateur porte
-la permission requise. Elle ne transmet la requête au service que si ces deux conditions sont
-réunies~; sinon, elle la rejette elle-même et le service n'est jamais sollicité. Un dernier cas ne se
-produit que si le jeton a expiré. L'application le renouvelle alors sans que l'utilisateur ne s'en
-aperçoive, puis rejoue la requête d'origine.
+La séquence se lit en deux phases. L'authentification d'abord~: l'application redirige vers Keycloak,
+qui renvoie un code échangé contre un jeton, protégé par le flux Authorization Code et PKCE. L'accès
+ensuite~: la passerelle vérifie la signature du jeton, puis la permission requise, avant de
+transmettre la requête au service.
 
 \section{Réalisation}
 
