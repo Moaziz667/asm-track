@@ -343,19 +343,17 @@ l'adresse, les identifiants, et le statut de certification.
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-connexion}
 \caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
 
-La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel et
-affiche les champs et méthodes qu'il expose réellement. Le connecteur choisit alors le champ présent,
-au lieu de le deviner d'après un numéro de version, de sorte qu'une version jamais vue fonctionne
-sans modification tant qu'elle expose les champs attendus.
+La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système interroge le progiciel
+et affiche les champs et méthodes qu'il expose réellement. Le connecteur retient le champ présent au
+lieu de le deviner d'après un numéro de version.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
-La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ y
-affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la raison.
-Une cellule sans valeur indique ainsi laquelle des deux causes s'applique, vide à la source ou
-présente mais illisible, au lieu de laisser un blanc que personne ne saurait expliquer.
+La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ
+affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la
+raison. Aucune cellule ne laisse un blanc que personne ne saurait expliquer.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-apercu}
