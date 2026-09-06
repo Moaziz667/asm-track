@@ -293,6 +293,8 @@ progiciel sont écrits dans une seule transaction, les deux ou aucun. La reprise
 étages, l'un pour la remise au courtier, l'autre contre une panne du progiciel~: après cinq
 tentatives, la commande part en file de rebut, que l'administrateur relance à la main.
 
+\subsection{Diagramme d'états}
+
 La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox}, celui du
 premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
 
@@ -313,7 +315,7 @@ marquée, un dispatcheur prévenu, et l'événement reste rejouable depuis le ba
 La figure~\ref{fig:s2-connexion} montre l'écran de connexion au progiciel~: le choix du fournisseur,
 l'adresse, les identifiants, et le statut de certification.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-connexion}
 \caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
 
@@ -321,7 +323,7 @@ La figure~\ref{fig:s2-compat} présente l'étape de compatibilité~: le système
 et affiche les champs et méthodes qu'il expose réellement. Le connecteur retient le champ présent au
 lieu de le deviner d'après un numéro de version.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
@@ -329,21 +331,21 @@ La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies donn
 affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la
 raison. Aucune cellule ne laisse un blanc que personne ne saurait expliquer.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-apercu}
 \caption{Aperçu d'une commande avant l'import}\label{fig:s2-apercu}\end{figure}
 
 La figure~\ref{fig:s2-import} présente l'écran d'import des commandes prêtes~: la liste, et l'import
 d'une commande ou d'un lot.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-import}
 \caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
 
 Enfin, la figure~\ref{fig:s2-dlq} montre la file de rebut~: les synchronisations définitivement en échec,
 consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-dlq}
 \caption{File morte des synchronisations en échec}\label{fig:s2-dlq}\end{figure}
 
@@ -449,7 +451,7 @@ confirmation} d'Odoo, ces fenêtres que valider un transfert fait apparaître et
 La figure~\ref{fig:s2-ci-biversion} montre le job d'intégration continue qui lance cette suite contre
 les deux versions d'Odoo, toutes deux au vert.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-ci-biversion}
 \caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
 

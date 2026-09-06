@@ -123,7 +123,7 @@ décider \emph{ce qu'il peut faire}. Le projet suit le modèle \terme{RBAC}~\cit
 n'est qu'un sac de permissions. La figure~\ref{fig:matrice-perms} donne la répartition exacte des
 dix-huit permissions sur les trois rôles de la plateforme.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{rbacTableau}
 \caption{Matrice des permissions par rôle}
@@ -300,14 +300,14 @@ La figure~\ref{fig:s1-creation} montre le formulaire de création d'un compte, l
 rôle déroulé. C'est ici que se lit la matrice de permissions présentée plus haut~: le rôle choisi
 détermine tout ce que le compte pourra faire.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-comptes-creation}
 \caption{Création d'un compte et attribution d'un rôle}\label{fig:s1-creation}\end{figure}
 
 La figure~\ref{fig:s1-chauffeurs} présente l'écran du référentiel des chauffeurs. Ce référentiel,
 avec ceux des véhicules et des zones, alimentera la planification des tournées au sprint~3.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-chauffeurs}
 \caption{Référentiel des chauffeurs}\label{fig:s1-chauffeurs}\end{figure}
 
@@ -315,7 +315,7 @@ Enfin, la figure~\ref{fig:s1-refus} illustre le contrôle d'accès en situation~
 tente d'atteindre le constructeur de tournées, réservé à qui détient \code{route:manage}. L'accès est
 refusé. L'interface, elle, avait déjà masqué l'entrée, mais le refus réel a lieu côté serveur.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s1-acces-refuse}
 \caption{Accès refusé à une action non permise}\label{fig:s1-refus}\end{figure}
 
@@ -417,7 +417,7 @@ Ces tests, unitaires comme d'intégration, s'exécutent tous dans le pipeline d'
 chaque \emph{commit}. La figure~\ref{fig:s1-ci-rbac} montre le job qui s'assure que les cinq services
 portent la même politique, avec la même empreinte.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.28\textheight,keepaspectratio]{s1-ci-rbac-check}
 \caption{Contrôle en CI de l'unicité de la politique d'autorisation}\label{fig:s1-ci-rbac}\end{figure}
 

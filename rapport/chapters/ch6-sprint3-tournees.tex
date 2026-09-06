@@ -121,7 +121,7 @@ et échange dessus des messages \terme{STOMP}, où chaque message porte la desti
 s'adresse. La diffusion elle-même est déléguée à RabbitMQ. Ce point mérite d'être expliqué, car c'est
 le seul choix d'architecture réel de ce mécanisme, et la figure~\ref{fig:stomp} l'illustre.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\textwidth]{Stompfigure}
 \caption{Diffusion temps réel entre plusieurs instances du service}
@@ -282,6 +282,8 @@ puis application de l'ordre retenu et engagement. Le cadre \emph{opt} porte la d
 sprint, \textbf{l'optimiseur propose, le dispatcheur dispose}, et le cadre \emph{alt} voisin couvre
 la panne du moteur d'itinéraires, l'ordre en place étant alors conservé.
 
+\subsection{Diagramme d'états}
+
 La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
 font avancer et sur laquelle tout le suivi s'appuie.
 
@@ -325,7 +327,7 @@ La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones
 jour à gauche, la tournée sélectionnée et ses arrêts au centre, la carte et les commandes restant à
 planifier à droite.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{routebuilder}
 \caption{Planificateur de tournées}\label{fig:s3-builder}\end{figure}
 
@@ -333,7 +335,7 @@ La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation~: l'ordre propos
 sa fenêtre horaire, et le gain annoncé, ici sept kilomètres et demi et dix minutes. Rien n'est
 enregistré avant que le dispatcheur applique, et la tournée reste en brouillon après.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{optimisateur}
 \caption{Aperçu d'optimisation, avec les gains et les fenêtres proposées}\label{fig:s3-optim}\end{figure}
 
@@ -341,7 +343,7 @@ La figure~\ref{fig:s3-route} montre la fiche d'une tournée. Un bandeau résume 
 distance, la ponctualité, le véhicule et la durée. En dessous, la carte trace l'itinéraire suivi et
 la séquence des arrêts est reprise à droite.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{perroutepage}
 \caption{Fiche d'une tournée en cours}\label{fig:s3-route}\end{figure}
 
@@ -356,7 +358,7 @@ les positions des chauffeurs en direct et peut se centrer sur une tournée ou su
 désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne consulte pas une carte,
 il la garde sous les yeux pendant qu'il travaille ailleurs.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{dispatchdesk}
 \caption{Centre de dispatch}\label{fig:s3-desk}\end{figure}
 
@@ -364,7 +366,7 @@ La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation, où les cha
 classés par le temps de trajet qui les sépare de l'adresse, calculé par le moteur d'itinéraires et
 non à vol d'oiseau. Seuls ceux dont la position est récente sont proposés.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{reassignation}
 \caption{Réaffectation d'une livraison, chauffeurs classés par temps d'accès}\label{fig:s3-reassign}\end{figure}
 
@@ -372,7 +374,7 @@ La figure~\ref{fig:s3-retour} montre enfin la fiche d'un retour. L'origine y est
 par le client depuis le suivi public », et chaque article est jugé revendable ou endommagé. Suivent
 les photographies jointes, l'état de la synchronisation et la chronologie de la demande.
 
-\begin{figure}[htbp]\centering
+\begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{retour}
 \caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
 
