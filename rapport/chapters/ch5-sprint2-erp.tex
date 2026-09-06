@@ -327,9 +327,7 @@ lieu de le deviner d'après un numéro de version.
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
-La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données. Chaque champ
-affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « illisible » avec la
-raison. Aucune cellule ne laisse un blanc que personne ne saurait expliquer.
+La figure~\ref{fig:s2-apercu} montre l'aperçu d'une commande sur de vraies données.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-apercu}
@@ -354,8 +352,7 @@ consultables et rejouables depuis le back-office. Un échec n'est donc jamais pe
 \subsection{Scénarios de validation}
 
 Deux scénarios couvrent les apports du sprint~: l'agnosticité et la reprise sur panne. Ils sont
-donnés dans les tableaux~\ref{tab:tc-s2-01} et~\ref{tab:tc-s2-03}. Le contrôle de compatibilité d'un
-mapping est décrit par le cas d'utilisation \emph{Mapper les champs}, scénarios 3a et 3b.
+donnés dans les tableaux~\ref{tab:tc-s2-01} et~\ref{tab:tc-s2-03}.
 
 \begin{small}
 \begin{longtable}{L{3.2cm}L{11.0cm}}
@@ -454,11 +451,6 @@ les deux versions d'Odoo, toutes deux au vert.
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-ci-biversion}
 \caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
-
-Un dernier contrôle mérite d'être cité, car il agit avant même les tests. Si un champ canonique
-déclare un type qu'aucun convertisseur ne sait produire, l'application \textbf{ne démarre pas} et liste
-les champs concernés. Un convertisseur manquant importerait une famille entière de champs en blanc~;
-l'échec appartient donc à l'écran d'un développeur, jamais à une livraison.
 
 \section{Conclusion}
 
