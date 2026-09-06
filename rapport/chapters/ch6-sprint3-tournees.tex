@@ -462,7 +462,7 @@ délai et la légalité d'une tournée. Ce sont eux que les tests visent en prio
 y passe inaperçue. Elle ne provoque aucune panne, elle produit une tournée un peu plus longue, un
 retard imputé au mauvais chauffeur, ou un camion chargé au-delà de ce qu'il peut porter.
 
-Le sprint compte \textbf{150 méthodes de test}, réparties en deux familles~: \textbf{141 tests
+Le sprint compte \textbf{150 cas de test}, réparties en deux familles~: \textbf{141 tests
 unitaires} sur 13 classes, et \textbf{9 tests d'acceptation} sur une classe, qui s'exécutent contre
 une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 
@@ -474,9 +474,9 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \hline
 \endhead
 \rowcolor{isimsblue!10}
-\textbf{Classe de test} & \textbf{Méthodes} & \textbf{Ce qu'elle garantit} \\
+\textbf{Classe de test} & \textbf{Cas} & \textbf{Ce qu'elle garantit} \\
 \hline
-\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 13 classes, 141 méthodes}} \\
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 13 classes, 141 cas}} \\
 \hline
 \code{SlaEvaluatorTest} & 24 & Aucun retard n'est imputé à qui ne pouvait pas agir, et un échec reçoit un verdict plutôt qu'un blanc \\
 \hline
@@ -504,7 +504,7 @@ une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s3} sépare les deux.
 \hline
 \code{DeliveryDepotsTest} & 4 & Une livraison est chargée à chaque dépôt que ses lignes nomment, et n'y prend que ces lignes \\
 \hline
-\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'acceptation (base PostgreSQL réelle) — 1 classe, 9 méthodes}} \\
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'acceptation (base PostgreSQL réelle) — 1 classe, 9 cas}} \\
 \hline
 \code{DeliveryLifecycleAcceptanceIT} & 9 & Le cycle complet d'une livraison, de l'import à la clôture \\
 \hline
