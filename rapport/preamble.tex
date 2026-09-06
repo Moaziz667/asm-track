@@ -70,6 +70,16 @@
 % la page, et le texte comble. placeins/section les empeche de deriver au-dela de leur section, de
 % sorte qu'une figure reste toujours dans la section qui l'annonce.
 \usepackage[section]{placeins}
+% placeins ne pose sa barriere qu'aux \section. Sans cette extension aux \subsection, une figure
+% annoncee dans une sous-section peut deriver jusqu'a la fin de la section : le diagramme de cas
+% d'utilisation du sprint 3 arrivait quatre pages apres la phrase qui l'annonce, une fois passes
+% les trois tableaux de cas detailles.
+\makeatletter
+\AtBeginDocument{%
+  \expandafter\renewcommand\expandafter\subsection\expandafter{%
+    \expandafter\@fb@secFB\subsection}%
+}
+\makeatother
 % Seuils de flottement. Par defaut LaTeX refuse qu'une figure occupe plus de 70 % du haut d'une page
 % et exige 20 % de texte, ce qui reporte les grandes images et laisse des demi-pages blanches. On lui
 % permet d'aller jusqu'a 92 % en haut, de n'exiger que 5 % de texte, et de remplir une page de

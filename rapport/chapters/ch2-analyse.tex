@@ -166,10 +166,8 @@ conçue pour un usage à une main. \\
 \subsection{Diagramme global des cas d'utilisation}
 
 Le diagramme de la figure~\ref{fig:uc-global} synthétise les besoins fonctionnels sous forme de cas
-d'utilisation et les rattache à leurs acteurs. Il reste volontairement au premier niveau~: le
-système en compte près de quatre-vingts une fois détaillés, les représenter tous rendrait la
-figure illisible. Le détail
-est porté par les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}.
+d'utilisation et les rattache à leurs acteurs, au premier niveau seulement~: le détail est porté par
+les diagrammes propres à chaque sprint, aux chapitres~\ref{ch:socle} à~\ref{ch:ops}.
 
 \begin{figure}[htbp]
 \centering
@@ -597,7 +595,11 @@ d'itinéraires.
 
 \begin{figure}[htbp]
 \centering
-\begin{tabular}{*{5}{>{\centering\arraybackslash}m{2.5cm}}}
+% Colonnes a 2.9 cm, la largeur maximale autorisee par \logo : a 2.5 cm les logotypes en bandeau
+% debordaient leur colonne. L'espacement inter-colonnes est ramene a 2 pt, sinon les cinq colonnes
+% elargies poussent la grille au-dela de la largeur du texte.
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{*{5}{>{\centering\arraybackslash}m{2.9cm}}}
 \logo{logo-spring} & \logo{logo-react} & \logo{logo-typescript} & \logo{logo-vite} &
 \logo{logo-flutter} \\[2pt]
 \small Spring Boot & \small React & \small TypeScript & \small Vite & \small Flutter \\[12pt]
