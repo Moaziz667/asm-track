@@ -8,7 +8,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs}
   cloud:
     gateway:
       default-filters:

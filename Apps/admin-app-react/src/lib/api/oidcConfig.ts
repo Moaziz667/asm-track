@@ -3,11 +3,21 @@ import { WebStorageStateStore, User, UserManager, UserManagerSettings } from 'oi
 import { safeStorage } from '@/lib/storage';
 import { jwtDecode } from 'jwt-decode';
 
-// Environment-driven so dev / staging / prod use the same build.
-const AUTHORITY =
-  import.meta.env.VITE_OIDC_AUTHORITY || 'http://localhost:8089/realms/asm';
-const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'admin-web';
 const APP_ORIGIN = window.location.origin;
+
+// Keycloak est servi par le même nginx que le SPA, sous /auth. L'autorité se déduit donc de
+// l'origine courante, et l'image construite par la CI ne porte l'adresse d'aucun environnement.
+//
+// Ce défaut valait 'http://localhost:8089/realms/asm'. Comme Vite remplace import.meta.env à la
+// COMPILATION, l'image poussée au registre embarquait littéralement « localhost » : le navigateur
+// d'un visiteur serait allé interroger sa propre machine, et l'image n'était utilisable nulle part
+// ailleurs qu'en local.
+//
+// La variable reste lue en premier, pour le développeur qui fait tourner Vite sur le port 5173
+// pendant que la pile écoute sur le port 80.
+const AUTHORITY =
+  import.meta.env.VITE_OIDC_AUTHORITY || APP_ORIGIN + '/auth/realms/asm';
+const CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'admin-web';
 
 // redirect_uri is PINNED via env (falls back to current origin). This keeps it
 // deterministic — it can never accidentally point at Keycloak's own origin.

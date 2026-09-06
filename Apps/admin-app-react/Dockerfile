@@ -26,7 +26,13 @@ RUN npm run build
 # under a writable prefix. Stock nginx needs root to bind :80, so "add a USER line" is not enough —
 # the port has to move above 1024 too. Publish it as -p 80:8080 when running the container.
 FROM nginxinc/nginx-unprivileged:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Les routes communes sont hors de conf.d/ : nginx y charge tout *.conf comme configuration de
+# premier niveau, or ce fichier ne contient que des blocs `location`. local.conf et prod.conf
+# l'incluent depuis l'intérieur de leur `server`.
+COPY nginx/locations.conf /etc/nginx/locations.conf
+# L'image embarque la configuration locale. Le serveur monte prod.conf par-dessus via
+# docker-compose.prod.yml : passer en HTTPS ne demande donc aucune reconstruction.
+COPY nginx/local.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # The base image already drops to this user; stating it here is what a static scanner can actually

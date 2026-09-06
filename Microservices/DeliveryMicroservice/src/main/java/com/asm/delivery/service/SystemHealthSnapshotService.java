@@ -54,7 +54,7 @@ public class SystemHealthSnapshotService {
     private String driverServiceUrl;
     @Value("${erp.adapter-url:http://erp-adapter:8088}")
     private String erpAdapterUrl;
-    @Value("${auth.server.url:http://keycloak:8080/realms/asm}")
+    @Value("${auth.server.url:http://keycloak:8080/auth/realms/asm}")
     private String authServerUrl;
     @Value("${app.osrm.base-url:http://localhost:5000}")
     private String osrmUrl;

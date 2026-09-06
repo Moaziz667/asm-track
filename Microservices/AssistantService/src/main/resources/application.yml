@@ -19,7 +19,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs}
       # Service-to-service auth for the Phase 4 read-only live tools (client_credentials).
       client:
         registration:
@@ -30,7 +30,7 @@ spring:
             client-secret: ${CLIENT_SECRET:}
         provider:
           asm-keycloak:
-            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/auth/realms/asm}/protocol/openid-connect/token
 
   # Host/credentials supplied via SPRING_RABBITMQ_* / RABBITMQ_* env vars (see docker-compose).
   # Used by the shared tenant AMQP post-processors and, from Phase 2, ingestion/audit events.

@@ -106,6 +106,21 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak_db
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KC_DB_PASS}
+      # Keycloak est servi derrière le nginx de l'admin-app, sous /auth. Le chemin doit être connu de
+      # Keycloak lui-même, parce qu'il l'écrit dans les URLs qu'il génère : page de connexion, document
+      # de découverte OIDC, redirections. Un proxy qui se contenterait de retirer le préfixe produirait
+      # des liens sans /auth, cassés dès la première redirection.
+      KC_HTTP_RELATIVE_PATH: /auth
+      # L'origine publique est déduite des en-têtes X-Forwarded-* transmis par nginx.
+      #
+      # Ne PAS y substituer un KC_HOSTNAME en URL complète : ce réglage remplace le chemin au lieu de
+      # s'y ajouter. Keycloak servait alors la découverte sous /auth tout en y annonçant un émetteur
+      # sans /auth, le SPA suivait cette adresse, nginx y répondait par index.html au titre du repli
+      # SPA, et l'application se rechargeait en boucle.
+      #
+      # La déduction est sans ambiguïté tant que nginx reste la seule porte d'entrée — d'où le retrait
+      # du port 8089 ci-dessous. Une seconde entrée produirait un second émetteur.
+      KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       # This container has no mem limit, so Keycloak's image-default heap sizing
@@ -131,8 +146,9 @@ services:
       # ASM-branded ACCOUNT console theme (extends keycloak.v3, CSS + logo). Plain KC theme dir —
       # avoids pulling the PatternFly account-ui into the React 19 admin app.
       - ./keycloak/themes:/opt/keycloak/themes:ro
-    ports:
-      - "8089:8080"
+    # Aucun port publié : Keycloak est joint par nginx sous /auth, et lui seul. Le publier rouvrirait
+    # une seconde origine, donc un second émetteur dans le claim `iss`, que les services refuseraient.
+    # Console d'administration : http://localhost/auth/admin
     depends_on:
       postgres-keycloak:
         condition: service_healthy
@@ -279,9 +295,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
-      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
-      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost:8089/realms/asm}
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/auth/realms/asm
+      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost/auth/realms/asm}
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -338,8 +354,8 @@ services:
       DB_NAME: delivery_db
       DB_USER: delivery
       DB_PASS: ${DELIVERY_DB_PASS}
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
-      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/auth/realms/asm
       TRUST_GATEWAY_HEADERS: ${TRUST_GATEWAY_HEADERS:-false}
       GATEWAY_SECRET: ${GATEWAY_SECRET}
       CLIENT_ID: delivery-service
@@ -414,8 +430,8 @@ services:
     environment:
       TZ: Africa/Tunis
       SERVER_PORT: 8088
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
-      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/auth/realms/asm
       CLIENT_ID: erp-adapter
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -461,9 +477,9 @@ services:
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DB_USER: driver
       DB_PASS: ${DRIVER_DB_PASS}
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
-      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
-      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost:8089/realms/asm}
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/auth/realms/asm
+      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost/auth/realms/asm}
       CLIENT_ID: driver-service
       CLIENT_SECRET: ${CLIENT_SECRET_DRIVER}
       RESEND_API_KEY: ${RESEND_API_KEY}
@@ -505,14 +521,14 @@ services:
       context: ./ApiGateway
       dockerfile: Dockerfile
     container_name: api-gateway
-    ports:
-      - "80:80"
+    # Plus aucun port publié : la gateway est jointe par le nginx de l'admin-app sur le réseau interne.
+    # Elle partageait le port 80 avec lui, ce qui rendait les deux services mutuellement exclusifs.
     environment:
       APP_BACKEND_URL: http://app-backend:8080
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       DRIVER_SERVICE_URL: http://driver-service:8086
       ERP_ADAPTER_URL: http://erp-adapter:8088
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
       CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
       # Admin web + Flutter web dev origins. Override per env via .env (CORS_ALLOWED_ORIGINS).
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:5000}
@@ -529,8 +545,33 @@ services:
     networks:
       - asm-network
 
-  # admin-web removed — served by PM2 on port 3000 with system nginx on 8090.
-  # See scripts/nginx-vps.conf and scripts/vps-setup.sh.
+  # ── ADMIN WEB ──────────────────────────────────────────────────────────────
+  # Point d'entrée unique. Le nginx de l'image sert le SPA et relaie /api et /ws vers la gateway,
+  # /auth vers Keycloak. Le navigateur reste donc en même origine : pas de CORS, et une seule adresse
+  # à retenir. L'ancienne note « servi par PM2 avec le nginx système » décrivait un déploiement manuel
+  # dont les scripts n'ont jamais existé dans le dépôt.
+  #
+  # 80:8080 parce que l'image tourne sans privilèges et ne peut pas lier un port sous 1024.
+  admin-app:
+    build:
+      context: ../Apps/admin-app-react
+      dockerfile: Dockerfile
+    container_name: admin-app
+    ports:
+      - "80:8080"
+    depends_on:
+      api-gateway:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 
   # ── Assistant Service (RAG) ────────────────────────────────────────────────
@@ -578,8 +619,8 @@ services:
       DB_NAME: assistant_db
       DB_USER: assistant
       DB_PASS: ${ASSISTANT_DB_PASS:-assistant}
-      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
-      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      KC_JWK_SET_URI: http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/auth/realms/asm
       CLIENT_ID: assistant-service
       CLIENT_SECRET: ${CLIENT_SECRET_ASSISTANT:-}
       RABBITMQ_HOST: rabbitmq

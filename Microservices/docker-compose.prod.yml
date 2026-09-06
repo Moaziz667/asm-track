@@ -1,0 +1,26 @@
+# Surcouche SERVEUR. À superposer au fichier de base, jamais à utiliser seule :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# En local, `docker compose up -d` suffit et ignore ce fichier. Aucun fichier n'est donc à éditer
+# à la main en passant d'un environnement à l'autre — c'est tout l'objet de ce découpage. La
+# configuration HTTPS n'a longtemps existé que sur la machine distante ; le prochain déploiement
+# depuis le dépôt l'aurait effacée.
+#
+# Ce que ce fichier NE change pas, volontairement : admin-app reste l'unique porte d'entrée
+# publique. Keycloak, la passerelle et MinIO ne publient aucun port sur l'hôte, ici comme en local.
+
+services:
+  admin-app:
+    ports:
+      # 80 ne sert plus que la redirection 301 vers HTTPS (voir nginx/prod.conf).
+      - "80:8080"
+      # 443 → 8443 : l'image tourne sans privilèges et ne peut pas lier un port sous 1024.
+      - "443:8443"
+    volumes:
+      # Le certificat et sa clé, hors du dépôt. Voir certs/README.md pour les générer et poser
+      # les droits qu'attend l'utilisateur non privilégié de l'image.
+      - ./certs:/etc/nginx/certs:ro
+      # Remplace la configuration locale cuite dans l'image. Monté, donc modifiable sans rebuild ;
+      # versionné, donc jamais reperdu.
+      - ../Apps/admin-app-react/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro

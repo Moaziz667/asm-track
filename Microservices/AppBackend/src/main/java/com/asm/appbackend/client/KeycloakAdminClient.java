@@ -40,7 +40,7 @@ public class KeycloakAdminClient {
     private final RestClient restClient;
     private final OAuth2AuthorizedClientManager authorizedClientManager;
 
-    @Value("${kc.issuer-uri:http://keycloak:8080/realms/asm}")
+    @Value("${kc.issuer-uri:http://keycloak:8080/auth/realms/asm}")
     private String issuerUri;
 
     public KeycloakAdminClient(RestClient.Builder restClientBuilder,

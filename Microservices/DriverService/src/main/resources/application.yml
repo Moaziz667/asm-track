@@ -41,7 +41,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/auth/realms/asm/protocol/openid-connect/certs}
       # Service-to-service auth: client_credentials registration used by Feign clients.
       client:
         registration:
@@ -52,7 +52,7 @@ spring:
             client-secret: ${CLIENT_SECRET}
         provider:
           asm-keycloak:
-            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/auth/realms/asm}/protocol/openid-connect/token
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5437/driver_db}
@@ -102,7 +102,7 @@ invite:
 
 auth:
   server:
-    url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
+    url: ${AUTH_SERVER_URL:http://keycloak:8080/auth/realms/asm}
   issuer:
     url: ${AUTH_ISSUER_URL:${auth.server.url}}
   client:
