@@ -70,6 +70,17 @@
 % la page, et le texte comble. placeins/section les empeche de deriver au-dela de leur section, de
 % sorte qu'une figure reste toujours dans la section qui l'annonce.
 \usepackage[section]{placeins}
+% Seuils de flottement. Par defaut LaTeX refuse qu'une figure occupe plus de 70 % du haut d'une page
+% et exige 20 % de texte, ce qui reporte les grandes images et laisse des demi-pages blanches. On lui
+% permet d'aller jusqu'a 92 % en haut, de n'exiger que 5 % de texte, et de remplir une page de
+% flottants des 60 %, au lieu de 50.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.60}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
 % Espacement autour des flottants place en [H] : la valeur par defaut de LaTeX est genereuse et
 % suffisait, sur une page deja chargee, a faire basculer la figure suivante a la page d'apres en
 % laissant un grand blanc. La resserrer fait tenir un couple texte + capture de plus par page.

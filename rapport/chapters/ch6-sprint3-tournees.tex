@@ -121,7 +121,7 @@ et échange dessus des messages \terme{STOMP}, où chaque message porte la desti
 s'adresse. La diffusion elle-même est déléguée à RabbitMQ. Ce point mérite d'être expliqué, car c'est
 le seul choix d'architecture réel de ce mécanisme, et la figure~\ref{fig:stomp} l'illustre.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{Stompfigure}
 \caption{Diffusion temps réel entre plusieurs instances du service}
@@ -147,7 +147,7 @@ section~\ref{sec:s3-echeances}.
 La figure~\ref{fig:uc-s3} présente les cas d'utilisation du sprint~: la construction et la validation
 des tournées, le suivi en temps réel, le traitement des exceptions et le cycle du retour.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.60]{uc3333}
 \caption{Diagramme de cas d'utilisation du sprint 3}
@@ -255,7 +255,7 @@ La figure~\ref{fig:class-s3} présente la conception du noyau de planification~:
 services aux responsabilités séparées, les deux entités du domaine et les composants qui les
 entourent.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.66]{ClassSprint3}
 \caption{Classes de conception du sprint 3}
@@ -290,7 +290,7 @@ précédent, appliqué cette fois à la flotte.
 La figure~\ref{fig:seq-s3} suit la construction d'une tournée, depuis la sélection des livraisons
 jusqu'à la validation, en passant par l'optimisation.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.84]{Sprint3seqfinal}
 \caption{Séquence de construction, d'optimisation et de validation d'une tournée}
@@ -317,7 +317,7 @@ qu'une durée lue sur une carte ignore le trafic du jour.
 La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
 font avancer et sur laquelle tout le suivi s'appuie.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.70]{etatSprint3}
 \caption{Machine à états d'une livraison}
@@ -351,7 +351,7 @@ change en cours de route.
 La figure~\ref{fig:sla-s3} présente les quatre phases retenues~: ce que chacune promet, l'échéance à
 laquelle elle se mesure, et la personne qui en répond.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.30]{slaSprint3}
 \caption{Les quatre phases d'échéance d'une livraison}
@@ -369,17 +369,15 @@ La figure~\ref{fig:s3-builder} montre le planificateur, organisé en trois zones
 jour à gauche, la tournée sélectionnée et ses arrêts au centre, la carte et les commandes restant à
 planifier à droite.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{routebuilder}
 \caption{Planificateur de tournées}\label{fig:s3-builder}\end{figure}
 
-La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation. L'ordre proposé est affiché arrêt par
-arrêt, avec la fenêtre horaire suggérée pour chacun, et le gain annoncé en distance et en durée par
-rapport à l'ordre courant, ici sept kilomètres et demi et dix minutes. La carte trace l'itinéraire
-proposé. Deux boutons closent l'aperçu~: appliquer ou rejeter. Rien n'est enregistré avant ce geste,
-et la tournée reste en brouillon après lui.
+La figure~\ref{fig:s3-optim} présente l'aperçu d'optimisation~: l'ordre proposé arrêt par arrêt avec
+sa fenêtre horaire, et le gain annoncé, ici sept kilomètres et demi et dix minutes. Rien n'est
+enregistré avant que le dispatcheur applique, et la tournée reste en brouillon après.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{optimisateur}
 \caption{Aperçu d'optimisation, avec les gains et les fenêtres proposées}\label{fig:s3-optim}\end{figure}
 
@@ -388,7 +386,7 @@ l'état~: avancement, distance, ponctualité, véhicule et durée totale. En des
 l'itinéraire réellement suivi, et la séquence des arrêts est reprise à droite avec, pour chacun, le
 client et le montant concerné.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{perroutepage}
 \caption{Fiche d'une tournée en cours}\label{fig:s3-route}\end{figure}
 
@@ -404,19 +402,15 @@ les positions des chauffeurs en direct et peut se centrer sur une tournée ou su
 désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne consulte pas une carte,
 il la garde sous les yeux pendant qu'il travaille ailleurs.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{dispatchdesk}
 \caption{Centre de dispatch}\label{fig:s3-desk}\end{figure}
 
-La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation. Les chauffeurs en service sont
-classés par le temps de trajet qui sépare leur position actuelle de l'adresse de livraison, avec la
-distance correspondante. Le
-classement s'appuie sur le moteur d'itinéraires, et non sur la distance à vol d'oiseau, car sur un
-réseau routier réel, le chauffeur le plus proche sur la carte n'est pas toujours celui qui arrivera
-le premier. Seuls les chauffeurs dont la position est récente sont proposés, une position ancienne ne
-disant rien de l'endroit où ils se trouvent maintenant.
+La figure~\ref{fig:s3-reassign} montre le panneau de réaffectation, où les chauffeurs en service sont
+classés par le temps de trajet qui les sépare de l'adresse, calculé par le moteur d'itinéraires et
+non à vol d'oiseau. Seuls ceux dont la position est récente sont proposés.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{reassignation}
 \caption{Réaffectation d'une livraison, chauffeurs classés par temps d'accès}\label{fig:s3-reassign}\end{figure}
 
@@ -426,7 +420,7 @@ décidée au bureau. Viennent ensuite les articles concernés, chacun jugé reve
 photographies jointes par le client, l'état de la synchronisation avec le progiciel et la
 chronologie de la demande.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{retour}
 \caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
 

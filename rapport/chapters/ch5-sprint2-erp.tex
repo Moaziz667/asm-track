@@ -159,7 +159,7 @@ La figure~\ref{fig:uc-s2} présente les cas d'utilisation du sprint~: la configu
 l'intégration, l'import des commandes, la prévisualisation, la synchronisation des dépôts et le rejeu
 d'une synchronisation en échec.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.49]{uc-sprint2}
 \caption{Diagramme de cas d'utilisation du sprint 2}
@@ -264,7 +264,7 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 La figure~\ref{fig:class-erp} présente la conception « ports et adaptateurs »~: les quatre interfaces
 au centre, et les familles d'adaptateurs qui les réalisent.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.39]{PORTADAPTER}
 \caption{Ports et adaptateurs de l'intégration ERP}
@@ -290,7 +290,7 @@ aux ports.
 La figure~\ref{fig:seq-erp} suit une synchronisation, de la validation d'une livraison jusqu'à son
 écriture dans le progiciel, avec la reprise en cas de panne.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.54]{Seq2FINALoh}
 \caption{Séquence de synchronisation ERP et reprise sur panne}
@@ -316,7 +316,7 @@ a validé, l'écran a répondu, il est reparti.
 La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox}, celui du
 premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.46]{etattarns}
 \caption{Automate d'états d'un événement de synchronisation}
@@ -339,7 +339,7 @@ réparable, jamais perdu dans un journal.
 La figure~\ref{fig:s2-connexion} montre l'écran de connexion au progiciel~: le choix du fournisseur,
 l'adresse, les identifiants, et le statut de certification.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-connexion}
 \caption{Configuration de la connexion au progiciel}\label{fig:s2-connexion}\end{figure}
 
@@ -348,7 +348,7 @@ affiche les champs et méthodes qu'il expose réellement. Le connecteur choisit 
 au lieu de le deviner d'après un numéro de version, de sorte qu'une version jamais vue fonctionne
 sans modification tant qu'elle expose les champs attendus.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-compatibilite}
 \caption{Détection des capacités du progiciel}\label{fig:s2-compat}\end{figure}
 
@@ -357,21 +357,21 @@ affiche l'un des trois états~: sa valeur, « vide dans le progiciel », ou « i
 Une cellule sans valeur indique ainsi laquelle des deux causes s'applique, vide à la source ou
 présente mais illisible, au lieu de laisser un blanc que personne ne saurait expliquer.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-erp-apercu}
 \caption{Aperçu d'une commande avant l'import}\label{fig:s2-apercu}\end{figure}
 
 La figure~\ref{fig:s2-import} présente l'écran d'import des commandes prêtes~: la liste, et l'import
 d'une commande ou d'un lot.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-import}
 \caption{Import des commandes depuis le progiciel}\label{fig:s2-import}\end{figure}
 
 Enfin, la figure~\ref{fig:s2-dlq} montre la file de rebut~: les synchronisations définitivement en échec,
 consultables et rejouables depuis le back-office. Un échec n'est donc jamais perdu dans un journal.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-dlq}
 \caption{File morte des synchronisations en échec}\label{fig:s2-dlq}\end{figure}
 
@@ -477,7 +477,7 @@ confirmation} d'Odoo, ces fenêtres que valider un transfert fait apparaître et
 La figure~\ref{fig:s2-ci-biversion} montre le job d'intégration continue qui lance cette suite contre
 les deux versions d'Odoo, toutes deux au vert.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{s2-ci-biversion}
 \caption{Exécution en CI de la suite ERP contre deux versions d'Odoo}\label{fig:s2-ci-biversion}\end{figure}
 

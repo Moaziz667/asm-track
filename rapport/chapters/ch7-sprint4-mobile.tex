@@ -162,7 +162,7 @@ La figure~\ref{fig:uc-s4} présente les cas d'utilisation du sprint~: l'exécuti
 l'enregistrement de la preuve, le travail hors réseau, le transfert de garde et le circuit de la
 caisse.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.79]{ucSprint4}
 \caption{Diagramme de cas d'utilisation du sprint 4}
@@ -278,7 +278,7 @@ celui qui règle la garde d'un colis sur le terrain.
 La figure~\ref{fig:class-s4} présente la conception de l'enregistrement d'une preuve, de bout en bout~: le
 téléphone, le service qui le reçoit, et les entités écrites en base.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.32]{ClassSprint4}
 \caption{Classes de conception du sprint 4}
@@ -311,7 +311,7 @@ une livraison en échec, chez un client absent, n'a ni preuve ni encaissement.
 La figure~\ref{fig:seq-s4} suit l'enregistrement d'une preuve depuis l'écran du chauffeur jusqu'à
 l'enregistrement, en passant par le cas où le réseau est absent.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
 \diagramme[0.85]{seq-sprint4}
 \caption{Séquence du dépôt d'une preuve, avec mise en file et rejeu}
@@ -337,7 +337,7 @@ La figure~\ref{fig:s4-tournee} montre la tournée du jour. La carte du haut rés
 son créneau, son véhicule, son dépôt de départ et sa progression, ici zéro arrêt sur trois. Suit la
 liste des arrêts dans l'ordre de passage, le premier portant l'action qui lui reste.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-tournee}
 \caption{Tournée du jour sur l'application chauffeur}\label{fig:s4-tournee}\end{figure}
 
@@ -346,7 +346,7 @@ de livraison consultable, et un bouton de validation grisé dont le motif est é
 au-dessus. À droite, le décompte article par article quand la livraison est partielle, chaque manque
 devant être ventilé et motivé depuis une liste.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[height=0.48\textheight,keepaspectratio]{s4-preuve}\hspace{8mm}
 \includegraphics[height=0.48\textheight,keepaspectratio]{s4-preuve-detail}
 \caption{Preuve de livraison~: le formulaire, puis le décompte des manques}\label{fig:s4-preuve}\end{figure}
@@ -356,7 +356,7 @@ réseau, un bandeau ambré compte une écriture en attente. À droite, après un
 serveur, le bandeau passe au rouge et la ligne offre trois issues, relancer, ouvrir la livraison, ou
 abandonner.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 % Les deux captures ont ete rognees en bas : le panneau de synchronisation n'occupe que le haut de
 % l'ecran, et sans ce rognage la moitie de la figure est du blanc.
 \includegraphics[width=0.48\textwidth]{s4-attente}\hfill
@@ -367,7 +367,7 @@ La figure~\ref{fig:s4-garde} montre le code affiché par le chauffeur qui cède 
 apparaît sous deux formes, le QR et les six caractères qu'il porte, avec le temps restant avant
 expiration. La capture est prise en thème sombre.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-garde}
 \caption{Code de transfert de garde~: QR, jeton et compte à rebours}\label{fig:s4-garde}\end{figure}
 
@@ -376,7 +376,7 @@ attribue au chauffeur, et le seul champ à remplir est prérempli avec ce total 
 modifiable. Une note annonce que le dépôt comptera devant lui, et que la remise n'est pas terminée
 avant.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[height=0.52\textheight,keepaspectratio]{s4-caisse}
 \caption{Déclaration de la remise de caisse par le chauffeur}\label{fig:s4-caisse}\end{figure}
 
@@ -385,7 +385,7 @@ l'attendu, le déclaré et le compté, et n'affiche l'écart que lorsqu'il exist
 l'arbitrage, ici cinq dinars de frais de parking payés en espèces sans justificatif, retenus sur la
 remise suivante.
 
-\begin{figure}[H]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\textwidth,keepaspectratio]{s4-guichet}
 \caption{Comptage de la remise et arbitrage de l'écart au bureau}\label{fig:s4-guichet}\end{figure}
 
