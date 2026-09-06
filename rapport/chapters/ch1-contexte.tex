@@ -1,12 +1,12 @@
-% Budget : 10 pages — voir rapport/PLAN.md
+% Budget~: 10 pages — voir rapport/PLAN.md
 \chapter{Cadre général du projet}
 
 \section{Introduction}
 
-Ce chapitre pose le cadre dans lequel s'inscrit ce projet de fin d'études. Nous présentons d'abord
+Ce chapitre pose le cadre dans lequel s'inscrit ce projet de fin d'études. Il présente d'abord
 l'entreprise d'accueil, puis le contexte, la problématique, les objectifs et le périmètre du projet.
-Nous analysons ensuite les solutions existantes afin de situer notre approche par rapport à elles.
-Nous terminons par la méthodologie de développement retenue.
+Les solutions existantes sont ensuite analysées afin de situer notre approche par rapport à elles.
+Le chapitre se termine sur la méthodologie de développement retenue.
 
 \section{Présentation de l'organisme d'accueil}
 
@@ -23,7 +23,7 @@ Dakar~\cite{asm-apropos}.
   \caption{Logo de l'entreprise ASM (All Soft Multimedia)~\cite{asm-apropos}}
 \end{figure}
 
-Ce positionnement est directement pertinent pour ce projet : ASM n'est pas seulement le
+Ce positionnement est directement pertinent pour ce projet~: ASM n'est pas seulement le
 commanditaire, elle est elle-même éditrice d'un ERP. Une plateforme de suivi de livraison qui
 s'intègre à un ERP sans s'y enfermer profite à ses clients quel que soit le progiciel qu'ils
 exploitent, et son architecture, bâtie sur un contrat d'adaptateur commun à tout ERP, est conçue pour qu'un autre système
@@ -32,14 +32,14 @@ puisse s'y brancher sans remettre en cause le reste de la plateforme.
 \begin{table}[H]
 \centering
 \caption{Fiche d'identité d'ASM}
-% Pas de traits verticaux : convention observée dans le mémoire de référence, où tous les
+% Pas de traits verticaux~: convention observée dans le mémoire de référence, où tous les
 % tableaux comparatifs ne sont séparés que par des filets horizontaux.
 \begin{tabularx}{\textwidth}{L{4cm}X}
 \hline
 \rowcolor{isimsblue!10}
 \textbf{Nom de l'entreprise} & ASM (All Soft Multimedia) \\
 \hline
-\textbf{Secteur d'activité} & Édition et intégration de logiciels : ERP (DUX), sites web,
+\textbf{Secteur d'activité} & Édition et intégration de logiciels~: ERP (DUX), sites web,
 applications mobiles, systèmes de point de vente \\
 \hline
 \textbf{Date de création} & 2007 \\
@@ -66,7 +66,7 @@ déterminer si elles peuvent, ou non, suivre leurs livraisons.
 
 \subsection{Problématique}
 
-La problématique de ce projet peut être résumée ainsi :
+La problématique de ce projet peut être résumée ainsi~:
 
 \begin{quote}
 \bfseries\itshape
@@ -78,7 +78,7 @@ en l'absence de connexion réseau~?
 \subsection{Objectifs du projet}
 
 L'objectif principal est de couvrir l'ensemble du cycle de vie d'une livraison, depuis l'import de
-la commande jusqu'à la preuve de sa remise, à travers :
+la commande jusqu'à la preuve de sa remise, à travers~:
 
 \begin{itemize}
   \item une architecture \textbf{multi-tenant}, où chaque entreprise cliente dispose de ses propres
@@ -102,7 +102,7 @@ la commande jusqu'à la preuve de sa remise, à travers :
 
 Le projet couvre le cycle complet d'une livraison, de l'import à la planification de tournée, puis
 l'exécution terrain, la preuve de livraison, l'encaissement et les retours, pour un nombre quelconque d'entreprises
-clientes. Il se limite au dernier kilomètre : la gestion des stocks, la facturation et la production
+clientes. Il se limite au dernier kilomètre~: la gestion des stocks, la facturation et la production
 restent du ressort de l'ERP, que la plateforme consulte et met à jour sans s'y substituer.
 
 \section{Étude et critique de l'existant}
@@ -121,7 +121,7 @@ livraison du dernier kilomètre.
 \textbf{Onfleet}~\cite{onfleet-site} est une plateforme SaaS de gestion de tournées et de suivi de
 chauffeurs, reconnue pour son optimisation d'itinéraires et son suivi en temps réel. Elle ne
 s'intègre toutefois à un ERP que par des connecteurs génériques ou un développement sur mesure. Elle propose un
-mode hors ligne, mais désactivé par défaut : sans lui, un chauffeur ne dispose que de deux minutes
+mode hors ligne, mais désactivé par défaut~: sans lui, un chauffeur ne dispose que de deux minutes
 pour démarrer ou terminer une tâche avant d'être bloqué faute de réseau~\cite{onfleet-connectivity}.
 Sa documentation publique ne décrit pas de mécanisme d'encaissement en espèces ni de remise de
 caisse.
@@ -142,17 +142,17 @@ légère et multi-ERP.
 
 \textbf{Le module de livraison natif d'un ERP} (par exemple Odoo Inventory) constitue la troisième
 approche possible. Il a l'avantage d'être déjà connecté aux données de commande et de stock, mais il
-enferme l'entreprise dans cet ERP précis : le changer, ou en exploiter plusieurs à la fois, ce qui
+enferme l'entreprise dans cet ERP précis~: le changer, ou en exploiter plusieurs à la fois, ce qui
 est un cas concret chez les clients d'ASM, n'est pas pris en charge.
 
 \subsection{Synthèse comparative et solution proposée}
 
 Le fonctionnement hors connexion, longtemps distinctif, est aujourd'hui proposé par les plateformes
-matures du marché. Ce qui les sépare de notre approche tient à deux points : la profondeur de
+matures du marché. Ce qui les sépare de notre approche tient à deux points~: la profondeur de
 l'intégration ERP, générique chez elles alors que le projet vise un contrat commun réellement
 implémenté sur plusieurs ERP, et le traitement de l'encaissement à la livraison. Sur ce second
 point, la distinction porte moins sur la collecte du paiement, que Bringg documente à travers une
-action chauffeur de prise de paiement et un montant restant dû, que sur ce qui vient après : la remise de
+action chauffeur de prise de paiement et un montant restant dû, que sur ce qui vient après~: la remise de
 la caisse du livreur, son comptage contradictoire et l'arbitrage des écarts. Ce maillon est
 déterminant sur le marché tunisien, où le
 paiement en espèces à la remise reste le mode dominant.
@@ -173,20 +173,20 @@ garde-fous.
 \centering
 \caption{Comparatif des solutions existantes, d'après leur documentation publique}
 \label{tab:comparatif-existant}
-% Ce critère a d'abord porté sur la multi-tenance, puis sur l'auto-hébergement : les deux étaient
+% Ce critère a d'abord porté sur la multi-tenance, puis sur l'auto-hébergement~: les deux étaient
 % erronés. Onfleet et Bringg sont des SaaS multi-clients par construction, et la solution proposée
 % est elle aussi hébergée par son éditeur (ASM) plutôt que par le client.
 %
-% La colonne COD a elle-même dû être corrigée : elle portait « Non » pour Bringg, alors que sa
+% La colonne COD a elle-même dû être corrigée~: elle portait « Non » pour Bringg, alors que sa
 % documentation API expose bien un montant restant dû et une action chauffeur de prise de paiement.
 % D'où la formulation « Partiel » et le libellé « Non documenté » plutôt que « Non » — une absence
 % dans la documentation publique ne prouve pas l'absence de la fonctionnalité.
 % Colonne « Assistant sur les données », trois libellés différents pour trois situations
-% différentes : Onfleet a bien un assistant, mais documenté comme une aide à l'usage du produit,
+% différentes~: Onfleet a bien un assistant, mais documenté comme une aide à l'usage du produit,
 % d'où « Support produit » ; Bringg n'en documente aucun, et « Non documenté » dit exactement
 % cela sans affirmer qu'il n'en existe pas ; un module ERP natif, lui, n'en a pas par
 % construction, d'où « Non ».
-% « Sans objet » plutôt que « Non » pour les versions ERP chez Onfleet et Bringg : la question ne se
+% « Sans objet » plutôt que « Non » pour les versions ERP chez Onfleet et Bringg~: la question ne se
 % pose pas à une plateforme qui reste sur une API générique, elle ne surgit qu'en descendant au
 % modèle de données. Les marquer « Non » laisserait croire à une faiblesse là où il n'y a qu'un
 % choix d'architecture différent.
@@ -209,14 +209,14 @@ Module ERP natif & Non & Non & Partiel & Non & Non & Enferme l'entreprise dans u
 \end{table}
 
 La colonne « versions ERP » mérite un mot. Un progiciel évolue, et ses versions majeures modifient
-la structure des données qu'il expose : une intégration construite sur une version peut cesser de
+la structure des données qu'il expose~: une intégration construite sur une version peut cesser de
 fonctionner chez un client qui met la sienne à jour. Les plateformes étudiées échappent à cette
 difficulté en restant à la surface, à travers une API générique, d'où la mention « sans objet » ;
 un module natif la subit au contraire de plein fouet, puisqu'il doit être porté à chaque version.
 S'intégrer en profondeur tout en résistant aux montées de version est donc une exigence à part
 entière, dont le chapitre~\ref{ch:erp} détaille le traitement.
 
-Ce constat oriente la conception du système autour de quatre partis pris : un adaptateur ERP commun
+Ce constat oriente la conception du système autour de quatre partis pris~: un adaptateur ERP commun
 plutôt qu'un développement par ERP, une intégration qui s'adapte à la version rencontrée chez le
 client plutôt que d'en supposer une seule, une isolation des données par entreprise cliente plutôt
 qu'un déploiement dédié à chacune, et une chaîne d'encaissement traitée comme un circuit de
@@ -283,9 +283,9 @@ chapitre suivant détaille le sprint 0.
 
 \section{Conclusion}
 
-Ce chapitre a présenté le cadre général du projet : l'entreprise d'accueil ASM, la problématique de
+Ce chapitre a présenté le cadre général du projet~: l'entreprise d'accueil ASM, la problématique de
 l'intégration ERP multiple sans dépendance ni interruption réseau, les objectifs et le périmètre
 retenus, ainsi que les limites des solutions existantes qui justifient cette approche. La
 méthodologie Scrum a été retenue pour sa capacité à absorber un périmètre encore mouvant. Le
-chapitre suivant présente le sprint 0 : l'analyse des besoins, la planification des sprints et
+chapitre suivant présente le sprint 0~: l'analyse des besoins, la planification des sprints et
 l'étude technique préalable.

@@ -1,50 +1,50 @@
-% Budget : 3 pages.
+% Budget~: 3 pages.
 \chapter*{INTRODUCTION GÉNÉRALE}
 \addcontentsline{toc}{chapter}{INTRODUCTION GÉNÉRALE}
 \markboth{INTRODUCTION GÉNÉRALE}{}
 
-Dans une entreprise de distribution, la livraison ne s'arrête pas à la sortie de l'entrepôt : elle
+Dans une entreprise de distribution, la livraison ne s'arrête pas à la sortie de l'entrepôt~: elle
 continue jusqu'à la porte du client, souvent hors de portée du système d'information. Un dispatcheur
 doit affecter des commandes à des livreurs, suivre leur avancement, réagir à un incident, tout en
 gardant l'ERP, qu'il s'agisse d'Odoo, d'ERPNext ou d'un autre, synchronisé avec ce qui se passe réellement sur le
 terrain. Ce dernier maillon, le \emph{dernier kilomètre}, est celui où l'information se perd le
-plus facilement : un bon de livraison papier égaré, un stock qui ne se met pas à jour, une preuve de
+plus facilement~: un bon de livraison papier égaré, un stock qui ne se met pas à jour, une preuve de
 remise introuvable en cas de litige.
 
 Les outils du marché répondent rarement à ce problème dans son ensemble. Un logiciel de tournées
-generique n'a pas connaissance des commandes de l'ERP et impose de les ressaisir ; un module fourni
+générique n'a pas connaissance des commandes de l'ERP et impose de les ressaisir ; un module fourni
 par l'éditeur de l'ERP enferme, à l'inverse, l'entreprise dans cet éditeur précis et ne suit plus si
 elle en change. Et la plupart de ces outils supposent une connexion permanente, alors qu'un livreur
 en zone rurale ou en sous-sol de parking n'en a pas toujours une.
 
 Ce projet de fin d'études, mené au sein de l'entreprise \textbf{ASM (All Soft Multimedia)},
 elle-même éditrice d'un progiciel de gestion, part de ce constat. Le travail réalisé, un
-\textbf{Système intelligent de suivi de livraison}, repose sur deux partis pris structurants : un
+\textbf{Système intelligent de suivi de livraison}, repose sur deux partis pris structurants~: un
 adaptateur qui dialogue avec l'ERP par un contrat commun plutôt que par un développement propre à
 chacun, et une isolation des données par entreprise cliente qui permet à une seule plateforme de
 servir plusieurs d'entre elles. Autour de ce socle s'organisent la planification des tournées, le
 suivi en temps réel et une application chauffeur qui reste utilisable sans réseau. Le système
-couvre ainsi tout le trajet d'une commande : de son import depuis l'ERP jusqu'à la preuve de
+couvre ainsi tout le trajet d'une commande~: de son import depuis l'ERP jusqu'à la preuve de
 livraison qui y retourne.
 
-Ce rapport retrace la démarche suivie pour construire ce système, chapitre après chapitre :
+Ce rapport retrace la démarche suivie pour construire ce système, chapitre après chapitre~:
 
 \begin{itemize}
-  \item \textbf{Chapitre 1} : présente le cadre général du projet, l'entreprise d'accueil et
+  \item Le \textbf{chapitre 1} présente le cadre général du projet, l'entreprise d'accueil et
   l'étude de l'existant.
-  \item \textbf{Chapitre 2} : présente le sprint 0, consacré à l'analyse des besoins, à la
+  \item Le \textbf{chapitre 2} présente le sprint 0, consacré à l'analyse des besoins, à la
   planification Scrum et à l'étude technique.
-  \item \textbf{Chapitre 3} : détaille l'architecture et la conception générale du système.
-  \item \textbf{Chapitre 4} : détaille le sprint 1, consacré au socle d'identité, d'autorisation et
+  \item Le \textbf{chapitre 3} détaille l'architecture et la conception générale du système.
+  \item Le \textbf{chapitre 4} détaille le sprint 1, consacré au socle d'identité, d'autorisation et
   aux référentiels d'exploitation.
-  \item \textbf{Chapitre 5} : décrit le sprint 2, consacré à l'intégration ERP agnostique.
-  \item \textbf{Chapitre 6} : expose le sprint 3, consacré à la planification des tournées et à
+  \item Le \textbf{chapitre 5} décrit le sprint 2, consacré à l'intégration ERP agnostique.
+  \item Le \textbf{chapitre 6} expose le sprint 3, consacré à la planification des tournées et à
   leur suivi en temps réel.
-  \item \textbf{Chapitre 7} : présente le sprint 4, consacré à l'application mobile chauffeur et au
+  \item Le \textbf{chapitre 7} présente le sprint 4, consacré à l'application mobile chauffeur et au
   mode hors ligne.
-  \item \textbf{Chapitre 8} : présente le sprint 5, consacré à l'exploitation, à la résilience et à
+  \item Le \textbf{chapitre 8} présente le sprint 5, consacré à l'exploitation, à la résilience et à
   l'assistant interne.
-  \item \textbf{Chapitre 9} : présente la validation globale, la qualité et le déploiement du
+  \item Le \textbf{chapitre 9} présente la validation globale, la qualité et le déploiement du
   système.
 \end{itemize}
 
