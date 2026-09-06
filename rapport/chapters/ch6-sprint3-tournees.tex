@@ -147,19 +147,17 @@ section~\ref{sec:s3-echeances}.
 La figure~\ref{fig:uc-s3} présente les cas d'utilisation du sprint~: la construction et la validation
 des tournées, le suivi en temps réel, le traitement des exceptions et le cycle du retour.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.60]{uc3333}
 \caption{Diagramme de cas d'utilisation du sprint 3}
 \label{fig:uc-s3}
 \end{figure}
 
-Trois acteurs se partagent ces cas. Le \textbf{dispatcheur} est l'opérateur principal~: il construit
-les tournées, demande une optimisation, valide, annule, retire un arrêt, et traite les exceptions de
-la journée. Le \textbf{responsable} n'agit pas sur les tournées. Il les observe, consulte le respect
-des délais et lit les rapports de fin de journée. Le \textbf{destinataire} n'entre jamais dans
-l'application, mais suit son colis depuis une page publique où il peut demander un retour. Le moteur
-d'itinéraires apparaît comme système externe, sollicité par le seul cas d'optimisation.
+Trois acteurs se partagent ces cas. Le \textbf{dispatcheur} construit les tournées, demande une
+optimisation, valide et traite les exceptions. Le \textbf{responsable} n'agit pas sur les tournées,
+il les observe. Le \textbf{destinataire} suit son colis depuis une page publique, sans jamais entrer
+dans l'application.
 
 \subsection{Description détaillée des cas d'utilisation}
 
@@ -255,20 +253,17 @@ La figure~\ref{fig:class-s3} présente la conception du noyau de planification~:
 services aux responsabilités séparées, les deux entités du domaine et les composants qui les
 entourent.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.66]{ClassSprint3}
 \caption{Classes de conception du sprint 3}
 \label{fig:class-s3}
 \end{figure}
 
-Le traitement est réparti entre quatre services, et ce découpage suit les moments réels du travail
-plutôt que les entités. \code{RoutePlanningService} porte tout ce que le dispatcheur fait sur une
-tournée avant qu'elle ne parte. \code{RouteExecutionService} porte ce que la journée lui fait subir
-ensuite~: démarrage, chargement confirmé, arrivée à un arrêt, clôture. \code{RouteOptimizationService}
-n'est appelé que pour proposer un ordre. Enfin, \code{RouteValidator} rassemble les règles qui
-déterminent si une tournée est légale~: chauffeur actif, absence de conflit d'horaire, charge utile
-respectée, fenêtres horaires cohérentes.
+Le traitement est réparti entre quatre services, découpés selon les moments du travail plutôt que
+les entités~: \code{RoutePlanningService} avant le départ, \code{RouteExecutionService} pendant la
+journée, \code{RouteOptimizationService} pour proposer un ordre, et \code{RouteValidator} qui
+rassemble les règles décidant si une tournée est légale.
 
 Deux composants complètent l'ensemble. \code{OsrmRoutingService} est le client du moteur
 d'itinéraires~: il fournit la matrice des durées, une proposition d'ordre et les tracés.
@@ -290,7 +285,7 @@ précédent, appliqué cette fois à la flotte.
 La figure~\ref{fig:seq-s3} suit la construction d'une tournée, depuis la sélection des livraisons
 jusqu'à la validation, en passant par l'optimisation.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.84]{Sprint3seqfinal}
 \caption{Séquence de construction, d'optimisation et de validation d'une tournée}
@@ -317,7 +312,7 @@ qu'une durée lue sur une carte ignore le trafic du jour.
 La figure~\ref{fig:etat-s3} donne la machine à états d'une livraison, celle que les gestes du terrain
 font avancer et sur laquelle tout le suivi s'appuie.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.70]{etatSprint3}
 \caption{Machine à états d'une livraison}
@@ -351,7 +346,7 @@ change en cours de route.
 La figure~\ref{fig:sla-s3} présente les quatre phases retenues~: ce que chacune promet, l'échéance à
 laquelle elle se mesure, et la personne qui en répond.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.30]{slaSprint3}
 \caption{Les quatre phases d'échéance d'une livraison}

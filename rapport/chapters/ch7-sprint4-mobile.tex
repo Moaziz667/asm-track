@@ -162,18 +162,17 @@ La figure~\ref{fig:uc-s4} présente les cas d'utilisation du sprint~: l'exécuti
 l'enregistrement de la preuve, le travail hors réseau, le transfert de garde et le circuit de la
 caisse.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.79]{ucSprint4}
 \caption{Diagramme de cas d'utilisation du sprint 4}
 \label{fig:uc-s4}
 \end{figure}
 
-Le déséquilibre entre les deux acteurs est le premier fait à relever. Le \textbf{chauffeur} porte
-presque tous les cas~; le \textbf{dispatcheur} n'en détient qu'un seul, solder la remise de caisse.
-Cette solitude n'est pas un oubli de découpage, c'est le mécanisme lui-même. Celui qui remet
-l'argent n'est pas celui qui le compte. Le progiciel apparaît en système externe, sollicité par le
-seul enregistrement de la preuve, dont il reçoit le mouvement de stock.
+Le déséquilibre entre les deux acteurs est le premier fait à relever~: le \textbf{chauffeur} porte
+presque tous les cas, le \textbf{dispatcheur} n'en détient qu'un, solder la remise de caisse. Ce
+n'est pas un oubli de découpage mais le mécanisme lui-même, celui qui remet l'argent n'étant pas
+celui qui le compte.
 
 Les relations méritent une lecture attentive. La livraison complète et la livraison partielle sont
 deux \emph{spécialisations} du même cas. Une livraison partielle n'est pas un parcours à part, c'est
@@ -278,7 +277,7 @@ celui qui règle la garde d'un colis sur le terrain.
 La figure~\ref{fig:class-s4} présente la conception de l'enregistrement d'une preuve, de bout en bout~: le
 téléphone, le service qui le reçoit, et les entités écrites en base.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.32]{ClassSprint4}
 \caption{Classes de conception du sprint 4}
@@ -286,12 +285,9 @@ téléphone, le service qui le reçoit, et les entités écrites en base.
 \end{figure}
 
 Le diagramme se lit en trois bandes, qui sont trois responsabilités et non trois couches
-techniques. Sur le téléphone, \code{DeliveryRepository} \textbf{décide} et \code{OfflineQueueService}
-\textbf{garantit}. Le premier tranche une question immédiate, celle de savoir si le réseau répond,
-et si oui l'écriture part tout de suite, sinon il la confie au second. Celui-ci porte alors une promesse
-longue, conserver cette écriture jusqu'à ce que le serveur l'accepte, avec ses trois tentatives et
-son expiration à vingt-quatre heures. Les séparer suit la durée de vie de ces deux tâches, le choix
-se faisant en un instant quand la promesse peut tenir toute la journée.
+techniques. Sur le téléphone, \code{DeliveryRepository} décide si le réseau répond et fait partir
+l'écriture, sinon il la confie à \code{OfflineQueueService}, qui la conserve jusqu'à ce que le
+serveur l'accepte, avec trois tentatives et une expiration à vingt-quatre heures.
 
 Côté serveur, \code{DriverDeliveryController} porte l'annotation qui déclenche la garde
 d'idempotence. \code{IdempotencyAspect} s'intercale avant le service et rend la réponse déjà donnée
@@ -311,21 +307,17 @@ une livraison en échec, chez un client absent, n'a ni preuve ni encaissement.
 La figure~\ref{fig:seq-s4} suit l'enregistrement d'une preuve depuis l'écran du chauffeur jusqu'à
 l'enregistrement, en passant par le cas où le réseau est absent.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.85]{seq-sprint4}
 \caption{Séquence du dépôt d'une preuve, avec mise en file et rejeu}
 \label{fig:seq-s4}
 \end{figure}
 
-Trois décisions se lisent dans l'ordre des messages, et chacune répare une façon de perdre quelque
-chose. Les photographies partent dans le stockage objet \textbf{avant} l'ouverture de la
-transaction, car une preuve ne doit jamais exister en base sans ses images. L'encaissement est écrit
-\textbf{dans la même transaction} que la preuve, parce qu'en deux écritures séparées un incident
-survenu entre les deux laisserait une livraison prouvée et un encaissement jamais enregistré,
-c'est-à-dire de l'argent pris sur le terrain dont le système ignore l'existence. Le progiciel, enfin,
-est prévenu \textbf{après}, en différé, de sorte que la
-livraison est enregistrée même s'il est injoignable, ce qui reprend l'outbox du sprint~2.
+Trois décisions se lisent dans l'ordre des messages. Les photographies partent dans le stockage
+objet \textbf{avant} l'ouverture de la transaction. L'encaissement est écrit \textbf{dans la même
+transaction} que la preuve, sans quoi un incident laisserait de l'argent pris sur le terrain sans
+trace. Le progiciel est prévenu \textbf{après}, en différé.
 
 La dernière branche est la plus importante pour le chauffeur. En cas de refus définitif ou de
 tentatives épuisées, l'écriture n'est pas jetée, mais signalée dans le centre de synchronisation,

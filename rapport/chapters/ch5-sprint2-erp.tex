@@ -159,7 +159,7 @@ La figure~\ref{fig:uc-s2} présente les cas d'utilisation du sprint~: la configu
 l'intégration, l'import des commandes, la prévisualisation, la synchronisation des dépôts et le rejeu
 d'une synchronisation en échec.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.49]{uc-sprint2}
 \caption{Diagramme de cas d'utilisation du sprint 2}
@@ -264,7 +264,7 @@ le c\oe ur du sprint (\emph{Mapper les champs}) et l'usage quotidien (\emph{Impo
 La figure~\ref{fig:class-erp} présente la conception « ports et adaptateurs »~: les quatre interfaces
 au centre, et les familles d'adaptateurs qui les réalisent.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.39]{PORTADAPTER}
 \caption{Ports et adaptateurs de l'intégration ERP}
@@ -290,18 +290,17 @@ aux ports.
 La figure~\ref{fig:seq-erp} suit une synchronisation, de la validation d'une livraison jusqu'à son
 écriture dans le progiciel, avec la reprise en cas de panne.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.54]{Seq2FINALoh}
 \caption{Séquence de synchronisation ERP et reprise sur panne}
 \label{fig:seq-erp}
 \end{figure}
 
-La séquence commence dans la même transaction que le fait métier, où la livraison passe à son nouvel
-état et un événement d'intention de synchronisation est enregistré, ensemble ou pas du tout. Cette
-garantie ne repose pas sur la vigilance du développeur, car la méthode qui enregistre l'événement
-exige une transaction déjà ouverte et échoue sinon. Il devient donc impossible d'avoir une livraison validée
-sans son événement en attente.
+La séquence part de la validation d'une livraison. Son nouvel état et l'événement qui demandera la
+mise à jour du progiciel sont écrits dans une seule transaction~: les deux, ou aucun. La méthode qui
+enregistre l'événement exige d'ailleurs une transaction déjà ouverte et échoue sinon, ce qui rend
+impossible une livraison validée dont le progiciel ne serait jamais averti.
 
 La reprise sur panne se joue à \textbf{deux étages qu'il ne faut pas confondre}. Le premier protège la
 remise du message au courtier, car si celui-ci est indisponible l'outbox réessaie, avec un espacement
@@ -316,7 +315,7 @@ a validé, l'écran a répondu, il est reparti.
 La figure~\ref{fig:etat-erp} détaille l'automate d'états d'un \textbf{événement outbox}, celui du
 premier étage, la remise au courtier. Il précise le cycle de vie que l'on vient de décrire.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \diagramme[0.46]{etattarns}
 \caption{Automate d'états d'un événement de synchronisation}
