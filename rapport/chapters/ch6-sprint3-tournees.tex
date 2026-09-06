@@ -351,12 +351,9 @@ La figure~\ref{fig:s3-desk} présente le centre de dispatch, où arrivent les é
 temps réel. La colonne de gauche empile les tournées du jour et leurs livraisons, le panneau central
 détaille la livraison sélectionnée et sa chronologie.
 
-La carte, elle, n'appartient pas à cet écran. C'est une fenêtre flottante, que le dispatcheur
-déplace, redimensionne, réduit ou ferme, et qui reste ouverte quelle que soit la page consultée
-tant qu'il ne la ferme pas. Elle suit
-les positions des chauffeurs en direct et peut se centrer sur une tournée ou sur un chauffeur
-désigné depuis une autre vue. Ce choix vient du métier~: un dispatcheur ne consulte pas une carte,
-il la garde sous les yeux pendant qu'il travaille ailleurs.
+La carte n'appartient pas à cet écran~: c'est une fenêtre flottante qui suit les positions en direct
+et reste ouverte quelle que soit la page consultée. Un dispatcheur ne consulte pas une carte, il la
+garde sous les yeux pendant qu'il travaille ailleurs.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{dispatchdesk}
@@ -378,11 +375,9 @@ les photographies jointes, l'état de la synchronisation et la chronologie de la
 \includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{retour}
 \caption{Traitement d'une demande de retour}\label{fig:s3-retour}\end{figure}
 
-Le modèle distingue en revanche deux moments que l'on aurait pu confondre. Un retour reçu signifie
-que le colis est physiquement revenu au dépôt. Un retour remis en stock signifie qu'il a été jugé
-revendable et réintégré dans le progiciel. Un article rendu abîmé s'arrête donc au premier moment et
-ne repart jamais vers le stock. C'est cette séparation qui empêche un article détérioré de réapparaître
-comme disponible à la vente.
+Le modèle distingue deux moments que l'on aurait pu confondre~: un retour \emph{reçu} est revenu au
+dépôt, un retour \emph{remis en stock} a été jugé revendable et réintégré dans le progiciel. Un
+article abîmé s'arrête au premier et ne réapparaît jamais comme disponible à la vente.
 
 \section{Tests et validation}
 
