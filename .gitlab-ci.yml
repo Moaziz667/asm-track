@@ -6,6 +6,7 @@
 #   2. unit-test        — fast, fully-mocked, no external services
 #   3. integration-test — slower; needs a real Postgres, and a real Odoo for the connector
 #   4. package          — build and push versioned images to the project registry
+#   5. deploy           — tire ces images sur le VPS. Manuel, jamais automatique.
 #
 # Nothing in a later stage runs if an earlier stage fails.
 
@@ -15,6 +16,7 @@ stages:
   - security
   - integration-test
   - package
+  - deploy
 
 variables:
   # No Gradle daemon in CI (one-shot JVM), and keep its home in the project dir so it can be cached.
@@ -469,3 +471,64 @@ pages:
     expire_in: 6 months
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ── 6. DEPLOY ────────────────────────────────────────────────────────────────
+# Le VPS ne compile rien : il tire les images déjà construites par `package-images` et redémarre les
+# sept services applicatifs. Le déploiement ne touche donc ni aux sources, ni au `.env`, ni aux
+# volumes — la configuration du serveur lui appartient et lui survit.
+#
+# Manuel, y compris sur la branche par défaut. Un déploiement qui part tout seul sur chaque commit
+# est une bonne idée sur un service sans état ; ici la démonstration tourne sur cette machine, et
+# c'est une personne qui doit décider du moment.
+#
+# Variables à définir dans Settings → CI/CD → Variables :
+#   VPS_SSH_KEY   type File, clé privée sans passphrase, autorisée sur le compte de déploiement
+#   VPS_HOST      192.168.10.76
+#   VPS_USER      asm
+#
+# PRÉREQUIS SUR LE VPS — sans quoi le `docker pull` échoue :
+# le serveur résout par 8.8.8.8 et voit donc l'adresse publique de git.asmtechtn.com, qui ne mène
+# pas au registre. Le registre est sur le LAN. Il faut donc, une fois pour toutes :
+#   echo "192.168.10.90 git.asmtechtn.com registry.asmtechtn.com" | sudo tee -a /etc/hosts
+deploy-vps:
+  stage: deploy
+  tags: [docker]
+  image: alpine:3.20
+  # Rien à récupérer des étapes précédentes : ce job ne fait que piloter le VPS par SSH.
+  dependencies: []
+  environment:
+    name: vps
+    url: https://asm-track.asmtechtn.com
+  variables:
+    VPS_PATH: /home/asm/asm/Microservices
+    # Uniquement les services applicatifs. Postgres, Keycloak, RabbitMQ, MinIO et OSRM sont
+    # délibérément absents : les tirer rejouerait leurs tags flottants, et une mise à jour
+    # silencieuse de MinIO a déjà rendu son volume illisible.
+    DEPLOY_SERVICES: "api-gateway app-backend delivery-service driver-service erp-adapter assistant-service admin-app"
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - cp "$VPS_SSH_KEY" ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+    # La clé d'hôte est relevée au vol : le VPS est sur le LAN et son empreinte n'est pas publiée.
+    # StrictHostKeyChecking reste actif ensuite, donc un changement d'hôte fera échouer le job.
+    - ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+  script:
+    # La surcouche est copiée à chaque déploiement : elle vit dans le dépôt, donc le serveur ne peut
+    # pas dériver silencieusement de ce que décrit le commit déployé.
+    - scp -i ~/.ssh/id_deploy Microservices/docker-compose.registry.yml "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+    - |
+      ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" "
+        set -eu
+        cd '$VPS_PATH'
+        echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY'
+        export REGISTRY_IMAGE='$CI_REGISTRY_IMAGE' DEPLOY_TAG='$CI_COMMIT_SHORT_SHA'
+        docker compose -f docker-compose.yml -f docker-compose.registry.yml pull $DEPLOY_SERVICES
+        docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d --no-build $DEPLOY_SERVICES
+        docker logout '$CI_REGISTRY'
+      "
+    - echo "Déployé — $CI_COMMIT_SHORT_SHA sur $VPS_HOST"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
