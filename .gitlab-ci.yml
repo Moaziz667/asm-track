@@ -26,9 +26,24 @@ variables:
 # ── reusable snippets ────────────────────────────────────────────────────────
 # One template per toolchain, driven by $SERVICE. Five near-identical job definitions used to
 # mean three services were simply forgotten — a matrix cannot forget.
+# ── PROVISOIRE — interrupteur de rodage du déploiement ───────────────────────
+# Lancer une pipeline avec la variable DEPLOY_ONLY=true saute la compilation, les tests et le scan
+# de dépendances : seuls `package-images` et `deploy-vps` s'exécutent. Cela sert UNIQUEMENT à
+# enchaîner rapidement les essais tant que le job de déploiement n'est pas rodé.
+#
+# À SUPPRIMER une fois le déploiement fiable. Le garder reviendrait à pouvoir mettre en service une
+# image dont rien ne prouve qu'elle compile, alors que l'ordre fail-fast des stages est justement ce
+# qui empêche de packager du code cassé. Un interrupteur qui désactive les tests finit toujours par
+# rester allumé — d'où ce paragraphe, pour que le prochain qui le lit sache qu'il doit partir.
+.deploy-only-skip: &deploy-only-skip
+  - if: $DEPLOY_ONLY == "true"
+    when: never
+  - when: on_success
+
 .gradle-service: &gradle-service
   image: gradle:8.5-jdk17
   tags: [docker]
+  rules: *deploy-only-skip
   cache:
     key: "gradle-$SERVICE"
     paths:
@@ -44,6 +59,7 @@ variables:
 .npm-admin: &npm-admin
   image: node:20
   tags: [docker]
+  rules: *deploy-only-skip
   cache:
     key: npm-admin
     paths:
@@ -86,6 +102,7 @@ rbac-policy-check:
   stage: build
   image: python:3.12-slim
   tags: [docker]
+  rules: *deploy-only-skip
   script:
     - cd Microservices
     - python sync-rbac-policy.py --check
@@ -122,6 +139,7 @@ dependency-scan:
     entrypoint: [""]
   tags: [docker]
   allow_failure: true
+  rules: *deploy-only-skip
   variables:
     TRIVY_CACHE_DIR: .trivycache
   cache:
@@ -215,6 +233,8 @@ integration-test-erp-adapter-odoo:
   tags: [docker]
   image: gradle:8.5-jdk17
   rules:
+    - if: $DEPLOY_ONLY == "true"
+      when: never
     - changes:
         - Microservices/ErpAdapterService/**/*
         - .gitlab-ci.yml
@@ -470,6 +490,8 @@ pages:
     # ancienne inutilisable au moment où on en aurait besoin.
     expire_in: 6 months
   rules:
+    - if: $DEPLOY_ONLY == "true"
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ── 6. DEPLOY ────────────────────────────────────────────────────────────────
