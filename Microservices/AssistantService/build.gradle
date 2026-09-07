@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.3.5'
     id 'io.spring.dependency-management' version '1.1.6'
 }
@@ -85,4 +86,24 @@ tasks.register('integrationTest', Test) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     shouldRunAfter('test')
+}
+
+// Couverture de code — mesuree par JaCoCo a chaque execution de `test`.
+//
+// Le CSV est le seul des trois formats qui se resume en une ligne de shell : la chaine d'integration
+// en tire le pourcentage d'instructions couvertes et le donne a GitLab, qui l'affiche sur le job et
+// sur la pipeline. Le XML sert a la visualisation ligne a ligne dans les demandes de fusion. Le HTML
+// est desactive : personne ne l'ouvre depuis un runner, et c'est le plus couteux a produire.
+jacocoTestReport {
+    reports {
+        csv.required = true
+        xml.required = true
+        html.required = false
+    }
+}
+
+// `finalizedBy` et non `dependsOn` : le rapport est produit APRES les tests, y compris quand ils
+// echouent. Une campagne rouge est justement celle dont on veut connaitre la couverture.
+tasks.named('test') {
+    finalizedBy tasks.named('jacocoTestReport')
 }

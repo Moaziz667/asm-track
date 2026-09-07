@@ -98,10 +98,26 @@ unit-test-backend:
   parallel: *all-services
   script:
     - gradle test
+    # Le CSV de JaCoCo porte une ligne par classe ; ses colonnes 4 et 5 sont les instructions
+    # manquées et couvertes. On les additionne pour obtenir le taux du service entier. GitLab ne lit
+    # pas ce fichier : il relit le journal du job, d'où cet affichage explicite.
+    - |
+      awk -F, 'NR > 1 { manquees += $4; couvertes += $5 }
+               END { printf "Couverture des instructions : %.1f %% (%d sur %d)\n",
+                            100 * couvertes / (manquees + couvertes),
+                            couvertes, manquees + couvertes }' \
+        build/reports/jacoco/test/jacocoTestReport.csv
+  # RE2 : aucun groupe capturant n'est autorisé, GitLab retient le premier nombre du texte trouvé.
+  # Le libellé ne contient donc volontairement aucun chiffre avant le pourcentage.
+  coverage: '/Couverture des instructions : \d+(?:\.\d+)?/'
   artifacts:
     when: always
     reports:
       junit: "Microservices/$SERVICE/build/test-results/test/*.xml"
+      # Colore les lignes couvertes et découvertes dans la vue « Changes » d'une demande de fusion.
+      coverage_report:
+        coverage_format: jacoco
+        path: "Microservices/$SERVICE/build/reports/jacoco/test/jacocoTestReport.xml"
     expire_in: 1 week
 
 test-admin:
