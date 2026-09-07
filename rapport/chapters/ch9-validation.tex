@@ -1,11 +1,10 @@
 % Budget : 9 pages — voir rapport/PLAN.md
 %
-% Captures attendues dans ../diagrams/drawio/chap9/ :
-%   ci-tests.png    — onglet Tests d'un pipeline GitLab (PRETE)
-%   ci-pipeline.png — les cinq etapes en vert (A PRENDRE)
-%   deploy-ps.png   — docker compose ps sur le VPS (A PRENDRE lundi)
-% Les figures 1 et 3 sont commentees tant que les fichiers n'existent pas : une
-% inclusion d'image absente arrete la compilation.
+% Captures utilisees, dans ../diagrams/drawio/chap9/ :
+%   ci-tests.png     — onglet Tests d'un pipeline GitLab
+%   PIPELINE2.png    — les etapes de la chaine jusqu'a deploy-vps (pipeline 26878)
+%   apponserver.png  — la console servie par le VPS sur le nom de domaine
+% Les trois fichiers sont en place ; plus aucune inclusion n'est commentee.
 \chapter{Validation globale, qualité et déploiement}
 \label{ch:validation}
 
@@ -62,7 +61,12 @@ Un seul test est désactivé par défaut, l'évaluation de la recherche document
 chapitre~\ref{ch:ops}. Elle appelle un service externe facturé à l'usage et n'a donc pas sa place
 dans une exécution déclenchée à chaque \emph{commit}. Elle se lance à la demande.
 
-La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la chaîne.
+Le sommet de cette pyramide est vide~: aucun test ne pilote un navigateur, et les parcours complets
+de la console restent vérifiés à la main.
+
+La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la chaîne. Elle affiche
+645 tests et non 863~: la chaîne n'agrège que les rapports JUnit, donc les couches Java. Les tests
+React et Flutter s'exécutent ailleurs, l'application chauffeur vivant dans un dépôt distinct.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.30\textheight,keepaspectratio]{ci-tests}
@@ -70,9 +74,9 @@ La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la c
 
 \section{La chaîne d'intégration continue}
 
-La chaîne enchaîne cinq étapes, ordonnées par coût croissant~: compilation, tests unitaires, analyse
-de sécurité, tests d'intégration, construction des images. Rien ne démarre si l'étape précédente a
-échoué.
+La chaîne enchaîne six étapes, ordonnées par coût croissant~: compilation, tests unitaires, analyse
+de sécurité, tests d'intégration, construction des images, déploiement. Rien ne démarre si l'étape
+précédente a échoué.
 
 L'étape de construction ne produit jamais de \emph{tag} \code{latest}. Chaque image porte l'empreinte
 du \emph{commit}, le nom de la branche, et le cas échéant le \emph{tag} de version. Un déploiement
@@ -81,14 +85,9 @@ Un \emph{tag} dont le sens change en silence est la façon la plus simple de per
 
 La figure~\ref{fig:ci-pipeline} montre une exécution complète.
 
-% EMPLACEMENT RESERVE : remplacer le \fbox par la ligne \includegraphics commentee
-% une fois ci-pipeline.png depose dans diagrams/drawio/chap9/
 \begin{figure}[H]\centering
-\fbox{\parbox[c][0.24\textheight][c]{0.95\textwidth}{\centering\itshape
-Capture à insérer~: \code{ci-pipeline.png}\\[2mm]
-Les cinq étapes de la chaîne, en vert, dans l'interface GitLab}}
-% \includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{ci-pipeline}
-\caption{Les cinq étapes de la chaîne d'intégration}\label{fig:ci-pipeline}\end{figure}
+\includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{PIPELINE2}
+\caption{Les étapes de la chaîne, jusqu'au déploiement}\label{fig:ci-pipeline}\end{figure}
 
 \section{L'analyse des dépendances}
 
@@ -102,32 +101,39 @@ rendre bloquante la garde sous les yeux de l'équipe.
 
 \section{Le déploiement}
 
-% TODO lundi : rediger cette section apres le deploiement sur le serveur.
-% Points a couvrir, dans cet ordre :
-%   1. L'architecture des conteneurs et le point d'entree unique.
-%   2. Le tableau des ports exposes et de ceux qui ne le sont pas.
-%   3. Les trois incidents resolus : en-tete X-Forwarded-Port, droits de la cle
-%      privee pour l'utilisateur non privilegie, URLs de redirection obsoletes.
-%   4. La terminaison TLS et ce qui reste a faire avant une mise en production.
+Le serveur ne compile rien. Il tire les images produites à l'étape précédente et redémarre les sept
+services applicatifs. Une surcouche de composition, \code{docker-compose.registry.yml}, remplace les
+sections \code{build} du fichier de base par des références au registre. Le fichier de base garde
+les siennes, si bien qu'un poste de développement continue de compiler depuis les sources et ignore
+la surcouche.
 
-\emph{Section à rédiger lundi, après le déploiement sur le serveur.}
+Cinq services ne sont pas tirés~: PostgreSQL, Keycloak, RabbitMQ, MinIO et OSRM. Ce sont des briques
+tierces épinglées sur des \emph{tags} que leurs éditeurs déplacent, et les rejouer installerait une
+version que personne n'a demandée. Le déploiement ne touche donc ni aux données, ni aux volumes, ni
+au fichier d'environnement du serveur.
 
-% EMPLACEMENT RESERVE : remplacer le \fbox par la ligne \includegraphics commentee
-% une fois deploy-ps.png depose dans diagrams/drawio/chap9/
+L'étape est manuelle, y compris sur la branche principale~: la démonstration tourne sur cette
+machine, et c'est une personne qui doit choisir le moment. Les services sont redémarrés un par un,
+des services métier vers la passerelle, afin de raccourcir la fenêtre pendant laquelle celle-ci
+pointe vers un composant en cours de démarrage.
+
+Le job ne se déclare pas réussi sur un conteneur démarré. Il attend que chaque service devienne
+sain, puis interroge la console en HTTPS et exige un code~200. L'empreinte en service est relevée
+avant d'être remplacée et affichée dans le journal, avec la commande de retour arrière. Enfin, la
+configuration nginx du serveur est reposée depuis le dépôt à chaque déploiement~: elle n'existait
+auparavant que sur la machine distante, sans trace dans aucun \emph{commit}.
+
 \begin{figure}[H]\centering
-\fbox{\parbox[c][0.26\textheight][c]{0.95\textwidth}{\centering\itshape
-Capture à insérer~: \code{deploy-ps.png}\\[2mm]
-Sortie de \code{docker compose ps} sur le serveur, tous les conteneurs sains}}
-% \includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{deploy-ps}
-\caption{État des conteneurs sur le serveur de déploiement}\label{fig:deploy-ps}\end{figure}
+\includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{apponserver}
+\caption{La console d'administration servie par le serveur de déploiement}\label{fig:deploy-ps}\end{figure}
 
 \section{Conclusion}
 
 Le dispositif décrit ici tient en une phrase~: rien n'arrive sur le serveur qui n'ait traversé les
-cinq étapes de la chaîne, et l'artefact déployé est celui qu'elle a construit, jamais une
+six étapes de la chaîne, et l'artefact déployé est celui qu'elle a construit, jamais une
 recompilation faite sur place.
 
 Reste ce qui n'est pas couvert. Aucun test ne pilote un navigateur, donc les parcours de bout en
-bout de l'interface restent vérifiés à la main. Le déploiement lui-même n'est pas encore déclenché
-par la chaîne~: les images sont publiées automatiquement, leur mise en service demande une
-intervention. C'est le premier chantier à ouvrir après la soutenance.
+bout de l'interface restent vérifiés à la main. La mise en service demande toujours une
+intervention~; l'automatiser complètement suppose un environnement de recette, qui n'existe pas
+encore. C'est le premier chantier à ouvrir après la soutenance.
