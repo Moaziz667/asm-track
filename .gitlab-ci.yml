@@ -508,7 +508,22 @@ deploy-vps:
   before_script:
     - apk add --no-cache openssh-client
     - mkdir -p ~/.ssh && chmod 700 ~/.ssh
-    - cp "$VPS_SSH_KEY" ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+    # VPS_SSH_KEY est attendue en type File — GitLab écrit alors la clé dans un fichier temporaire
+    # et la variable porte son chemin. Mais en type Variable elle porte la clé elle-même, et le `cp`
+    # d'origine recevait la clé comme chemin : il échouait en RECOPIANT LA CLÉ PRIVÉE DANS LE LOG.
+    # Les deux formes sont donc acceptées ici, et la redirection vers /dev/null garantit qu'aucune
+    # branche ne peut faire fuiter le secret, quelle que soit l'erreur.
+    - |
+      if [ -f "$VPS_SSH_KEY" ]; then
+        cp "$VPS_SSH_KEY" ~/.ssh/id_deploy 2>/dev/null
+      else
+        printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy 2>/dev/null
+      fi
+      chmod 600 ~/.ssh/id_deploy
+      # Une clé tronquée ou mal collée doit échouer ici, avec un message clair, plutôt que trente
+      # lignes plus bas sur un « Permission denied » qui n'explique rien.
+      ssh-keygen -y -f ~/.ssh/id_deploy > /dev/null 2>&1 \
+        || { echo "VPS_SSH_KEY invalide : format non reconnu (retour à la ligne final manquant ?)"; exit 1; }
     # La clé d'hôte est relevée au vol : le VPS est sur le LAN et son empreinte n'est pas publiée.
     # StrictHostKeyChecking reste actif ensuite, donc un changement d'hôte fera échouer le job.
     - ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
