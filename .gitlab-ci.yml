@@ -496,6 +496,12 @@ deploy-vps:
   image: alpine:3.20
   # Rien à récupérer des étapes précédentes : ce job ne fait que piloter le VPS par SSH.
   dependencies: []
+  # Ne dépend QUE des images. Sans cette ligne, le job attend la fin de tous les stages précédents,
+  # y compris `pages` qui n'a rien à voir avec un déploiement. Avec elle, le bouton apparaît dès que
+  # les sept images sont poussées.
+  needs:
+    - job: package-images
+      artifacts: false
   environment:
     name: vps
     url: https://asm-track.asmtechtn.com
@@ -531,16 +537,70 @@ deploy-vps:
     # La surcouche est copiée à chaque déploiement : elle vit dans le dépôt, donc le serveur ne peut
     # pas dériver silencieusement de ce que décrit le commit déployé.
     - scp -i ~/.ssh/id_deploy Microservices/docker-compose.registry.yml "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+    # Le corps du script part en heredoc PROTÉGÉ (<<'REMOTE') : sans les quotes, `$(...)` et les
+    # accolades Go de `docker inspect` seraient évalués par le runner au lieu du serveur. Les seules
+    # valeurs venant de GitLab sont passées en variables d'environnement sur la ligne de commande.
     - |
-      ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" "
-        set -eu
-        cd '$VPS_PATH'
-        echo '$CI_REGISTRY_PASSWORD' | docker login -u '$CI_REGISTRY_USER' --password-stdin '$CI_REGISTRY'
-        export REGISTRY_IMAGE='$CI_REGISTRY_IMAGE' DEPLOY_TAG='$CI_COMMIT_SHORT_SHA'
-        docker compose -f docker-compose.yml -f docker-compose.registry.yml pull $DEPLOY_SERVICES
-        docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d --no-build $DEPLOY_SERVICES
-        docker logout '$CI_REGISTRY'
-      "
+      ssh -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" \
+        "VPS_PATH='$VPS_PATH' SERVICES='$DEPLOY_SERVICES' REG_HOST='$CI_REGISTRY' \
+         REG_USER='$CI_REGISTRY_USER' REG_PASS='$CI_REGISTRY_PASSWORD' \
+         REGISTRY_IMAGE='$CI_REGISTRY_IMAGE' DEPLOY_TAG='$CI_COMMIT_SHORT_SHA' sh -s" <<'REMOTE'
+      set -eu
+      cd "$VPS_PATH"
+      COMPOSE="docker compose -f docker-compose.yml -f docker-compose.registry.yml"
+
+      # Le tag actuellement en service, relevé AVANT de le remplacer. Sans cette ligne, revenir en
+      # arrière demande de retrouver le SHA précédent dans l'historique des pipelines, au pire
+      # moment pour le chercher.
+      PREV=$(docker inspect -f '{{.Config.Image}}' admin-app 2>/dev/null || echo inconnu)
+      echo "Image en service avant deploiement : $PREV"
+
+      echo "$REG_PASS" | docker login -u "$REG_USER" --password-stdin "$REG_HOST"
+      export REGISTRY_IMAGE DEPLOY_TAG
+      $COMPOSE pull $SERVICES
+
+      # --no-deps : les bases, Keycloak, RabbitMQ et MinIO tournent déjà et n'ont pas à être
+      # réévalués. Sans ce drapeau, compose attend les health-checks des dépendances et ABANDONNE
+      # s'ils tardent — c'est ainsi qu'un déploiement a laissé admin-app à l'arrêt, donc le site
+      # entier hors ligne, alors que le service qu'il attendait était sain quelques secondes plus tard.
+      $COMPOSE up -d --no-deps --no-build $SERVICES
+      docker logout "$REG_HOST" > /dev/null 2>&1 || true
+
+      # Attente active : un conteneur « started » n'est pas un service qui répond. On tolère jusqu'à
+      # cinq minutes, ce qui couvre le démarrage des services Java sur cette machine.
+      echo "Attente des services..."
+      i=0
+      while [ $i -lt 60 ]; do
+        BAD=""
+        for s in $SERVICES; do
+          st=$(docker inspect -f '{{.State.Status}}:{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$s" 2>/dev/null || echo "absent:none")
+          case "$st" in
+            running:healthy|running:none) ;;
+            *) BAD="$BAD $s($st)" ;;
+          esac
+        done
+        [ -z "$BAD" ] && break
+        i=$((i + 1))
+        sleep 5
+      done
+
+      if [ -n "$BAD" ]; then
+        echo "ECHEC — services non sains :$BAD"
+        echo "Retour arriere : DEPLOY_TAG=<tag precedent> $COMPOSE up -d --no-deps --no-build $SERVICES"
+        echo "Image precedente : $PREV"
+        exit 1
+      fi
+
+      # Test de fumée : la seule preuve qui compte est que la porte d'entrée répond réellement.
+      CODE=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 20 https://localhost/ || echo 000)
+      if [ "$CODE" != "200" ]; then
+        echo "ECHEC — les conteneurs tournent mais https://localhost/ repond $CODE"
+        echo "Image precedente : $PREV"
+        exit 1
+      fi
+
+      echo "OK — 7 services sains, la console repond 200."
+      REMOTE
     - echo "Déployé — $CI_COMMIT_SHORT_SHA sur $VPS_HOST"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
