@@ -22,7 +22,7 @@ sur le serveur.
 
 \section{La pyramide de tests}
 
-Le dépôt compte \textbf{823 tests automatisés}. Leur répartition suit la forme attendue~: une base
+Le dépôt compte \textbf{867 tests automatisés}. Leur répartition suit la forme attendue~: une base
 large de tests unitaires et une couche d'intégration plus mince.
 
 \begin{small}
@@ -40,22 +40,22 @@ large de tests unitaires et une couche d'intégration plus mince.
 \endhead
 \hline
 \endfoot
-Unitaires Java & 545 & Les règles métier, sans base ni réseau \\
+Unitaires Java & 594 & Les règles métier, sans base ni réseau \\
 \hline
-Intégration Java & 60 & Le comportement contre une vraie base et un vrai progiciel, dont 18 cas d'acceptation qui déroulent un scénario métier complet \\
+Intégration Java & 55 & Le comportement contre une vraie base et un vrai progiciel, dont 18 cas d'acceptation qui déroulent un scénario métier complet \\
 \hline
 React (Vitest) & 147 & Les composants et la logique de l'interface d'administration \\
 \hline
 Flutter (Dart) & 71 & L'application du livreur, dont la file d'attente hors ligne \\
 \hline
 \rowcolor{isimsblue!10}
-\textbf{Total} & \textbf{823} & \textbf{105 fichiers de test} \\
+\textbf{Total} & \textbf{867} & \textbf{96 fichiers de test} \\
 \hline
 \end{longtable}
 \end{small}
 
-Les deux services les plus fournis sont ceux qui portent le métier~: 254 tests pour la gestion des
-livraisons, 225 pour le connecteur ERP. La passerelle en compte 23, ce qui correspond à son rôle,
+Les deux services les plus fournis sont ceux qui portent le métier~: 265 tests pour la gestion des
+livraisons, 251 pour le connecteur ERP. La passerelle en compte 23, ce qui correspond à son rôle,
 router les requêtes et appliquer la politique d'autorisation.
 
 Un seul test est désactivé par défaut, l'évaluation de la recherche documentaire décrite au
