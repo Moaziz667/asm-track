@@ -581,11 +581,23 @@ deploy-vps:
       export REGISTRY_IMAGE DEPLOY_TAG
       $COMPOSE pull $SERVICES
 
-      # --no-deps : les bases, Keycloak, RabbitMQ et MinIO tournent déjà et n'ont pas à être
-      # réévalués. Sans ce drapeau, compose attend les health-checks des dépendances et ABANDONNE
-      # s'ils tardent — c'est ainsi qu'un déploiement a laissé admin-app à l'arrêt, donc le site
-      # entier hors ligne, alors que le service qu'il attendait était sain quelques secondes plus tard.
-      $COMPOSE up -d --no-deps --no-build $SERVICES
+      # UN SERVICE À LA FOIS, et non les sept d'un coup.
+      #
+      # `--no-deps` empêche compose de démarrer les services liés NON demandés, mais quand on lui
+      # passe les sept ensemble il applique quand même les `depends_on` entre eux : api-gateway
+      # attend delivery-service et driver-service sains, admin-app attend api-gateway. Il suffit
+      # alors qu'un service Java démarre quelques secondes trop lentement pour que compose abandonne
+      # — et il abandonne AVANT admin-app, donc plus rien n'écoute sur 443. Deux déploiements ont
+      # mis le site hors ligne ainsi, chaque fois pour un service qui était sain juste après.
+      #
+      # Avec un seul service par appel, aucune dépendance n'est évaluée. L'ordre va des services
+      # métier vers la porte d'entrée, pour que la fenêtre pendant laquelle la gateway pointe vers
+      # un backend qui redémarre soit la plus courte possible.
+      for s in app-backend delivery-service driver-service erp-adapter assistant-service api-gateway admin-app; do
+        case " $SERVICES " in
+          *" $s "*) echo "-> $s"; $COMPOSE up -d --no-deps --no-build "$s" ;;
+        esac
+      done
       docker logout "$REG_HOST" > /dev/null 2>&1 || true
 
       # Attente active : un conteneur « started » n'est pas un service qui répond. On tolère jusqu'à
