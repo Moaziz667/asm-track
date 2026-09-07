@@ -1,0 +1,39 @@
+# Surcouche DÉPLOIEMENT — remplace la construction locale par les images du registre.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml pull <services>
+#   docker compose -f docker-compose.yml -f docker-compose.registry.yml up -d --no-build <services>
+#
+# Le fichier de base garde ses sections `build:` : en local, `docker compose up -d` continue de
+# compiler depuis les sources et ignore ce fichier. Sur le serveur, l'image existe déjà — poussée
+# par le job `package-images` — et il n'y a donc ni sources ni chaîne de compilation à installer.
+#
+# DEPLOY_TAG vaut le SHA court du commit déployé, jamais `latest`. Le pipeline le dit déjà pour les
+# images qu'il construit : « A tag that silently changes meaning is how two machines end up "on the
+# same version" while running different code. » Un déploiement doit pouvoir se relire après coup.
+#
+# Ne sont listés ici que les sept services applicatifs. Postgres, Keycloak, RabbitMQ, MinIO et OSRM
+# gardent l'image du fichier de base et ne doivent PAS être tirés au déploiement : leurs tags
+# flottants (`minio/minio:latest`) rejoueraient une mise à jour silencieuse, et c'est exactement
+# ainsi que le volume MinIO s'est retrouvé avec un format de disque incompatible.
+
+services:
+  api-gateway:
+    image: ${REGISTRY_IMAGE}/api-gateway:${DEPLOY_TAG}
+
+  app-backend:
+    image: ${REGISTRY_IMAGE}/app-backend:${DEPLOY_TAG}
+
+  delivery-service:
+    image: ${REGISTRY_IMAGE}/delivery-service:${DEPLOY_TAG}
+
+  driver-service:
+    image: ${REGISTRY_IMAGE}/driver-service:${DEPLOY_TAG}
+
+  erp-adapter:
+    image: ${REGISTRY_IMAGE}/erp-adapter:${DEPLOY_TAG}
+
+  assistant-service:
+    image: ${REGISTRY_IMAGE}/assistant-service:${DEPLOY_TAG}
+
+  admin-app:
+    image: ${REGISTRY_IMAGE}/admin-app:${DEPLOY_TAG}
