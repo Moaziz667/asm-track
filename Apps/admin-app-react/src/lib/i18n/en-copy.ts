@@ -2625,7 +2625,7 @@ export const EN_COPY = {
     autoArchiving: 'Auto-Archiving',
     autoArchivingDesc: 'Move completed routes to history after 24h.',
     companyBranding: 'Company Information',
-    companyBrandingDesc: 'Your organization identity — name, contact, address and accent color.',
+    companyBrandingDesc: 'Your organization identity — name, contact, address and accent color. These details appear on the delivery notes handed to customers.',
     savingLabel: 'Saving…',
     syncFromErp: 'Sync from ERP',
     syncFromErpHint: 'Pulls name, address and email from your ERP',
