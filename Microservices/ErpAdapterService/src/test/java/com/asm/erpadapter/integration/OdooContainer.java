@@ -20,6 +20,15 @@ import java.util.Map;
  *   <li>ODOO_V16_URL, ODOO_V16_DB, ODOO_V16_LOGIN, ODOO_V16_PASSWORD</li>
  *   <li>ODOO_V17_URL, etc.</li>
  * </ul>
+ *
+ * <p><b>The DB name defaults to "odoo", which only matches the first compose file.</b>
+ * {@code docker-compose.odoo.yml} does create a database called {@code odoo}, but
+ * {@code docker-compose.odoo2.yml} — the :8070 instance — runs on {@code asm_tn} under the
+ * {@code odoo2} role. Running the suite locally without {@code ODOO_V19_DB=asm_tn} therefore
+ * fails in {@link #start()} with "not reachable", because authentication against a database
+ * that does not exist is indistinguishable here from an instance that never booted. CI does not
+ * hit this: it creates {@code odoo16} and {@code odoo19} as side-cars and sets both DB vars
+ * explicitly (see .gitlab-ci.yml).
  */
 public class OdooContainer implements AutoCloseable {
 
