@@ -74,11 +74,6 @@ La chaîne enchaîne cinq étapes, ordonnées par coût croissant~: compilation,
 de sécurité, tests d'intégration, construction des images. Rien ne démarre si l'étape précédente a
 échoué.
 
-L'ordre n'est pas décoratif. Une erreur de compilation se voit presque tout de suite, alors que le
-job du connecteur ERP, qui démarre deux instances du progiciel et attend qu'elles soient réellement
-utilisables, met trois minutes et dix-neuf secondes. Placer les étapes lentes en dernier évite
-d'attendre pour apprendre qu'une accolade manquait.
-
 L'étape de construction ne produit jamais de \emph{tag} \code{latest}. Chaque image porte l'empreinte
 du \emph{commit}, le nom de la branche, et le cas échéant le \emph{tag} de version. Un déploiement
 épingle une empreinte~: deux machines annoncées sur la même version exécutent alors le même code.
@@ -94,18 +89,6 @@ Capture à insérer~: \code{ci-pipeline.png}\\[2mm]
 Les cinq étapes de la chaîne, en vert, dans l'interface GitLab}}
 % \includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{ci-pipeline}
 \caption{Les cinq étapes de la chaîne d'intégration}\label{fig:ci-pipeline}\end{figure}
-
-\section{Le connecteur ERP éprouvé sur deux versions}
-
-La suite d'intégration du connecteur s'exécute contre Odoo 16 et Odoo 19 en parallèle, deux
-instances lancées comme services du job sur un PostgreSQL partagé. Tester les deux bornes de
-l'intervalle supporté couvre par construction les versions intermédiaires.
-
-Le point délicat n'était pas de lancer le progiciel, mais de savoir quand il est prêt. Son port HTTP
-répond en quelques secondes, bien avant que les modules de vente et de stock soient installés, et un
-test lancé à ce moment échoue sur l'authentification plutôt que sur ce qu'il est censé vérifier.
-L'attente porte donc sur une requête métier réelle, réussie plusieurs fois de suite~: un état
-annoncé comme prêt ne vaut pas un service capable de répondre.
 
 \section{L'analyse des dépendances}
 

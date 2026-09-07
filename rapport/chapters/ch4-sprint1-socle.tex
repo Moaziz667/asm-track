@@ -348,8 +348,8 @@ tableau~\ref{tab:tc-s1-03}.
 \subsection{Tests automatisés}
 
 Ce scénario, comme l'authentification et l'autorisation, est aussi vérifié par des tests automatisés,
-rejoués à chaque intégration. Le socle du sprint compte \textbf{47 cas de test}, réparties en deux familles~:
-\textbf{40 tests unitaires} sur 6 classes, et \textbf{7 tests d'intégration} sur 3 classes, qui
+rejoués à chaque intégration. Le socle du sprint compte \textbf{37 cas de test}, répartis en deux familles~:
+\textbf{35 tests unitaires} sur 5 classes, et \textbf{2 tests d'intégration} sur une classe, qui
 s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépare les deux.
 
 \begin{small}
@@ -362,7 +362,7 @@ s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépar
 \rowcolor{isimsblue!10}
 \textbf{Classe de test} & \textbf{Cas} & \textbf{Ce qu'elle garantit} \\
 \hline
-\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 6 classes, 40 cas}} \\
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests unitaires — 5 classes, 35 cas}} \\
 \hline
 \code{RbacPolicyTest} (passerelle) & 8 & L'évaluation de la politique d'autorisation \\
 \hline
@@ -374,18 +374,12 @@ s'exécutent sur une vraie base PostgreSQL. Le tableau~\ref{tab:tests-s1} sépar
 \hline
 \code{TenantSchemaTest} & 5 & La dérivation du nom de schéma \\
 \hline
-\code{AnonymousIsNotAuthenticatedTest} & 5 & Le rejet de l'appelant sans jeton \\
-\hline
-\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'intégration (base PostgreSQL réelle) — 3 classes, 7 cas}} \\
-\hline
-\code{AuthorizationIT} & 3 & L'accès réservé aux rôles opérateurs \\
+\multicolumn{3}{l}{\cellcolor{isimsblue!5}\textbf{Tests d'intégration (base PostgreSQL réelle) — 1 classe, 2 cas}} \\
 \hline
 \code{TenantIsolationIT} (livraison) & 2 & L'isolation sur base réelle \\
 \hline
-\code{TenantIsolationIT} (assistant) & 2 & L'isolation sur base réelle \\
-\hline
 \rowcolor{isimsblue!10}
-\textbf{Total} & \textbf{47} & \textbf{9 classes} \\
+\textbf{Total} & \textbf{37} & \textbf{6 classes} \\
 \hline
 \end{longtable}
 \end{small}

@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram name="Cas d&#39;utilisation — sprint 4" id="KZlBUkNtdkcqqXMANgbe">
-    <mxGraphModel dx="1563" dy="1118" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="2083" dy="1490" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -51,9 +51,6 @@
         </mxCell>
         <mxCell id="s4-e-ch-retour" edge="1" parent="1" source="R-0UT9n3BoZlzd82pqQj-2" style="html=1;endArrow=none;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=15;fontStyle=1" target="s4-uc-retour">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="s4-note-retour" parent="1" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#FFFDF5;strokeColor=#37474F;fontSize=15;align=left;spacingLeft=6;spacingRight=6;verticalAlign=middle;fontStyle=1" value="Le colis repart du destinataire vers le dépôt : même tournée,&#xa;même écran, même preuve — mais sans photo du bon de&#xa;livraison, ce document n&#39;existant pas pour un mouvement inverse." vertex="1">
-          <mxGeometry height="120" width="330" x="800" y="1330" as="geometry" />
         </mxCell>
         <mxCell id="R-0UT9n3BoZlzd82pqQj-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EEF3F8;strokeColor=#1F6CA0;fontSize=15;fontStyle=1" value="Solder la remise" vertex="1">
           <mxGeometry height="56" width="280" x="430" y="1440" as="geometry" />
