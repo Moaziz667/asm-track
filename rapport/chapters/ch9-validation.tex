@@ -71,9 +71,11 @@ développée dans un dépôt distinct.
 
 \section{La chaîne d'intégration continue}
 
-La chaîne enchaîne six étapes, ordonnées par coût croissant~: compilation, tests unitaires, analyse
-de sécurité, tests d'intégration, construction des images, déploiement. Rien ne démarre si l'étape
-précédente a échoué.
+La chaîne enchaîne six étapes~: compilation, tests unitaires, analyse de sécurité, tests
+d'intégration, construction des images et déploiement. Elle suit le modèle du
+\terme{deployment pipeline} formalisé par Humble et Farley~\cite{humble10}~: une étape ne démarre
+que si la précédente a réussi, et les vérifications sont ordonnées de la plus rapide à la plus
+coûteuse, afin que le retour arrive au moment où le défaut est encore bon marché à corriger.
 
 L'étape de construction ne produit jamais de \emph{tag} \code{latest}. Chaque image porte l'empreinte
 du \emph{commit}, le nom de la branche, et le cas échéant le \emph{tag} de version. Un déploiement
