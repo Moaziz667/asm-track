@@ -33,7 +33,11 @@
 % texte pour obtenir cette largeur et cette hauteur exactement, ce qui est le résultat demandé.
 % bindingoffset décale le bloc vers la droite pour la reliure collée, sans toucher à sa largeur :
 % le pli en avale environ 5 mm, qui seraient sinon pris sur la marge de gauche.
-\usepackage[a4paper,textwidth=160mm,textheight=250mm,bindingoffset=5mm]{geometry}
+% headheight : fancyhdr reclame 14.5pt et n'en recoit que 12 par defaut, ce qu'il signale a chaque
+% page. L'option est passee a geometry plutot que fixee apres coup : geometry ajuste alors la marge
+% haute et laisse textheight a 250mm exactement, comme la regle 3 l'impose. La fixer par
+% \setlength apres le chargement ferait deborder le bloc de 2.5pt vers le bas.
+\usepackage[a4paper,textwidth=160mm,textheight=250mm,bindingoffset=5mm,headheight=14.5pt]{geometry}
 
 % ---------- Figures et tableaux ----------
 \usepackage{graphicx}
