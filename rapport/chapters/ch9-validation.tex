@@ -60,9 +60,10 @@ uniquement à la demande.
 Le sommet de la pyramide est vide~: aucun test ne pilote un navigateur, et les parcours complets de
 la console restent vérifiés manuellement.
 
-La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la chaîne. Elle affiche
-645 tests et non 863~: la chaîne n'agrège que les rapports JUnit, donc les couches Java. Les tests
-React et Flutter s'exécutent ailleurs, l'application chauffeur vivant dans un dépôt distinct.
+La figure~\ref{fig:ci-tests} présente l'agrégation des rapports produits par la chaîne. Elle affiche
+792 tests~: les 590 tests unitaires Java, les 55 tests d'intégration et les 147 tests React, tous
+exécutés par la même chaîne. Les 71 tests Flutter n'y figurent pas, l'application du livreur étant
+développée dans un dépôt distinct.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.30\textheight,keepaspectratio]{ci-tests}

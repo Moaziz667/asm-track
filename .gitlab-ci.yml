@@ -180,7 +180,18 @@ integration-test-backend-delivery:
     - cd Microservices/DeliveryMicroservice
     - until bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; do sleep 1; done
   script:
-    - gradle integrationTest
+    # Les tests unitaires sont rejoues ici pour leur seule trace de couverture : chaque job dispose
+    # de son propre espace de travail, et le .exec produit par unit-test-backend n'y est pas. Le
+    # rapport agrege ensuite les deux fichiers, ce qui donne la couverture reelle du service.
+    - gradle test integrationTest
+    - gradle jacocoTestReport
+    - |
+      awk -F, 'NR > 1 { manquees += $4; couvertes += $5 }
+               END { printf "Couverture globale des instructions : %.1f %% (%d sur %d)\n",
+                            100 * couvertes / (manquees + couvertes),
+                            couvertes, manquees + couvertes }' \
+        build/reports/jacoco/test/jacocoTestReport.csv
+  coverage: '/Couverture globale des instructions : \d+(?:\.\d+)?/'
   artifacts:
     when: always
     reports:
@@ -213,7 +224,18 @@ integration-test-backend-assistant:
     - cd Microservices/AssistantService
     - until bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; do sleep 1; done
   script:
-    - gradle integrationTest
+    # Les tests unitaires sont rejoues ici pour leur seule trace de couverture : chaque job dispose
+    # de son propre espace de travail, et le .exec produit par unit-test-backend n'y est pas. Le
+    # rapport agrege ensuite les deux fichiers, ce qui donne la couverture reelle du service.
+    - gradle test integrationTest
+    - gradle jacocoTestReport
+    - |
+      awk -F, 'NR > 1 { manquees += $4; couvertes += $5 }
+               END { printf "Couverture globale des instructions : %.1f %% (%d sur %d)\n",
+                            100 * couvertes / (manquees + couvertes),
+                            couvertes, manquees + couvertes }' \
+        build/reports/jacoco/test/jacocoTestReport.csv
+  coverage: '/Couverture globale des instructions : \d+(?:\.\d+)?/'
   artifacts:
     when: always
     reports:
@@ -359,7 +381,18 @@ integration-test-erp-adapter-odoo:
     # because they drove Odoo's wizards the way an RPC caller assumes rather than the way the web
     # client does, and each of those mistakes fails *silently*: the transfer stays `assigned` and
     # nothing anywhere raises. See OdooTestDataFactory.settleValidationWizards.
-    - gradle integrationTest --no-daemon
+    # Les tests unitaires sont rejoues ici pour leur seule trace de couverture : chaque job dispose
+    # de son propre espace de travail, et le .exec produit par unit-test-backend n'y est pas. Le
+    # rapport agrege ensuite les deux fichiers, ce qui donne la couverture reelle du service.
+    - gradle test integrationTest --no-daemon
+    - gradle jacocoTestReport --no-daemon
+    - |
+      awk -F, 'NR > 1 { manquees += $4; couvertes += $5 }
+               END { printf "Couverture globale des instructions : %.1f %% (%d sur %d)\n",
+                            100 * couvertes / (manquees + couvertes),
+                            couvertes, manquees + couvertes }' \
+        build/reports/jacoco/test/jacocoTestReport.csv
+  coverage: '/Couverture globale des instructions : \d+(?:\.\d+)?/'
   artifacts:
     when: always
     reports:
