@@ -77,26 +77,32 @@ d'intégration, construction des images et déploiement. Elle suit le modèle du
 que si la précédente a réussi, et les vérifications sont ordonnées de la plus rapide à la plus
 coûteuse, afin que le retour arrive au moment où le défaut est encore bon marché à corriger.
 
-L'étape de construction ne produit jamais de \emph{tag} \code{latest}. Chaque image porte l'empreinte
-du \emph{commit}, le nom de la branche, et le cas échéant le \emph{tag} de version. Un déploiement
-épingle une empreinte~: deux machines annoncées sur la même version exécutent alors le même code.
-Un \emph{tag} dont le sens change en silence est la façon la plus simple de perdre cette garantie.
+Chaque image porte l'empreinte du \emph{commit} dont elle est issue, jamais un \emph{tag}
+\code{latest}~: le serveur exécute donc exactement l'artefact que la chaîne a testé.
 
-La figure~\ref{fig:ci-pipeline} montre une exécution complète.
+Les figures~\ref{fig:ci-pipeline} et~\ref{fig:ci-deploy} montrent une exécution complète, en deux
+parties.
 
 \begin{figure}[H]\centering
-\includegraphics[width=\textwidth,height=0.24\textheight,keepaspectratio]{PIPELINE2}
-\caption{Les étapes de la chaîne, jusqu'au déploiement}\label{fig:ci-pipeline}\end{figure}
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{PIPELINE}
+\caption{Les premières étapes de la chaîne, de la compilation à la construction des
+images}\label{fig:ci-pipeline}\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\textwidth,height=0.21\textheight,keepaspectratio]{PIPELINE2}
+\caption{La même exécution, jusqu'à l'étape de déploiement}\label{fig:ci-deploy}\end{figure}
 
 \section{L'analyse des dépendances}
 
-Un analyseur parcourt les dépendances et les fichiers de configuration à chaque exécution, et
-signale les vulnérabilités de niveau élevé et critique. Le job est déclaré non bloquant.
+Un analyseur parcourt à chaque exécution les dépendances déclarées et les fichiers de construction
+des images, et signale les vulnérabilités de niveau élevé ou critique. Les services Java ne
+possédant pas de fichier de verrouillage, leurs dépendances sont examinées au niveau de l'image
+plutôt qu'à celui du code.
 
-Ce choix se discute, et c'est volontaire. Une faille héritée d'une dépendance transitive n'est pas
-toujours corrigible dans la journée. Faire échouer toute la chaîne pour cette raison conduit vite à
-désactiver le contrôle, et l'information disparaît alors complètement. La rendre visible sans la
-rendre bloquante la garde sous les yeux de l'équipe.
+L'étape est délibérément non bloquante. Une faille héritée d'une dépendance transitive n'est pas
+toujours corrigible dans la journée, et faire échouer toute la chaîne pour cette raison conduit en
+pratique à désactiver le contrôle~: l'information disparaît alors complètement. La rendre visible
+sans la rendre bloquante la garde sous les yeux de l'équipe.
 
 \section{Le déploiement}
 
@@ -106,10 +112,11 @@ sections \code{build} du fichier de base par des références au registre. Le fi
 les siennes, si bien qu'un poste de développement continue de compiler depuis les sources et ignore
 la surcouche.
 
-Cinq services ne sont pas tirés~: PostgreSQL, Keycloak, RabbitMQ, MinIO et OSRM. Ce sont des briques
-tierces épinglées sur des \emph{tags} que leurs éditeurs déplacent, et les rejouer installerait une
-version que personne n'a demandée. Le déploiement ne touche donc ni aux données, ni aux volumes, ni
-au fichier d'environnement du serveur.
+Cinq services ne sont pas récupérés lors du déploiement~: PostgreSQL, Keycloak, RabbitMQ, MinIO et
+OSRM. Ils ne sont pas construits par le projet, et la plupart sont désignés par un \emph{tag} qui
+suit les mises à jour de leur éditeur~: les récupérer à chaque déploiement installerait une version
+que personne n'a demandée. Le déploiement conserve donc leurs conteneurs, leurs volumes et leurs
+données.
 
 L'étape est manuelle, y compris sur la branche principale~: la démonstration tourne sur cette
 machine, et c'est une personne qui doit choisir le moment. Les services sont redémarrés un par un,
@@ -129,8 +136,7 @@ auparavant que sur la machine distante, sans trace dans aucun \emph{commit}.
 \section{Conclusion}
 
 Le dispositif décrit ici tient en une phrase~: rien n'arrive sur le serveur qui n'ait traversé les
-six étapes de la chaîne, et l'artefact déployé est celui qu'elle a construit, jamais une
-recompilation faite sur place.
+six étapes de la chaîne.
 
 Reste ce qui n'est pas couvert. Aucun test ne pilote un navigateur, donc les parcours de bout en
 bout de l'interface restent vérifiés à la main. La mise en service demande toujours une
