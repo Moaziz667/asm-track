@@ -17,7 +17,7 @@ l'analyse de sécurité et le processus de déploiement.
 
 \section{Validation par les tests}
 
-Le projet dispose de \textbf{863 tests automatisés}, répartis entre les tests unitaires, les tests
+Le projet dispose de \textbf{955 tests automatisés}, répartis entre les tests unitaires, les tests
 d'intégration et les tests des deux interfaces.
 
 \begin{small}
@@ -35,7 +35,7 @@ d'intégration et les tests des deux interfaces.
 \endhead
 \hline
 \endfoot
-Unitaires Java & 590 & Les règles métier, sans base ni réseau \\
+Unitaires Java & 682 & Les règles métier, sans base ni réseau \\
 \hline
 Intégration Java & 55 & Le comportement contre une vraie base et un vrai progiciel, dont 18 cas d'acceptation qui déroulent un scénario métier complet \\
 \hline
@@ -44,12 +44,12 @@ React (Vitest) & 147 & Les composants et la logique de l'interface d'administrat
 Flutter (Dart) & 71 & L'application du livreur, dont la file d'attente hors ligne \\
 \hline
 \rowcolor{isimsblue!10}
-\textbf{Total} & \textbf{863} & \textbf{96 fichiers de test} \\
+\textbf{Total} & \textbf{955} & \textbf{103 fichiers de test} \\
 \hline
 \end{longtable}
 \end{small}
 
-Les tests se concentrent sur les deux composants qui portent le métier~: 265 pour la gestion des
+Les tests se concentrent sur les deux composants qui portent le métier~: 309 pour la gestion des
 livraisons et 247 pour le connecteur ERP. La passerelle en compte 23, son rôle se limitant au
 routage et à l'autorisation.
 
@@ -61,7 +61,7 @@ Les tableaux des chapitres de sprint retiennent les classes les plus significati
 itération et ne constituent pas un inventaire~: leur somme est donc inférieure au total ci-dessus.
 
 La figure~\ref{fig:ci-tests} présente l'agrégation des rapports produits par la chaîne. Elle affiche
-792 tests~: les 590 tests unitaires Java, les 55 tests d'intégration et les 147 tests React, tous
+884 tests~: les 682 tests unitaires Java, les 55 tests d'intégration et les 147 tests React, tous
 exécutés par la même chaîne. Les 71 tests Flutter n'y figurent pas, l'application du livreur étant
 développée dans un dépôt distinct.
 
