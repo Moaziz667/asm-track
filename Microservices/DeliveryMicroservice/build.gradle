@@ -119,7 +119,7 @@ jacocoTestReport {
     // fichier .exec dans build/jacoco. Les agreger donne la couverture reelle du service : mesurer
     // les seuls tests unitaires sur l'integralite du code la sous-estime lourdement, puisque tout
     // ce que verifient les tests d'integration est alors compte comme non couvert.
-    executionData.setFrom(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+    executionData.setFrom(fileTree(layout.buildDirectory.get().asFile).include("jacoco/*.exec"))
     reports {
         csv.required = true
         xml.required = true
