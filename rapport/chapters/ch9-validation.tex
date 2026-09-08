@@ -106,28 +106,21 @@ sans la rendre bloquante la garde sous les yeux de l'équipe.
 
 \section{Le déploiement}
 
-Le serveur ne compile rien. Il tire les images produites à l'étape précédente et redémarre les sept
-services applicatifs. Une surcouche de composition, \code{docker-compose.registry.yml}, remplace les
-sections \code{build} du fichier de base par des références au registre. Le fichier de base garde
-les siennes, si bien qu'un poste de développement continue de compiler depuis les sources et ignore
-la surcouche.
+Le serveur ne compile rien~: il récupère les images produites à l'étape précédente et redémarre les
+sept services applicatifs, une surcouche de composition remplaçant les sections \code{build} du
+fichier de base par des références au registre.
 
-Cinq services ne sont pas récupérés lors du déploiement~: PostgreSQL, Keycloak, RabbitMQ, MinIO et
-OSRM. Ils ne sont pas construits par le projet, et la plupart sont désignés par un \emph{tag} qui
-suit les mises à jour de leur éditeur~: les récupérer à chaque déploiement installerait une version
-que personne n'a demandée. Le déploiement conserve donc leurs conteneurs, leurs volumes et leurs
-données.
+Cinq composants tiers ne sont pas récupérés, à savoir PostgreSQL, Keycloak, RabbitMQ, MinIO et OSRM,
+la plupart étant désignés par un \emph{tag} qui suit les mises à jour de leur éditeur, si bien que
+le déploiement conserve leurs conteneurs, leurs volumes et leurs données.
 
-L'étape est manuelle, y compris sur la branche principale~: la démonstration tourne sur cette
-machine, et c'est une personne qui doit choisir le moment. Les services sont redémarrés un par un,
-des services métier vers la passerelle, afin de raccourcir la fenêtre pendant laquelle celle-ci
-pointe vers un composant en cours de démarrage.
+L'étape est manuelle et redémarre les services un par un, des services métier vers la passerelle,
+afin de raccourcir la fenêtre pendant laquelle celle-ci pointe vers un composant en cours de
+démarrage.
 
-Le job ne se déclare pas réussi sur un conteneur démarré. Il attend que chaque service devienne
-sain, puis interroge la console en HTTPS et exige un code~200. L'empreinte en service est relevée
-avant d'être remplacée et affichée dans le journal, avec la commande de retour arrière. Enfin, la
-configuration nginx du serveur est reposée depuis le dépôt à chaque déploiement~: elle n'existait
-auparavant que sur la machine distante, sans trace dans aucun \emph{commit}.
+Le job ne se déclare pas réussi sur un conteneur démarré~: il attend que chaque service devienne
+sain, interroge la console en HTTPS et exige un code~200, après avoir relevé l'empreinte en service
+pour permettre un retour arrière.
 
 \begin{figure}[H]\centering
 \includegraphics[width=\textwidth,height=0.26\textheight,keepaspectratio]{apponserver}
