@@ -71,11 +71,12 @@ class MarkdownParserTest {
                 .extracting(ParsedChunk::section).isEqualTo("Guide");
     }
 
+    /** Le titre est repris en tête du fragment, mais dépouillé de ses dièses. */
     @Test
     void keepsTheHeadingInsideTheChunkContent() {
         var chunks = parser().parse("# Guide\nCorps.\n");
 
-        assertThat(chunks.get(0).content()).contains("# Guide").contains("Corps.");
+        assertThat(chunks.get(0).content()).startsWith("Guide").contains("Corps.");
     }
 
     @Test
@@ -133,12 +134,17 @@ class MarkdownParserTest {
         assertThat(chunks.get(0).content()).contains("Corps.");
     }
 
-    /** Trois tirets isolés en tête de fichier sont une ligne horizontale, pas un frontmatter. */
+    /**
+     * Trois tirets sans clôture sont une ligne horizontale, pas un frontmatter. Rien n'est retiré~:
+     * les tirets forment un premier fragment sans titre, et le corps reste intact dans le suivant.
+     */
     @Test
     void leavesAnUnterminatedFrontmatterAlone() {
         var chunks = parser().parse("---\n# Guide\nCorps.\n");
 
-        assertThat(chunks.get(0).content()).contains("Corps.");
+        assertThat(chunks).extracting(ParsedChunk::content)
+                .anyMatch(c -> c.contains("Corps."));
+        assertThat(chunks.get(0).content()).isEqualTo("---");
     }
 
     // ── Normalisation des fins de ligne ─────────────────────────────────────
