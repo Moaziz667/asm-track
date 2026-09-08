@@ -94,6 +94,22 @@ jacocoTestReport {
 	// les seuls tests unitaires sur l'integralite du code la sous-estime lourdement, puisque tout
 	// ce que verifient les tests d'integration est alors compte comme non couvert.
 	executionData.setFrom(fileTree(layout.buildDirectory.get().asFile).include("jacoco/*.exec"))
+	// Ce qui sort du denominateur, et pourquoi. Ces paquets ne contiennent aucune regle metier :
+	//   config   classes de cablage Spring, sans branche ni decision
+	//   dto	  porteurs de donnees traversant la frontiere HTTP
+	//   entity   entites JPA, dont le comportement est celui de l'ORM
+	//   *Application  la classe de demarrage et son main()
+	// Tout le reste est compte, service, controller, adapter, mapping et routing compris : ce sont
+	// les paquets ou une regle peut etre fausse, donc ceux que la couverture doit mesurer.
+	classDirectories.setFrom(files(classDirectories.files.collect {
+		fileTree(it).exclude(
+			"**/config/**",
+			"**/dto/**",
+			"**/entity/**",
+			"**/*Application.class"
+		)
+	}))
+
 	reports {
 		csv.required = true
 		xml.required = true
