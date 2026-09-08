@@ -106,3 +106,11 @@ jacocoTestReport {
 tasks.named('test') {
 	finalizedBy tasks.named('jacocoTestReport')
 }
+
+// Le rapport lit build/jacoco/*.exec, que produisent `test` ET `integrationTest`. Gradle 8 refuse
+// qu'une tache consomme la sortie d'une autre sans relation declaree, et le build echoue sur
+// « implicit dependency ». On declare donc l'ordre, et non une dependance : `dependsOn` ferait
+// demarrer les tests d'integration depuis le job unitaire, qui n'a pas de base de donnees.
+tasks.named('jacocoTestReport') {
+	mustRunAfter tasks.withType(Test)
+}
