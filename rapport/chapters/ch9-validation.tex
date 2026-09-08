@@ -10,19 +10,15 @@
 
 \section{Introduction}
 
-Les cinq chapitres précédents ont montré ce que chaque sprint a livré. Celui-ci regarde l'ensemble
-sous un autre angle~: comment on sait que le produit fonctionne, et comment il arrive sur une
-machine qui n'est pas celle du développeur.
+Les chapitres précédents ont présenté les fonctionnalités développées au cours des différents
+sprints. Celui-ci vérifie leur bon fonctionnement à l'échelle du système et décrit leur mise en
+service. Il présente successivement la stratégie de tests, la chaîne d'intégration continue,
+l'analyse de sécurité et le processus de déploiement.
 
-Les deux questions n'en font qu'une. Une chaîne d'intégration qui ne teste rien laisse passer des
-régressions. Une suite de tests que personne n'exécute automatiquement finit par mentir. Ce
-chapitre décrit donc le dispositif complet, des tests unitaires jusqu'aux conteneurs qui tournent
-sur le serveur.
+\section{Validation par les tests}
 
-\section{La pyramide de tests}
-
-Le dépôt compte \textbf{863 tests automatisés}. Leur répartition suit la forme attendue~: une base
-large de tests unitaires et une couche d'intégration plus mince.
+Le projet dispose de \textbf{863 tests automatisés}, répartis entre les tests unitaires, les tests
+d'intégration et les tests des deux interfaces.
 
 \begin{small}
 \begin{longtable}{L{4.6cm}C{1.8cm}L{6.6cm}}
@@ -53,16 +49,16 @@ Flutter (Dart) & 71 & L'application du livreur, dont la file d'attente hors lign
 \end{longtable}
 \end{small}
 
-Les deux services les plus fournis sont ceux qui portent le métier~: 265 tests pour la gestion des
-livraisons, 247 pour le connecteur ERP. La passerelle en compte 23, ce qui correspond à son rôle,
-router les requêtes et appliquer la politique d'autorisation.
+Les tests se concentrent sur les deux composants qui portent le métier~: 265 pour la gestion des
+livraisons et 247 pour le connecteur ERP. La passerelle en compte 23, son rôle se limitant au
+routage et à l'autorisation.
 
-Un seul test est désactivé par défaut, l'évaluation de la recherche documentaire décrite au
-chapitre~\ref{ch:ops}. Elle appelle un service externe facturé à l'usage et n'a donc pas sa place
-dans une exécution déclenchée à chaque \emph{commit}. Elle se lance à la demande.
+Un seul test est désactivé par défaut. Il évalue la recherche documentaire décrite au
+chapitre~\ref{ch:ops} et appelle un service externe facturé à l'usage. Il est donc exécuté
+uniquement à la demande.
 
-Le sommet de cette pyramide est vide~: aucun test ne pilote un navigateur, et les parcours complets
-de la console restent vérifiés à la main.
+Le sommet de la pyramide est vide~: aucun test ne pilote un navigateur, et les parcours complets de
+la console restent vérifiés manuellement.
 
 La figure~\ref{fig:ci-tests} montre l'agrégation des rapports produite par la chaîne. Elle affiche
 645 tests et non 863~: la chaîne n'agrège que les rapports JUnit, donc les couches Java. Les tests

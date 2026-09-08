@@ -124,7 +124,16 @@ test-admin:
   <<: *npm-admin
   stage: unit-test
   script:
-    - npm test
+    # Le rapporteur `junit` est integre a Vitest, aucun paquet a installer. Il est ajoute au
+    # rapporteur par defaut plutot que substitue : sans lui, le journal du job ne montrerait plus
+    # quel test a echoue, seulement un fichier XML que personne ne lit depuis un runner.
+    # Sans ce fichier, l'onglet « Tests » de la pipeline n'agregeait que les couches Java.
+    - npm test -- --reporter=default --reporter=junit --outputFile.junit=junit.xml
+  artifacts:
+    when: always
+    reports:
+      junit: Apps/admin-app-react/junit.xml
+    expire_in: 1 week
 
 # ── 2b. SECURITY ─────────────────────────────────────────────────────────────
 # Scan de vulnérabilités des dépendances. Trivy lit package-lock.json (npm) et vérifie les Dockerfile,
