@@ -33,6 +33,9 @@ partagée `asm-tenant-core` (résolution du tenant, filtres, SPI Hibernate) :
 
 ![Découpage des données par service](diagrams/drawio/Architecture/donnees-par-service.png)
 
+Côté clients : une console d'administration React dans ce dépôt, et une **application chauffeur
+Flutter** maintenue séparément — [Moaziz667/driverApp-asmtrack](https://github.com/Moaziz667/driverApp-asmtrack).
+
 **L'authentification n'est pas un service maison** : elle est déléguée à **Keycloak** (OIDC, JWT RS256, JWKS). Écrire un serveur d'authentification aurait été le plus sûr moyen de mal le faire.
 
 > 📖 **Documentation technique complète** dans [`docs/`](docs/index.md) — architecture, métier,
@@ -98,7 +101,8 @@ n'obtiennent pas la même réponse si leurs rôles diffèrent.
 |---|---|
 | ![Assistant](diagrams/drawio/Sprint5/s5-assistant.png) | ![Indicateurs](diagrams/drawio/Sprint5/s5-indicateurs.png) |
 
-**Application livreur** — Flutter, hors-ligne d'abord
+**Application livreur** — Flutter, hors-ligne d'abord ·
+dépôt dédié : [Moaziz667/driverApp-asmtrack](https://github.com/Moaziz667/driverApp-asmtrack)
 
 | Tournée du jour | Preuve de livraison | File de synchronisation |
 |---|---|---|
@@ -113,7 +117,7 @@ n'obtiennent pas la même réponse si leurs rôles diffèrent.
 | Backend | Java 17, Spring Boot 3.3.5, Spring Security OAuth2 Resource Server, Flyway |
 | Bases de données | PostgreSQL 16 (un par service) · H2 fichier pour l'adaptateur ERP |
 | Frontend | React 19, Vite 8, TypeScript, Tailwind CSS 4, TanStack Query 5, @dnd-kit, Leaflet |
-| Mobile | Flutter (Dart 3.8), Riverpod, Dio, Hive (file locale), geolocator, mobile_scanner, signature |
+| Mobile | Flutter (Dart 3.8), Riverpod, Dio, Hive (file locale), geolocator, mobile_scanner, signature — [dépôt séparé](https://github.com/Moaziz667/driverApp-asmtrack) |
 | Messagerie | RabbitMQ (AMQP + relais STOMP) |
 | Authentification | Keycloak 26 — OIDC, JWT RS256, JWKS, rôles composites `perm:*` |
 | Stockage | MinIO (photos de preuve de livraison) |
