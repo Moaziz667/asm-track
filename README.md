@@ -3,6 +3,10 @@
 > Projet de Fin d'Études — ISIMS 2026
 > Mohamed Aziz Hadjkacem — ASM (All Soft Multimédia), Sfax
 
+> **L'intégration continue tourne sur le GitLab auto-hébergé d'ASM.** GitHub n'exécute pas
+> `.gitlab-ci.yml` : aucun workflow ne s'exécute ici. La définition du pipeline est dans
+> [`.gitlab-ci.yml`](.gitlab-ci.yml) et des exécutions réussies sont montrées plus bas.
+
 ---
 
 ## Aperçu
@@ -187,6 +191,25 @@ cd Apps/admin-app-react && npm test                    # frontend
 ```
 
 Le connecteur Odoo est vérifié en intégration contre **deux versions simultanées, 16 et 19**, démarrées en conteneurs par la CI. Les deux extrémités de la plage supportée étant couvertes, les versions intermédiaires le sont par construction. Ces tests épinglent précisément ce qui change entre versions — `qty_done` devenu `quantity`, `create_returns` devenu `action_create_returns`, et le pilotage des assistants de confirmation.
+
+---
+
+## Intégration continue
+
+Le pipeline est ordonné du contrôle le moins coûteux au plus coûteux : ce qui échoue vite échoue
+d'abord. Les images sont épinglées au SHA du commit, de sorte que le serveur exécute exactement
+l'artefact qui a été testé.
+
+| Suites complètes | Compatibilité Odoo 16 et 19 |
+|---|---|
+| ![Exécution des tests](diagrams/drawio/Sprint3/s3-ci-tests.png) | ![Tests bi-version](diagrams/drawio/Sprint2/s2-ci-biversion.png) |
+
+| Isolation multi-tenant vérifiée en CI | Contrôle RBAC |
+|---|---|
+| ![Isolation](diagrams/drawio/Sprint1/s1-ci-isolation.png) | ![RBAC](diagrams/drawio/Sprint1/s1-ci-rbac-check.png) |
+
+L'isolation entre clients et la politique RBAC ne sont pas seulement documentées : elles sont
+rejouées à chaque pipeline. Une règle manquante ou un schéma qui fuit fait échouer la construction.
 
 ---
 
