@@ -161,3 +161,6 @@ rapport/PLAN.md
 # Certificats TLS du serveur : une cle privee ne se versionne jamais.
 Microservices/certs/*
 !Microservices/certs/README.md
+
+# local agent config
+.claude/
