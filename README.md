@@ -200,16 +200,22 @@ Le pipeline est ordonné du contrôle le moins coûteux au plus coûteux : ce qu
 d'abord. Les images sont épinglées au SHA du commit, de sorte que le serveur exécute exactement
 l'artefact qui a été testé.
 
-| Suites complètes | Compatibilité Odoo 16 et 19 |
-|---|---|
-| ![Exécution des tests](diagrams/drawio/Sprint3/s3-ci-tests.png) | ![Tests bi-version](diagrams/drawio/Sprint2/s2-ci-biversion.png) |
+**20 jobs, 6 étapes, 11 minutes 49 secondes** — de la compilation jusqu'au déploiement.
 
-| Isolation multi-tenant vérifiée en CI | Contrôle RBAC |
-|---|---|
-| ![Isolation](diagrams/drawio/Sprint1/s1-ci-isolation.png) | ![RBAC](diagrams/drawio/Sprint1/s1-ci-rbac-check.png) |
+![Pipeline, de la compilation à la construction des images](diagrams/drawio/chap9/PIPELINE.png)
+
+![La même exécution, jusqu'au déploiement](diagrams/drawio/chap9/PIPELINE2.png)
+
+Le rapport de tests est agrégé par la chaîne, tous services confondus :
+
+![Rapport de tests agrégé](diagrams/drawio/chap9/ci-tests.png)
 
 L'isolation entre clients et la politique RBAC ne sont pas seulement documentées : elles sont
-rejouées à chaque pipeline. Une règle manquante ou un schéma qui fuit fait échouer la construction.
+rejouées à chaque exécution. Une règle manquante ou un schéma qui fuit fait échouer la construction.
+
+| Isolation multi-tenant | Compatibilité Odoo 16 et 19 |
+|---|---|
+| ![Isolation](diagrams/drawio/Sprint1/s1-ci-isolation.png) | ![Tests bi-version](diagrams/drawio/Sprint2/s2-ci-biversion.png) |
 
 ---
 
