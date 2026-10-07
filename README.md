@@ -15,7 +15,8 @@ Le parti pris central : **l'ERP du client reste maître de ses documents et de s
 
 ## Architecture
 
-**5 microservices Spring Boot**, chacun propriétaire de sa base de données :
+**6 microservices Spring Boot**, chacun propriétaire de sa base de données, plus une bibliothèque
+partagée `asm-tenant-core` (résolution du tenant, filtres, SPI Hibernate) :
 
 | Service | Port | Responsabilité |
 |---|---|---|
@@ -24,6 +25,9 @@ Le parti pris central : **l'ERP du client reste maître de ses documents et de s
 | `DeliveryMicroservice` | 8082 | Cœur métier : livraisons, tournées, retours, encaissements, SLA |
 | `DriverService` | 8086 | Livreurs, véhicules, disponibilité |
 | `ErpAdapterService` | 8088 | Traduction vers l'ERP du client (Odoo, ERPNext) |
+| `AssistantService` | 8087 | Assistant RAG — réponses sur les données métier, dans le périmètre de permissions de l'utilisateur |
+
+![Découpage des données par service](diagrams/drawio/Architecture/donnees-par-service.png)
 
 **L'authentification n'est pas un service maison** : elle est déléguée à **Keycloak** (OIDC, JWT RS256, JWKS). Écrire un serveur d'authentification aurait été le plus sûr moyen de mal le faire.
 
@@ -58,6 +62,8 @@ Chacune est détaillée dans un ADR — contexte, alternatives écartées et **c
 
 **Multi-tenant par schéma PostgreSQL** — un schéma `company_<uuid>` par client, résolu à l'exécution via le SPI de multi-tenance d'Hibernate. Un seul pool de connexions, un `SET search_path` au retrait. Le nom de schéma dérive d'un `UUID` déjà parsé, donc il est sûr par construction vis-à-vis de l'injection SQL.
 
+![Routage multi-tenant](diagrams/drawio/Architecture/routage-multitenant.jpg)
+
 **Politique d'autorisation unique et déclarative** — un fichier `rbac-policy.json` décrit les règles `chemin → permission`. Il est répliqué à l'identique dans chaque service et évalué par la gateway *et* par le service. Les règles sont ordonnées, premier match gagnant, et **l'absence de règle vaut refus** (fail-closed). L'alternative — une annotation sur chacun des 271 endpoints — rendait impossible de répondre à « qui a le droit de faire quoi ? ».
 
 **Patron Outbox transactionnel** — un changement métier et son événement sont écrits dans la même transaction, puis relayés vers RabbitMQ par un processus séparé. 15 tentatives à backoff exponentiel (`2^n × 5 s`, plafonné à 4 h), ce qui couvre une indisponibilité de week-end avant la mise en file morte. Sans cela, un ERP injoignable au mauvais moment perdait silencieusement la synchronisation.
@@ -65,6 +71,34 @@ Chacune est détaillée dans un ADR — contexte, alternatives écartées et **c
 **Ports & Adapters pour l'ERP** — quatre interfaces (`ErpSyncPort`, `ErpLookupPort`, `ErpOrderPort`, `ErpChangePort`) et **deux implémentations réelles** : Odoo (16 → 19, via JSON-RPC) et ERPNext (via l'API REST Frappe). Un client sans ERP est servi par un adaptateur nul explicite plutôt que par des `if` dispersés.
 
 **Temps réel** — WebSocket STOMP relayé par RabbitMQ vers le poste de dispatch.
+
+![Topologie de messagerie](diagrams/drawio/Architecture/topologie-messagerie.png)
+
+**Assistant RAG** — les réponses sont construites sur les données métier vivantes, filtrées par le
+périmètre de permissions de l'utilisateur qui pose la question : deux utilisateurs d'un même client
+n'obtiennent pas la même réponse si leurs rôles diffèrent.
+
+![Chaîne RAG](diagrams/drawio/Sprint5/rag-pipeline.svg)
+
+---
+
+## Interfaces
+
+**Poste de dispatch et back-office** — React 19
+
+| Dispatch | Construction de tournée |
+|---|---|
+| ![Poste de dispatch](diagrams/drawio/Sprint3/dispatchdesk.png) | ![Tournée](diagrams/drawio/Sprint3/perroutepage.png) |
+
+| Assistant | Indicateurs |
+|---|---|
+| ![Assistant](diagrams/drawio/Sprint5/s5-assistant.png) | ![Indicateurs](diagrams/drawio/Sprint5/s5-indicateurs.png) |
+
+**Application livreur** — Flutter, hors-ligne d'abord
+
+| Tournée du jour | Preuve de livraison | File de synchronisation |
+|---|---|---|
+| ![Tournée](diagrams/drawio/Sprint4/s4-tournee.jpg) | ![Preuve](diagrams/drawio/Sprint4/s4-preuve.png) | ![Synchronisation](diagrams/drawio/Sprint4/s4-synchro.png) |
 
 ---
 
